@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Desktop Buddy",
+  "version": "0.2.0",
+  "identifier": "com.artmarketvm.desktopbuddy",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Desktop Buddy",
+        "width": 1280,
+        "height": 900,
+        "minWidth": 760,
+        "minHeight": 600
+      },
+      {
+        "label": "buddy",
+        "title": "A little check-in",
+        "url": "index.html?buddy",
+        "width": 140,
+        "height": 140,
+        "transparent": true,
+        "decorations": false,
+        "shadow": false,
+        "visible": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "skipTaskbar": true,
+        "focus": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "shortDescription": "A quiet focus companion",
+    "category": "Productivity",
+    "icon": ["icons/icon.ico"]
+  }
+}

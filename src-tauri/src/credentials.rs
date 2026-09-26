@@ -1,0 +1,145 @@
+//! Runtime-only provider secrets. Never return saved credentials to the webview.
+pub fn provider_name(provider: &str) -> Result<&'static str, String> {
+    match provider {
+        "nebius" => Ok("NEBIUS_API_KEY"),
+        "tavily" => Ok("TAVILY_API_KEY"),
+        _ => Err("Unknown provider".into()),
+    }
+}
+
+pub fn validate_key(key: &str) -> Result<&str, String> {
+    let key = key.trim();
+    if key.is_empty() || key.len() > 2048 || !key.bytes().all(|b| b.is_ascii_graphic()) {
+        return Err("Enter an API key of 1–2048 characters without spaces".into());
+    }
+    Ok(key)
+}
+
+#[cfg(windows)]
+mod vault {
+    use windows::{
+        core::{PCWSTR, PWSTR},
+        Win32::{Foundation::ERROR_NOT_FOUND, Security::Credentials::*},
+    };
+    fn target(name: &str) -> Vec<u16> {
+        format!("DesktopBuddy/{name}")
+            .encode_utf16()
+            .chain(Some(0))
+            .collect()
+    }
+    pub fn read(name: &str) -> Result<Option<String>, String> {
+        let target = target(name);
+        let mut credential = std::ptr::null_mut();
+        unsafe {
+            if let Err(error) = CredReadW(
+                PCWSTR(target.as_ptr()),
+                CRED_TYPE_GENERIC,
+                None,
+                &mut credential,
+            ) {
+                if error.code() == ERROR_NOT_FOUND.to_hresult() {
+                    return Ok(None);
+                }
+                return Err("Windows Credential Manager could not read the API key".into());
+            }
+            let entry = &*credential;
+            let result = if entry.CredentialBlobSize == 0 {
+                Ok(String::new())
+            } else {
+                String::from_utf8(
+                    std::slice::from_raw_parts(
+                        entry.CredentialBlob,
+                        entry.CredentialBlobSize as usize,
+                    )
+                    .to_vec(),
+                )
+            };
+            CredFree(credential.cast());
+            result
+                .map(Some)
+                .map_err(|_| "Saved credential is invalid; replace it in Settings".into())
+        }
+    }
+    pub fn write(name: &str, key: Option<&str>) -> Result<(), String> {
+        let mut target = target(name);
+        unsafe {
+            if let Some(key) = key {
+                let mut bytes = key.as_bytes().to_vec();
+                let credential = CREDENTIALW {
+                    Type: CRED_TYPE_GENERIC,
+                    TargetName: PWSTR(target.as_mut_ptr()),
+                    CredentialBlobSize: bytes.len() as u32,
+                    CredentialBlob: bytes.as_mut_ptr(),
+                    Persist: CRED_PERSIST_LOCAL_MACHINE,
+                    ..Default::default()
+                };
+                CredWriteW(&credential, 0).map_err(|_| {
+                    "Windows Credential Manager could not save the API key".to_string()
+                })
+            } else {
+                match CredDeleteW(PCWSTR(target.as_ptr()), CRED_TYPE_GENERIC, None) {
+                    Ok(()) => Ok(()),
+                    Err(error) if error.code() == ERROR_NOT_FOUND.to_hresult() => Ok(()),
+                    Err(_) => Err("Windows Credential Manager could not remove the API key".into()),
+                }
+            }
+        }
+    }
+}
+#[cfg(not(windows))]
+mod vault {
+    pub fn read(_: &str) -> Result<Option<String>, String> {
+        Ok(None)
+    }
+    pub fn write(_: &str, _: Option<&str>) -> Result<(), String> {
+        Err("Saving API keys is supported on Windows only".into())
+    }
+}
+pub use vault::{read, write};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn accepts_only_known_providers() {
+        assert_eq!(provider_name("nebius").unwrap(), "NEBIUS_API_KEY");
+        assert_eq!(provider_name("tavily").unwrap(), "TAVILY_API_KEY");
+        assert!(provider_name("arbitrary-secret").is_err());
+    }
+    #[test]
+    fn validates_without_echoing_secrets() {
+        assert_eq!(validate_key(" test-key ").unwrap(), "test-key");
+        for key in ["", "a b", "a\nb", "é"] {
+            assert!(validate_key(key).is_err());
+        }
+        assert!(validate_key(&"x".repeat(2049)).is_err());
+    }
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "Writes an isolated test credential to Windows Credential Manager"]
+    fn windows_vault_round_trip() {
+        let name = format!(
+            "test-{}-{}",
+            std::process::id(),
+            chrono::Utc::now().timestamp_nanos_opt().unwrap()
+        );
+        struct Cleanup(String);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = write(&self.0, None);
+            }
+        }
+        let _cleanup = Cleanup(name.clone());
+        assert!(read(&name).unwrap().is_none());
+        write(&name, Some("test-key-only")).unwrap();
+        assert_eq!(read(&name).unwrap().as_deref(), Some("test-key-only"));
+        write(&name, Some("replacement-test-key")).unwrap();
+        assert_eq!(
+            read(&name).unwrap().as_deref(),
+            Some("replacement-test-key")
+        );
+        write(&name, None).unwrap();
+        assert!(read(&name).unwrap().is_none());
+        write(&name, None).unwrap();
+    }
+}
