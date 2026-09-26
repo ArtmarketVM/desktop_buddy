@@ -1,6 +1,6 @@
 [package]
 name = "desktop-buddy"
-version = "0.2.0"
+version = "0.3.0"
 description = "A local-first focus companion for Windows"
 edition = "2021"
 
@@ -15,7 +15,7 @@ custom-protocol = ["tauri/custom-protocol"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["tray-icon"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -26,7 +26,7 @@ tokio = { version = "1", features = ["time", "sync", "macros"] }
 dotenvy = "0.15"
 
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_SystemInformation"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_SystemInformation"] }
 
 [dev-dependencies]
 wiremock = "0.6"

@@ -20,6 +20,7 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     inner.buddy.last_search = Some(Instant::now() - Duration::from_secs(901));
     assert!(due(&inner));
     inner.buddy.view.suggestion = Some(Suggestion {
+        id: 1,
         title: "Resource".into(),
         url: "https://example.com".into(),
         reason: "Useful topic".into(),
@@ -42,6 +43,7 @@ fn persists_preferences_and_deduplicates_per_goal() {
         .save_buddy_preferences(&BuddyPreferences {
             suggestions_only: false,
             proactive: true,
+            ..Default::default()
         })
         .unwrap();
     assert!(!storage.buddy_preferences().unwrap().suggestions_only);

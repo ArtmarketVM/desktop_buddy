@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Add a local preview of the minimized context used by AI requests.
+- Add excluded applications, optional 7/30/90-day retention, and confirmed local-history deletion that pauses tracking while preserving the active goal and provider keys.
+- Add explicit provider connection checks without sending goals or activity, and safe actionable HTTP errors.
+- Add tray actions, close-to-tray behavior, persisted companion position, and scheduling foundations from the ongoing desktop-reliability work.
+- Add model-assisted resource selection and stored recommendation records; history, rating, and frequency controls are not yet exposed in the UI.
+
+Known limits: native tray/monitor interactions, live provider access, and install-over-existing-data still need manual verification. History deletion is logical deletion, not secure erasure, and cannot remove data already sent to providers. Automatic updates and installer signing are not implemented.
+
 ## 0.2.0
 
 - Move Buddy into a transparent, always-on-top, draggable desktop window.

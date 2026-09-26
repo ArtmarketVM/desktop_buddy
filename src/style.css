@@ -1,5 +1,36 @@
 @import "@fontsource-variable/dm-sans";
 @import "@fontsource-variable/manrope";
+.privacy-settings {
+  border-top: 1px solid #cad8bd;
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.privacy-settings p,
+.privacy-settings li {
+  line-height: 1.6;
+}
+.privacy-preview {
+  padding: 14px;
+  border-radius: 10px;
+  background: #eef1e9;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 350px;
+  overflow-y: auto;
+  font-size: 12px;
+}
+.privacy-settings select {
+  display: block;
+  padding: 10px;
+  margin: 10px 0;
+  max-width: 100%;
+}
+.danger-zone {
+  border: 1px solid #d9b7ad;
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 24px;
+}
 html.buddy-window,
 .buddy-window body,
 .buddy-window #root,

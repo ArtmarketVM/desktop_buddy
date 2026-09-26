@@ -43,14 +43,24 @@ Endpoint references: [Nebius API](https://api.tokenfactory.nebius.com/docs), [Ta
 2. Rust polls the foreground process, title, and idle time every three seconds. Contiguous activity is aggregated into SQLite segments; idle periods do not count toward active time.
 3. AI check-ins are off by default. Enabling them permits sending the goal and up to ten recent segments to Nebius. Titles are limited to 160 characters. Automatic checks run at most once per minute (20 seconds with simulated activity).
 4. A validated model decision is stored locally. High-confidence interventions or offers of help may show a separate, always-on-top Buddy window. Do not disturb suppresses popups; dismissing or marking activity related starts a ten-minute nudge cooldown.
-5. Manual search sends the typed query to Tavily. Optional **Proactive suggestions** separately permits sending the goal and up to five recent window titles to Nebius to generate a search query, then sending that query to Tavily. The first unseen search result is offered as a resource; it is not an independently verified recommendation. No URLs are invented by the model. Requests run at most once per 15 minutes per app run, starting after activity is available, and stop while paused, idle, or in DND. Mock AI mode disables this real-provider feature.
+5. Manual search sends the typed query to Tavily. Optional **Proactive suggestions** separately permits sending the goal and up to five recent window titles to Nebius to generate a search query, then sending that query to Tavily. Nebius selects an unseen result using its title and snippet, or declines to recommend one; it does not independently verify the page. No URLs are invented by the model. Attempts default to 15-minute spacing, persisted across restarts, and are suppressed while paused, idle, snoozed, in DND, or in an excluded application. Meeting/fullscreen detection is heuristic. Mock AI mode disables this real-provider feature.
 
-## Desktop companion (0.2.0)
+## Privacy controls (0.3.0)
 
-- In Settings, **Show Buddy only with suggestions** defaults to checked. Uncheck it to keep a small animated character visible during tracking. Drag the character to position it on a monitor. Position is retained during the current run, not across restarts.
+Settings includes a local-only preview of the goal and minimized recent activity used for focus checks and proactive query planning. Generating this preview does not send a request. It is not a complete wire payload: resource selection also sends up to five search-result titles, URLs and snippets, plus up to ten current-goal ratings to Nebius. Tavily receives the typed or generated query.
+
+Exclude applications by executable name, such as `passwordmanager.exe`. Matching is case-insensitive. Excluded activity is not newly stored and existing matching records are filtered out of future AI context; previously saved records are not automatically deleted. Already transmitted requests cannot be recalled.
+
+Retention is off by default. Choose 7, 30, or 90 days to delete old history immediately, at startup, and hourly while running. Confirmed **Clear local history** deletes recorded activity, decisions, feedback, recommendations and inactive goals, and pauses tracking. The active goal, settings and provider keys remain. This is logical database deletion, not forensic erasure; backups and provider-side records are unaffected.
+
+Use **Test saved connection** to check the saved key (or environment fallback), not unsaved input. Nebius checks model-list access and whether the configured model is listed; Tavily checks usage access. Neither sends your goal/activity or performs generation/search. A successful check does not establish billing readiness or guarantee later inference/search success.
+
+## Desktop companion (0.3.0)
+
+- In Settings, **Show Buddy only with suggestions** defaults to checked. Uncheck it to keep a small animated character visible during tracking. Drag the character to position it on a monitor. Position is saved locally and restored within an available monitor's work area; multi-monitor behavior still requires native verification.
 - Suggestions and focus nudges expand the transparent, always-on-top window into a card for 45 seconds. Dismiss returns to the selected mode. Pause and DND hide both modes. The app does not request keyboard focus when showing a suggestion; **Workspace** explicitly returns to the main window.
 - Enable **Proactive suggestions** and configure both Nebius and Tavily to receive resource links. This consent and the display preference persist locally. AI check-in consent remains separate and resets at startup. Tracking always starts paused. Generated queries may still contain sensitive context; model instructions to omit private details are not a guaranteed redaction filter.
-- Minimize the main window to keep Buddy running. Closing it exits the application. Links open only after clicking **Open resource**. Previously offered URLs are recorded per goal in SQLite to avoid exact repeats, ignoring URL fragments.
+- Closing the workspace hides it to the tray. Use the tray to reopen it, pause/resume tracking, snooze Buddy, or quit; the workspace also has an explicit quit button. Links open only after clicking **Open resource**. Previously offered URLs are recorded per goal in SQLite to avoid exact repeats, ignoring URL fragments.
 - Animation is CSS-based and honors reduced-motion preferences. Exclusive fullscreen applications and secure Windows desktops are not supported overlay targets.
 - Each delivered installer must receive a new version. Patch bumps cover fixes; minor bumps cover features. The build checks that npm, Cargo, lockfiles and Tauri versions match; the UI reads the native package version.
 
@@ -67,7 +77,7 @@ React UI -> Tauri commands -> Rust application state
 
 `src/components` contains GoalInput, ActivityTimeline, and DesktopBuddy. `src/api/tauri.ts` is the typed bridge. `src-tauri/src` contains commands, the Buddy scheduler/window controller, collector adapters, storage, models, and HTTP integrations. SQLite lives in the per-user application data directory under `com.artmarketvm.desktopbuddy/buddy.db` (on Windows, normally `%APPDATA%`). Goals, activity segments, decisions, feedback, Buddy preferences, and offered URLs persist across restarts. AI check-in consent, tracking, and DND reset on restart.
 
-Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. This MVP does not automatically delete historical data. To remove it, close the app and delete its `buddy.db`, `buddy.db-wal`, and `buddy.db-shm` files (or the corresponding `buddy-demo` files). No screenshots are captured. Screenshot and UI Automation extension points are explicit stubs; no macOS/Linux collector is implemented.
+Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. Use the privacy controls above for retention and history deletion. No screenshots are captured. Screenshot and UI Automation extension points are explicit stubs; no macOS/Linux collector is implemented.
 
 ## Tests and builds
 
@@ -87,6 +97,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.2.0 includes a focus dashboard, secure provider-key settings, a draggable animated desktop companion, and opt-in resource suggestions. There is no tray/autostart integration, server-side account system, encrypted activity database, automatic retention policy, or screenshot analysis. Closing the main application exits tracking.
+Version 0.3.0 adds privacy controls and initial tray/reliability work. Resource selection now ranks real search results with Nebius instead of offering the first unseen result; this is not independent fact-checking. History, rating, and frequency UI from roadmap items 1–3 remain unfinished. There is no autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

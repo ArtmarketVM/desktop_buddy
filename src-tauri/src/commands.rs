@@ -6,6 +6,9 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub retention_days: u32,
+    pub last_cleanup: Instant,
+    pub privacy_revision: u64,
     pub buddy: crate::buddy::Runtime,
     pub storage: Storage,
     pub collector: Box<dyn collector::ActivityCollector>,
@@ -21,12 +24,28 @@ pub struct AppState {
     pub analysis: tokio::sync::Mutex<()>,
 }
 impl AppState {
-    pub fn new(storage: Storage) -> Result<Self, String> {
+    pub fn new(mut storage: Storage) -> Result<Self, String> {
         let demo = http::enabled("DEMO_MODE");
+        let mut buddy = crate::buddy::Runtime::new(crate::attention::validate_preferences(
+            storage.buddy_preferences()?,
+        )?);
+        buddy.position = storage.read_setting("buddy_position")?;
+        buddy.view.snoozed_until = storage.read_setting("buddy_snooze")?;
+        buddy.last_attempt_at = storage.read_setting("buddy_last_attempt")?;
+        let retention_days = storage.read_setting("retention_days")?.unwrap_or(0);
+        crate::privacy::validate_retention(retention_days)?;
+        if retention_days > 0 {
+            let cutoff =
+                (chrono::Utc::now() - chrono::Duration::days(retention_days as i64)).to_rfc3339();
+            storage.purge_history(Some(&cutoff))?;
+        }
         Ok(Self {
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
-                buddy: crate::buddy::Runtime::new(storage.buddy_preferences()?),
+                retention_days,
+                last_cleanup: Instant::now(),
+                privacy_revision: 0,
+                buddy,
                 storage,
                 collector: collector::create(demo),
                 status: Status {
@@ -104,6 +123,8 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         None
     };
     Ok(Dashboard {
+        retention_days: inner.retention_days,
+        recommendations: inner.storage.recommendation_history()?,
         version: env!("CARGO_PKG_VERSION"),
         buddy: inner.buddy.view.clone(),
         goal,
@@ -256,9 +277,12 @@ pub fn collect(state: &AppState) -> Result<(), String> {
     }
     if let Some(goal) = inner.storage.goal()? {
         let snapshot = inner.collector.collect()?;
+        inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
+        inner.buddy.foreground = Some(snapshot.clone());
         if !snapshot
             .process_name
             .eq_ignore_ascii_case("desktop-buddy.exe")
+            && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name)
         {
             inner.storage.activity(goal.id, &snapshot)?;
         }
@@ -271,6 +295,9 @@ pub fn should_analyze(state: &AppState) -> bool {
     };
     inner.status.tracking
         && inner.status.ai_enabled
+        && inner.buddy.view.quiet_reason.is_none()
+        && !crate::buddy::snoozed(&inner.buddy.view)
+        && !inner.status.dnd
         && inner
             .last_analysis
             .map(|t| t.elapsed() >= Duration::from_secs(if inner.status.demo { 20 } else { 60 }))
@@ -281,7 +308,7 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .analysis
         .try_lock()
         .map_err(|_| "A focus check is already running")?;
-    let (goal, activity, mock) = {
+    let (goal, activity, mock, privacy_revision) = {
         let mut inner = state
             .inner
             .lock()
@@ -293,12 +320,17 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
             return Err("Activity tracking is paused".into());
         }
         let goal = inner.storage.goal()?.ok_or("Set a goal first")?;
-        let activity = inner.storage.recent(goal.id)?;
+        let activity: Vec<_> = inner
+            .storage
+            .recent(goal.id)?
+            .into_iter()
+            .filter(|a| !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name))
+            .collect();
         inner.last_analysis = Some(Instant::now());
         if activity.is_empty() {
             return Err("Collect some activity before checking focus".into());
         }
-        (goal, activity, inner.status.mock_ai)
+        (goal, activity, inner.status.mock_ai, inner.privacy_revision)
     };
     let result = if mock {
         Ok(nebius::mock(&activity))
@@ -309,8 +341,19 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    if !inner.status.ai_enabled || inner.storage.goal()?.map(|g| g.id) != Some(goal.id) {
+    if !inner.status.ai_enabled
+        || inner.storage.goal()?.map(|g| g.id) != Some(goal.id)
+        || inner.privacy_revision != privacy_revision
+    {
         return Err("Focus check discarded because the goal or consent changed".into());
+    }
+    if automatic
+        && (inner.buddy.view.quiet_reason.is_some()
+            || crate::buddy::snoozed(&inner.buddy.view)
+            || inner.status.dnd
+            || !inner.status.tracking)
+    {
+        return Err("Focus check discarded while Buddy is quiet".into());
     }
     let mut decision = match result {
         Ok(d) => d,
@@ -327,7 +370,10 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .last_nudge
         .map(|t| t.elapsed() >= Duration::from_secs(600))
         .unwrap_or(true);
-    if should_nudge(&inner.status, cooldown, &decision, activity.last()) {
+    if inner.buddy.view.quiet_reason.is_none()
+        && !crate::buddy::snoozed(&inner.buddy.view)
+        && should_nudge(&inner.status, cooldown, &decision, activity.last())
+    {
         if inner.buddy.shown.is_none() {
             inner.buddy.decision(decision.clone());
             crate::buddy::sync(app, &mut inner)?;

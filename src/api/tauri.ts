@@ -7,6 +7,12 @@ import type {
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  privacyPreview: () => invoke<unknown>("get_privacy_preview"),
+  retention: (days: number) => invoke<void>("set_retention", { days }),
+  clearHistory: () => invoke<void>("clear_local_history", { confirmed: true }),
+  testConnection: (provider: "nebius" | "tavily") =>
+    invoke<string>("test_provider_connection", { provider }),
+  quit: () => invoke<void>("quit_app"),
   buddyPreferences: (preferences: BuddyPreferences) =>
     invoke<void>("set_buddy_preferences", { preferences }),
   openWorkspace: () => invoke<void>("open_workspace"),

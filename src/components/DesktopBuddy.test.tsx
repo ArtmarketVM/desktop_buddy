@@ -2,10 +2,13 @@ import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DesktopBuddy } from "./DesktopBuddy";
 import type { BuddyView } from "../types";
+import { defaultBuddyPreferences } from "../types";
 const view: BuddyView = {
-  preferences: { suggestions_only: false, proactive: false },
+  preferences: { ...defaultBuddyPreferences, suggestions_only: false },
   suggestion: null,
   decision: null,
+  snoozed_until: null,
+  quiet_reason: null,
 };
 const noop = () => {};
 describe("desktop companion", () => {
@@ -23,6 +26,7 @@ describe("desktop companion", () => {
         view={{
           ...view,
           suggestion: {
+            id: 1,
             title: "Rust guide",
             url: "https://example.com",
             reason: "Learn ownership",

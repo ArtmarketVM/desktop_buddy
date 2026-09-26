@@ -13,6 +13,7 @@ import {
 import { api, desktop, safeUrl } from "./api/tauri";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dashboard, SearchResult } from "./types";
+import { defaultBuddyPreferences } from "./types";
 import { GoalInput } from "./components/GoalInput";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { DesktopBuddy } from "./components/DesktopBuddy";
@@ -20,11 +21,15 @@ import packageInfo from "../package.json";
 import { Settings } from "./components/Settings";
 
 const empty: Dashboard = {
+  retention_days: 0,
+  recommendations: [],
   version: packageInfo.version,
   buddy: {
-    preferences: { suggestions_only: true, proactive: false },
+    preferences: defaultBuddyPreferences,
     suggestion: null,
     decision: null,
+    snoozed_until: null,
+    quiet_reason: null,
   },
   goal: null,
   activity: [],
@@ -174,7 +179,15 @@ export default function App() {
           </div>
         )}
         {settingsOpen && (
-          <Settings onChanged={refresh} preferences={data.buddy.preferences} />
+          <Settings
+            onChanged={refresh}
+            preferences={data.buddy.preferences}
+            retentionDays={data.retention_days}
+            onHistoryCleared={async () => {
+              setResults([]);
+              await refresh();
+            }}
+          />
         )}
         <div className="workspace-grid">
           <section className="focus-column">
@@ -277,8 +290,8 @@ export default function App() {
                 YOUR QUIET COMPANION <Sparkles size={15} />
               </div>
               <p>
-                Buddy lives on your desktop. Start a session and minimize this
-                workspace to keep working.
+                Buddy lives on your desktop. Closing this workspace keeps it
+                running in the system tray. Choose Quit to stop the app.
               </p>
               <h2>
                 {data.decision?.state === "focused"
@@ -359,6 +372,13 @@ export default function App() {
           </aside>
         </div>
         <footer>
+          <button
+            className="text-button"
+            disabled={!desktop || busy}
+            onClick={() => void run(api.quit)}
+          >
+            Quit Desktop Buddy
+          </button>
           DESIGNED FOR A LITTLE MORE FOCUS{" "}
           <span>No screenshots. Automatic search only with your consent.</span>
         </footer>

@@ -1,6 +1,20 @@
 use serde_json::Value;
 use std::time::Duration;
 
+pub fn status_error(status: u16) -> String {
+    let advice = match status {
+        400 => "The provider rejected the request. Check model and endpoint compatibility.",
+        401 => "The API key was rejected. Replace it in Settings.",
+        403 => "This key does not have permission. Check provider access and account settings.",
+        404 => "The endpoint or model was not found. Check provider configuration.",
+        402 => "Provider billing or credits are required. Check your provider account.",
+        429 => "Provider quota or rate limit reached. Check your limits and try again later.",
+        500..=599 => "The provider is temporarily unavailable. Try again later.",
+        _ => "The provider could not complete the request.",
+    };
+    format!("HTTP {status}: {advice}")
+}
+
 pub async fn post_json(
     client: &reqwest::Client,
     url: &str,
@@ -18,7 +32,7 @@ pub async fn post_json(
             }
             Ok(response) => {
                 let status = response.status();
-                last = format!("Service returned HTTP {}", status.as_u16());
+                last = status_error(status.as_u16());
                 if status.as_u16() != 429 && !status.is_server_error() {
                     return Err(last);
                 }
@@ -111,7 +125,7 @@ mod tests {
             )
             .await
             .unwrap_err(),
-            "Service returned HTTP 401"
+            status_error(401)
         );
     }
 }

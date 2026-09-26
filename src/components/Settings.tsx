@@ -1,13 +1,18 @@
 import { useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
+import { PrivacySettings } from "./PrivacySettings";
 
 export function Settings({
   onChanged,
   preferences,
+  retentionDays,
+  onHistoryCleared,
 }: {
   onChanged: () => Promise<void>;
   preferences: BuddyPreferences;
+  retentionDays: number;
+  onHistoryCleared: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -47,7 +52,8 @@ export function Settings({
           <small>
             Allows Nebius to receive your goal and recent window titles to
             create a search query, then sends that query to Tavily. Provider
-            charges may apply. At most once every 15 minutes; disabled while
+            charges may apply. Nebius also receives search result snippets and
+            your ratings for this goal to select a resource. Disabled while
             paused or in DND.
           </small>
         </span>
@@ -60,8 +66,8 @@ export function Settings({
       </label>
       <p className="helper">
         Both provider keys are needed for suggestions. No automatic browser
-        opening. Minimize the workspace to keep Buddy running; closing it exits
-        the app.
+        opening. Closing the workspace keeps Buddy running in the system tray.
+        Choose Quit to stop it.
       </p>
       {error && <p role="alert">{error}</p>}
       <p className="helper">
@@ -70,6 +76,12 @@ export function Settings({
       </p>
       <ProviderKey provider="nebius" label="Nebius" onChanged={onChanged} />
       <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
+      <PrivacySettings
+        preferences={preferences}
+        retentionDays={retentionDays}
+        onChanged={onChanged}
+        onHistoryCleared={onHistoryCleared}
+      />
       <p className="helper">
         Saving a key does not enable AI check-ins or send activity. Provider
         usage may incur charges. A configured key has not necessarily been
@@ -137,6 +149,22 @@ function ProviderKey({
         onChange={(event) => setKey(event.target.value)}
       />
       <div className="settings-actions">
+        <button
+          type="button"
+          disabled={!desktop || busy}
+          onClick={() => {
+            setBusy(true);
+            setError("");
+            setMessage("");
+            void api
+              .testConnection(provider)
+              .then(setMessage)
+              .catch((e) => setError(String(e)))
+              .finally(() => setBusy(false));
+          }}
+        >
+          Test saved connection
+        </button>
         <button disabled={!desktop || busy || !key.trim()}>
           {busy ? "Working…" : "Save key"}
         </button>
@@ -149,6 +177,11 @@ function ProviderKey({
           Remove saved key
         </button>
       </div>
+      <p className="helper">
+        Tests the saved or environment key, not unsaved input. Sends only
+        authentication to the configured provider, without goals, window titles,
+        or search queries. It does not perform generation or search.
+      </p>
       {message && (
         <p className="helper" role="status">
           {message}

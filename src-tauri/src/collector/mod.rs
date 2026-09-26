@@ -6,6 +6,16 @@ mod windows;
 pub trait ActivityCollector: Send {
     fn collect(&mut self) -> Result<ActivitySnapshot, String>;
 }
+pub fn foreground_fullscreen() -> bool {
+    #[cfg(windows)]
+    {
+        windows::foreground_fullscreen()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
 
 #[derive(Default)]
 pub struct DurationTracker {

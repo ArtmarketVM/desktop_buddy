@@ -67,6 +67,8 @@ pub struct Status {
 }
 #[derive(Serialize)]
 pub struct Dashboard {
+    pub retention_days: u32,
+    pub recommendations: Vec<Recommendation>,
     pub version: &'static str,
     pub buddy: BuddyView,
     pub goal: Option<Goal>,
@@ -81,17 +83,28 @@ pub struct Dashboard {
 pub struct BuddyPreferences {
     pub suggestions_only: bool,
     pub proactive: bool,
+    pub interval_minutes: u32,
+    pub suppress_fullscreen: bool,
+    pub suppress_meetings: bool,
+    pub wait_for_input_pause: bool,
+    pub excluded_apps: Vec<String>,
 }
 impl Default for BuddyPreferences {
     fn default() -> Self {
         Self {
             suggestions_only: true,
             proactive: false,
+            interval_minutes: 15,
+            suppress_fullscreen: true,
+            suppress_meetings: true,
+            wait_for_input_pause: true,
+            excluded_apps: vec![],
         }
     }
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Suggestion {
+    pub id: i64,
     pub title: String,
     pub url: String,
     pub reason: String,
@@ -101,4 +114,24 @@ pub struct BuddyView {
     pub preferences: BuddyPreferences,
     pub suggestion: Option<Suggestion>,
     pub decision: Option<Decision>,
+    pub snoozed_until: Option<i64>,
+    pub quiet_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct BuddyPosition {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Recommendation {
+    pub id: i64,
+    pub goal_id: i64,
+    pub goal: String,
+    pub title: String,
+    pub url: String,
+    pub reason: String,
+    pub created_at: String,
+    pub feedback: Option<bool>,
 }

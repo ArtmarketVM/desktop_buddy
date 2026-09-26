@@ -1,3 +1,4 @@
+mod attention;
 mod buddy;
 mod collector;
 mod commands;
@@ -5,8 +6,10 @@ mod credentials;
 mod http;
 mod models;
 mod nebius;
+mod privacy;
 mod storage;
 mod tavily;
+mod tray;
 use tauri::Manager;
 
 pub fn run() {
@@ -29,6 +32,7 @@ pub fn run() {
             let storage =
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
             app.manage(commands::AppState::new(storage).map_err(std::io::Error::other)?);
+            tray::install(app)?;
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3));
@@ -39,9 +43,13 @@ pub fn run() {
                     if let Err(error) = commands::collect(&state) {
                         if let Ok(mut inner) = state.inner.lock() {
                             inner.last_error = Some(error);
+                            inner.buddy.foreground = None;
                         }
                     }
                     let recommend = if let Ok(mut inner) = state.inner.lock() {
+                        if let Err(error) = privacy::cleanup_due(&mut inner) {
+                            inner.last_error = Some(error);
+                        }
                         if let Err(error) = buddy::sync(&handle, &mut inner) {
                             inner.last_error = Some(error);
                         }
@@ -77,15 +85,20 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if window.label() == "main"
-                && matches!(event, tauri::WindowEvent::CloseRequested { .. })
-            {
-                window.app_handle().exit(0);
+            if window.label() == "main" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
             }
             if window.label() == "buddy" {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    let _ = window.hide();
+                    let app = window.app_handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ =
+                            commands::dismiss_buddy(app.clone(), app.state::<commands::AppState>());
+                    });
                 }
             }
         })
@@ -93,6 +106,14 @@ pub fn run() {
             commands::get_dashboard,
             buddy::set_buddy_preferences,
             buddy::open_workspace,
+            buddy::snooze_buddy,
+            buddy::reset_buddy_position,
+            buddy::rate_recommendation,
+            buddy::quit_app,
+            privacy::get_privacy_preview,
+            privacy::set_retention,
+            privacy::clear_local_history,
+            privacy::test_provider_connection,
             commands::set_provider_key,
             commands::set_goal,
             commands::get_current_goal,

@@ -81,3 +81,35 @@ impl ActivityCollector for WindowsCollector {
         }
     }
 }
+
+pub fn foreground_fullscreen() -> bool {
+    use windows::Win32::{
+        Foundation::RECT,
+        Graphics::Gdi::{
+            GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST,
+        },
+        UI::WindowsAndMessaging::{GetDesktopWindow, GetShellWindow, GetWindowRect},
+    };
+    unsafe {
+        let window = GetForegroundWindow();
+        if window.0.is_null() || window == GetDesktopWindow() || window == GetShellWindow() {
+            return false;
+        }
+        let mut rect = RECT::default();
+        if GetWindowRect(window, &mut rect).is_err() {
+            return false;
+        }
+        let monitor = MonitorFromWindow(window, MONITOR_DEFAULTTONEAREST);
+        let mut info = MONITORINFO {
+            cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+            ..Default::default()
+        };
+        if !GetMonitorInfoW(monitor, &mut info).as_bool() {
+            return false;
+        }
+        rect.left <= info.rcMonitor.left
+            && rect.top <= info.rcMonitor.top
+            && rect.right >= info.rcMonitor.right
+            && rect.bottom >= info.rcMonitor.bottom
+    }
+}
