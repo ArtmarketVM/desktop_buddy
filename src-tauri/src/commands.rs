@@ -79,7 +79,7 @@ fn valid_text(text: &str) -> Result<&str, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_provider_key(
     window: tauri::WebviewWindow,
     state: State<AppState>,
@@ -105,7 +105,7 @@ pub fn set_provider_key(
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
     let inner = state
         .inner
@@ -134,7 +134,7 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         last_error: inner.last_error.clone(),
     })
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<Goal, String> {
     let text = valid_text(&text)?;
     let mut inner = state
@@ -151,7 +151,7 @@ pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<
     crate::buddy::sync(&app, &mut inner)?;
     Ok(goal)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_current_goal(state: State<AppState>) -> Result<Option<Goal>, String> {
     state
         .inner
@@ -160,7 +160,7 @@ pub fn get_current_goal(state: State<AppState>) -> Result<Option<Goal>, String> 
         .storage
         .goal()
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_recent_activity(state: State<AppState>) -> Result<Vec<ActivitySnapshot>, String> {
     let inner = state
         .inner
@@ -172,7 +172,7 @@ pub fn get_recent_activity(state: State<AppState>) -> Result<Vec<ActivitySnapsho
         Ok(vec![])
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -187,7 +187,7 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_ai_enabled(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -201,7 +201,7 @@ pub fn set_ai_enabled(enabled: bool, app: AppHandle, state: State<AppState>) -> 
     }
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_dnd(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -212,7 +212,7 @@ pub fn set_dnd(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_activity_snapshot(state: State<AppState>) -> Result<ActivitySnapshot, String> {
     let mut inner = state
         .inner
@@ -223,11 +223,11 @@ pub fn get_activity_snapshot(state: State<AppState>) -> Result<ActivitySnapshot,
     }
     inner.collector.collect()
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn capture_screenshot_on_demand() -> Result<Vec<u8>, String> {
     collector::capture_screenshot_on_demand()
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn dismiss_buddy(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -238,7 +238,7 @@ pub fn dismiss_buddy(app: AppHandle, state: State<AppState>) -> Result<(), Strin
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn save_feedback(
     decision_id: i64,
     related: bool,
@@ -255,14 +255,14 @@ pub fn save_feedback(
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub async fn search_web(
     query: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<SearchResult>, String> {
     tavily::tavily_search(&state.client, valid_text(&query)?).await
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub async fn analyze_focus(app: AppHandle, state: State<'_, AppState>) -> Result<Decision, String> {
     analyze(&app, &state, false).await
 }

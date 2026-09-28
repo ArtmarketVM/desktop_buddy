@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.1
+
+- Dispatch IPC commands outside the native event thread to prevent a lock inversion between dashboard polling and Buddy window updates.
+- Add a regression guard covering every registered command module, including settings and privacy commands.
+- Preserve existing data, consent settings, and provider behavior; no new tracking capabilities.
+
+The deadlock path is identified in code. Reproducing the reported Google Meet screen-sharing incident and verifying the fix in that native workflow remain manual checks.
+
 ## 0.3.0
 
 - Add a local preview of the minimized context used by AI requests.

@@ -37,7 +37,7 @@ pub fn cleanup_due(inner: &mut Inner) -> Result<(), String> {
     inner.last_cleanup = Instant::now();
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_retention(days: u32, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     validate_retention(days)?;
     let mut inner = state
@@ -54,7 +54,7 @@ pub fn set_retention(days: u32, app: AppHandle, state: State<AppState>) -> Resul
     invalidate(&mut inner);
     crate::buddy::sync(&app, &mut inner)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn clear_local_history(
     confirmed: bool,
     app: AppHandle,
@@ -72,7 +72,7 @@ pub fn clear_local_history(
     invalidate(&mut inner);
     crate::buddy::sync(&app, &mut inner)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn get_privacy_preview(state: State<AppState>) -> Result<Value, String> {
     let inner = state
         .inner
@@ -150,7 +150,7 @@ pub async fn check_connection(
         _ => Err("Provider returned an invalid connection-check response".into()),
     }
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub async fn test_provider_connection(
     provider: String,
     state: State<'_, AppState>,

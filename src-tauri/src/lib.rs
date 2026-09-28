@@ -12,6 +12,14 @@ mod tavily;
 mod tray;
 use tauri::Manager;
 
+#[cfg(test)]
+mod threading_tests;
+
+// IPC commands must use #[tauri::command(async)], including synchronous Rust functions.
+// A worker can hold AppState::inner while waiting for a native window getter.
+// Waiting for that mutex on the event thread would deadlock the getter's reply.
+// Window/tray callbacks must likewise dispatch stateful work off the event thread.
+
 pub fn run() {
     // Development convenience only. Release uses saved credentials or environment fallback.
     #[cfg(debug_assertions)]

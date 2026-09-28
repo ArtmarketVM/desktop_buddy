@@ -188,7 +188,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     inner.buddy.window_mode = mode;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn set_buddy_preferences(
     preferences: BuddyPreferences,
     app: AppHandle,
@@ -205,7 +205,7 @@ pub fn set_buddy_preferences(
     inner.buddy.view.preferences = preferences;
     sync(&app, &mut inner)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn snooze_buddy(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -222,7 +222,7 @@ pub fn snooze_buddy(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
     inner.buddy.clear();
     sync(&app, &mut inner)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn reset_buddy_position(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -236,7 +236,7 @@ pub fn reset_buddy_position(app: AppHandle, state: State<AppState>) -> Result<()
         .write_setting("buddy_position", &Option::<BuddyPosition>::None)?;
     sync(&app, &mut inner)
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn rate_recommendation(
     id: i64,
     helpful: Option<bool>,
@@ -251,7 +251,7 @@ pub fn rate_recommendation(
     inner.buddy.revision += 1;
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn quit_app(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     {
         let mut inner = state
@@ -263,7 +263,7 @@ pub fn quit_app(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     app.exit(0);
     Ok(())
 }
-#[tauri::command]
+#[tauri::command(async)]
 pub fn open_workspace(app: AppHandle) -> Result<(), String> {
     let window = app
         .get_webview_window("main")
