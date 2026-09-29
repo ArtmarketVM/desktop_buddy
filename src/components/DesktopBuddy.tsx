@@ -58,7 +58,7 @@ export function DesktopBuddy({
               </button>
             )}
             <button className="text-button" onClick={onDismiss}>
-              Dismiss
+              Not now · 1 hour
             </button>
             <button className="text-button" onClick={onDnd}>
               Do not disturb

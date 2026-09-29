@@ -6,6 +6,22 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { api, safeUrl } from "./tauri";
 describe("provider settings commands", () => {
+  it("snoozes and resumes without changing tracking or DND", async () => {
+    await api.snooze(true);
+    expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: true });
+    await api.snooze(false);
+    expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: false });
+  });
+  it.each([true, false, null])(
+    "sends recommendation feedback %s",
+    async (helpful) => {
+      await api.rateRecommendation(42, helpful);
+      expect(invoke).toHaveBeenLastCalledWith("rate_recommendation", {
+        id: 42,
+        helpful,
+      });
+    },
+  );
   it("saves an explicit provider key through the native boundary", async () => {
     await api.providerKey("nebius", "test-key");
     expect(invoke).toHaveBeenLastCalledWith("set_provider_key", {

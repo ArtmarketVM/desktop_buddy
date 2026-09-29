@@ -877,3 +877,17 @@ footer span {
   flex-wrap: wrap;
   align-items: center;
 }
+.recommendation-list {
+  max-height: 560px;
+  overflow-y: auto;
+}
+.recommendation-history {
+  padding: 28px;
+}
+.recommendation-history h3 {
+  overflow-wrap: anywhere;
+}
+.recommendation-history button[aria-pressed="true"] {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}

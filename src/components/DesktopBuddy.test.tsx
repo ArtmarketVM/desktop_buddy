@@ -40,5 +40,6 @@ describe("desktop companion", () => {
     expect(html).toContain("Learn ownership");
     expect(html).toContain("Open resource");
     expect(html).toContain("Do not disturb");
+    expect(html).toContain("Not now · 1 hour");
   });
 });

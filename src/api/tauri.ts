@@ -7,6 +7,9 @@ import type {
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  snooze: (enabled: boolean) => invoke<void>("snooze_buddy", { enabled }),
+  rateRecommendation: (id: number, helpful: boolean | null) =>
+    invoke<void>("rate_recommendation", { id, helpful }),
   privacyPreview: () => invoke<unknown>("get_privacy_preview"),
   retention: (days: number) => invoke<void>("set_retention", { days }),
   clearHistory: () => invoke<void>("clear_local_history", { confirmed: true }),

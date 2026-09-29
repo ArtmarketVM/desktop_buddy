@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Expose 5/15/30/60-minute automatic recommendation intervals in Settings, separately from focus checks.
+- Show the latest 100 retained recommendations with their goals, timestamps, and reversible helpful/not-helpful ratings.
+- Add a one-hour Not now action to floating cards and explicit snooze/resume controls in the workspace. Snooze preserves tracking and DND state.
+- Retain the 0.3.1 worker-dispatch fix and add regression coverage for rating updates, interval changes, and snooze suppression.
+
 ## 0.3.1
 
 - Dispatch IPC commands outside the native event thread to prevent a lock inversion between dashboard polling and Buddy window updates.

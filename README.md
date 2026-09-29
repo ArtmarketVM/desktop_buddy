@@ -55,7 +55,15 @@ Retention is off by default. Choose 7, 30, or 90 days to delete old history imme
 
 Use **Test saved connection** to check the saved key (or environment fallback), not unsaved input. Nebius checks model-list access and whether the configured model is listed; Tavily checks usage access. Neither sends your goal/activity or performs generation/search. A successful check does not establish billing readiness or guarantee later inference/search success.
 
-## Desktop companion (0.3.0)
+## Recommendation controls (0.4.0)
+
+Settings offers automatic resource-search intervals of 5, 15, 30, or 60 minutes. These are minimum intervals between attempts, including failures; they do not change AI focus-check frequency or guarantee a suggestion.
+
+The workspace shows the latest 100 retained recommendations across goals. Open a resource explicitly, mark it Helpful or Not helpful, or click the selected rating again to clear it. Ratings persist locally and may be included in future Nebius selection requests for the same goal when proactive suggestions are enabled. Retention and history deletion apply to this list too.
+
+**Not now · 1 hour** on a floating card snoozes Buddy: it hides the character and suppresses automatic check-ins and recommendations while preserving tracking. The workspace displays the snooze end time and allows early resumption. Resuming does not disable DND or restart paused tracking. Manual searches and explicit focus checks remain available subject to their existing requirements.
+
+## Desktop companion
 
 - In Settings, **Show Buddy only with suggestions** defaults to checked. Uncheck it to keep a small animated character visible during tracking. Drag the character to position it on a monitor. Position is saved locally and restored within an available monitor's work area; multi-monitor behavior still requires native verification.
 - Suggestions and focus nudges expand the transparent, always-on-top window into a card for 45 seconds. Dismiss returns to the selected mode. Pause and DND hide both modes. The app does not request keyboard focus when showing a suggestion; **Workspace** explicitly returns to the main window.
@@ -97,6 +105,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.3.0 adds privacy controls and initial tray/reliability work. Resource selection now ranks real search results with Nebius instead of offering the first unseen result; this is not independent fact-checking. History, rating, and frequency UI from roadmap items 1–3 remain unfinished. There is no autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
+Version 0.4.0 exposes recommendation history, ratings, search frequency and snooze controls on top of the existing privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

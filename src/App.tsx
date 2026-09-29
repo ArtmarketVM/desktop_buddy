@@ -19,6 +19,7 @@ import { ActivityTimeline } from "./components/ActivityTimeline";
 import { DesktopBuddy } from "./components/DesktopBuddy";
 import packageInfo from "../package.json";
 import { Settings } from "./components/Settings";
+import { RecommendationHistory } from "./components/RecommendationHistory";
 
 const empty: Dashboard = {
   retention_days: 0,
@@ -98,7 +99,7 @@ export default function App() {
         {
           <DesktopBuddy
             view={data.buddy}
-            onDismiss={() => void run(api.dismiss)}
+            onDismiss={() => void run(() => api.snooze(true))}
             onDnd={() => void run(() => api.dnd(true))}
           />
         }
@@ -283,6 +284,10 @@ export default function App() {
                 </article>
               ))}
             </div>
+            <RecommendationHistory
+              recommendations={data.recommendations}
+              onChanged={refresh}
+            />
           </section>
           <aside className="right-column">
             <section className="companion-card">
@@ -320,6 +325,36 @@ export default function App() {
             </section>
             <section className="card preferences">
               <h3>Make yourself comfortable</h3>
+              <p role="status">
+                {data.buddy.snoozed_until &&
+                data.buddy.snoozed_until * 1000 > Date.now()
+                  ? `Buddy is snoozed until ${new Date(data.buddy.snoozed_until * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Tracking is unchanged.`
+                  : "Buddy is not snoozed."}
+              </p>
+              <button
+                className="text-button"
+                disabled={!desktop || busy}
+                onClick={() =>
+                  void run(() =>
+                    api.snooze(
+                      !(
+                        data.buddy.snoozed_until &&
+                        data.buddy.snoozed_until * 1000 > Date.now()
+                      ),
+                    ),
+                  )
+                }
+              >
+                {data.buddy.snoozed_until &&
+                data.buddy.snoozed_until * 1000 > Date.now()
+                  ? "Resume Buddy"
+                  : "Snooze Buddy for 1 hour"}
+              </button>
+              <p className="helper">
+                Snooze hides Buddy and pauses automatic check-ins and
+                recommendations. Resuming does not turn off DND or resume paused
+                tracking.
+              </p>
               <button
                 className="text-button"
                 aria-expanded={settingsOpen}

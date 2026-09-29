@@ -70,6 +70,26 @@ export function Settings({
         Choose Quit to stop it.
       </p>
       {error && <p role="alert">{error}</p>}
+      <label htmlFor="suggestion-interval">Recommendation frequency</label>
+      <select
+        id="suggestion-interval"
+        value={preferences.interval_minutes}
+        disabled={!desktop || busy}
+        onChange={(event) =>
+          void update({ interval_minutes: Number(event.target.value) })
+        }
+      >
+        {[5, 15, 30, 60].map((minutes) => (
+          <option key={minutes} value={minutes}>
+            At most every {minutes} minutes
+          </option>
+        ))}
+      </select>
+      <p className="helper">
+        Minimum time between automatic resource-search attempts, including
+        failed attempts. This does not change AI focus-check frequency or
+        guarantee a recommendation.
+      </p>
       <p className="helper">
         Use your own provider API keys. They are stored in Windows Credential
         Manager for your Windows account, not in the app database.

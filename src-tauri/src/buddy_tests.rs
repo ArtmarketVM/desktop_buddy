@@ -2,6 +2,45 @@ use super::*;
 use crate::storage::Storage;
 
 #[test]
+fn ratings_can_be_replaced_and_cleared_without_duplicates() {
+    let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    let goal = storage.set_goal("Learn Rust").unwrap();
+    let id = storage
+        .record_recommendation(goal.id, "Guide", "https://example.com", "Useful")
+        .unwrap();
+    for rating in [Some(true), Some(false), None] {
+        storage.rate_recommendation(id, rating).unwrap();
+        let history = storage.recommendation_history().unwrap();
+        assert_eq!(history.len(), 1);
+        assert_eq!(history[0].feedback, rating);
+    }
+    assert!(storage.rate_recommendation(id + 1, Some(true)).is_err());
+}
+
+#[test]
+fn snooze_suppresses_display_and_scheduling_without_pausing_tracking() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.tracking = true;
+    inner.status.mock_ai = false;
+    inner.status.nebius_configured = true;
+    inner.status.tavily_configured = true;
+    inner.buddy.view.preferences.proactive = true;
+    inner.buddy.view.preferences.suggestions_only = false;
+    inner.buddy.view.snoozed_until = Some(chrono::Utc::now().timestamp() + 3600);
+    assert!(!due(&inner));
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    assert!(inner.status.tracking);
+    inner.buddy.view.snoozed_until = Some(chrono::Utc::now().timestamp() - 1);
+    assert!(due(&inner));
+    inner.buddy.last_search = Some(Instant::now() - Duration::from_secs(600));
+    inner.buddy.view.preferences.interval_minutes = 5;
+    assert!(due(&inner));
+    inner.buddy.view.preferences.interval_minutes = 30;
+    assert!(!due(&inner));
+}
+
+#[test]
 fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
