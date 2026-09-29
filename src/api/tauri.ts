@@ -4,9 +4,20 @@ import type {
   Dashboard,
   Decision,
   SearchResult,
+  GoalPlan,
+  GoalProposal,
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  saveGoalPlan: (title: string, plan: GoalPlan) =>
+    invoke<void>("save_goal_plan", { title, plan }),
+  transitionGoal: (
+    id: number,
+    action: "complete" | "defer" | "resume",
+    confirmed = false,
+  ) => invoke<void>("transition_goal", { id, action, confirmed }),
+  refineGoal: (id: number, revision: number) =>
+    invoke<GoalProposal>("refine_goal", { id, revision }),
   snooze: (enabled: boolean) => invoke<void>("snooze_buddy", { enabled }),
   rateRecommendation: (id: number, helpful: boolean | null) =>
     invoke<void>("rate_recommendation", { id, helpful }),

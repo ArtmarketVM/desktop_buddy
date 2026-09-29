@@ -67,6 +67,8 @@ pub struct Status {
 }
 #[derive(Serialize)]
 pub struct Dashboard {
+    pub goal_plan: Option<crate::goals::GoalPlan>,
+    pub saved_goals: Vec<crate::goals::SavedGoal>,
     pub retention_days: u32,
     pub recommendations: Vec<Recommendation>,
     pub version: &'static str,

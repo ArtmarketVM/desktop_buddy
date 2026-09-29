@@ -25,7 +25,7 @@ export function GoalInput({
           value={text}
           maxLength={500}
           onChange={(e) => setText(e.target.value)}
-          placeholder="e.g. Finish the hackathon presentation"
+          placeholder="e.g. Finish the presentation draft"
         />
         <button disabled={disabled || !text.trim()} type="submit">
           Start focus <ArrowUpRight size={17} />

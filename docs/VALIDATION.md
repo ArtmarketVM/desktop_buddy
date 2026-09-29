@@ -1,5 +1,17 @@
 # Validation record
 
+## Goal planning — 0.5.0
+
+Optimized Windows build and NSIS packaging succeeded: `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.5.0_x64-setup.exe`. The installer is unsigned and was not installed during this verification.
+
+Automated results: 29 frontend tests and 45 Rust tests passed; one optional credential-store test was ignored. TypeScript/Vite production build, Rust formatting, Prettier and whitespace checks passed. Tests used isolated temporary/in-memory databases and mocked HTTP endpoints, not user data or live credentials.
+
+Adds local completion criteria, ordered steps, current-step context, explicit completion/deferral/resumption, and optional one-off goal refinement. Upgrade uses an additive `goal_plans` table, retaining old goal records and statuses. Tests exercise the legacy initialization path, disk reopening, plan limits, stale revision rejection, current-step validation, lifecycle transitions, retention/cascade behavior, and a real HTTP request to a mock Nebius server that sends no activity and does not save the proposal.
+
+Frontend tests cover the rendered plan controls, completion confirmation, saved-goal statuses, and command payloads. They do not simulate native clicks. Real provider refinement quality, installed upgrade behavior, and visual/interactive goal editing have not been verified in this milestone. No live keys or user database were used during tests.
+
+Manual acceptance: upgrade from 0.4.0 and confirm the old active goal remains. Add/reorder/check steps and select a current step; save and restart to verify persistence. Inspect the privacy preview. Start another goal and resume the deferred one, checking that resumption leaves tracking paused. Confirm completion explicitly. Request an AI proposal, reject it, then request another, confirm replacement and edit/save the draft. Confirm completed checkboxes never automatically complete a goal and unsaved edits block goal switching. Check retention and deletion using disposable history only.
+
 ## Recommendation controls — 0.4.0
 
 Optimized Windows build and NSIS packaging succeeded at `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.4.0_x64-setup.exe`. Rust formatting, Prettier, and whitespace checks passed. The installer was built but not installed during verification.

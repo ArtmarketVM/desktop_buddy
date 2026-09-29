@@ -19,9 +19,12 @@ import { ActivityTimeline } from "./components/ActivityTimeline";
 import { DesktopBuddy } from "./components/DesktopBuddy";
 import packageInfo from "../package.json";
 import { Settings } from "./components/Settings";
+import { GoalPlanner, SavedGoals } from "./components/GoalPlanner";
 import { RecommendationHistory } from "./components/RecommendationHistory";
 
 const empty: Dashboard = {
+  goal_plan: null,
+  saved_goals: [],
   retention_days: 0,
   recommendations: [],
   version: packageInfo.version,
@@ -49,6 +52,7 @@ export default function App() {
   const [data, setData] = useState<Dashboard>(empty);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [plannerDirty, setPlannerDirty] = useState(false);
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -200,9 +204,20 @@ export default function App() {
                 {data.goal?.text || "Good work starts with an intention."}
               </h2>
               <GoalInput
-                disabled={busy || !desktop}
+                disabled={busy || !desktop || plannerDirty}
                 onStart={(text) => run(() => api.setGoal(text))}
               />
+              {data.goal && (
+                <p className="helper">
+                  Starting another goal defers this one without marking it
+                  complete.
+                </p>
+              )}
+              {plannerDirty && (
+                <p className="helper">
+                  Save or discard plan edits before switching goals.
+                </p>
+              )}
               {data.goal && (
                 <button
                   className="text-button session-toggle"
@@ -220,6 +235,24 @@ export default function App() {
                 </button>
               )}
             </div>
+            {data.goal && data.goal_plan && (
+              <GoalPlanner
+                key={`${data.goal.id}:${data.goal_plan.revision}`}
+                goal={data.goal}
+                plan={data.goal_plan}
+                onChanged={refresh}
+                onDirty={setPlannerDirty}
+                aiAvailable={
+                  data.status.nebius_configured || data.status.mock_ai
+                }
+                mock={data.status.mock_ai}
+              />
+            )}
+            <SavedGoals
+              goals={data.saved_goals}
+              onChanged={refresh}
+              locked={plannerDirty || busy}
+            />
             <div className="card activity-card">
               <div className="section-heading">
                 <div>
@@ -366,7 +399,8 @@ export default function App() {
                 <span>
                   <Sparkles size={16} /> AI check-ins
                   <small>
-                    Sends your goal and recent window titles to Nebius.
+                    Sends your goal, completion criterion, current step and
+                    recent window titles to Nebius.
                   </small>
                 </span>
                 <input

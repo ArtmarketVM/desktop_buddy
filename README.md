@@ -45,7 +45,17 @@ Endpoint references: [Nebius API](https://api.tokenfactory.nebius.com/docs), [Ta
 4. A validated model decision is stored locally. High-confidence interventions or offers of help may show a separate, always-on-top Buddy window. Do not disturb suppresses popups; dismissing or marking activity related starts a ten-minute nudge cooldown.
 5. Manual search sends the typed query to Tavily. Optional **Proactive suggestions** separately permits sending the goal and up to five recent window titles to Nebius to generate a search query, then sending that query to Tavily. Nebius selects an unseen result using its title and snippet, or declines to recommend one; it does not independently verify the page. No URLs are invented by the model. Attempts default to 15-minute spacing, persisted across restarts, and are suppressed while paused, idle, snoozed, in DND, or in an excluded application. Meeting/fullscreen detection is heuristic. Mock AI mode disables this real-provider feature.
 
-## Privacy controls (0.3.0)
+## Goals and steps (0.5.0)
+
+An active goal has an optional **Done when** criterion and up to 20 editable steps. Mark steps completed, reorder them with Up/Down, and choose one unfinished step with **Working on this**. **Save plan** persists the edits; unsaved edits do not change Buddy's AI context. Starting or resuming another goal is disabled while the editor has unsaved changes. Text fields are limited to 500 characters.
+
+Starting a new goal defers the old one instead of claiming it is complete. **Continue later** defers the active goal. **Complete goal** requires explicit confirmation of the outcome, even if steps are still unchecked. Neither tracked time nor AI completes a goal automatically. Saved goals lists up to 100 entries, with deferred goals first; resuming one defers the currently active goal. Completion, deferral and resumption stop tracking; use Resume tracking when ready. Legacy completed statuses are preserved, including statuses created by the old automatic-completion behavior.
+
+**Refine with AI** is an explicit one-off request sending the saved goal, criterion and full checklist to Nebius, without activity history. It does not enable automatic AI check-ins. Read the proposal, confirm checklist replacement, use it as an editable draft, then save it. Replacement resets step completion marks and the selected current step. **Keep original** discards the proposal. Mock AI mode returns clearly labeled demo suggestions without a provider call. Manual planning needs no provider key.
+
+For consented focus checks and proactive recommendations, goal context now includes the completion criterion and current unfinished step, not the entire checklist. The local privacy preview uses the same minimized context. Automatic retention preserves active and deferred plans; explicit Clear local history removes completed and deferred goals with their plans but preserves the active plan. Existing activity and keys are not migrated or sent anywhere during upgrade.
+
+## Privacy controls
 
 Settings includes a local-only preview of the goal and minimized recent activity used for focus checks and proactive query planning. Generating this preview does not send a request. It is not a complete wire payload: resource selection also sends up to five search-result titles, URLs and snippets, plus up to ten current-goal ratings to Nebius. Tavily receives the typed or generated query.
 
@@ -105,6 +115,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.4.0 exposes recommendation history, ratings, search frequency and snooze controls on top of the existing privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
+Version 0.5.0 adds goal plans, current steps, explicit completion/deferral and optional AI refinement to the existing recommendation, privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

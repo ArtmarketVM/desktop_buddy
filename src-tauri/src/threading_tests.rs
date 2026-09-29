@@ -20,6 +20,7 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("commands", include_str!("commands.rs")),
         ("buddy", include_str!("buddy.rs")),
         ("privacy", include_str!("privacy.rs")),
+        ("goals", include_str!("goals.rs")),
     ];
     for (_, source) in modules {
         assert_worker_dispatch(source);

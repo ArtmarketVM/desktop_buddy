@@ -6,6 +6,19 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { api, safeUrl } from "./tauri";
 describe("provider settings commands", () => {
+  it("passes explicit completion confirmation and a goal revision for refinement", async () => {
+    await api.transitionGoal(7, "complete", true);
+    expect(invoke).toHaveBeenLastCalledWith("transition_goal", {
+      id: 7,
+      action: "complete",
+      confirmed: true,
+    });
+    await api.refineGoal(7, 2);
+    expect(invoke).toHaveBeenLastCalledWith("refine_goal", {
+      id: 7,
+      revision: 2,
+    });
+  });
   it("snoozes and resumes without changing tracking or DND", async () => {
     await api.snooze(true);
     expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: true });

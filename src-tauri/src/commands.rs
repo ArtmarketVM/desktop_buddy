@@ -123,6 +123,11 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         None
     };
     Ok(Dashboard {
+        goal_plan: goal
+            .as_ref()
+            .map(|g| inner.storage.goal_plan(g.id))
+            .transpose()?,
+        saved_goals: inner.storage.saved_goals()?,
         retention_days: inner.retention_days,
         recommendations: inner.storage.recommendation_history()?,
         version: env!("CARGO_PKG_VERSION"),
@@ -308,7 +313,7 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .analysis
         .try_lock()
         .map_err(|_| "A focus check is already running")?;
-    let (goal, activity, mock, privacy_revision) = {
+    let (goal, context, activity, mock, privacy_revision) = {
         let mut inner = state
             .inner
             .lock()
@@ -330,12 +335,19 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         if activity.is_empty() {
             return Err("Collect some activity before checking focus".into());
         }
-        (goal, activity, inner.status.mock_ai, inner.privacy_revision)
+        let context = inner.storage.goal_context(&goal)?;
+        (
+            goal,
+            context,
+            activity,
+            inner.status.mock_ai,
+            inner.privacy_revision,
+        )
     };
     let result = if mock {
         Ok(nebius::mock(&activity))
     } else {
-        nebius::analyze(&state.client, &goal.text, &activity).await
+        nebius::analyze(&state.client, &context, &activity).await
     };
     let mut inner = state
         .inner

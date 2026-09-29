@@ -3,6 +3,28 @@ export interface Goal {
   text: string;
   created_at: string;
 }
+export interface GoalStep {
+  id: string;
+  text: string;
+  done: boolean;
+}
+export interface GoalPlan {
+  goal_id: number;
+  revision: number;
+  done_when: string;
+  steps: GoalStep[];
+  current_step: string | null;
+}
+export interface GoalProposal {
+  title: string;
+  done_when: string;
+  steps: string[];
+}
+export interface SavedGoal {
+  id: number;
+  text: string;
+  status: "deferred" | "completed";
+}
 export interface ActivitySnapshot {
   timestamp: string;
   process_name: string;
@@ -32,6 +54,8 @@ export interface Status {
   tavily_configured: boolean;
 }
 export interface Dashboard {
+  goal_plan: GoalPlan | null;
+  saved_goals: SavedGoal[];
   retention_days: number;
   recommendations: Recommendation[];
   version: string;

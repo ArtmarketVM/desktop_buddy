@@ -891,3 +891,50 @@ footer span {
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
+.goal-planner {
+  padding: 28px;
+}
+.goal-planner > label,
+.goal-planner > input,
+.goal-planner > textarea {
+  display: block;
+  width: 100%;
+  margin-block: 12px;
+}
+.goal-planner textarea {
+  min-height: 90px;
+  padding: 12px;
+  font: inherit;
+  border: 1px solid #d8dfd1;
+  border-radius: 12px;
+  resize: vertical;
+}
+.goal-steps {
+  padding-left: 24px;
+}
+.goal-steps li {
+  margin-block: 20px;
+}
+.goal-steps li > input {
+  width: 100%;
+}
+.goal-steps label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 12px 12px 0;
+}
+.goal-planner input[type="checkbox"],
+.goal-planner input[type="radio"] {
+  width: auto;
+}
+.goal-finish,
+.proposal {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #d8dfd1;
+}
+.saved-goals {
+  max-height: 360px;
+  overflow-y: auto;
+}

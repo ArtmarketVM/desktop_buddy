@@ -50,11 +50,11 @@ export function Settings({
         <span>
           Proactive suggestions
           <small>
-            Allows Nebius to receive your goal and recent window titles to
-            create a search query, then sends that query to Tavily. Provider
-            charges may apply. Nebius also receives search result snippets and
-            your ratings for this goal to select a resource. Disabled while
-            paused or in DND.
+            Allows Nebius to receive your goal, completion criterion, current
+            step and recent window titles to create a search query, then sends
+            that query to Tavily. Provider charges may apply. Nebius also
+            receives search result snippets and your ratings for this goal to
+            select a resource. Disabled while paused or in DND.
           </small>
         </span>
         <input

@@ -300,7 +300,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
         .recommendation
         .try_lock()
         .map_err(|_| "A suggestion is already being prepared")?;
-    let (goal, activity, revision) = {
+    let (goal, context, activity, revision) = {
         let mut inner = state
             .inner
             .lock()
@@ -323,9 +323,10 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
         inner
             .storage
             .write_setting("buddy_last_attempt", &inner.buddy.last_attempt_at)?;
-        (goal, activity, inner.buddy.revision)
+        let context = inner.storage.goal_context(&goal)?;
+        (goal, context, activity, inner.buddy.revision)
     };
-    let plan = nebius::search_plan(&state.client, &goal.text, &activity).await?;
+    let plan = nebius::search_plan(&state.client, &context, &activity).await?;
     // Consent and session must still match before sending the derived query to Tavily.
     {
         let inner = state
@@ -375,7 +376,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
         return Ok(());
     }
     let selection =
-        nebius::select_resource(&state.client, &goal.text, &candidates, &feedback).await?;
+        nebius::select_resource(&state.client, &context, &candidates, &feedback).await?;
     let Some(index) = selection.index else {
         return Ok(());
     };

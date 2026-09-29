@@ -3,6 +3,7 @@ mod buddy;
 mod collector;
 mod commands;
 mod credentials;
+mod goals;
 mod http;
 mod models;
 mod nebius;
@@ -111,6 +112,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            goals::save_goal_plan,
+            goals::transition_goal,
+            goals::refine_goal,
             commands::get_dashboard,
             buddy::set_buddy_preferences,
             buddy::open_workspace,

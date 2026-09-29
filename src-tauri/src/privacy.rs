@@ -87,7 +87,11 @@ pub fn get_privacy_preview(state: State<AppState>) -> Result<Value, String> {
         .into_iter()
         .filter(|a| !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name))
         .collect();
-    let goal = goal.map(|g| g.text).unwrap_or_default();
+    let goal = goal
+        .as_ref()
+        .map(|g| inner.storage.goal_context(g))
+        .transpose()?
+        .unwrap_or_default();
     Ok(
         json!({"focus_check":nebius::focus_context(&goal,&activity),"proactive_search_planning":nebius::search_context(&goal,&activity),
         "nebius_destination":destination("NEBIUS_API_URL")?,"tavily_destination":destination("TAVILY_API_URL")?,

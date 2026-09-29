@@ -49,6 +49,11 @@ export function PrivacySettings({
       </p>
       <ul>
         <li>
+          Goal context includes the saved completion criterion and current
+          unfinished step. Refine with AI separately sends the saved goal and
+          full checklist, without activity history, only when you request it.
+        </li>
+        <li>
           AI check-ins: Nebius receives the goal and up to 10 activity segments
           (app, title, active and idle seconds).
         </li>
@@ -142,9 +147,10 @@ export function PrivacySettings({
       </select>
       <p className="helper">
         Applies to activity, focus decisions, recommendations and ratings. The
-        active goal, settings and keys are retained. Old records are removed
-        when you save, on startup, and hourly while the app is running. This is
-        logical deletion, not a forensic secure erase.
+        active and deferred goals and their plans, settings and keys are
+        retained. Old records are removed when you save, on startup, and hourly
+        while the app is running. This is logical deletion, not a forensic
+        secure erase.
       </p>
       {days > 0 && (
         <label className="toggle-row">
@@ -178,8 +184,8 @@ export function PrivacySettings({
         <h4>Clear local history</h4>
         <p>
           This permanently removes activity, decisions, recommendations, ratings
-          and completed goals. Tracking stops. Your active goal, settings and
-          API keys stay saved.
+          and completed or deferred goals with their plans. Tracking stops. Your
+          active goal and plan, settings and API keys stay saved.
         </p>
         <label className="toggle-row">
           <span>I understand this cannot be undone.</span>

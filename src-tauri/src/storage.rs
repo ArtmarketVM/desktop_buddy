@@ -11,9 +11,10 @@ impl Storage {
         store.initialize()?;
         Ok(store)
     }
-    fn initialize(&self) -> Result<(), String> {
+    pub(crate) fn initialize(&self) -> Result<(), String> {
         self.connection.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
         CREATE TABLE IF NOT EXISTS goals(id INTEGER PRIMARY KEY, text TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS goal_plans(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE, revision INTEGER NOT NULL, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS activity(id INTEGER PRIMARY KEY, goal_id INTEGER REFERENCES goals(id), timestamp TEXT NOT NULL, process_name TEXT NOT NULL, window_title TEXT NOT NULL, idle_seconds INTEGER NOT NULL, active_seconds INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, goal_id INTEGER REFERENCES goals(id), state TEXT NOT NULL, confidence REAL NOT NULL, reason TEXT NOT NULL, action TEXT NOT NULL, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, decision_id INTEGER NOT NULL REFERENCES decisions(id), related INTEGER NOT NULL, timestamp TEXT NOT NULL);
@@ -72,7 +73,7 @@ impl Storage {
             )
             .map_err(|e| e.to_string())?;
         }
-        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR julianday(created_at)<julianday(?1)) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn record_recommendation(
@@ -174,7 +175,7 @@ impl Storage {
     pub fn set_goal(&mut self, text: &str) -> Result<Goal, String> {
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         tx.execute(
-            "UPDATE goals SET status='completed' WHERE status='active'",
+            "UPDATE goals SET status='deferred' WHERE status='active'",
             [],
         )
         .map_err(|e| e.to_string())?;

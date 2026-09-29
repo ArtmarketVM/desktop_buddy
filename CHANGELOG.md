@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+- Add editable completion criteria, up to 20 ordered checklist steps, and one current unfinished step per goal.
+- Save plans locally with revision checks; preserve existing goals on upgrade.
+- Defer the previous goal when starting another. Explicit completion requires confirmation; completion, deferral and resumption leave tracking paused.
+- Include the saved criterion and current step in consented AI focus and recommendation context, including the local privacy preview.
+- Offer optional Nebius goal refinement without activity history. Proposals never save automatically: replacing a checklist requires confirmation, then an explicit save of the editable draft.
+- Keep deferred plans during automatic retention; explicit history deletion removes inactive goals and their plans, while preserving the active plan.
+
+Known limits: completed statuses from older versions remain unchanged and may reflect the old automatic-completion behavior. No deadlines, project hierarchy, streaks, or automatic outcome verification. Native end-to-end interaction and live refinement quality require manual validation.
+
 ## 0.4.0
 
 - Expose 5/15/30/60-minute automatic recommendation intervals in Settings, separately from focus checks.
