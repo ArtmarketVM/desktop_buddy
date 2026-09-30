@@ -124,7 +124,18 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     {
         inner.buddy.clear();
     }
-    let mode = mode(&inner.status, &inner.buddy.view);
+    crate::insights::local_nudge(inner)?;
+    let mut mode = mode(&inner.status, &inner.buddy.view);
+    if mode == 0 && inner.buddy.shown.is_some() {
+        inner.buddy.clear();
+    }
+    if mode == 2
+        && inner.buddy.window_mode != 2
+        && !inner.storage.reserve_nudge(&inner.buddy.view.preferences)?
+    {
+        inner.buddy.clear();
+        mode = self::mode(&inner.status, &inner.buddy.view);
+    }
     if mode == inner.buddy.window_mode {
         return Ok(());
     }
@@ -203,6 +214,9 @@ pub fn set_buddy_preferences(
     inner.privacy_revision += 1;
     inner.buddy.clear();
     inner.buddy.view.preferences = preferences;
+    inner.usage = Default::default();
+    inner.collector = crate::collector::create(inner.status.demo);
+    inner.buddy.foreground = None;
     sync(&app, &mut inner)
 }
 #[tauri::command(async)]
@@ -278,6 +292,10 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
 }
 pub fn due(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
+        && inner
+            .storage
+            .nudge_allowed(&inner.buddy.view.preferences)
+            .unwrap_or(false)
         && !inner.status.dnd
         && !snoozed(&inner.buddy.view)
         && inner.buddy.view.quiet_reason.is_none()
@@ -409,6 +427,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
 }
 fn valid(inner: &crate::commands::Inner, goal: i64, revision: u64) -> Result<bool, String> {
     Ok(inner.status.tracking
+        && inner.storage.nudge_allowed(&inner.buddy.view.preferences)?
         && !inner.status.dnd
         && !snoozed(&inner.buddy.view)
         && inner.buddy.view.quiet_reason.is_none()

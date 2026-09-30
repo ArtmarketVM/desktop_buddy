@@ -45,6 +45,14 @@ Endpoint references: [Nebius API](https://api.tokenfactory.nebius.com/docs), [Ta
 4. A validated model decision is stored locally. High-confidence interventions or offers of help may show a separate, always-on-top Buddy window. Do not disturb suppresses popups; dismissing or marking activity related starts a ten-minute nudge cooldown.
 5. Manual search sends the typed query to Tavily. Optional **Proactive suggestions** separately permits sending the goal and up to five recent window titles to Nebius to generate a search query, then sending that query to Tavily. Nebius selects an unseen result using its title and snippet, or declines to recommend one; it does not independently verify the page. No URLs are invented by the model. Attempts default to 15-minute spacing, persisted across restarts, and are suppressed while paused, idle, snoozed, in DND, or in an excluded application. Meeting/fullscreen detection is heuristic. Mock AI mode disables this real-provider feature.
 
+## App rules and daily activity (0.6.0)
+
+Assign Work, Distraction or Neutral to a process in the current goal's app categories. Select Unclassified to remove the rule. Rules persist per goal and override automatic AI focus judgments for that process. A browser rule applies to all its tabs; no websites are blocked or inspected.
+
+Enable **Local distraction reminders** in Settings to receive provider-free reminders after two active minutes in the same window of a distraction app. Default: off. All floating cards share a persisted daily limit (default 8; 0 disables cards) and minimum interval (default 15 minutes), including AI focus cards and resource recommendations. Snooze, DND, excluded apps, meetings, fullscreen and input-pause settings still apply. Limits are global across goals; the daily count resets by local date, but cooldown carries across midnight. Proactive resource recommendations remain a separate opt-in regardless of app category.
+
+**Today** shows approximate observed foreground time across goals and for the current goal. Time is recorded only between valid samples while tracking, excluding detected idle periods, gaps, excluded apps and Buddy itself. Activity before this version is not backfilled. Saved checklist progress is shown separately: checking every step does not complete a goal. Daily totals follow retention/deletion, while active-goal rules and the card budget survive history deletion. The demo database remains separate and the UI labels simulated sessions.
+
 ## Goals and steps (0.5.0)
 
 An active goal has an optional **Done when** criterion and up to 20 editable steps. Mark steps completed, reorder them with Up/Down, and choose one unfinished step with **Working on this**. **Save plan** persists the edits; unsaved edits do not change Buddy's AI context. Starting or resuming another goal is disabled while the editor has unsaved changes. Text fields are limited to 500 characters.
@@ -115,6 +123,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.5.0 adds goal plans, current steps, explicit completion/deferral and optional AI refinement to the existing recommendation, privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
+Version 0.6.0 adds per-goal app rules, local distraction reminders, shared card limits and observed daily app time to the existing goal planning, recommendation, privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no app/site blocking, project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

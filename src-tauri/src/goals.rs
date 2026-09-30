@@ -229,6 +229,7 @@ pub fn transition_goal(
     inner.storage.transition_goal(id, &action)?;
     inner.status.tracking = false;
     inner.collector = crate::collector::create(inner.status.demo);
+    inner.usage = Default::default();
     inner.buddy.foreground = None;
     changed(&mut inner);
     crate::buddy::sync(&app, &mut inner)

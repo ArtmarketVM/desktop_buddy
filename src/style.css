@@ -938,3 +938,73 @@ footer span {
   max-height: 360px;
   overflow-y: auto;
 }
+/* Local activity insights */
+.insights-card {
+  padding: 28px;
+}
+.insight-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.insight-totals strong,
+.insight-totals span {
+  display: block;
+}
+.insight-totals strong {
+  font-size: 1.5rem;
+}
+.insight-totals span {
+  font-size: 0.85rem;
+}
+.step-progress progress {
+  width: 100%;
+  accent-color: #577650;
+}
+.insights-table-wrap {
+  overflow-x: auto;
+}
+.insights-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.insights-table caption {
+  text-align: left;
+  margin: 12px 0;
+}
+.insights-table th,
+.insights-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e4e8e1;
+  overflow-wrap: anywhere;
+}
+.app-rule-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0;
+}
+.app-rule-row span {
+  overflow-wrap: anywhere;
+}
+.app-rule-row select {
+  width: auto;
+}
+.app-rule-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-top: 20px;
+}
+.app-rule-form label {
+  flex: 1 1 150px;
+}
+.app-rule-form input,
+.app-rule-form select {
+  display: block;
+  width: 100%;
+}

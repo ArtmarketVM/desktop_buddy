@@ -146,11 +146,11 @@ export function PrivacySettings({
         <option value={90}>90 days</option>
       </select>
       <p className="helper">
-        Applies to activity, focus decisions, recommendations and ratings. The
-        active and deferred goals and their plans, settings and keys are
-        retained. Old records are removed when you save, on startup, and hourly
-        while the app is running. This is logical deletion, not a forensic
-        secure erase.
+        Applies to activity, daily app time, focus decisions, recommendations
+        and ratings. The active and deferred goals and their plans, settings and
+        keys are retained. Old records are removed when you save, on startup,
+        and hourly while the app is running. This is logical deletion, not a
+        forensic secure erase.
       </p>
       {days > 0 && (
         <label className="toggle-row">
@@ -183,9 +183,11 @@ export function PrivacySettings({
       <div className="danger-zone">
         <h4>Clear local history</h4>
         <p>
-          This permanently removes activity, decisions, recommendations, ratings
-          and completed or deferred goals with their plans. Tracking stops. Your
-          active goal and plan, settings and API keys stay saved.
+          This permanently removes activity, daily app time, decisions,
+          recommendations, ratings and completed or deferred goals with their
+          plans. Tracking stops. Your active goal and plan, settings and API
+          keys stay saved. Active-goal app rules and the daily card limit
+          counter are also preserved.
         </p>
         <label className="toggle-row">
           <span>I understand this cannot be undone.</span>

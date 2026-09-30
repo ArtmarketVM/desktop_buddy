@@ -33,6 +33,59 @@ export function Settings({
       <h2>Settings</h2>
       <label className="toggle-row">
         <span>
+          Local distraction reminders
+          <small>
+            After 2 active minutes in the same window of an app you marked as a
+            distraction for this goal. No AI or API key needed.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={preferences.local_nudges}
+          disabled={!desktop || busy}
+          onChange={(e) => void update({ local_nudges: e.target.checked })}
+        />
+      </label>
+      <label htmlFor="nudge-interval">
+        Minimum time between all Buddy cards
+      </label>
+      <select
+        id="nudge-interval"
+        value={preferences.nudge_interval_minutes}
+        disabled={!desktop || busy}
+        onChange={(e) =>
+          void update({ nudge_interval_minutes: Number(e.target.value) })
+        }
+      >
+        {[5, 15, 30, 60].map((n) => (
+          <option key={n} value={n}>
+            {n} minutes
+          </option>
+        ))}
+      </select>
+      <label htmlFor="daily-nudge-limit">Daily Buddy card limit</label>
+      <select
+        id="daily-nudge-limit"
+        value={preferences.daily_nudge_limit}
+        disabled={!desktop || busy}
+        onChange={(e) =>
+          void update({ daily_nudge_limit: Number(e.target.value) })
+        }
+      >
+        {[0, 3, 5, 8, 10, 20, 50].map((n) => (
+          <option key={n} value={n}>
+            {n === 0 ? "No cards" : `${n} cards`}
+          </option>
+        ))}
+      </select>
+      <p className="helper">
+        Shared by local reminders, AI check-ins and resource recommendations,
+        across all goals. Limits survive restarts and reset by local calendar
+        day. Snooze, DND, meeting and fullscreen controls still apply. Manual
+        focus checks remain available in the workspace.
+      </p>
+      <label className="toggle-row">
+        <span>
           Show Buddy only with suggestions
           <small>
             When off, Buddy stays on your desktop during a session. Drag the

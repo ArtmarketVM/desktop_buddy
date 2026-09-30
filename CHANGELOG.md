@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.0
+
+- Add per-goal Work, Distraction and Neutral process rules. Explicit rules override automatic AI focus judgments; unclassified apps retain the consented AI path.
+- Add opt-in, provider-free distraction reminders after two active minutes in the same window. Explain the user's rule in each reminder; do not block apps or inspect browser domains.
+- Apply a persisted, shared daily card limit (default 8) and minimum interval (default 15 minutes) to reminders, AI focus cards and recommendations. Quiet controls still apply; manual focus checks remain available in the workspace.
+- Add sampled daily foreground time across goals and for the current goal, plus saved checklist progress. Do not infer past usage from legacy cumulative activity rows.
+- Skip unobserved gaps, app/goal switches, pauses, excluded apps, Buddy itself and detected idle periods. Split samples at local midnight. Demo data stays in its separate database.
+- Include daily usage in retention and confirmed history deletion. Keep active-goal rules and card-budget settings on history deletion.
+
+Known limits: time is approximate, not whole-device usage; passive reading without input becomes idle after 60 seconds. Browser tabs share one process rule. Daily buckets retain their collection-time local date when the time zone changes. Card slots are reserved before native display, so a failed native show can conservatively consume a slot. No live provider or installed/native end-to-end verification is implied by automated tests.
+
 ## 0.5.0
 
 - Add editable completion criteria, up to 20 ordered checklist steps, and one current unfinished step per goal.

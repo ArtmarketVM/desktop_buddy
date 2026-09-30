@@ -6,6 +6,7 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub usage: crate::insights::UsageTracker,
     pub retention_days: u32,
     pub last_cleanup: Instant,
     pub privacy_revision: u64,
@@ -42,6 +43,7 @@ impl AppState {
         Ok(Self {
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                usage: Default::default(),
                 retention_days,
                 last_cleanup: Instant::now(),
                 privacy_revision: 0,
@@ -123,6 +125,12 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         None
     };
     Ok(Dashboard {
+        app_rules: goal
+            .as_ref()
+            .map(|g| inner.storage.app_rules(g.id))
+            .transpose()?
+            .unwrap_or_default(),
+        today: inner.storage.today(goal.as_ref().map(|g| g.id))?,
         goal_plan: goal
             .as_ref()
             .map(|g| inner.storage.goal_plan(g.id))
@@ -152,6 +160,8 @@ pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<
     inner.last_nudge = None;
     inner.last_error = None;
     inner.collector = collector::create(inner.status.demo);
+    inner.usage = Default::default();
+    inner.buddy.foreground = None;
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)?;
     Ok(goal)
@@ -189,6 +199,8 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
     inner.status.tracking = enabled;
     inner.buddy.clear();
     inner.collector = collector::create(inner.status.demo);
+    inner.usage = Default::default();
+    inner.buddy.foreground = None;
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
@@ -284,11 +296,14 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         let snapshot = inner.collector.collect()?;
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
         inner.buddy.foreground = Some(snapshot.clone());
-        if !snapshot
+        let allowed = !snapshot
             .process_name
             .eq_ignore_ascii_case("desktop-buddy.exe")
-            && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name)
-        {
+            && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name);
+        if let Some((start, end, process)) = inner.usage.sample(goal.id, &snapshot, allowed) {
+            inner.storage.record_usage(goal.id, &process, start, end)?;
+        }
+        if allowed {
             inner.storage.activity(goal.id, &snapshot)?;
         }
     }
@@ -300,6 +315,11 @@ pub fn should_analyze(state: &AppState) -> bool {
     };
     inner.status.tracking
         && inner.status.ai_enabled
+        && crate::insights::explicit_category(&inner).is_ok_and(|c| c.is_none())
+        && inner
+            .storage
+            .nudge_allowed(&inner.buddy.view.preferences)
+            .unwrap_or(false)
         && inner.buddy.view.quiet_reason.is_none()
         && !crate::buddy::snoozed(&inner.buddy.view)
         && !inner.status.dnd
@@ -383,6 +403,7 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .map(|t| t.elapsed() >= Duration::from_secs(600))
         .unwrap_or(true);
     if inner.buddy.view.quiet_reason.is_none()
+        && crate::insights::explicit_category(&inner)?.is_none()
         && !crate::buddy::snoozed(&inner.buddy.view)
         && should_nudge(&inner.status, cooldown, &decision, activity.last())
     {

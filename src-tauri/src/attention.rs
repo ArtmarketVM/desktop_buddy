@@ -47,6 +47,11 @@ pub fn quiet_reason(
 }
 
 pub fn validate_preferences(mut preferences: BuddyPreferences) -> Result<BuddyPreferences, String> {
+    if preferences.daily_nudge_limit > 50
+        || ![5, 15, 30, 60].contains(&preferences.nudge_interval_minutes)
+    {
+        return Err("Choose 0–50 daily nudges and a 5, 15, 30, or 60 minute interval".into());
+    }
     if ![5, 15, 30, 60].contains(&preferences.interval_minutes) {
         return Err("Choose a suggestion interval of 5, 15, 30, or 60 minutes".into());
     }

@@ -22,6 +22,7 @@ fn invalidate(inner: &mut Inner) {
     inner.buddy.clear();
     inner.buddy.foreground = None;
     inner.collector = collector::create(inner.status.demo);
+    inner.usage = Default::default();
     inner.last_error = None;
 }
 pub fn cleanup_due(inner: &mut Inner) -> Result<(), String> {

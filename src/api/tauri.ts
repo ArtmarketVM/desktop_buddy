@@ -6,9 +6,15 @@ import type {
   SearchResult,
   GoalPlan,
   GoalProposal,
+  AppCategory,
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  appRule: (
+    goalId: number,
+    processName: string,
+    category: AppCategory | null,
+  ) => invoke<void>("set_app_rule", { goalId, processName, category }),
   saveGoalPlan: (title: string, plan: GoalPlan) =>
     invoke<void>("save_goal_plan", { title, plan }),
   transitionGoal: (

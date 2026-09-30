@@ -21,8 +21,11 @@ import packageInfo from "../package.json";
 import { Settings } from "./components/Settings";
 import { GoalPlanner, SavedGoals } from "./components/GoalPlanner";
 import { RecommendationHistory } from "./components/RecommendationHistory";
+import { AppRules, DailySummary } from "./components/ActivityInsights";
 
 const empty: Dashboard = {
+  app_rules: [],
+  today: { date: "", apps: [], nudges: 0 },
   goal_plan: null,
   saved_goals: [],
   retention_days: 0,
@@ -253,6 +256,23 @@ export default function App() {
               onChanged={refresh}
               locked={plannerDirty || busy}
             />
+            <DailySummary
+              today={data.today}
+              plan={data.goal_plan}
+              demo={data.status.demo}
+            />
+            {data.goal && (
+              <AppRules
+                key={data.goal.id}
+                goalId={data.goal.id}
+                rules={data.app_rules}
+                processes={[
+                  ...data.activity.map((a) => a.process_name),
+                  ...data.today.apps.map((a) => a.process_name),
+                ]}
+                onChanged={refresh}
+              />
+            )}
             <div className="card activity-card">
               <div className="section-heading">
                 <div>

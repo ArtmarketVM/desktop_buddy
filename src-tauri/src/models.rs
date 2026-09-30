@@ -67,6 +67,8 @@ pub struct Status {
 }
 #[derive(Serialize)]
 pub struct Dashboard {
+    pub app_rules: Vec<crate::insights::AppRule>,
+    pub today: crate::insights::Today,
     pub goal_plan: Option<crate::goals::GoalPlan>,
     pub saved_goals: Vec<crate::goals::SavedGoal>,
     pub retention_days: u32,
@@ -83,6 +85,9 @@ pub struct Dashboard {
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct BuddyPreferences {
+    pub local_nudges: bool,
+    pub daily_nudge_limit: u32,
+    pub nudge_interval_minutes: u32,
     pub suggestions_only: bool,
     pub proactive: bool,
     pub interval_minutes: u32,
@@ -94,6 +99,9 @@ pub struct BuddyPreferences {
 impl Default for BuddyPreferences {
     fn default() -> Self {
         Self {
+            local_nudges: false,
+            daily_nudge_limit: 8,
+            nudge_interval_minutes: 15,
             suggestions_only: true,
             proactive: false,
             interval_minutes: 15,

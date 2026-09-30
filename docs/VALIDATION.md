@@ -1,5 +1,15 @@
 # Validation record
 
+## App rules and observed daily time — 0.6.0
+
+Optimized Windows build and NSIS packaging succeeded at `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.6.0_x64-setup.exe`. Rust formatting, Prettier and whitespace checks passed. The installer was built but not installed during verification.
+
+Automated checks: 35 frontend tests and 54 Rust tests passed; the optional credential-vault test remains ignored. TypeScript/Vite build passed. Tests cover goal-specific normalized rules and removal, explicit-rule priority over automatic AI, opt-in local reminders and quiet controls, shared budget/cooldown/day rollover, real observed sample accounting without legacy backfill, exclusions/idle/gaps/clock changes, local-midnight splitting, retention/deletion, and database reopening. Frontend checks cover rendered categories, daily/current-goal totals, saved checklist progress, empty/demo disclosure and IPC payloads.
+
+No user database or live provider keys were used. Static rendering and backend tests do not verify installed interaction, native overlay timing, or Google Meet screen sharing.
+
+Manual acceptance: upgrade from 0.5.0 and confirm goals and keys remain intact. Set a process to Distraction for one goal and Work for another, restart and verify both rules. Enable local reminders without AI keys; remain in one distraction window for two active minutes, pause input briefly, and check the rule explanation. Verify pause, DND, snooze, meeting/fullscreen suppression, zero-card mode, shared cooldown and restart persistence. Switch windows/apps/goals, idle for over a minute and pause/resume tracking; daily totals must only accumulate observed intervals. Check saved-step progress separately from explicit goal completion. Validate retention/deletion using disposable history. Browser rules cover the whole browser, not individual sites.
+
 ## Goal planning — 0.5.0
 
 Optimized Windows build and NSIS packaging succeeded: `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.5.0_x64-setup.exe`. The installer is unsigned and was not installed during this verification.

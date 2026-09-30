@@ -6,6 +6,20 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { api, safeUrl } from "./tauri";
 describe("provider settings commands", () => {
+  it("sets and clears an app rule for an explicit goal", async () => {
+    await api.appRule(7, "editor.exe", "work");
+    expect(invoke).toHaveBeenLastCalledWith("set_app_rule", {
+      goalId: 7,
+      processName: "editor.exe",
+      category: "work",
+    });
+    await api.appRule(7, "editor.exe", null);
+    expect(invoke).toHaveBeenLastCalledWith("set_app_rule", {
+      goalId: 7,
+      processName: "editor.exe",
+      category: null,
+    });
+  });
   it("passes explicit completion confirmation and a goal revision for refinement", async () => {
     await api.transitionGoal(7, "complete", true);
     expect(invoke).toHaveBeenLastCalledWith("transition_goal", {

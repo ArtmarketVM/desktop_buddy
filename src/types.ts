@@ -54,6 +54,8 @@ export interface Status {
   tavily_configured: boolean;
 }
 export interface Dashboard {
+  app_rules: AppRule[];
+  today: Today;
   goal_plan: GoalPlan | null;
   saved_goals: SavedGoal[];
   retention_days: number;
@@ -67,6 +69,9 @@ export interface Dashboard {
   last_error?: string | null;
 }
 export interface BuddyPreferences {
+  local_nudges: boolean;
+  daily_nudge_limit: number;
+  nudge_interval_minutes: number;
   suggestions_only: boolean;
   proactive: boolean;
   interval_minutes: number;
@@ -76,6 +81,9 @@ export interface BuddyPreferences {
   excluded_apps: string[];
 }
 export const defaultBuddyPreferences: BuddyPreferences = {
+  local_nudges: false,
+  daily_nudge_limit: 8,
+  nudge_interval_minutes: 15,
   suggestions_only: true,
   proactive: false,
   interval_minutes: 15,
@@ -100,4 +108,14 @@ export interface Recommendation {
   reason: string;
   created_at: string;
   feedback: boolean | null;
+}
+export type AppCategory = "work" | "distraction" | "neutral";
+export interface AppRule {
+  process_name: string;
+  category: AppCategory;
+}
+export interface Today {
+  date: string;
+  apps: { process_name: string; seconds: number; goal_seconds: number }[];
+  nudges: number;
 }

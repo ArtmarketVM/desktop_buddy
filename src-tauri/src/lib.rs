@@ -5,6 +5,7 @@ mod commands;
 mod credentials;
 mod goals;
 mod http;
+mod insights;
 mod models;
 mod nebius;
 mod privacy;
@@ -53,6 +54,7 @@ pub fn run() {
                         if let Ok(mut inner) = state.inner.lock() {
                             inner.last_error = Some(error);
                             inner.buddy.foreground = None;
+                            inner.usage = Default::default();
                         }
                     }
                     let recommend = if let Ok(mut inner) = state.inner.lock() {
@@ -112,6 +114,7 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            insights::set_app_rule,
             goals::save_goal_plan,
             goals::transition_goal,
             goals::refine_goal,

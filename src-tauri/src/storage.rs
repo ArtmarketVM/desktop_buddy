@@ -15,6 +15,8 @@ impl Storage {
         self.connection.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;
         CREATE TABLE IF NOT EXISTS goals(id INTEGER PRIMARY KEY, text TEXT NOT NULL, status TEXT NOT NULL, created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS goal_plans(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE, revision INTEGER NOT NULL, payload TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS app_rules(goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE, process_name TEXT NOT NULL, category TEXT NOT NULL, PRIMARY KEY(goal_id,process_name));
+        CREATE TABLE IF NOT EXISTS usage_daily(day TEXT NOT NULL, goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE, process_name TEXT NOT NULL, milliseconds INTEGER NOT NULL, PRIMARY KEY(day,goal_id,process_name));
         CREATE TABLE IF NOT EXISTS activity(id INTEGER PRIMARY KEY, goal_id INTEGER REFERENCES goals(id), timestamp TEXT NOT NULL, process_name TEXT NOT NULL, window_title TEXT NOT NULL, idle_seconds INTEGER NOT NULL, active_seconds INTEGER NOT NULL);
         CREATE TABLE IF NOT EXISTS decisions(id INTEGER PRIMARY KEY, timestamp TEXT NOT NULL, goal_id INTEGER REFERENCES goals(id), state TEXT NOT NULL, confidence REAL NOT NULL, reason TEXT NOT NULL, action TEXT NOT NULL, payload TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, decision_id INTEGER NOT NULL REFERENCES decisions(id), related INTEGER NOT NULL, timestamp TEXT NOT NULL);
@@ -57,7 +59,19 @@ impl Storage {
     }
     /// Removes local history, not settings, keys, or the active goal. None means all history.
     pub fn purge_history(&mut self, cutoff: Option<&str>) -> Result<(), String> {
+        let cutoff_day = cutoff
+            .map(|v| {
+                chrono::DateTime::parse_from_rfc3339(v)
+                    .map(|d| d.with_timezone(&chrono::Local).date_naive().to_string())
+                    .map_err(|e| e.to_string())
+            })
+            .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        tx.execute(
+            "DELETE FROM usage_daily WHERE ?1 IS NULL OR day<?1",
+            [cutoff_day],
+        )
+        .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM feedback WHERE ?1 IS NULL OR julianday(timestamp)<julianday(?1) OR decision_id IN (SELECT id FROM decisions WHERE julianday(timestamp)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         for (table, column) in [
             ("decisions", "timestamp"),
@@ -73,7 +87,7 @@ impl Storage {
             )
             .map_err(|e| e.to_string())?;
         }
-        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn record_recommendation(
