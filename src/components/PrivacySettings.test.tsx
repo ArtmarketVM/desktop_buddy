@@ -16,5 +16,6 @@ describe("privacy controls", () => {
     expect(html).toContain("I understand this cannot be undone.");
     expect(html).toContain('disabled="">Permanently clear local history');
     expect(html).toContain("does not delete remote records");
+    expect(html).toContain("10 rated titles and 10 recently offered titles");
   });
 });

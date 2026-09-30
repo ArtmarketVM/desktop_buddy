@@ -65,7 +65,13 @@ For consented focus checks and proactive recommendations, goal context now inclu
 
 ## Privacy controls
 
-Settings includes a local-only preview of the goal and minimized recent activity used for focus checks and proactive query planning. Generating this preview does not send a request. It is not a complete wire payload: resource selection also sends up to five search-result titles, URLs and snippets, plus up to ten current-goal ratings to Nebius. Tavily receives the typed or generated query.
+Settings includes a local-only preview of the goal and minimized recent activity used for focus checks and proactive query planning. Generating this preview does not send a request. Query planning and resource selection both use up to ten rated titles and ten recently offered titles for the current goal; this memory appears in the preview. Resource selection additionally sends up to five search-result titles, URLs and snippets to Nebius. Tavily receives only the typed or generated query, not raw ratings or history.
+
+### Recommendation quality (0.7.0)
+
+Both stages prioritize the saved current unfinished step, then the completion criterion and goal. If no step is selected, Buddy supports the stated goal without inventing a step. Ratings guide the approach, while recent titles help avoid repetitive topics; a negative rating does not ban an entire domain. Buddy can skip the search or decline all candidates instead of offering a generic link. Every selected resource includes a concise **Try this** action, saved with the explanation in recommendation history.
+
+Local URL deduplication ignores fragments and known marketing parameters while preserving functional query parameters and the original destination. It checks both retained per-goal history and the current batch; it does not resolve redirects or guarantee semantic uniqueness. History deletion/retention removes this memory too. Selection is based on titles/snippets, not a claim that Buddy has read or verified the full page. Existing snooze, daily card limits and consent controls are unchanged.
 
 Exclude applications by executable name, such as `passwordmanager.exe`. Matching is case-insensitive. Excluded activity is not newly stored and existing matching records are filtered out of future AI context; previously saved records are not automatically deleted. Already transmitted requests cannot be recalled.
 

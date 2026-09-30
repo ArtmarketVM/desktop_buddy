@@ -88,15 +88,20 @@ pub fn get_privacy_preview(state: State<AppState>) -> Result<Value, String> {
         .into_iter()
         .filter(|a| !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name))
         .collect();
+    let memory = goal
+        .as_ref()
+        .map(|g| inner.storage.recommendation_memory(g.id))
+        .transpose()?
+        .unwrap_or_else(|| json!({"ratings":[],"recently_offered_titles":[]}));
     let goal = goal
         .as_ref()
         .map(|g| inner.storage.goal_context(g))
         .transpose()?
         .unwrap_or_default();
     Ok(
-        json!({"focus_check":nebius::focus_context(&goal,&activity),"proactive_search_planning":nebius::search_context(&goal,&activity),
+        json!({"focus_check":nebius::focus_context(&goal,&activity),"proactive_search_planning":nebius::recommendation_search_context(&goal,&activity,&memory),
         "nebius_destination":destination("NEBIUS_API_URL")?,"tavily_destination":destination("TAVILY_API_URL")?,
-        "note":"Local preview of user context only; no request was sent. Context may change before the next request. Resource selection also sends up to five result titles, URLs and snippets, plus up to ten ratings for the current goal to Nebius. Tavily receives your typed or generated search query, not the raw activity list."}),
+        "note":"Local preview of user context only; no request was sent. Context may change before the next request. Query planning and resource selection use up to ten rated titles and ten recently offered titles for this goal. Resource selection additionally sends up to five candidate titles, URLs and snippets to Nebius. Tavily receives only your typed or generated search query, not the raw activity list or rating history."}),
     )
 }
 fn destination(name: &str) -> Result<String, String> {

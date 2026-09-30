@@ -1,5 +1,13 @@
 # Validation record
 
+## Recommendation quality — 0.7.0
+
+Automated checks: 35 frontend tests and 62 Rust tests passed; the optional credential-vault test remains ignored. TypeScript/Vite build passed. New tests cover structured current-step context, goal-scoped bounded feedback beyond the global history limit, tracking-parameter/fragment deduplication, legacy URLs, batch duplicates, provider abstention, required next actions, invalid/refused/truncated output, and both HTTP stages against an isolated mock server. Frontend tests verify the next action and updated privacy disclosure render.
+
+No live provider keys or user history were used. Real recommendation relevance, native card layout, and installed upgrade behavior remain manual checks. Optimized Windows compilation and NSIS packaging succeeded at `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.7.0_x64-setup.exe`. The installer was built but not installed during verification.
+
+Manual acceptance: select a current step, enable proactive suggestions and inspect the local context preview. Rate resources and confirm later searches stay relevant to that step. Check that retained links do not repeat through known marketing URL variants. Each offered link should explain its relevance and propose a concrete action; irrelevant results should produce no card. Change the step or a rating during a request and verify stale responses are discarded. Retention/deletion intentionally removes recommendation memory.
+
 ## App rules and observed daily time — 0.6.0
 
 Optimized Windows build and NSIS packaging succeeded at `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.6.0_x64-setup.exe`. Rust formatting, Prettier and whitespace checks passed. The installer was built but not installed during verification.

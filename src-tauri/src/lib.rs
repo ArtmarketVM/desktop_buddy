@@ -9,6 +9,7 @@ mod insights;
 mod models;
 mod nebius;
 mod privacy;
+mod recommendations;
 mod storage;
 mod tavily;
 mod tray;

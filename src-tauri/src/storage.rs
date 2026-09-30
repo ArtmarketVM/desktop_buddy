@@ -164,6 +164,7 @@ impl Storage {
             .map_err(|e| e.to_string())?;
         Ok(())
     }
+    #[cfg(test)]
     pub fn seen_suggestion(&self, goal: i64, url: &str) -> Result<bool, String> {
         self.connection
             .query_row(

@@ -60,8 +60,10 @@ export function PrivacySettings({
         <li>
           Proactive suggestions: Nebius receives the goal and up to 5 window
           titles to plan a query. Tavily receives the query. Nebius then
-          receives up to 5 result titles, URLs and snippets, plus up to 10
-          ratings for this goal, to select a resource.
+          receives up to 5 result titles, URLs and snippets to select a
+          resource. Both stages use up to 10 rated titles and 10 recently
+          offered titles for the current goal. These titles and ratings appear
+          in the local preview; they are not sent directly to Tavily.
         </li>
         <li>Manual search: Tavily receives only the query you submit.</li>
         <li>

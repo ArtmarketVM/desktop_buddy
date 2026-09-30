@@ -318,7 +318,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
         .recommendation
         .try_lock()
         .map_err(|_| "A suggestion is already being prepared")?;
-    let (goal, context, activity, revision) = {
+    let (goal, context, activity, memory, revision) = {
         let mut inner = state
             .inner
             .lock()
@@ -342,9 +342,13 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
             .storage
             .write_setting("buddy_last_attempt", &inner.buddy.last_attempt_at)?;
         let context = inner.storage.goal_context(&goal)?;
-        (goal, context, activity, inner.buddy.revision)
+        let memory = inner.storage.recommendation_memory(goal.id)?;
+        (goal, context, activity, memory, inner.buddy.revision)
     };
-    let plan = nebius::search_plan(&state.client, &context, &activity).await?;
+    let plan = nebius::search_plan(&state.client, &context, &activity, &memory).await?;
+    let Some(query) = plan.query else {
+        return Ok(());
+    };
     // Consent and session must still match before sending the derived query to Tavily.
     {
         let inner = state
@@ -355,8 +359,8 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
             return Ok(());
         }
     }
-    let results = tavily::tavily_search(&state.client, &plan.query).await?;
-    let (candidates, feedback) = {
+    let results = tavily::tavily_search(&state.client, &query).await?;
+    let candidates = {
         let inner = state
             .inner
             .lock()
@@ -364,37 +368,15 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
         if !valid(&inner, goal.id, revision)? {
             return Ok(());
         }
-        let mut candidates = Vec::new();
-        for mut result in results {
-            let Ok(mut url) = reqwest::Url::parse(&result.url) else {
-                continue;
-            };
-            if !matches!(url.scheme(), "http" | "https")
-                || !url.username().is_empty()
-                || url.password().is_some()
-            {
-                continue;
-            }
-            url.set_fragment(None);
-            result.url = url.to_string();
-            if !inner.storage.seen_suggestion(goal.id, &result.url)? {
-                candidates.push(result);
-            }
-        }
-        let feedback: Vec<_> = inner
-            .storage
-            .recommendation_history()?
-            .into_iter()
-            .filter(|r| r.goal_id == goal.id && r.feedback.is_some())
-            .take(10)
-            .collect();
-        (candidates, feedback)
+        crate::recommendations::fresh_candidates(
+            results,
+            inner.storage.seen_resource_keys(goal.id)?,
+        )
     };
     if candidates.is_empty() {
         return Ok(());
     }
-    let selection =
-        nebius::select_resource(&state.client, &context, &candidates, &feedback).await?;
+    let selection = nebius::select_resource(&state.client, &context, &candidates, &memory).await?;
     let Some(index) = selection.index else {
         return Ok(());
     };
@@ -408,17 +390,28 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
     if !valid(&inner, goal.id, revision)? {
         return Ok(());
     }
-    let id = inner.storage.record_recommendation(
-        goal.id,
-        &result.title,
-        &result.url,
-        &selection.reason,
-    )?;
+    // Recheck against retained history at the write boundary, not just before selection.
+    let seen = inner.storage.seen_resource_keys(goal.id)?;
+    if crate::recommendations::resource_key(&result.url).is_none_or(|key| seen.contains(&key)) {
+        return Ok(());
+    }
+    let reason = format!(
+        "{}\nTry this: {}",
+        selection.reason.trim(),
+        selection
+            .next_action
+            .as_deref()
+            .ok_or("No next action returned")?
+            .trim()
+    );
+    let id = inner
+        .storage
+        .record_recommendation(goal.id, &result.title, &result.url, &reason)?;
     inner.buddy.view.suggestion = Some(Suggestion {
         id,
         title: result.title.chars().take(180).collect(),
         url: result.url.clone(),
-        reason: selection.reason,
+        reason,
     });
     inner.buddy.view.decision = None;
     inner.buddy.shown = Some(Instant::now());

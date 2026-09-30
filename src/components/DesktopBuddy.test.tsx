@@ -29,7 +29,8 @@ describe("desktop companion", () => {
             id: 1,
             title: "Rust guide",
             url: "https://example.com",
-            reason: "Learn ownership",
+            reason:
+              "Learn ownership.\nTry this: Apply the borrowing example to your function.",
           },
         }}
         onDismiss={noop}
@@ -38,6 +39,9 @@ describe("desktop companion", () => {
     );
     expect(html).toContain("Rust guide");
     expect(html).toContain("Learn ownership");
+    expect(html).toContain(
+      "Try this: Apply the borrowing example to your function.",
+    );
     expect(html).toContain("Open resource");
     expect(html).toContain("Do not disturb");
     expect(html).toContain("Not now · 1 hour");

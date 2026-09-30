@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0
+
+- Prioritize the saved current step and completion criterion in both recommendation query planning and resource selection.
+- Use up to ten rated titles and ten recently offered titles from the current goal in both stages; query goal-scoped history directly instead of filtering the latest 100 global recommendations.
+- Allow query planning and resource selection to abstain. Require a short, concrete next action for each selected resource and retain it in the existing recommendation reason.
+- Deduplicate retained history and each result batch using URL identities without fragments or known tracking parameters (`utm_*`, `gclid`, `fbclid`, `msclkid`). Keep functional parameters and original link destinations intact; support legacy saved URLs without rewriting history.
+- Update privacy disclosures and the local preview to include the recommendation memory actually sent to Nebius. Existing consent, cooldown and stale-response checks remain in place.
+
+Known limits: semantic relevance and avoidance of similar content depend on the model and search snippets, not full-page verification. Different aliases/redirects and unknown tracking parameters may still represent duplicates. Deduplication is per goal and only covers retained history; retention/deletion can allow a resource to appear again. Live provider quality remains a manual check.
+
 ## 0.6.0
 
 - Add per-goal Work, Distraction and Neutral process rules. Explicit rules override automatic AI focus judgments; unclassified apps retain the consented AI path.

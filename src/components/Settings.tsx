@@ -106,8 +106,11 @@ export function Settings({
             Allows Nebius to receive your goal, completion criterion, current
             step and recent window titles to create a search query, then sends
             that query to Tavily. Provider charges may apply. Nebius also
-            receives search result snippets and your ratings for this goal to
-            select a resource. Disabled while paused or in DND.
+            receives search result snippets to select a resource. Both query
+            planning and selection use up to ten rated titles and ten recently
+            offered titles for this goal. The current step takes priority; Buddy
+            may skip a search or suggestion when nothing is useful. Disabled
+            while paused or in DND.
           </small>
         </span>
         <input
