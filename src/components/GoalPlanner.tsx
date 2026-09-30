@@ -350,8 +350,13 @@ export function SavedGoals({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   return (
-    <section className="card goal-planner" aria-label="Saved goals">
-      <h2>Saved goals</h2>
+    <details
+      className="card goal-planner disclosure-card"
+      aria-label="Saved goals"
+    >
+      <summary>
+        Saved goals <span className="disclosure-count">{goals.length}</span>
+      </summary>
       <p className="helper">
         Up to 100 goals, with deferred goals first. Resuming defers any current
         goal and leaves tracking paused.
@@ -385,6 +390,6 @@ export function SavedGoals({
         ))}
       </div>
       {error && <p role="alert">{error}</p>}
-    </section>
+    </details>
   );
 }

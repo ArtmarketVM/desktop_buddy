@@ -25,11 +25,14 @@ export function RecommendationHistory({
     }
   }
   return (
-    <section
-      className="card recommendation-history"
+    <details
+      className="card recommendation-history disclosure-card"
       aria-label="Recommendation history"
     >
-      <h2>Recommendation history</h2>
+      <summary>
+        Recommendation history{" "}
+        <span className="disclosure-count">{recommendations.length}</span>
+      </summary>
       <p className="helper">
         The latest 100 retained recommendations across your goals. Ratings are
         saved locally and may be sent to Nebius for future suggestions for the
@@ -100,6 +103,6 @@ export function RecommendationHistory({
           );
         })}
       </div>
-    </section>
+    </details>
   );
 }

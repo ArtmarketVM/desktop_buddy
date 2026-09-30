@@ -8,19 +8,28 @@ export function Settings({
   preferences,
   retentionDays,
   onHistoryCleared,
+  aiEnabled = false,
+  snoozedUntil = null,
+  nebiusConfigured = false,
+  tavilyConfigured = false,
 }: {
   onChanged: () => Promise<void>;
   preferences: BuddyPreferences;
   retentionDays: number;
   onHistoryCleared: () => Promise<void>;
+  aiEnabled?: boolean;
+  snoozedUntil?: number | null;
+  nebiusConfigured?: boolean;
+  tavilyConfigured?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  async function update(patch: Partial<BuddyPreferences>) {
+  const snoozed = snoozedUntil !== null && snoozedUntil * 1000 > Date.now();
+  async function run(action: () => Promise<unknown>) {
     setBusy(true);
     setError("");
     try {
-      await api.buddyPreferences({ ...preferences, ...patch });
+      await action();
       await onChanged();
     } catch (e) {
       setError(String(e));
@@ -28,9 +37,48 @@ export function Settings({
       setBusy(false);
     }
   }
+  const update = (patch: Partial<BuddyPreferences>) =>
+    run(() => api.buddyPreferences({ ...preferences, ...patch }));
   return (
     <section className="card preferences" aria-label="Settings">
       <h2>Settings</h2>
+      <label className="toggle-row">
+        <span>
+          AI check-ins
+          <small>
+            Sends your goal, completion criterion, current step and recent
+            window titles to Nebius. Provider charges may apply.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={aiEnabled}
+          disabled={!desktop || busy}
+          onChange={(e) => void run(() => api.ai(e.target.checked))}
+        />
+      </label>
+      <button
+        className="text-button"
+        disabled={!desktop || busy}
+        onClick={() => void run(() => api.snooze(!snoozed))}
+      >
+        {snoozed ? "Resume Buddy" : "Snooze Buddy for 1 hour"}
+      </button>
+      {snoozed && (
+        <p role="status">
+          Snoozed until{" "}
+          {new Date(snoozedUntil! * 1000).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+          .
+        </p>
+      )}
+      <p className="helper">
+        Snooze hides Buddy and pauses automatic check-ins and recommendations.
+        Tracking is unchanged. Resuming does not turn off DND or resume paused
+        tracking.
+      </p>
       <label className="toggle-row">
         <span>
           Local distraction reminders
@@ -150,7 +198,13 @@ export function Settings({
         Use your own provider API keys. They are stored in Windows Credential
         Manager for your Windows account, not in the app database.
       </p>
+      <p className="connection">
+        Nebius {nebiusConfigured ? "configured" : "not configured"}
+      </p>
       <ProviderKey provider="nebius" label="Nebius" onChanged={onChanged} />
+      <p className="connection">
+        Tavily {tavilyConfigured ? "configured" : "not configured"}
+      </p>
       <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
       <PrivacySettings
         preferences={preferences}

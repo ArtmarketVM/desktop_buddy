@@ -28,9 +28,7 @@ export function DailySummary({
       className="card insights-card"
       aria-label="Today's activity summary"
     >
-      <span className="eyebrow">
-        {demo ? "SIMULATED SESSION" : "OBSERVED ON THIS DEVICE"}
-      </span>
+      {demo && <span className="eyebrow">SIMULATED SESSION</span>}
       <h2>Today{today.date ? ` · ${today.date}` : ""}</h2>
       <div className="insight-totals">
         <p>
@@ -58,16 +56,10 @@ export function DailySummary({
               value={completed}
             />
           )}
-          <p className="helper">
-            Saved checklist progress, not a measure of goal completion or steps
-            completed today.
-          </p>
         </div>
       )}
       {today.apps.length === 0 ? (
-        <p>
-          No tracked time yet today. Start a goal and keep tracking enabled.
-        </p>
+        <p className="helper">No tracked time yet today.</p>
       ) : (
         <div className="insights-table-wrap">
           <table className="insights-table">
@@ -91,13 +83,22 @@ export function DailySummary({
           </table>
         </div>
       )}
-      <p className="helper">
-        Approximate foreground time while tracking: excludes pauses, excluded
-        apps, Buddy itself, gaps and detected idle periods (60+ seconds without
-        input). This is not total computer usage. No historical backfill;
-        collection starts with this version. Browser time is not split by
-        website. Days use the local time zone at collection.
-      </p>
+      <details className="inline-details">
+        <summary>How time is tracked</summary>
+        {plan && (
+          <p className="helper">
+            Saved checklist progress, not a measure of goal completion or steps
+            completed today.
+          </p>
+        )}
+        <p className="helper">
+          Approximate foreground time while tracking: excludes pauses, excluded
+          apps, Buddy itself, gaps and detected idle periods (60+ seconds
+          without input). This is not total computer usage. No historical
+          backfill; collection starts with this version. Browser time is not
+          split by website. Days use the local time zone at collection.
+        </p>
+      </details>
     </section>
   );
 }

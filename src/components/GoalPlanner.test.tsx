@@ -42,6 +42,9 @@ describe("goal planning", () => {
       />,
     );
     expect(html).toContain("Deferred");
+    expect(html).toMatch(/<details[^>]*aria-label="Saved goals"/);
+    expect(html).not.toMatch(/<details[^>]*\bopen/);
+    expect(html).toContain("<summary>Saved goals");
     expect(html).toContain("Completed");
     expect((html.match(/Resume goal/g) || []).length).toBe(1);
   });

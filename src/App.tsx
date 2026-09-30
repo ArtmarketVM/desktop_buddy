@@ -123,18 +123,6 @@ export default function App() {
         <div className="nav-item selected">
           <Compass size={18} /> Focus room <span>01</span>
         </div>
-        <button
-          className="text-button"
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen(!settingsOpen)}
-        >
-          Settings
-        </button>
-        <div className="sidebar-note">
-          <span className="small-orbit">✳</span>
-          <h3>A little more present.</h3>
-          <p>Make room for the work that matters to you.</p>
-        </div>
         <div className="local-badge">
           <LockKeyhole size={15} />
           <span>
@@ -148,14 +136,18 @@ export default function App() {
             WORKSPACE <span className="slash">/</span> Focus room
           </span>
           <span className="version">EARLY ACCESS · v{data.version}</span>
+          <button
+            className="text-button"
+            aria-expanded={settingsOpen}
+            aria-controls="workspace-settings"
+            onClick={() => setSettingsOpen(!settingsOpen)}
+          >
+            {settingsOpen ? "Close settings" : "Settings"}
+          </button>
         </header>
         <div className="page-title">
           <div>
-            <span className="eyebrow">LESS NOISE, MORE MOMENTUM</span>
-            <h1>
-              One thing at a time<span>.</span>
-            </h1>
-            <p>A calm corner for your next good idea.</p>
+            <h1>Focus</h1>
           </div>
           <div className="status-pill">
             <i className={data.status.tracking ? "live" : ""} />
@@ -165,10 +157,13 @@ export default function App() {
           </div>
         </div>
         {!desktop && (
-          <div className="notice">
-            Design preview · Open the desktop app with{" "}
-            <code>npm run tauri dev</code> to track activity and connect AI.
-          </div>
+          <details className="inline-details preview-details">
+            <summary>Browser preview · tracking unavailable</summary>
+            <p className="helper">
+              Open the desktop app with <code>npm run tauri dev</code> to track
+              activity and connect AI.
+            </p>
+          </details>
         )}
         {(data.status.demo || data.status.mock_ai) && (
           <div className="notice">
@@ -186,26 +181,28 @@ export default function App() {
             </button>
           </div>
         )}
-        {settingsOpen && (
+        <div id="workspace-settings" hidden={!settingsOpen}>
           <Settings
             onChanged={refresh}
             preferences={data.buddy.preferences}
             retentionDays={data.retention_days}
+            aiEnabled={data.status.ai_enabled}
+            snoozedUntil={data.buddy.snoozed_until}
+            nebiusConfigured={data.status.nebius_configured}
+            tavilyConfigured={data.status.tavily_configured}
             onHistoryCleared={async () => {
               setResults([]);
               await refresh();
             }}
           />
-        )}
-        <div className="workspace-grid">
+        </div>
+        <div className="workspace-grid" hidden={settingsOpen}>
           <section className="focus-column">
             <div className="card goal-card">
               <div className="section-label">
-                <Target size={17} /> YOUR NORTH STAR <span>01</span>
+                <Target size={17} /> CURRENT GOAL
               </div>
-              <h2>
-                {data.goal?.text || "Good work starts with an intention."}
-              </h2>
+              {data.goal && <h2>{data.goal.text}</h2>}
               <GoalInput
                 disabled={busy || !desktop || plannerDirty}
                 onStart={(text) => run(() => api.setGoal(text))}
@@ -276,7 +273,6 @@ export default function App() {
             <div className="card activity-card">
               <div className="section-heading">
                 <div>
-                  <span className="eyebrow">THE LITTLE STEPS ADD UP</span>
                   <h2>Your activity</h2>
                 </div>
                 <span className="muted">Recent sessions</span>
@@ -290,7 +286,6 @@ export default function App() {
             <div className="card search-card">
               <div className="section-heading">
                 <div>
-                  <span className="eyebrow">A FRESH PERSPECTIVE</span>
                   <h2>Find a way forward</h2>
                 </div>
                 <Search size={20} />
@@ -377,59 +372,6 @@ export default function App() {
               )}
             </section>
             <section className="card preferences">
-              <h3>Make yourself comfortable</h3>
-              <p role="status">
-                {data.buddy.snoozed_until &&
-                data.buddy.snoozed_until * 1000 > Date.now()
-                  ? `Buddy is snoozed until ${new Date(data.buddy.snoozed_until * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Tracking is unchanged.`
-                  : "Buddy is not snoozed."}
-              </p>
-              <button
-                className="text-button"
-                disabled={!desktop || busy}
-                onClick={() =>
-                  void run(() =>
-                    api.snooze(
-                      !(
-                        data.buddy.snoozed_until &&
-                        data.buddy.snoozed_until * 1000 > Date.now()
-                      ),
-                    ),
-                  )
-                }
-              >
-                {data.buddy.snoozed_until &&
-                data.buddy.snoozed_until * 1000 > Date.now()
-                  ? "Resume Buddy"
-                  : "Snooze Buddy for 1 hour"}
-              </button>
-              <p className="helper">
-                Snooze hides Buddy and pauses automatic check-ins and
-                recommendations. Resuming does not turn off DND or resume paused
-                tracking.
-              </p>
-              <button
-                className="text-button"
-                aria-expanded={settingsOpen}
-                onClick={() => setSettingsOpen(!settingsOpen)}
-              >
-                Manage API keys
-              </button>
-              <label className="toggle-row">
-                <span>
-                  <Sparkles size={16} /> AI check-ins
-                  <small>
-                    Sends your goal, completion criterion, current step and
-                    recent window titles to Nebius.
-                  </small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={data.status.ai_enabled}
-                  disabled={!desktop || busy}
-                  onChange={(e) => void run(() => api.ai(e.target.checked))}
-                />
-              </label>
               <label className="toggle-row">
                 <span>
                   <BellOff size={16} /> Do not disturb
@@ -442,22 +384,7 @@ export default function App() {
                   onChange={(e) => void run(() => api.dnd(e.target.checked))}
                 />
               </label>
-              <div className="connection">
-                <i className={data.status.nebius_configured ? "live" : ""} />{" "}
-                Nebius{" "}
-                {data.status.nebius_configured
-                  ? "configured"
-                  : "not configured"}
-              </div>
-              <div className="connection">
-                <i className={data.status.tavily_configured ? "live" : ""} />{" "}
-                Tavily{" "}
-                {data.status.tavily_configured
-                  ? "configured"
-                  : "not configured"}
-              </div>
             </section>
-            <p className="quiet-note">Progress doesn’t have to be loud.</p>
           </aside>
         </div>
         <footer>

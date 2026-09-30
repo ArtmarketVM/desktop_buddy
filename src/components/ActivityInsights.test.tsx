@@ -35,6 +35,13 @@ describe("local activity insights", () => {
     expect(html).toContain('max="2"');
     expect(html).toContain("No historical backfill");
     expect(html).toContain("not a measure of goal completion");
+    expect(html).toContain(
+      '<details class="inline-details"><summary>How time is tracked</summary>',
+    );
+    expect(html).not.toMatch(/<details[^>]*\bopen/);
+    expect(html.indexOf('class="insight-totals"')).toBeLessThan(
+      html.indexOf("<details"),
+    );
   });
   it("labels simulated and empty data honestly", () => {
     const html = renderToStaticMarkup(
@@ -86,5 +93,24 @@ describe("local activity insights", () => {
     expect(duration(59)).toBe("59s");
     expect(duration(61)).toBe("1m");
     expect(duration(3660)).toBe("1h 1m");
+  });
+  it("keeps AI consent, provider status and snooze controls in Settings", () => {
+    const html = renderToStaticMarkup(
+      <Settings
+        preferences={defaultBuddyPreferences}
+        retentionDays={0}
+        onChanged={noop}
+        onHistoryCleared={noop}
+        aiEnabled
+        snoozedUntil={Math.floor(Date.now() / 1000) + 3600}
+        nebiusConfigured
+      />,
+    );
+    expect(html).toContain("AI check-ins");
+    expect(html).toContain("titles to Nebius");
+    expect(html).toContain("Resume Buddy");
+    expect(html).toContain("Nebius configured");
+    expect(html).toContain("Tavily not configured");
+    expect(html).not.toContain("Do not disturb");
   });
 });

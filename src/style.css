@@ -1008,3 +1008,47 @@ footer span {
   display: block;
   width: 100%;
 }
+
+/* Secondary information stays available without competing with the goal. */
+.workspace-grid[hidden] {
+  display: none;
+}
+.inline-details {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #606961;
+}
+.inline-details > summary,
+.disclosure-card > summary {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 4px 0;
+}
+.inline-details > summary:focus-visible,
+.disclosure-card > summary:focus-visible {
+  outline: 2px solid #436bb1;
+  outline-offset: 4px;
+}
+.disclosure-card > summary {
+  font-size: 15px;
+  font-weight: 600;
+}
+.card.disclosure-card {
+  padding: 16px 20px;
+}
+.disclosure-card[open] > summary {
+  margin-bottom: 16px;
+}
+.disclosure-count {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #606961;
+}
+.preview-details {
+  margin: 0 0 20px;
+}
+.inline-details .helper {
+  font-size: 12px;
+  line-height: 1.6;
+}
