@@ -1,9 +1,13 @@
 use crate::models::ActivitySnapshot;
 use chrono::Utc;
+pub const CONTEXT_CHANGED: &str = "Foreground context changed during collection";
+#[cfg(windows)]
+mod browser_windows;
 #[cfg(windows)]
 mod windows;
 
 pub trait ActivityCollector: Send {
+    fn configure(&mut self, _settings: &crate::tracking::TrackingSettings, _excluded: &[String]) {}
     fn collect(&mut self) -> Result<ActivitySnapshot, String>;
 }
 pub fn foreground_fullscreen() -> bool {
@@ -22,7 +26,7 @@ pub struct DurationTracker {
     previous: Option<(String, String, std::time::Instant, std::time::Duration)>,
 }
 impl DurationTracker {
-    pub fn update(&mut self, process: &str, title: &str, idle: u64) -> u64 {
+    pub fn update(&mut self, process: &str, title: &str, idle: u64, idle_threshold: u64) -> u64 {
         let now = std::time::Instant::now();
         let duration = self
             .previous
@@ -31,7 +35,7 @@ impl DurationTracker {
                 let elapsed = now.duration_since(*last);
                 if p == process
                     && t == title
-                    && idle < 60
+                    && idle < idle_threshold
                     && elapsed <= std::time::Duration::from_secs(15)
                 {
                     *accumulated + elapsed
@@ -89,6 +93,7 @@ impl ActivityCollector for DemoCollector {
             window_title: title.into(),
             idle_seconds: 0,
             active_seconds: seconds,
+            ..Default::default()
         })
     }
 }
@@ -119,8 +124,8 @@ mod tests {
                 std::time::Duration::from_secs(6),
             )),
         };
-        assert_eq!(tracker.update("app", "title", 0), 9);
-        assert_eq!(tracker.update("other", "title", 0), 0);
+        assert_eq!(tracker.update("app", "title", 0, 300), 9);
+        assert_eq!(tracker.update("other", "title", 0, 300), 0);
     }
     #[test]
     fn idle_resets_duration() {
@@ -132,6 +137,6 @@ mod tests {
                 std::time::Duration::from_secs(6),
             )),
         };
-        assert_eq!(tracker.update("app", "title", 90), 0);
+        assert_eq!(tracker.update("app", "title", 300, 300), 0);
     }
 }

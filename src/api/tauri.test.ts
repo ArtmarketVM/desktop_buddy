@@ -6,6 +6,14 @@ vi.mock("@tauri-apps/api/core", () => ({
 import { invoke } from "@tauri-apps/api/core";
 import { api, safeUrl } from "./tauri";
 describe("provider settings commands", () => {
+  it("fetches completed histories or a specific goal without mixing goal IDs", async () => {
+    await api.goalHistory();
+    expect(invoke).toHaveBeenLastCalledWith("get_goal_history", {
+      goalId: null,
+    });
+    await api.goalHistory(7);
+    expect(invoke).toHaveBeenLastCalledWith("get_goal_history", { goalId: 7 });
+  });
   it("sets and clears an app rule for an explicit goal", async () => {
     await api.appRule(7, "editor.exe", "work");
     expect(invoke).toHaveBeenLastCalledWith("set_app_rule", {

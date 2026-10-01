@@ -22,6 +22,7 @@ fn snooze_suppresses_display_and_scheduling_without_pausing_tracking() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.status.tracking = true;
+    crate::tracking::allow_notifications(&mut inner);
     inner.status.mock_ai = false;
     inner.status.nebius_configured = true;
     inner.status.tavily_configured = true;
@@ -45,6 +46,7 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.status.tracking = true;
+    crate::tracking::allow_notifications(&mut inner);
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
     inner.buddy.view.preferences.suggestions_only = false;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
@@ -108,6 +110,7 @@ fn discards_results_after_goal_or_consent_changes() {
     let mut inner = state.inner.lock().unwrap();
     let goal = inner.storage.set_goal("Learn Rust").unwrap();
     inner.status.tracking = true;
+    crate::tracking::allow_notifications(&mut inner);
     inner.buddy.view.preferences.proactive = true;
     assert!(valid(&inner, goal.id, 0).unwrap());
     inner.buddy.clear();

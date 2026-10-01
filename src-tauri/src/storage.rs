@@ -9,6 +9,7 @@ impl Storage {
         let connection = Connection::open(path).map_err(|e| e.to_string())?;
         let store = Self { connection };
         store.initialize()?;
+        store.initialize_tracking()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -74,6 +75,8 @@ impl Storage {
         .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM feedback WHERE ?1 IS NULL OR julianday(timestamp)<julianday(?1) OR decision_id IN (SELECT id FROM decisions WHERE julianday(timestamp)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         for (table, column) in [
+            ("usage_intervals", "ended_at"),
+            ("tracking_events", "timestamp"),
             ("decisions", "timestamp"),
             ("activity", "timestamp"),
             ("recommendation_history", "created_at"),
@@ -87,7 +90,7 @@ impl Storage {
             )
             .map_err(|e| e.to_string())?;
         }
-        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM usage_intervals WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM tracking_events WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn record_recommendation(
@@ -209,26 +212,34 @@ impl Storage {
         })
     }
     pub fn activity(&self, goal: i64, item: &ActivitySnapshot) -> Result<(), String> {
-        let last: Option<(i64, String, String, u64)> = self.connection.query_row("SELECT id,process_name,window_title,active_seconds FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 1", [goal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).optional().map_err(|e| e.to_string())?;
-        if let Some((id, process, title, seconds)) = last {
+        let browser = item
+            .browser
+            .as_ref()
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|e| e.to_string())?;
+        let last: Option<(i64, String, String, u64, Option<String>, Option<u64>)> = self.connection.query_row("SELECT id,process_name,window_title,active_seconds,browser_context,window_id FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 1", [goal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,r.get(4)?,r.get(5)?))).optional().map_err(|e| e.to_string())?;
+        if let Some((id, process, title, seconds, previous_browser, window)) = last {
             if process == item.process_name
                 && title == item.window_title
                 && item.active_seconds >= seconds
+                && previous_browser == browser
+                && window == item.window_id
             {
                 self.connection
                     .execute(
-                        "UPDATE activity SET idle_seconds=?1,active_seconds=?2 WHERE id=?3",
-                        params![item.idle_seconds, item.active_seconds, id],
+                        "UPDATE activity SET idle_seconds=?1,active_seconds=?2,media_playing=?4 WHERE id=?3",
+                        params![item.idle_seconds, item.active_seconds, id, item.media_playing],
                     )
                     .map_err(|e| e.to_string())?;
                 return Ok(());
             }
         }
-        self.connection.execute("INSERT INTO activity(goal_id,timestamp,process_name,window_title,idle_seconds,active_seconds) VALUES (?1,?2,?3,?4,?5,?6)", params![goal,item.timestamp,item.process_name,item.window_title,item.idle_seconds,item.active_seconds]).map_err(|e| e.to_string())?;
+        self.connection.execute("INSERT INTO activity(goal_id,timestamp,process_name,window_title,idle_seconds,active_seconds,browser_context,window_id,media_playing) VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9)", params![goal,item.timestamp,item.process_name,item.window_title,item.idle_seconds,item.active_seconds,browser,item.window_id,item.media_playing]).map_err(|e| e.to_string())?;
         Ok(())
     }
     pub fn recent(&self, goal: i64) -> Result<Vec<ActivitySnapshot>, String> {
-        let mut q = self.connection.prepare("SELECT timestamp,process_name,window_title,idle_seconds,active_seconds FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 20").map_err(|e| e.to_string())?;
+        let mut q = self.connection.prepare("SELECT timestamp,process_name,window_title,idle_seconds,active_seconds,browser_context,window_id,media_playing FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 20").map_err(|e| e.to_string())?;
         let rows = q
             .query_map([goal], |r| {
                 Ok(ActivitySnapshot {
@@ -237,6 +248,19 @@ impl Storage {
                     window_title: r.get(2)?,
                     idle_seconds: r.get(3)?,
                     active_seconds: r.get(4)?,
+                    browser: r
+                        .get::<_, Option<String>>(5)?
+                        .map(|v| serde_json::from_str(&v))
+                        .transpose()
+                        .map_err(|e| {
+                            rusqlite::Error::FromSqlConversionFailure(
+                                5,
+                                rusqlite::types::Type::Text,
+                                Box::new(e),
+                            )
+                        })?,
+                    window_id: r.get(6)?,
+                    media_playing: r.get(7)?,
                 })
             })
             .map_err(|e| e.to_string())?;
@@ -311,6 +335,7 @@ mod tests {
             window_title: "Demo".into(),
             idle_seconds: 0,
             active_seconds: 3,
+            ..Default::default()
         };
         s.activity(g.id, &a).unwrap();
         a.active_seconds = 6;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
 import { PrivacySettings } from "./PrivacySettings";
+import { TrackingSettings } from "./TrackingSettings";
 
 export function Settings({
   onChanged,
@@ -42,6 +43,7 @@ export function Settings({
   return (
     <section className="card preferences" aria-label="Settings">
       <h2>Settings</h2>
+      <TrackingSettings onChanged={onChanged} />
       <label className="toggle-row">
         <span>
           AI check-ins
@@ -83,8 +85,9 @@ export function Settings({
         <span>
           Local distraction reminders
           <small>
-            After 2 active minutes in the same window of an app you marked as a
-            distraction for this goal. No AI or API key needed.
+            After 2 active minutes in a distraction app, or an unchanged context
+            with no recent input. Working hours and media playback are
+            respected. No AI or API key needed.
           </small>
         </span>
         <input

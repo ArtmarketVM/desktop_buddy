@@ -1,4 +1,5 @@
 use super::{process_basename, ActivityCollector, DurationTracker};
+use crate::browser::BrowserActivityProvider;
 use crate::models::ActivitySnapshot;
 use chrono::Utc;
 use windows::{
@@ -23,8 +24,15 @@ use windows::{
 pub struct WindowsCollector {
     tracker: DurationTracker,
     previous_window: usize,
+    browser: super::browser_windows::WindowsBrowserProvider,
+    settings: crate::tracking::TrackingSettings,
+    excluded: Vec<String>,
 }
 impl ActivityCollector for WindowsCollector {
+    fn configure(&mut self, settings: &crate::tracking::TrackingSettings, excluded: &[String]) {
+        self.settings = settings.clone();
+        self.excluded = excluded.to_vec();
+    }
     fn collect(&mut self) -> Result<ActivitySnapshot, String> {
         // Handles and buffers remain local; the process handle is closed before returning.
         unsafe {
@@ -38,7 +46,11 @@ impl ActivityCollector for WindowsCollector {
             }
             let mut title = [0u16; 1024];
             let title_len = GetWindowTextW(hwnd, &mut title);
-            let window_title = String::from_utf16_lossy(&title[..title_len.max(0) as usize]);
+            let window_title: String =
+                String::from_utf16_lossy(&title[..title_len.max(0) as usize])
+                    .chars()
+                    .take(160)
+                    .collect();
             let mut pid = 0;
             GetWindowThreadProcessId(hwnd, Some(&mut pid));
             let process_name =
@@ -68,15 +80,61 @@ impl ActivityCollector for WindowsCollector {
                 return Err("Could not read idle time".into());
             }
             let idle_seconds = GetTickCount().wrapping_sub(last.dwTime) as u64 / 1000;
-            let active_seconds = self
-                .tracker
-                .update(&process_name, &window_title, idle_seconds);
+            let (domain, media_playing) = if !self
+                .excluded
+                .iter()
+                .any(|p| p.eq_ignore_ascii_case(&process_name))
+            {
+                self.browser.metadata(
+                    if self.settings.browser_metadata {
+                        hwnd.0 as usize
+                    } else {
+                        0
+                    },
+                    &process_name,
+                    &window_title,
+                )
+            } else {
+                (None, false)
+            };
+            let browser = crate::browser::context(&process_name, &window_title, domain);
+            let mut latest_title = [0u16; 1024];
+            let len = GetWindowTextW(hwnd, &mut latest_title);
+            let latest: String = String::from_utf16_lossy(&latest_title[..len.max(0) as usize])
+                .chars()
+                .take(160)
+                .collect();
+            if GetForegroundWindow() != hwnd || latest != window_title {
+                self.tracker = DurationTracker::default();
+                return Err(super::CONTEXT_CHANGED.into());
+            }
+            let context_key = format!(
+                "{}|{}",
+                window_title,
+                browser
+                    .as_ref()
+                    .and_then(|b| b.domain.as_deref())
+                    .unwrap_or("")
+            );
+            let active_seconds = self.tracker.update(
+                &process_name,
+                &context_key,
+                idle_seconds,
+                self.settings.idle_seconds,
+            );
+            let window_title = browser
+                .as_ref()
+                .map(|b| b.page_title.clone())
+                .unwrap_or(window_title);
             Ok(ActivitySnapshot {
                 timestamp: Utc::now().to_rfc3339(),
                 process_name,
                 window_title,
                 idle_seconds,
                 active_seconds,
+                window_id: Some(hwnd.0 as u64),
+                browser,
+                media_playing,
             })
         }
     }

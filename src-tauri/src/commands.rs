@@ -6,6 +6,8 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub tracking_settings: crate::tracking::TrackingSettings,
+    pub activity_state: crate::tracking::StateTracker,
     pub usage: crate::insights::UsageTracker,
     pub retention_days: u32,
     pub last_cleanup: Instant,
@@ -43,6 +45,8 @@ impl AppState {
         Ok(Self {
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                tracking_settings: storage.tracking_settings()?,
+                activity_state: Default::default(),
                 usage: Default::default(),
                 retention_days,
                 last_cleanup: Instant::now(),
@@ -161,6 +165,7 @@ pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<
     inner.last_error = None;
     inner.collector = collector::create(inner.status.demo);
     inner.usage = Default::default();
+    inner.activity_state.stop(false);
     inner.buddy.foreground = None;
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)?;
@@ -197,6 +202,16 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         return Err("Set a goal first".into());
     }
     inner.status.tracking = enabled;
+    if !enabled {
+        if let Some(goal) = inner.storage.goal()? {
+            if inner.activity_state.state != crate::tracking::ActivityState::Paused {
+                inner
+                    .storage
+                    .tracking_event(goal.id, crate::tracking::ActivityEvent::Paused)?;
+            }
+        }
+    }
+    inner.activity_state.stop(false);
     inner.buddy.clear();
     inner.collector = collector::create(inner.status.demo);
     inner.usage = Default::default();
@@ -293,16 +308,35 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         return Ok(());
     }
     if let Some(goal) = inner.storage.goal()? {
-        let snapshot = inner.collector.collect()?;
+        let settings = inner.tracking_settings.clone();
+        let excluded = inner.buddy.view.preferences.excluded_apps.clone();
+        inner.collector.configure(&settings, &excluded);
+        let mut snapshot = inner.collector.collect()?;
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
-        inner.buddy.foreground = Some(snapshot.clone());
         let allowed = !snapshot
             .process_name
             .eq_ignore_ascii_case("desktop-buddy.exe")
             && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name);
-        if let Some((start, end, process)) = inner.usage.sample(goal.id, &snapshot, allowed) {
-            inner.storage.record_usage(goal.id, &process, start, end)?;
+        if !inner.tracking_settings.browser_metadata {
+            snapshot.browser =
+                crate::browser::context(&snapshot.process_name, &snapshot.window_title, None);
         }
+        let revision = inner.activity_state.revision;
+        let activity_state = inner
+            .activity_state
+            .sample(goal.id, &snapshot, allowed, &settings);
+        if allowed && inner.activity_state.revision != revision {
+            inner
+                .storage
+                .tracking_event(goal.id, inner.activity_state.event)?;
+        }
+        if let Some(interval) = inner
+            .usage
+            .observe(goal.id, &snapshot, allowed, activity_state)
+        {
+            inner.storage.record_interval(goal.id, &interval)?;
+        }
+        inner.buddy.foreground = Some(snapshot.clone());
         if allowed {
             inner.storage.activity(goal.id, &snapshot)?;
         }
@@ -314,6 +348,7 @@ pub fn should_analyze(state: &AppState) -> bool {
         return false;
     };
     inner.status.tracking
+        && crate::tracking::notifications_allowed(&inner)
         && inner.status.ai_enabled
         && crate::insights::explicit_category(&inner).is_ok_and(|c| c.is_none())
         && inner
@@ -403,9 +438,16 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         .map(|t| t.elapsed() >= Duration::from_secs(600))
         .unwrap_or(true);
     if inner.buddy.view.quiet_reason.is_none()
+        && crate::tracking::notifications_allowed(&inner)
         && crate::insights::explicit_category(&inner)?.is_none()
         && !crate::buddy::snoozed(&inner.buddy.view)
-        && should_nudge(&inner.status, cooldown, &decision, activity.last())
+        && should_nudge(
+            &inner.status,
+            cooldown,
+            &decision,
+            activity.last(),
+            inner.tracking_settings.idle_seconds,
+        )
     {
         if inner.buddy.shown.is_none() {
             inner.buddy.decision(decision.clone());
@@ -424,6 +466,7 @@ fn should_nudge(
     cooldown: bool,
     decision: &Decision,
     latest: Option<&ActivitySnapshot>,
+    idle_threshold: u64,
 ) -> bool {
     status.tracking
         && status.ai_enabled
@@ -434,7 +477,7 @@ fn should_nudge(
         && decision.action != Action::Wait
         && latest
             .map(|a| {
-                a.idle_seconds < 60
+                a.idle_seconds < idle_threshold
                     && (decision.action == Action::OfferHelp || a.active_seconds >= 120)
             })
             .unwrap_or(false)
@@ -467,26 +510,78 @@ mod tests {
             window_title: "Videos".into(),
             idle_seconds: 0,
             active_seconds: 180,
+            ..Default::default()
         };
-        assert!(should_nudge(&status, true, &decision, Some(&activity)));
-        assert!(!should_nudge(&status, false, &decision, Some(&activity)));
+        assert!(should_nudge(&status, true, &decision, Some(&activity), 300));
+        assert!(!should_nudge(
+            &status,
+            false,
+            &decision,
+            Some(&activity),
+            300
+        ));
         status.dnd = true;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
         status.dnd = false;
         status.tracking = false;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
         status.tracking = true;
         status.ai_enabled = false;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
         status.ai_enabled = true;
-        activity.idle_seconds = 60;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        activity.idle_seconds = 400;
+        assert!(should_nudge(&status, true, &decision, Some(&activity), 600));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
+        activity.idle_seconds = 300;
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
         activity.idle_seconds = 0;
         activity.active_seconds = 15;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
         activity.active_seconds = 180;
         decision.confidence = 0.4;
-        assert!(!should_nudge(&status, true, &decision, Some(&activity)));
+        assert!(!should_nudge(
+            &status,
+            true,
+            &decision,
+            Some(&activity),
+            300
+        ));
     }
     #[test]
     fn rejects_empty_and_oversized_input() {

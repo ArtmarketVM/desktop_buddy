@@ -93,10 +93,11 @@ export function DailySummary({
         )}
         <p className="helper">
           Approximate foreground time while tracking: excludes pauses, excluded
-          apps, Buddy itself, gaps and detected idle periods (60+ seconds
-          without input). This is not total computer usage. No historical
-          backfill; collection starts with this version. Browser time is not
-          split by website. Days use the local time zone at collection.
+          apps, Buddy itself, gaps and detected idle periods (5 minutes by
+          default, without input). This is not total computer usage. No
+          historical backfill. This summary groups browser time by application;
+          per-site and tab totals are available in the goal-history API. Days
+          use the local time zone at collection.
         </p>
       </details>
     </section>

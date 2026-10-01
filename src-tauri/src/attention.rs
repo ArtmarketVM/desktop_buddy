@@ -37,8 +37,6 @@ pub fn quiet_reason(
         Some("Fullscreen application".into())
     } else if preferences.suppress_meetings && meeting(activity) {
         Some("Meeting application".into())
-    } else if activity.idle_seconds >= 60 {
-        Some("You are away".into())
     } else if preferences.wait_for_input_pause && activity.idle_seconds < 5 && !card_visible {
         Some("Waiting for a pause in input".into())
     } else {
@@ -83,6 +81,7 @@ mod tests {
             window_title: "Project".into(),
             idle_seconds: 10,
             active_seconds: 100,
+            ..Default::default()
         }
     }
     #[test]
@@ -108,7 +107,7 @@ mod tests {
         assert!(quiet_reason(&prefs, Some(&a), false, false).is_some());
         assert!(quiet_reason(&prefs, Some(&a), false, true).is_none());
         a.idle_seconds = 90;
-        assert!(quiet_reason(&prefs, Some(&a), false, true).is_some());
+        assert!(quiet_reason(&prefs, Some(&a), false, true).is_none());
     }
     #[test]
     fn normalizes_preferences_and_rejects_invalid_limits() {

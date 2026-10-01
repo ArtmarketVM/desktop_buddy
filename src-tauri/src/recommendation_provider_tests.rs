@@ -23,6 +23,7 @@ fn structured_context_prioritizes_saved_step_and_matches_preview_builder() {
             window_title: format!("Window {n} {}", "x".repeat(200)),
             idle_seconds: 5,
             active_seconds: 120,
+            ..Default::default()
         })
         .collect();
     let context = recommendation_search_context(&goal(), &activity, &memory());

@@ -42,6 +42,7 @@ fn clearing_history_preserves_active_goal_and_settings() {
         window_title: "Draft".into(),
         idle_seconds: 10,
         active_seconds: 60,
+        ..Default::default()
     };
     store.activity(goal.id, &snapshot).unwrap();
     let mut decision = Decision {
@@ -120,6 +121,7 @@ fn preview_context_uses_the_same_minimization_as_provider_requests() {
             window_title: "a".repeat(200),
             idle_seconds: 10,
             active_seconds: 60,
+            ..Default::default()
         })
         .collect();
     let focus = nebius::focus_context("Goal", &items);

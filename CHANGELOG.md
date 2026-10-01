@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.8.0
+
+- Add foreground-browser title/domain metadata through a bounded Windows UI Automation adapter; retain only normalized hostnames and fall back to titles.
+- Add deterministic focused, paused, drifting and resumed states, plus goal-completed events for the avatar API. Default idle threshold is five minutes.
+- Suppress all automatic productivity notifications outside configurable local working hours (09:00–18:00 by default) and during confirmed system media playback.
+- Extend observed usage tracking with disjoint app/site/tab and idle intervals, goal-completion timestamps and a typed goal-history API. Keep recommendations goal-scoped and persistence-safe.
+- Add backward-compatible SQLite migrations and regression tests for transitions, media/hours suppression, overlap rejection, completion/restart, retention and legacy data.
+
+Known limits: address-bar availability depends on browser/version/language; only domain/title metadata identifies pages. System media playback is confirmed only for exact executable identities. Unobserved transitions, sleep, app downtime and manual-pause durations are not inferred. See `docs/TRACKING.md` for Windows QA.
+
 ## 0.7.0
 
 - Prioritize the saved current step and completion criterion in both recommendation query planning and resource selection.

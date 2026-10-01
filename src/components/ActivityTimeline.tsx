@@ -23,7 +23,8 @@ export function ActivityTimeline({
               <strong>{item.window_title || "Untitled window"}</strong>
               <small>
                 {item.process_name}
-                {item.idle_seconds >= 60 ? " · Idle" : ""}
+                {item.browser?.domain ? ` · ${item.browser.domain}` : ""}
+                {item.media_playing ? " · Media playing" : ""}
               </small>
             </div>
             <span className="duration">

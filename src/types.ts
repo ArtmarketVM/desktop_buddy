@@ -26,6 +26,14 @@ export interface SavedGoal {
   status: "deferred" | "completed";
 }
 export interface ActivitySnapshot {
+  window_id?: number | null;
+  browser?: {
+    browser: string;
+    page_title: string;
+    domain: string | null;
+    source: string;
+  } | null;
+  media_playing?: boolean;
   timestamp: string;
   process_name: string;
   window_title: string;
@@ -93,6 +101,10 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   excluded_apps: [],
 };
 export interface BuddyView {
+  activity_state?: "focused" | "paused" | "drifting";
+  activity_event?:
+    "working" | "paused" | "drifting" | "resumed" | "goal_completed";
+  activity_revision?: number;
   preferences: BuddyPreferences;
   suggestion: { id: number; title: string; url: string; reason: string } | null;
   decision: Decision | null;
@@ -118,4 +130,51 @@ export interface Today {
   date: string;
   apps: { process_name: string; seconds: number; goal_seconds: number }[];
   nudges: number;
+}
+
+export interface TrackingSettings {
+  idle_seconds: number;
+  drifting_context_seconds: number;
+  drifting_no_input_seconds: number;
+  working_start_minute: number;
+  working_end_minute: number;
+  browser_metadata: boolean;
+}
+export const defaultTrackingSettings: TrackingSettings = {
+  idle_seconds: 300,
+  drifting_context_seconds: 180,
+  drifting_no_input_seconds: 120,
+  working_start_minute: 540,
+  working_end_minute: 1080,
+  browser_metadata: true,
+};
+export interface ContextTime {
+  process_name: string;
+  domain: string | null;
+  page_title: string | null;
+  active_milliseconds: number;
+  idle_milliseconds: number;
+  drifting_milliseconds: number;
+}
+export interface GoalHistory {
+  goal: Goal;
+  status: string;
+  completed_at: string | null;
+  elapsed_milliseconds: number | null;
+  first_observed_at: string | null;
+  last_observed_at: string | null;
+  active_milliseconds: number;
+  unattributed_active_milliseconds: number;
+  focused_milliseconds: number;
+  work_app_milliseconds: number;
+  idle_milliseconds: number;
+  drifting_milliseconds: number;
+  distraction_app_milliseconds: number;
+  drifting_events: number;
+  pause_events: number;
+  interventions: number;
+  applications: ContextTime[];
+  sites: ContextTime[];
+  tabs: ContextTime[];
+  recommendations: Recommendation[];
 }

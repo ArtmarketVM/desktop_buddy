@@ -1,9 +1,11 @@
 mod attention;
+mod browser;
 mod buddy;
 mod collector;
 mod commands;
 mod credentials;
 mod goals;
+mod history;
 mod http;
 mod insights;
 mod models;
@@ -12,6 +14,7 @@ mod privacy;
 mod recommendations;
 mod storage;
 mod tavily;
+mod tracking;
 mod tray;
 use tauri::Manager;
 
@@ -53,9 +56,12 @@ pub fn run() {
                     let state = handle.state::<commands::AppState>();
                     if let Err(error) = commands::collect(&state) {
                         if let Ok(mut inner) = state.inner.lock() {
-                            inner.last_error = Some(error);
+                            if error != collector::CONTEXT_CHANGED {
+                                inner.last_error = Some(error);
+                            }
                             inner.buddy.foreground = None;
                             inner.usage = Default::default();
+                            inner.activity_state.stop(false);
                         }
                     }
                     let recommend = if let Ok(mut inner) = state.inner.lock() {
@@ -115,6 +121,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            tracking::get_tracking_settings,
+            tracking::set_tracking_settings,
+            history::get_goal_history,
             insights::set_app_rule,
             goals::save_goal_plan,
             goals::transition_goal,

@@ -1,12 +1,18 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ActivitySnapshot {
     pub timestamp: String,
     pub process_name: String,
     pub window_title: String,
     pub idle_seconds: u64,
     pub active_seconds: u64,
+    #[serde(default)]
+    pub window_id: Option<u64>,
+    #[serde(default)]
+    pub browser: Option<crate::browser::BrowserContext>,
+    #[serde(default)]
+    pub media_playing: bool,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Goal {
@@ -121,6 +127,9 @@ pub struct Suggestion {
 }
 #[derive(Clone, Serialize)]
 pub struct BuddyView {
+    pub activity_state: crate::tracking::ActivityState,
+    pub activity_event: crate::tracking::ActivityEvent,
+    pub activity_revision: u64,
     pub preferences: BuddyPreferences,
     pub suggestion: Option<Suggestion>,
     pub decision: Option<Decision>,

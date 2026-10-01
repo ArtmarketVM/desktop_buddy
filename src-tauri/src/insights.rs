@@ -38,48 +38,60 @@ pub struct Today {
 /// Separate from the legacy cumulative activity rows. Never backfill elapsed time.
 #[derive(Default)]
 pub struct UsageTracker {
-    previous: Option<(i64, String, bool, Instant, DateTime<Utc>)>,
+    observation: Option<(
+        i64,
+        ActivitySnapshot,
+        bool,
+        crate::tracking::ActivityState,
+        Instant,
+        DateTime<Utc>,
+    )>,
 }
 impl UsageTracker {
-    pub fn sample(
+    pub fn observe(
         &mut self,
         goal: i64,
         a: &ActivitySnapshot,
         allowed: bool,
-    ) -> Option<(DateTime<Utc>, DateTime<Utc>, String)> {
-        self.sample_at(goal, a, allowed, Instant::now(), Utc::now())
+        state: crate::tracking::ActivityState,
+    ) -> Option<crate::history::UsageInterval> {
+        self.observe_at(goal, a, allowed, state, Instant::now(), Utc::now())
     }
-    fn sample_at(
+    pub(crate) fn observe_at(
         &mut self,
         goal: i64,
         a: &ActivitySnapshot,
         allowed: bool,
+        state: crate::tracking::ActivityState,
         now: Instant,
         wall: DateTime<Utc>,
-    ) -> Option<(DateTime<Utc>, DateTime<Utc>, String)> {
-        let process = a.process_name.to_ascii_lowercase();
-        let active = allowed && a.idle_seconds < 60;
-        let result =
-            self.previous
-                .as_ref()
-                .and_then(|(g, p, was_active, previous, previous_wall)| {
-                    let elapsed = now.duration_since(*previous);
-                    let wall_ms = (wall - *previous_wall).num_milliseconds();
-                    if *g == goal
-                        && *p == process
-                        && active
-                        && *was_active
-                        && elapsed.as_secs_f64() <= 15.0
-                        && wall_ms > 0
-                        && (wall_ms - elapsed.as_millis() as i64).abs() < 1000
-                    {
-                        Some((*previous_wall, wall, process.clone()))
-                    } else {
-                        None
-                    }
-                });
-        self.previous = Some((goal, process, active, now, wall));
-        result
+    ) -> Option<crate::history::UsageInterval> {
+        let interval = self.observation.as_ref().and_then(
+            |(g, previous, was_allowed, previous_state, last, last_wall)| {
+                let elapsed = now.duration_since(*last);
+                let wall_ms = (wall - *last_wall).num_milliseconds();
+                if *g == goal
+                    && allowed
+                    && *was_allowed
+                    && state == *previous_state
+                    && crate::tracking::same_context(previous, a)
+                    && elapsed <= std::time::Duration::from_secs(15)
+                    && wall_ms > 0
+                    && (wall_ms - elapsed.as_millis() as i64).abs() < 1000
+                {
+                    Some(crate::history::UsageInterval {
+                        start: *last_wall,
+                        end: wall,
+                        activity: previous.clone(),
+                        state,
+                    })
+                } else {
+                    None
+                }
+            },
+        );
+        self.observation = Some((goal, a.clone(), allowed, state, now, wall));
+        interval
     }
 }
 
@@ -170,6 +182,7 @@ impl Storage {
         }
         Ok(())
     }
+    #[cfg(test)]
     pub fn record_usage(
         &mut self,
         goal: i64,
@@ -254,6 +267,9 @@ pub fn explicit_category(inner: &Inner) -> Result<Option<Category>, String> {
 
 /// Explicit rules override automatic AI judgments; they never require provider keys.
 pub fn local_nudge(inner: &mut Inner) -> Result<(), String> {
+    if !crate::tracking::notifications_allowed(inner) {
+        return Ok(());
+    }
     if !inner.status.tracking
         || inner.status.dnd
         || crate::buddy::snoozed(&inner.buddy.view)
@@ -273,14 +289,24 @@ pub fn local_nudge(inner: &mut Inner) -> Result<(), String> {
         false,
     )
     .is_some()
-        || a.active_seconds < 120
-        || explicit_category(inner)? != Some(Category::Distraction)
+        || (inner.activity_state.state != crate::tracking::ActivityState::Drifting
+            && (a.active_seconds < 120 || explicit_category(inner)? != Some(Category::Distraction)))
     {
         return Ok(());
     }
     let goal = inner.storage.goal()?.ok_or("Set a goal first")?;
-    let mut decision = Decision { id:None, state:FocusState::Drifting, confidence:1.0,
-        reason:format!("You marked {} as a distraction for this goal. It has been active in the same window for at least 2 minutes. Ready to return to your next step?", a.process_name), action:Action::Intervene };
+    let reason = if inner.activity_state.state == crate::tracking::ActivityState::Drifting {
+        "The same context has remained open with no recent input. Ready to return to your next step?".to_string()
+    } else {
+        format!("You marked {} as a distraction for this goal. It has been active in the same window for at least 2 minutes. Ready to return to your next step?", a.process_name)
+    };
+    let mut decision = Decision {
+        id: None,
+        state: FocusState::Drifting,
+        confidence: 1.0,
+        reason,
+        action: Action::Intervene,
+    };
     inner.storage.decision(goal.id, &mut decision)?;
     inner.buddy.decision(decision);
     Ok(())

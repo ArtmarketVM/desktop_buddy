@@ -19,6 +19,14 @@ If Rust was installed in this checkout's ignored `.tools` directory, use `./scri
 
 For the UI-only browser preview, run `npm run dev`. Desktop actions are intentionally disabled outside Tauri.
 
+## Tracking update (0.8.0)
+
+Chrome/Edge activity now includes a best-effort active-tab title and domain through Windows UI Automation; Firefox is supported when its address-bar accessibility ID is exposed. Only the hostname is retained, without URL paths/query strings/fragments. Unknown, edited or inaccessible address bars fall back to the foreground title. No browser extension or page-content inspection is required.
+
+Settings → **Tracking and working hours** controls domain metadata, idle threshold and local working hours (09:00–18:00 by default). Automatic productivity cards and check-ins stay quiet outside hours and during confirmed system media playback. Default local state detection pauses after 5 minutes without input and marks an unchanged context as drifting after 3 minutes with at least 2 minutes without input. Local reminders remain opt-in.
+
+The completed-goal history API exposes observed app/site/tab time, idle/drifting intervals, event counts and retained goal-specific recommendations. Old records are preserved without invented historical durations. See [tracking contracts, limitations, migrations and Windows QA](docs/TRACKING.md).
+
 ## Runtime configuration
 
 | Variable          | Meaning                                                                                 |
@@ -47,7 +55,7 @@ Endpoint references: [Nebius API](https://api.tokenfactory.nebius.com/docs), [Ta
 
 ## App rules and daily activity (0.6.0)
 
-Assign Work, Distraction or Neutral to a process in the current goal's app categories. Select Unclassified to remove the rule. Rules persist per goal and override automatic AI focus judgments for that process. A browser rule applies to all its tabs; no websites are blocked or inspected.
+Assign Work, Distraction or Neutral to a process in the current goal's app categories. Select Unclassified to remove the rule. Rules persist per goal and override automatic AI focus judgments for that process. A browser rule applies to all its tabs; no websites are blocked and no page content is inspected.
 
 Enable **Local distraction reminders** in Settings to receive provider-free reminders after two active minutes in the same window of a distraction app. Default: off. All floating cards share a persisted daily limit (default 8; 0 disables cards) and minimum interval (default 15 minutes), including AI focus cards and resource recommendations. Snooze, DND, excluded apps, meetings, fullscreen and input-pause settings still apply. Limits are global across goals; the daily count resets by local date, but cooldown carries across midnight. Proactive resource recommendations remain a separate opt-in regardless of app category.
 
@@ -129,6 +137,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.6.0 adds per-goal app rules, local distraction reminders, shared card limits and observed daily app time to the existing goal planning, recommendation, privacy and tray features. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no app/site blocking, project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
+Version 0.8.0 adds best-effort browser domain metadata, deterministic activity states, working hours, confirmed-media suppression and an observed goal-history API. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no app/site blocking, project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

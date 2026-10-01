@@ -166,8 +166,8 @@ impl Storage {
             };
             let changed = tx
                 .execute(
-                    "UPDATE goals SET status=?1 WHERE id=?2 AND status='active'",
-                    params![status, id],
+                    "UPDATE goals SET status=?1,completed_at=CASE WHEN ?1='completed' THEN ?3 ELSE NULL END WHERE id=?2 AND status='active'",
+                    params![status, id, chrono::Utc::now().to_rfc3339()],
                 )
                 .map_err(|e| e.to_string())?;
             if changed != 1 {
@@ -230,6 +230,12 @@ pub fn transition_goal(
     inner.status.tracking = false;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();
+    inner.activity_state.stop(action == "complete");
+    if action != "resume" {
+        inner
+            .storage
+            .tracking_event(id, inner.activity_state.event)?;
+    }
     inner.buddy.foreground = None;
     changed(&mut inner);
     crate::buddy::sync(&app, &mut inner)

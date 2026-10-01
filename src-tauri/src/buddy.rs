@@ -22,6 +22,9 @@ impl Runtime {
     pub fn new(preferences: BuddyPreferences) -> Self {
         Self {
             view: BuddyView {
+                activity_state: Default::default(),
+                activity_event: Default::default(),
+                activity_revision: 0,
                 preferences,
                 suggestion: None,
                 decision: None,
@@ -111,12 +114,27 @@ pub fn clamp_position(
 }
 pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
     remember_position(app, inner)?;
+    inner.buddy.view.activity_state = inner.activity_state.state;
+    inner.buddy.view.activity_event = inner.activity_state.event;
+    inner.buddy.view.activity_revision = inner.activity_state.revision;
     inner.buddy.view.quiet_reason = crate::attention::quiet_reason(
         &inner.buddy.view.preferences,
         inner.buddy.foreground.as_ref(),
         inner.buddy.fullscreen,
         inner.buddy.shown.is_some(),
     );
+    if !inner.tracking_settings.working_now() {
+        inner.buddy.view.quiet_reason = Some("Outside working hours".into());
+    } else if inner
+        .buddy
+        .foreground
+        .as_ref()
+        .is_some_and(|a| a.media_playing)
+    {
+        inner.buddy.view.quiet_reason = Some("Media playback".into());
+    } else if inner.activity_state.state == crate::tracking::ActivityState::Paused {
+        inner.buddy.view.quiet_reason = Some("You are away".into());
+    }
     if inner
         .buddy
         .shown
@@ -292,6 +310,7 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
 }
 pub fn due(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
+        && crate::tracking::notifications_allowed(inner)
         && inner
             .storage
             .nudge_allowed(&inner.buddy.view.preferences)
@@ -333,7 +352,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
             .into_iter()
             .filter(|a| !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name))
             .collect();
-        if activity.is_empty() || activity.last().is_some_and(|a| a.idle_seconds >= 60) {
+        if activity.is_empty() || !crate::tracking::notifications_allowed(&inner) {
             return Ok(());
         }
         inner.buddy.last_search = Some(Instant::now());
@@ -420,6 +439,7 @@ pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> 
 }
 fn valid(inner: &crate::commands::Inner, goal: i64, revision: u64) -> Result<bool, String> {
     Ok(inner.status.tracking
+        && crate::tracking::notifications_allowed(inner)
         && inner.storage.nudge_allowed(&inner.buddy.view.preferences)?
         && !inner.status.dnd
         && !snoozed(&inner.buddy.view)

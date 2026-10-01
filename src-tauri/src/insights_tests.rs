@@ -11,6 +11,7 @@ fn snapshot() -> ActivitySnapshot {
         window_title: "Document".into(),
         idle_seconds: 5,
         active_seconds: 180,
+        ..Default::default()
     }
 }
 
@@ -34,66 +35,6 @@ fn rules_are_goal_specific_normalized_removable_and_validated() {
         .unwrap();
     s.save_app_rule(second.id, "editor.exe", None).unwrap();
     assert!(s.app_rules(second.id).unwrap().is_empty());
-}
-
-#[test]
-fn samples_skip_switches_idle_exclusions_long_gaps_clock_changes_and_goal_changes() {
-    let mut t = UsageTracker::default();
-    let mut a = snapshot();
-    let now = Instant::now();
-    let wall = Utc::now();
-    assert!(t.sample_at(1, &a, true, now, wall).is_none());
-    assert!(t
-        .sample_at(
-            1,
-            &a,
-            true,
-            now + std::time::Duration::from_secs(3),
-            wall + Duration::seconds(3)
-        )
-        .is_some());
-    a.window_title = "Another document".into();
-    assert!(t
-        .sample_at(
-            1,
-            &a,
-            true,
-            now + std::time::Duration::from_secs(6),
-            wall + Duration::seconds(6)
-        )
-        .is_some());
-    for (i, goal, allowed, idle, process) in [
-        (9, 1, true, 60, "editor.exe"),
-        (12, 1, true, 0, "editor.exe"),
-        (15, 1, false, 0, "editor.exe"),
-        (18, 1, true, 0, "editor.exe"),
-        (21, 2, true, 0, "editor.exe"),
-        (24, 2, true, 0, "game.exe"),
-        (60, 2, true, 0, "game.exe"),
-    ] {
-        a.idle_seconds = idle;
-        a.process_name = process.into();
-        assert!(t
-            .sample_at(
-                goal,
-                &a,
-                allowed,
-                now + std::time::Duration::from_secs(i),
-                wall + Duration::seconds(i as i64)
-            )
-            .is_none());
-    }
-    assert!(t
-        .sample_at(
-            2,
-            &a,
-            true,
-            now + std::time::Duration::from_secs(63),
-            wall + Duration::hours(1)
-        )
-        .is_none());
-    t = UsageTracker::default();
-    assert!(t.sample_at(2, &a, true, now, wall).is_none());
 }
 
 #[test]
@@ -206,6 +147,7 @@ fn local_rules_need_opt_in_and_respect_all_quiet_controls_without_ai() {
     let mut i = state.inner.lock().unwrap();
     let goal = i.storage.set_goal("Goal").unwrap();
     i.status.tracking = true;
+    crate::tracking::allow_notifications(&mut i);
     i.status.ai_enabled = false;
     i.buddy.foreground = Some(snapshot());
     i.storage
@@ -270,6 +212,7 @@ fn explicit_rules_skip_automatic_ai_and_budget_blocks_searches() {
     let mut i = state.inner.lock().unwrap();
     let g = i.storage.set_goal("Goal").unwrap();
     i.status.tracking = true;
+    crate::tracking::allow_notifications(&mut i);
     i.status.ai_enabled = true;
     i.status.mock_ai = false;
     i.status.nebius_configured = true;

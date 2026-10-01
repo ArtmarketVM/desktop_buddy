@@ -7,9 +7,16 @@ import type {
   GoalPlan,
   GoalProposal,
   AppCategory,
+  TrackingSettings,
+  GoalHistory,
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  trackingSettings: () => invoke<TrackingSettings>("get_tracking_settings"),
+  saveTrackingSettings: (settings: TrackingSettings) =>
+    invoke<void>("set_tracking_settings", { settings }),
+  goalHistory: (goalId: number | null = null) =>
+    invoke<GoalHistory[]>("get_goal_history", { goalId }),
   appRule: (
     goalId: number,
     processName: string,
