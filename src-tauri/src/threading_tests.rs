@@ -24,6 +24,8 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("insights", include_str!("insights.rs")),
         ("tracking", include_str!("tracking.rs")),
         ("history", include_str!("history.rs")),
+        ("profile", include_str!("profile.rs")),
+        ("product_feedback", include_str!("product_feedback.rs")),
     ];
     for (_, source) in modules {
         assert_worker_dispatch(source);

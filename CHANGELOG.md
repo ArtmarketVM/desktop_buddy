@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.9.0
+
+- Add resumable first-run setup: character/color, role/name/required email with a clearly labeled draft privacy notice, and a goal using the existing model. Ask about activity tracking afterward, with an option to continue paused.
+- Share eight role presets between React and Rust, including Figma in Design. Apply starter app rules per goal while preserving manual overrides and explicit unclassification.
+- Extend the existing companion with cat, dog, seal and bird appearances, state-driven expressions, color selection and complete visibility control.
+- Consolidate profile, app rules, hours, startup and notification controls under the Settings gear. Enable installed Windows autostart by default after onboarding; development builds never register for startup.
+- Add local star/text feedback in Settings and after goal completion, with a repository boundary for future feedback storage. Keep identity and feedback out of provider requests.
+- Add profile validation, onboarding persistence, migration, preset and feedback regression coverage. See `docs/ONBOARDING.md` for affected files and native QA.
+
+Known limits: the privacy notice is a placeholder awaiting a reviewed final policy. There is no remote registration/feedback service or voice recording. Windows sign-in startup and native companion interactions still need the manual QA checklist.
+
 ## 0.8.0
 
 - Add foreground-browser title/domain metadata through a bounded Windows UI Automation adapter; retain only normalized hostnames and fall back to titles.

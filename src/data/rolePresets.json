@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "applications": [
+    {
+      "process": "code.exe",
+      "name": "Visual Studio Code",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "devenv.exe",
+      "name": "Visual Studio",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "idea64.exe",
+      "name": "IntelliJ IDEA",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "figma.exe",
+      "name": "Figma",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "photoshop.exe",
+      "name": "Photoshop",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "illustrator.exe",
+      "name": "Illustrator",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "notion.exe",
+      "name": "Notion",
+      "group": "Planning",
+      "category": "work"
+    },
+    {
+      "process": "excel.exe",
+      "name": "Excel",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "winword.exe",
+      "name": "Word",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "powerpnt.exe",
+      "name": "PowerPoint",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "outlook.exe",
+      "name": "Outlook",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "slack.exe",
+      "name": "Slack",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "ms-teams.exe",
+      "name": "Microsoft Teams",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "chrome.exe",
+      "name": "Chrome",
+      "group": "Browser",
+      "category": "neutral"
+    },
+    {
+      "process": "msedge.exe",
+      "name": "Edge",
+      "group": "Browser",
+      "category": "neutral"
+    },
+    {
+      "process": "firefox.exe",
+      "name": "Firefox",
+      "group": "Browser",
+      "category": "neutral"
+    }
+  ],
+  "roles": [
+    {
+      "id": "software_engineer",
+      "name": "Software Engineer",
+      "applications": [
+        "code.exe",
+        "devenv.exe",
+        "idea64.exe",
+        "slack.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "founder",
+      "name": "Founder / CEO",
+      "applications": [
+        "notion.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "outlook.exe",
+        "slack.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "product_manager",
+      "name": "Product Manager",
+      "applications": [
+        "notion.exe",
+        "figma.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "slack.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "designer",
+      "name": "Designer",
+      "applications": [
+        "figma.exe",
+        "photoshop.exe",
+        "illustrator.exe",
+        "slack.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "applications": [
+        "figma.exe",
+        "photoshop.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "outlook.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "sales",
+      "name": "Sales",
+      "applications": [
+        "outlook.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "ms-teams.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "business_development",
+      "name": "Business Development",
+      "applications": [
+        "outlook.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "notion.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "applications": [
+        "excel.exe",
+        "winword.exe",
+        "notion.exe",
+        "ms-teams.exe",
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe"
+      ]
+    }
+  ]
+}

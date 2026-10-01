@@ -1,5 +1,232 @@
 @import "@fontsource-variable/dm-sans";
 @import "@fontsource-variable/manrope";
+.onboarding-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 20px;
+  background: #edf1e7;
+}
+.onboarding-card {
+  width: min(100%, 620px);
+  padding: 36px;
+}
+.onboarding-brand {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 22px;
+}
+.onboarding-brand span {
+  color: #718f60;
+}
+.onboarding-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: #788374;
+}
+.onboarding-progress [aria-current="step"] {
+  color: #2d4530;
+  font-weight: 700;
+}
+.onboarding-card h1 {
+  font-size: clamp(26px, 4vw, 35px);
+  line-height: 1.2;
+  margin: 28px 0 16px;
+}
+.onboarding-card p {
+  line-height: 1.6;
+}
+.onboarding-card fieldset,
+.preferences fieldset,
+.product-feedback fieldset {
+  border: 0;
+  padding: 0;
+  margin: 20px 0;
+  min-width: 0;
+}
+.onboarding-card legend,
+.preferences legend {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.onboarding-card input:not([type="checkbox"]):not([type="color"]),
+.onboarding-card select,
+.onboarding-card textarea,
+.preferences
+  fieldset
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.preferences fieldset select {
+  width: 100%;
+  margin: 8px 0 16px;
+}
+.onboarding-card label:not(.privacy-ack) {
+  display: block;
+}
+.onboarding-card input[type="color"],
+.preferences input[type="color"] {
+  width: 96px;
+  height: 44px;
+  padding: 4px;
+  cursor: pointer;
+}
+.onboarding-card textarea,
+.product-feedback textarea {
+  width: 100%;
+  min-height: 95px;
+  margin: 8px 0 14px;
+  font: inherit;
+  padding: 13px;
+  border: 1px solid #e0e4d9;
+  border-radius: 9px;
+  color: #29352c;
+}
+.onboarding-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+}
+.avatar-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.avatar-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: #f1f4ec;
+  color: #344333;
+  border: 2px solid transparent;
+  border-radius: 14px;
+}
+.avatar-option[aria-pressed="true"] {
+  border-color: #5d8052;
+  background: #e4ecda;
+}
+.avatar {
+  width: 110px;
+  height: 110px;
+  max-width: 100%;
+  display: block;
+  margin: auto;
+}
+.avatar-working {
+  animation: buddy-float 3s ease-in-out infinite;
+}
+.avatar-fun {
+  animation: avatar-bounce 1.8s ease-in-out infinite;
+}
+.avatar-paused,
+.avatar-sleeping {
+  opacity: 0.8;
+}
+.avatar-eyes {
+  transform-origin: center;
+  animation: buddy-blink 6s infinite;
+}
+.desktop-buddy .desktop-character {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  width: 100px;
+  height: 110px;
+  animation: none;
+}
+.desktop-character .avatar {
+  width: 100%;
+  height: 100%;
+}
+.privacy-ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 18px 0;
+}
+.privacy-ack input {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+.preset-apps {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+.preset-apps span {
+  display: block;
+  color: #687363;
+  font-size: 11px;
+}
+.product-feedback {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #cad8bd;
+}
+.star-rating {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.star-rating label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+}
+.star-rating span[aria-hidden] {
+  font-size: 30px;
+  color: #6d885c;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@keyframes avatar-bounce {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-5px) rotate(2deg);
+  }
+}
+@media (max-width: 480px) {
+  .onboarding-card {
+    padding: 24px 18px;
+  }
+  .avatar-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .preset-apps {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar,
+  .avatar-eyes {
+    animation: none !important;
+  }
+}
 .privacy-settings {
   border-top: 1px solid #cad8bd;
   margin-top: 24px;

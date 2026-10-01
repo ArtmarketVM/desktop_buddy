@@ -73,6 +73,7 @@ pub struct Status {
 }
 #[derive(Serialize)]
 pub struct Dashboard {
+    pub user_settings: crate::profile::UserSettings,
     pub app_rules: Vec<crate::insights::AppRule>,
     pub today: crate::insights::Today,
     pub goal_plan: Option<crate::goals::GoalPlan>,
@@ -127,6 +128,7 @@ pub struct Suggestion {
 }
 #[derive(Clone, Serialize)]
 pub struct BuddyView {
+    pub avatar: crate::profile::AvatarPreferences,
     pub activity_state: crate::tracking::ActivityState,
     pub activity_event: crate::tracking::ActivityEvent,
     pub activity_revision: u64,

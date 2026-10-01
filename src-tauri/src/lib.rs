@@ -1,4 +1,5 @@
 mod attention;
+mod autostart;
 mod browser;
 mod buddy;
 mod collector;
@@ -11,6 +12,8 @@ mod insights;
 mod models;
 mod nebius;
 mod privacy;
+mod product_feedback;
+mod profile;
 mod recommendations;
 mod storage;
 mod tavily;
@@ -47,6 +50,26 @@ pub fn run() {
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
             app.manage(commands::AppState::new(storage).map_err(std::io::Error::other)?);
             tray::install(app)?;
+            let settings = app
+                .state::<commands::AppState>()
+                .inner
+                .lock()
+                .map_err(|_| std::io::Error::other("Application state unavailable"))?
+                .storage
+                .user_settings()
+                .map_err(std::io::Error::other)?;
+            if settings.onboarding.completed {
+                if let Err(error) = autostart::sync(settings.autostart) {
+                    if let Ok(mut inner) = app.state::<commands::AppState>().inner.lock() {
+                        inner.last_error = Some(error);
+                    }
+                }
+            }
+            if std::env::args().any(|arg| arg == "--background") {
+                if let Some(window) = app.get_webview_window("main") {
+                    window.hide()?;
+                }
+            }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let mut ticker = tokio::time::interval(std::time::Duration::from_secs(3));
@@ -121,6 +144,11 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            profile::save_onboarding,
+            profile::create_onboarding_goal,
+            profile::finish_onboarding,
+            profile::save_user_profile,
+            product_feedback::save_product_feedback,
             tracking::get_tracking_settings,
             tracking::set_tracking_settings,
             history::get_goal_history,

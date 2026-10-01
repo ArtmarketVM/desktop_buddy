@@ -67,6 +67,10 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
         reason: "Useful topic".into(),
     });
     assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
+    inner.buddy.view.avatar.visible = false;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    assert!(!due(&inner));
+    inner.buddy.view.avatar.visible = true;
     inner.status.dnd = true;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
     assert!(!due(&inner));

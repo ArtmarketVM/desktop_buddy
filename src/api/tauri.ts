@@ -9,9 +9,22 @@ import type {
   AppCategory,
   TrackingSettings,
   GoalHistory,
+  UserProfile,
+  UserSettings,
+  OnboardingState,
+  ProductFeedback,
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  saveOnboarding: (profile: UserProfile, draft: OnboardingState) =>
+    invoke<UserSettings>("save_onboarding", { profile, draft }),
+  onboardingGoal: (text: string) => invoke("create_onboarding_goal", { text }),
+  finishOnboarding: (allowTracking: boolean) =>
+    invoke<void>("finish_onboarding", { allowTracking }),
+  saveUserProfile: (profile: UserProfile, autostart: boolean) =>
+    invoke<void>("save_user_profile", { profile, autostart }),
+  productFeedback: (feedback: ProductFeedback) =>
+    invoke<void>("save_product_feedback", { feedback }),
   trackingSettings: () => invoke<TrackingSettings>("get_tracking_settings"),
   saveTrackingSettings: (settings: TrackingSettings) =>
     invoke<void>("set_tracking_settings", { settings }),

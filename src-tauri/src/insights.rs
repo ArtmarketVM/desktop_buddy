@@ -171,14 +171,33 @@ impl Storage {
             if count >= 100 && self.category(goal, &process)?.is_none() {
                 return Err("Use at most 100 app rules per goal".into());
             }
-            self.connection.execute("INSERT INTO app_rules(goal_id,process_name,category) VALUES(?1,?2,?3) ON CONFLICT(goal_id,process_name) DO UPDATE SET category=excluded.category",params![goal,process,serde_json::to_string(&category).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
-        } else {
-            self.connection
-                .execute(
-                    "DELETE FROM app_rules WHERE goal_id=?1 AND process_name=?2",
-                    params![goal, process],
-                )
+            let tx = self
+                .connection
+                .unchecked_transaction()
                 .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM preset_exclusions WHERE goal_id=?1 AND process_name=?2",
+                params![goal, process],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute("INSERT INTO app_rules(goal_id,process_name,category) VALUES(?1,?2,?3) ON CONFLICT(goal_id,process_name) DO UPDATE SET category=excluded.category,preset_source=NULL",params![goal,process,serde_json::to_string(&category).map_err(|e|e.to_string())?]).map_err(|e|e.to_string())?;
+            tx.commit().map_err(|e| e.to_string())?;
+        } else {
+            let tx = self
+                .connection
+                .unchecked_transaction()
+                .map_err(|e| e.to_string())?;
+            tx.execute(
+                "INSERT OR IGNORE INTO preset_exclusions(goal_id,process_name) VALUES(?1,?2)",
+                params![goal, process],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.execute(
+                "DELETE FROM app_rules WHERE goal_id=?1 AND process_name=?2",
+                params![goal, process],
+            )
+            .map_err(|e| e.to_string())?;
+            tx.commit().map_err(|e| e.to_string())?;
         }
         Ok(())
     }
@@ -267,6 +286,9 @@ pub fn explicit_category(inner: &Inner) -> Result<Option<Category>, String> {
 
 /// Explicit rules override automatic AI judgments; they never require provider keys.
 pub fn local_nudge(inner: &mut Inner) -> Result<(), String> {
+    if !inner.buddy.view.avatar.visible {
+        return Ok(());
+    }
     if !crate::tracking::notifications_allowed(inner) {
         return Ok(());
     }

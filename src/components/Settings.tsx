@@ -3,6 +3,9 @@ import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
 import { PrivacySettings } from "./PrivacySettings";
 import { TrackingSettings } from "./TrackingSettings";
+import { ProfileSettings } from "./ProfileSettings";
+import { ProductFeedback } from "./ProductFeedback";
+import { defaultUserSettings, type UserSettings } from "../types";
 
 export function Settings({
   onChanged,
@@ -13,6 +16,9 @@ export function Settings({
   snoozedUntil = null,
   nebiusConfigured = false,
   tavilyConfigured = false,
+  userSettings = defaultUserSettings,
+  children,
+  dnd,
 }: {
   onChanged: () => Promise<void>;
   preferences: BuddyPreferences;
@@ -22,6 +28,9 @@ export function Settings({
   snoozedUntil?: number | null;
   nebiusConfigured?: boolean;
   tavilyConfigured?: boolean;
+  userSettings?: UserSettings;
+  children?: React.ReactNode;
+  dnd?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +52,21 @@ export function Settings({
   return (
     <section className="card preferences" aria-label="Settings">
       <h2>Settings</h2>
+      {dnd !== undefined && (
+        <label className="toggle-row">
+          <span>
+            Do not disturb<small>Keep tracking, pause the nudges.</small>
+          </span>
+          <input
+            type="checkbox"
+            checked={dnd}
+            disabled={!desktop || busy}
+            onChange={(e) => void run(() => api.dnd(e.target.checked))}
+          />
+        </label>
+      )}
+      <ProfileSettings settings={userSettings} onChanged={onChanged} />
+      {children}
       <TrackingSettings onChanged={onChanged} />
       <label className="toggle-row">
         <span>
@@ -215,6 +239,7 @@ export function Settings({
         onChanged={onChanged}
         onHistoryCleared={onHistoryCleared}
       />
+      <ProductFeedback />
       <p className="helper">
         Saving a key does not enable AI check-ins or send activity. Provider
         usage may incur charges. A configured key has not necessarily been

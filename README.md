@@ -19,6 +19,16 @@ If Rust was installed in this checkout's ignored `.tools` directory, use `./scri
 
 For the UI-only browser preview, run `npm run dev`. Desktop actions are intentionally disabled outside Tauri.
 
+## Onboarding and profile (0.9.0)
+
+First launch starts with a companion (cat, dog, seal or bird and a color), then a professional role, name and required email, then your first goal. The profile screen includes a clearly marked draft privacy notice and an acknowledgement before identity is saved. Identity stays in the local SQLite database; no remote registration service is connected. The notice must be replaced with a reviewed final policy before public release.
+
+Only after saving the goal does Buddy offer to enable activity tracking or continue paused. Windows foreground APIs have no separate OS permission dialog. The existing planner remains available afterward, including explicit Nebius refinement. Setup progress survives restarts; goal draft text is persisted with **Save goal draft**.
+
+Open the **Settings gear** for profile, appearance/visibility, app rules, working hours, notification controls and startup. Eight professional roles supply starter process rules; Figma belongs to Design. Manual overrides and unclassified apps survive role changes for the current goal. Installed Windows builds enable sign-in startup by default after setup, launching in the tray with tracking paused; development/test builds never register for startup.
+
+Settings and explicit goal completion offer 1–5 stars with optional text. Feedback is saved locally, subject to history retention/deletion, and is not sent to providers. Voice feedback is reserved for a future implementation. See [onboarding contracts, affected files and native QA](docs/ONBOARDING.md).
+
 ## Tracking update (0.8.0)
 
 Chrome/Edge activity now includes a best-effort active-tab title and domain through Windows UI Automation; Firefox is supported when its address-bar accessibility ID is exposed. Only the hostname is retained, without URL paths/query strings/fragments. Unknown, edited or inaccessible address bars fall back to the foreground title. No browser extension or page-content inspection is required.
@@ -47,7 +57,7 @@ Endpoint references: [Nebius API](https://api.tokenfactory.nebius.com/docs), [Ta
 
 ## How it works
 
-1. Starting a goal enables the Windows collector. Tracking is off at application startup, even when a saved goal exists.
+1. Onboarding asks for activity-tracking consent after saving the first goal. Starting later goals follows that choice. Tracking is off at application startup, even when a saved goal exists; use Resume tracking to start a session.
 2. Rust polls the foreground process, title, and idle time every three seconds. Contiguous activity is aggregated into SQLite segments; idle periods do not count toward active time.
 3. AI check-ins are off by default. Enabling them permits sending the goal and up to ten recent segments to Nebius. Titles are limited to 160 characters. Automatic checks run at most once per minute (20 seconds with simulated activity).
 4. A validated model decision is stored locally. High-confidence interventions or offers of help may show a separate, always-on-top Buddy window. Do not disturb suppresses popups; dismissing or marking activity related starts a ten-minute nudge cooldown.
@@ -117,7 +127,7 @@ React UI -> Tauri commands -> Rust application state
 
 `src/components` contains GoalInput, ActivityTimeline, and DesktopBuddy. `src/api/tauri.ts` is the typed bridge. `src-tauri/src` contains commands, the Buddy scheduler/window controller, collector adapters, storage, models, and HTTP integrations. SQLite lives in the per-user application data directory under `com.artmarketvm.desktopbuddy/buddy.db` (on Windows, normally `%APPDATA%`). Goals, activity segments, decisions, feedback, Buddy preferences, and offered URLs persist across restarts. AI check-in consent, tracking, and DND reset on restart.
 
-Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. Use the privacy controls above for retention and history deletion. No screenshots are captured. Screenshot and UI Automation extension points are explicit stubs; no macOS/Linux collector is implemented.
+Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. Use the privacy controls above for retention and history deletion. No screenshots are captured. Browser metadata uses a bounded Windows UI Automation adapter; no macOS/Linux collector is implemented.
 
 ## Tests and builds
 
@@ -137,6 +147,6 @@ See [the manual checklist](docs/DEMO.md). A demo can simulate activity while mak
 
 ## Current scope
 
-Version 0.8.0 adds best-effort browser domain metadata, deterministic activity states, working hours, confirmed-media suppression and an observed goal-history API. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no app/site blocking, project hierarchy, deadline engine, streak system, autostart, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
+Version 0.9.0 adds resumable onboarding, local profiles, role app presets, companion appearances, Windows autostart and local product feedback, on top of the 0.8.0 tracking/history update. Resource selection ranks real search results with Nebius; this is not independent fact-checking. There is no app/site blocking, project hierarchy, deadline engine, streak system, server-side account system, encrypted activity database, automatic updater, signed installer, or screenshot analysis.
 
 See [the changelog](CHANGELOG.md) for milestones and [contribution conventions](CONTRIBUTING.md) for commits and release versioning.

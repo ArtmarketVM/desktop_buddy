@@ -62,6 +62,7 @@ export interface Status {
   tavily_configured: boolean;
 }
 export interface Dashboard {
+  user_settings?: UserSettings;
   app_rules: AppRule[];
   today: Today;
   goal_plan: GoalPlan | null;
@@ -101,6 +102,7 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   excluded_apps: [],
 };
 export interface BuddyView {
+  avatar?: AvatarPreferences;
   activity_state?: "focused" | "paused" | "drifting";
   activity_event?:
     "working" | "paused" | "drifting" | "resumed" | "goal_completed";
@@ -177,4 +179,57 @@ export interface GoalHistory {
   sites: ContextTime[];
   tabs: ContextTime[];
   recommendations: Recommendation[];
+}
+
+export type Character = "cat" | "dog" | "seal" | "bird";
+export type AvatarState =
+  "working" | "paused" | "sleeping" | "completed" | "fun";
+export interface AvatarPreferences {
+  character: Character;
+  color: string;
+  visible: boolean;
+}
+export interface UserProfile {
+  name: string;
+  email: string;
+  role: string;
+  privacy_accepted: boolean;
+  privacy_notice_version: string | null;
+  avatar: AvatarPreferences;
+}
+export interface OnboardingState {
+  step: number;
+  goal_text: string;
+  goal_id: number | null;
+  completed: boolean;
+  tracking_consent: boolean;
+}
+export interface UserSettings {
+  profile: UserProfile;
+  onboarding: OnboardingState;
+  autostart: boolean;
+}
+export const defaultUserSettings: UserSettings = {
+  profile: {
+    name: "",
+    email: "",
+    role: "",
+    privacy_accepted: false,
+    privacy_notice_version: null,
+    avatar: { character: "cat", color: "#9BB784", visible: true },
+  },
+  onboarding: {
+    step: 0,
+    goal_text: "",
+    goal_id: null,
+    completed: false,
+    tracking_consent: false,
+  },
+  autostart: true,
+};
+export interface ProductFeedback {
+  goal_id: number | null;
+  rating: number;
+  text: string;
+  source: "settings" | "goal_completed";
 }

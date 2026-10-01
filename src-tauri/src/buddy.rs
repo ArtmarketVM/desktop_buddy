@@ -22,6 +22,7 @@ impl Runtime {
     pub fn new(preferences: BuddyPreferences) -> Self {
         Self {
             view: BuddyView {
+                avatar: Default::default(),
                 activity_state: Default::default(),
                 activity_event: Default::default(),
                 activity_revision: 0,
@@ -55,7 +56,8 @@ impl Runtime {
     }
 }
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
-    if !status.tracking
+    if !view.avatar.visible
+        || !status.tracking
         || status.dnd
         || snoozed(view)
         || view
@@ -114,6 +116,7 @@ pub fn clamp_position(
 }
 pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
     remember_position(app, inner)?;
+    inner.buddy.view.avatar = inner.storage.user_settings()?.profile.avatar;
     inner.buddy.view.activity_state = inner.activity_state.state;
     inner.buddy.view.activity_event = inner.activity_state.event;
     inner.buddy.view.activity_revision = inner.activity_state.revision;
@@ -310,6 +313,7 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
 }
 pub fn due(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
+        && inner.buddy.view.avatar.visible
         && crate::tracking::notifications_allowed(inner)
         && inner
             .storage

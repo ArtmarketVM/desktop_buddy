@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowUpRight,
-  BellOff,
   Compass,
   LockKeyhole,
   Pause,
@@ -9,11 +8,12 @@ import {
   Search,
   Sparkles,
   Target,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { api, desktop, safeUrl } from "./api/tauri";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import type { Dashboard, SearchResult } from "./types";
-import { defaultBuddyPreferences } from "./types";
+import { defaultBuddyPreferences, defaultUserSettings } from "./types";
 import { GoalInput } from "./components/GoalInput";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { DesktopBuddy } from "./components/DesktopBuddy";
@@ -22,6 +22,10 @@ import { Settings } from "./components/Settings";
 import { GoalPlanner, SavedGoals } from "./components/GoalPlanner";
 import { RecommendationHistory } from "./components/RecommendationHistory";
 import { AppRules, DailySummary } from "./components/ActivityInsights";
+import { Onboarding } from "./components/Onboarding";
+import { ProductFeedback } from "./components/ProductFeedback";
+import { Avatar } from "./components/Avatar";
+import { avatarState } from "./data/profile";
 
 const empty: Dashboard = {
   app_rules: [],
@@ -58,13 +62,18 @@ export default function App() {
   const [plannerDirty, setPlannerDirty] = useState(false);
   const [query, setQuery] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [loaded, setLoaded] = useState(!desktop);
+  const [completedGoal, setCompletedGoal] = useState<number | null>(null);
   const [results, setResults] = useState<SearchResult[]>([]);
   const popup = new URLSearchParams(location.search).has("buddy");
   useEffect(() => {
     document.documentElement.classList.toggle("buddy-window", popup);
   }, [popup]);
   const refresh = useCallback(async () => {
-    if (desktop) setData(await api.dashboard());
+    if (desktop) {
+      setData(await api.dashboard());
+      setLoaded(true);
+    }
   }, []);
   useEffect(() => {
     let active = true;
@@ -72,7 +81,10 @@ export default function App() {
       try {
         if (desktop) {
           const next = await api.dashboard();
-          if (active) setData(next);
+          if (active) {
+            setData(next);
+            setLoaded(true);
+          }
         }
       } catch (e) {
         if (active) setError(String(e));
@@ -112,6 +124,19 @@ export default function App() {
         }
       </main>
     );
+  if (!loaded)
+    return (
+      <main className="onboarding-shell">
+        <section className="card">
+          <p role="status">Loading your workspace…</p>
+          {error && <p role="alert">{error}</p>}
+          <button onClick={() => void run(refresh)}>Retry</button>
+        </section>
+      </main>
+    );
+  const userSettings = data.user_settings ?? defaultUserSettings;
+  if (!userSettings.onboarding.completed)
+    return <Onboarding initial={userSettings} onChanged={refresh} />;
   return (
     <div className="app-shell">
       <aside className="sidebar">
@@ -142,6 +167,7 @@ export default function App() {
             aria-controls="workspace-settings"
             onClick={() => setSettingsOpen(!settingsOpen)}
           >
+            <SettingsIcon size={16} />{" "}
             {settingsOpen ? "Close settings" : "Settings"}
           </button>
         </header>
@@ -190,11 +216,26 @@ export default function App() {
             snoozedUntil={data.buddy.snoozed_until}
             nebiusConfigured={data.status.nebius_configured}
             tavilyConfigured={data.status.tavily_configured}
+            userSettings={userSettings}
+            dnd={data.status.dnd}
             onHistoryCleared={async () => {
               setResults([]);
               await refresh();
             }}
-          />
+          >
+            {data.goal && (
+              <AppRules
+                key={data.goal.id}
+                goalId={data.goal.id}
+                rules={data.app_rules}
+                processes={[
+                  ...data.activity.map((a) => a.process_name),
+                  ...data.today.apps.map((a) => a.process_name),
+                ]}
+                onChanged={refresh}
+              />
+            )}
+          </Settings>
         </div>
         <div className="workspace-grid" hidden={settingsOpen}>
           <section className="focus-column">
@@ -242,6 +283,7 @@ export default function App() {
                 plan={data.goal_plan}
                 onChanged={refresh}
                 onDirty={setPlannerDirty}
+                onCompleted={setCompletedGoal}
                 aiAvailable={
                   data.status.nebius_configured || data.status.mock_ai
                 }
@@ -253,23 +295,22 @@ export default function App() {
               onChanged={refresh}
               locked={plannerDirty || busy}
             />
+            {completedGoal !== null && (
+              <div className="card">
+                <ProductFeedback key={completedGoal} goalId={completedGoal} />
+                <button
+                  className="text-button"
+                  onClick={() => setCompletedGoal(null)}
+                >
+                  Close feedback
+                </button>
+              </div>
+            )}
             <DailySummary
               today={data.today}
               plan={data.goal_plan}
               demo={data.status.demo}
             />
-            {data.goal && (
-              <AppRules
-                key={data.goal.id}
-                goalId={data.goal.id}
-                rules={data.app_rules}
-                processes={[
-                  ...data.activity.map((a) => a.process_name),
-                  ...data.today.apps.map((a) => a.process_name),
-                ]}
-                onChanged={refresh}
-              />
-            )}
             <div className="card activity-card">
               <div className="section-heading">
                 <div>
@@ -342,6 +383,10 @@ export default function App() {
               <div className="section-label">
                 YOUR QUIET COMPANION <Sparkles size={15} />
               </div>
+              <Avatar
+                appearance={userSettings.profile.avatar}
+                state={avatarState(data.buddy)}
+              />
               <p>
                 Buddy lives on your desktop. Closing this workspace keeps it
                 running in the system tray. Choose Quit to stop the app.
@@ -370,20 +415,6 @@ export default function App() {
                   {Math.round(data.decision.confidence * 100)}% confidence
                 </span>
               )}
-            </section>
-            <section className="card preferences">
-              <label className="toggle-row">
-                <span>
-                  <BellOff size={16} /> Do not disturb
-                  <small>Keep tracking, pause the nudges.</small>
-                </span>
-                <input
-                  type="checkbox"
-                  checked={data.status.dnd}
-                  disabled={!desktop || busy}
-                  onChange={(e) => void run(() => api.dnd(e.target.checked))}
-                />
-              </label>
             </section>
           </aside>
         </div>

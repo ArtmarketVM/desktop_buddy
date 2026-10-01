@@ -129,6 +129,7 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         None
     };
     Ok(Dashboard {
+        user_settings: inner.storage.user_settings()?,
         app_rules: goal
             .as_ref()
             .map(|g| inner.storage.app_rules(g.id))
@@ -159,7 +160,7 @@ pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<
         .lock()
         .map_err(|_| "Application state unavailable")?;
     let goal = inner.storage.set_goal(text)?;
-    inner.status.tracking = true;
+    inner.status.tracking = inner.storage.user_settings()?.onboarding.tracking_consent;
     inner.last_analysis = None;
     inner.last_nudge = None;
     inner.last_error = None;
@@ -200,6 +201,14 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         .map_err(|_| "Application state unavailable")?;
     if enabled && inner.storage.goal()?.is_none() {
         return Err("Set a goal first".into());
+    }
+    if enabled {
+        let mut settings = inner.storage.user_settings()?;
+        if !settings.onboarding.completed {
+            return Err("Finish onboarding before enabling activity tracking".into());
+        }
+        settings.onboarding.tracking_consent = true;
+        inner.storage.write_setting("user_settings", &settings)?;
     }
     inner.status.tracking = enabled;
     if !enabled {
@@ -348,6 +357,7 @@ pub fn should_analyze(state: &AppState) -> bool {
         return false;
     };
     inner.status.tracking
+        && inner.buddy.view.avatar.visible
         && crate::tracking::notifications_allowed(&inner)
         && inner.status.ai_enabled
         && crate::insights::explicit_category(&inner).is_ok_and(|c| c.is_none())

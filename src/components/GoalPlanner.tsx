@@ -9,6 +9,7 @@ export function GoalPlanner({
   aiAvailable,
   mock,
   onDirty,
+  onCompleted,
 }: {
   goal: Goal;
   plan: GoalPlan;
@@ -16,6 +17,7 @@ export function GoalPlanner({
   aiAvailable: boolean;
   mock: boolean;
   onDirty: (dirty: boolean) => void;
+  onCompleted?: (id: number) => void;
 }) {
   const [title, setTitle] = useState(goal.text);
   const [draft, setDraft] = useState(plan);
@@ -310,6 +312,7 @@ export function GoalPlanner({
             onClick={() =>
               void run(async () => {
                 await api.transitionGoal(goal.id, "complete", true);
+                onCompleted?.(goal.id);
                 await onChanged();
               })
             }

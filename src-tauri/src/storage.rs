@@ -10,6 +10,7 @@ impl Storage {
         let store = Self { connection };
         store.initialize()?;
         store.initialize_tracking()?;
+        store.initialize_profile()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -75,6 +76,7 @@ impl Storage {
         .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM feedback WHERE ?1 IS NULL OR julianday(timestamp)<julianday(?1) OR decision_id IN (SELECT id FROM decisions WHERE julianday(timestamp)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         for (table, column) in [
+            ("product_feedback", "created_at"),
             ("usage_intervals", "ended_at"),
             ("tracking_events", "timestamp"),
             ("decisions", "timestamp"),
@@ -192,24 +194,10 @@ impl Storage {
     }
     pub fn set_goal(&mut self, text: &str) -> Result<Goal, String> {
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
-        tx.execute(
-            "UPDATE goals SET status='deferred' WHERE status='active'",
-            [],
-        )
-        .map_err(|e| e.to_string())?;
-        let now = Utc::now().to_rfc3339();
-        tx.execute(
-            "INSERT INTO goals(text,status,created_at) VALUES (?1,'active',?2)",
-            params![text, now],
-        )
-        .map_err(|e| e.to_string())?;
-        let id = tx.last_insert_rowid();
+        let goal = insert_goal(&tx, text)?;
         tx.commit().map_err(|e| e.to_string())?;
-        Ok(Goal {
-            id,
-            text: text.into(),
-            created_at: now,
-        })
+        self.apply_role(goal.id)?;
+        Ok(goal)
     }
     pub fn activity(&self, goal: i64, item: &ActivitySnapshot) -> Result<(), String> {
         let browser = item
@@ -356,4 +344,23 @@ mod tests {
         assert_eq!(s.goal().unwrap().unwrap().id, next.id);
         assert!(s.recent(next.id).unwrap().is_empty());
     }
+}
+
+pub(crate) fn insert_goal(tx: &rusqlite::Transaction<'_>, text: &str) -> Result<Goal, String> {
+    tx.execute(
+        "UPDATE goals SET status='deferred' WHERE status='active'",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    tx.execute(
+        "INSERT INTO goals(text,status,created_at) VALUES(?1,'active',?2)",
+        params![text, now],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Goal {
+        id: tx.last_insert_rowid(),
+        text: text.into(),
+        created_at: now,
+    })
 }

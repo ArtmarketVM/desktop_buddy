@@ -3,6 +3,9 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
 import type { BuddyView } from "../types";
+import { defaultUserSettings } from "../types";
+import { Avatar } from "./Avatar";
+import { avatarState } from "../data/profile";
 
 export function DesktopBuddy({
   view,
@@ -15,6 +18,7 @@ export function DesktopBuddy({
 }) {
   const [error, setError] = useState("");
   const card = view.suggestion || view.decision;
+  const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
   async function action(work: () => Promise<unknown>) {
     try {
       setError("");
@@ -23,6 +27,7 @@ export function DesktopBuddy({
       setError("Buddy could not complete this action. Please try again.");
     }
   }
+  if (!appearance.visible) return null;
   return (
     <main className={`desktop-buddy ${card ? "expanded" : "compact"}`}>
       {card && (
@@ -76,12 +81,7 @@ export function DesktopBuddy({
             void action(() => getCurrentWindow().startDragging());
         }}
       >
-        <span className="desktop-eyes">
-          <i />
-          <i />
-        </span>
-        <span className="desktop-smile" />
-        <span className="desktop-arm" />
+        <Avatar appearance={appearance} state={avatarState(view)} />
       </button>
       <button
         className="workspace-link"
