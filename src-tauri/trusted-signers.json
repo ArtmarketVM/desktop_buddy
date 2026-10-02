@@ -1,0 +1,9 @@
+{
+  "signers": [
+    {
+      "id": "primary",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERDNTZGNjA2N0JBNzhBRTUKUldUbGlxZDdCdlpXM0dxclVCZmpnZEFHYTZSNHVIdXcwWE0rT1JKS1BQV0VyUjU4Tmt4cW9WRGMK"
+    }
+  ],
+  "epoch": 1
+}

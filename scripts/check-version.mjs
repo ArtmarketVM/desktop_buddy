@@ -1,4 +1,6 @@
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { readTrust } from "./signing-trust.mjs";
 const read = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const version = JSON.parse(read("package.json")).version;
@@ -18,3 +20,13 @@ if (
   );
 }
 console.log(`Release version: ${version}`);
+const trust = readTrust(fileURLToPath(new URL("..", import.meta.url)));
+const updater = JSON.parse(read("src-tauri/tauri.conf.json")).plugins.updater;
+if (
+  updater.endpoints[0] !==
+    `https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/updates-epoch-${trust.epoch}.json` ||
+  updater.requireSignedVersion !== true
+)
+  throw new Error(
+    "Updater configuration must match the trusted signing epoch and require signed versions.",
+  );

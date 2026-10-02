@@ -25,7 +25,7 @@ Copy-Item .env.example .env
 npm run tauri dev
 ```
 
-If Rust was installed in this checkout's ignored `.tools` directory, use `./scripts/dev.ps1` to activate it for this process. The helper also discovers Visual Studio's C++ environment. Use `./scripts/dev.ps1 -Task test` for checks or `./scripts/dev.ps1 -Task build` for the installer. No global PATH changes are required.
+If Rust was installed in this checkout's ignored `.tools` directory, use `./scripts/dev.ps1` to activate it for this process. The helper also discovers Visual Studio's C++ environment. Use `./scripts/dev.ps1 -Task test` for checks or `./scripts/dev.ps1 -Task build` for a personal installer without a signing key. Official signed releases use `-Task release`; see [team signing](docs/TEAM_SIGNING.md). No global PATH changes are required.
 
 For the UI-only browser preview, run `npm run dev`. Desktop actions are intentionally disabled outside Tauri.
 

@@ -3,9 +3,6 @@ use std::time::Duration;
 use tauri::{ipc::Channel, Manager, State, WebviewWindow};
 use tauri_plugin_updater::{Update, UpdaterExt};
 
-const ENDPOINT: &str =
-    "https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/latest.json";
-
 #[derive(Default)]
 pub struct UpdateState(pub tokio::sync::Mutex<Option<Update>>);
 
@@ -60,6 +57,7 @@ pub async fn check_app_update(
         .map_err(|_| "Another update action is running")?;
     *pending = None;
     let app = window.app_handle();
+    let trust = crate::signing_trust::Trust::load()?;
     let mut info = UpdateInfo {
         status: "current",
         current_version: app.package_info().version.to_string(),
@@ -72,7 +70,7 @@ pub async fn check_app_update(
         .timeout(Duration::from_secs(15))
         .build()
         .map_err(|_| "Could not start the update check")?
-        .get(ENDPOINT)
+        .get(trust.endpoint())
         .header("User-Agent", "DesktopBuddy-Updater")
         .send()
         .await
@@ -84,8 +82,23 @@ pub async fn check_app_update(
     if !response.status().is_success() {
         return Err("GitHub update service is unavailable. Try again later.".into());
     }
+    let manifest: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|_| "Invalid update manifest")?;
+    let signature = manifest
+        .pointer("/platforms/windows-x86_64/signature")
+        .and_then(|s| s.as_str())
+        .ok_or("The update has no Windows signature")?;
+    let pubkey = trust.public_key_for(signature)?;
     let updater = app
         .updater_builder()
+        .endpoints(vec![trust
+            .endpoint()
+            .parse()
+            .map_err(|_| "Invalid update endpoint")?])
+        .map_err(|_| "Invalid update endpoint")?
+        .pubkey(pubkey)
         .timeout(Duration::from_secs(15))
         .build()
         .map_err(|_| "Update configuration is unavailable")?;
@@ -94,6 +107,10 @@ pub async fn check_app_update(
         .await
         .map_err(|_| "Could not validate the published update. Try again later.")?
     {
+        // A manifest can change between requests. Never install with a mismatched key.
+        if trust.public_key_for(&update.signature)? != pubkey {
+            return Err("The release changed. Check for updates again.".into());
+        }
         validate_download(&update.download_url)?;
         update.timeout = Some(Duration::from_secs(180));
         info.status = "available";

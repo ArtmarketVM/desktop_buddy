@@ -17,6 +17,7 @@ mod privacy;
 mod product_feedback;
 mod profile;
 mod recommendations;
+mod signing_trust;
 mod storage;
 mod tavily;
 mod tracking;

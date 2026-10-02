@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 (unreleased)
+
+- Separate personal Windows builds without signing credentials from official signed releases.
+- Add local protected developer key setup and reviewed enrollment of multiple trusted update signers.
+- Preserve verified update paths for existing installations through pinned compatibility channels.
+- Include the avatar hover and compact-window fixes prepared for 0.12.1.
+
 ## 0.12.1
 
 - Keep the desktop avatar background transparent on hover and use a muted keyboard focus outline.
