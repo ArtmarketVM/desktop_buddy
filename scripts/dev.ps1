@@ -18,11 +18,33 @@ if ($Demo) { $env:DEMO_MODE = 'true' }
 if ($MockAI) { $env:AI_MOCK = 'true' }
 switch ($Task) {
     'dev' { npm run tauri dev }
-    'build' { npm run tauri -- build -- --locked }
+    'build' {
+        if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {
+            $protectedPath = Join-Path $env:USERPROFILE '.desktop-buddy/signing-key.dpapi'
+            $signingPath = Join-Path $projectRoot '.tools/updater.key'
+            if (Test-Path -LiteralPath $protectedPath) {
+                Add-Type -AssemblyName System.Security
+                $keyBytes = [Security.Cryptography.ProtectedData]::Unprotect([IO.File]::ReadAllBytes($protectedPath), $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)
+                try { $env:TAURI_SIGNING_PRIVATE_KEY = [Text.Encoding]::UTF8.GetString($keyBytes).Trim() }
+                finally { [Array]::Clear($keyBytes, 0, $keyBytes.Length) }
+            } elseif (Test-Path -LiteralPath $signingPath) {
+                $env:TAURI_SIGNING_PRIVATE_KEY = $signingPath
+            } else {
+                throw 'A signed installer requires a protected local signing key or TAURI_SIGNING_PRIVATE_KEY. See UPDATES.md.'
+            }
+            $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ''
+            try { npm run tauri -- build --ci -- --locked }
+            finally { Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue }
+        } else {
+            npm run tauri -- build --ci -- --locked
+        }
+    }
     'test' {
         npm test
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         npm run build
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        npm run test:release
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         cargo test --locked --manifest-path src-tauri/Cargo.toml
     }

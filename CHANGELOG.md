@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0
+
+- Refresh the Windows workspace with a compact sidebar, neutral dark surfaces, consistent typography and dedicated Focus, Activity, Resources, Goal history and Settings views.
+- Group settings with progressive disclosure and accessible switches. Preserve drafts when navigating between workspace views.
+- Add real GitHub Release checks and a blue Update available indicator for newer published Windows versions. Separate unpublished releases and connection errors from successful checks.
+- Download and verify signed installers only after an explicit Update & restart action. Keep local data and saved provider credentials across upgrades.
+- Add a signed release workflow, version-pinned updater manifests and regression coverage for concurrency, offline checks and failed-install retries. See UPDATES.md for signing-key setup.
+
 ## 0.9.0
 
 - Add resumable first-run setup: character/color, role/name/required email with a clearly labeled draft privacy notice, and a goal using the existing model. Ask about activity tracking afterward, with an option to continue paused.

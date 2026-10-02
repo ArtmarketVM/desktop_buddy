@@ -56,7 +56,7 @@ export function Onboarding({
     });
   }
   return (
-    <main className="onboarding-shell">
+    <div className="onboarding-shell">
       <section className="card onboarding-card" aria-label="Welcome to Buddy">
         <div className="onboarding-brand">
           buddy<span>•</span>
@@ -201,6 +201,6 @@ export function Onboarding({
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

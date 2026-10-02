@@ -19,6 +19,7 @@ mod storage;
 mod tavily;
 mod tracking;
 mod tray;
+mod updates;
 use tauri::Manager;
 
 #[cfg(test)]
@@ -38,6 +39,7 @@ pub fn run() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&dir)?;
@@ -49,6 +51,7 @@ pub fn run() {
             let storage =
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
             app.manage(commands::AppState::new(storage).map_err(std::io::Error::other)?);
+            app.manage(updates::UpdateState::default());
             tray::install(app)?;
             let settings = app
                 .state::<commands::AppState>()
@@ -144,6 +147,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            updates::check_app_update,
+            updates::install_app_update,
             profile::save_onboarding,
             profile::create_onboarding_goal,
             profile::finish_onboarding,

@@ -51,7 +51,7 @@ export function Settings({
     run(() => api.buddyPreferences({ ...preferences, ...patch }));
   return (
     <section className="card preferences" aria-label="Settings">
-      <h2>Settings</h2>
+      <h2>Workspace preferences</h2>
       {dnd !== undefined && (
         <label className="toggle-row">
           <span>
@@ -68,6 +68,8 @@ export function Settings({
       <ProfileSettings settings={userSettings} onChanged={onChanged} />
       {children}
       <TrackingSettings onChanged={onChanged} />
+      <details className="settings-group">
+      <summary>Notifications and suggestions<small>Check-ins, quiet time and your companion</small></summary>
       <label className="toggle-row">
         <span>
           AI check-ins
@@ -221,6 +223,9 @@ export function Settings({
         failed attempts. This does not change AI focus-check frequency or
         guarantee a recommendation.
       </p>
+      </details>
+      <details className="settings-group">
+      <summary>Connected services<small>Nebius and Tavily · your own API keys</small></summary>
       <p className="helper">
         Use your own provider API keys. They are stored in Windows Credential
         Manager for your Windows account, not in the app database.
@@ -233,13 +238,6 @@ export function Settings({
         Tavily {tavilyConfigured ? "configured" : "not configured"}
       </p>
       <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
-      <PrivacySettings
-        preferences={preferences}
-        retentionDays={retentionDays}
-        onChanged={onChanged}
-        onHistoryCleared={onHistoryCleared}
-      />
-      <ProductFeedback />
       <p className="helper">
         Saving a key does not enable AI check-ins or send activity. Provider
         usage may incur charges. A configured key has not necessarily been
@@ -250,6 +248,20 @@ export function Settings({
         any environment fallback; it does not revoke the key at the provider.
         Requests already in progress may finish.
       </p>
+      </details>
+      <details className="settings-group">
+        <summary>Privacy and local data<small>AI context, exclusions and history retention</small></summary>
+        <PrivacySettings
+          preferences={preferences}
+          retentionDays={retentionDays}
+          onChanged={onChanged}
+          onHistoryCleared={onHistoryCleared}
+        />
+      </details>
+      <details className="settings-group">
+        <summary>Share feedback<small>Tell us how Buddy feels · saved on this device</small></summary>
+        <ProductFeedback />
+      </details>
     </section>
   );
 }

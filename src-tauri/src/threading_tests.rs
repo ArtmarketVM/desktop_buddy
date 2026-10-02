@@ -17,6 +17,7 @@ fn assert_worker_dispatch(source: &str) {
 #[test]
 fn all_registered_command_modules_dispatch_on_workers() {
     let modules = [
+        ("updates", include_str!("updates.rs")),
         ("commands", include_str!("commands.rs")),
         ("buddy", include_str!("buddy.rs")),
         ("privacy", include_str!("privacy.rs")),
