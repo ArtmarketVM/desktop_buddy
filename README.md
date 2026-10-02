@@ -117,14 +117,14 @@ The workspace shows the latest 100 retained recommendations across goals. Open a
 
 ## Desktop companion
 
-- In Settings, **Show Buddy only with suggestions** defaults to checked. Uncheck it to keep a small animated character visible during tracking. Drag the character to position it on a monitor. Position is saved locally and restored within an available monitor's work area; multi-monitor behavior still requires native verification.
-- Suggestions and focus nudges expand the transparent, always-on-top window into a card for 45 seconds. Dismiss returns to the selected mode. Pause and DND hide both modes. The app does not request keyboard focus when showing a suggestion; **Workspace** explicitly returns to the main window.
+- Click the character once for mini chat, quick tasks and AI help. Drag to move it; right-click for context actions. **Show on desktop** and the tray Show/Hide switch control visibility independently of tracking. Position is saved locally and restored within an available monitor's work area.
+- Manual chat remains available when tracking or automatic suggestions are paused. Suggestions expand the always-on-top window without taking keyboard focus. The new task/completion confirmations require an explicit response and expire after two minutes; existing resource cards expire after 45 seconds.
 - Enable **Proactive suggestions** and configure both Nebius and Tavily to receive resource links. This consent and the display preference persist locally. AI check-in consent remains separate and resets at startup. Tracking always starts paused. Generated queries may still contain sensitive context; model instructions to omit private details are not a guaranteed redaction filter.
-- Closing the workspace hides it to the tray. Use the tray to reopen it, pause/resume tracking, snooze Buddy, or quit; the workspace also has an explicit quit button. Links open only after clicking **Open resource**. Previously offered URLs are recorded per goal in SQLite to avoid exact repeats, ignoring URL fragments.
+- Closing the workspace hides it to the tray. Use the tray to reopen it, show/hide the companion, pause/resume tracking, open Settings or quit. Links open only after clicking **Open resource**. Previously offered URLs are recorded per goal in SQLite to avoid exact repeats, ignoring URL fragments.
 - Animation is CSS-based and honors reduced-motion preferences. Exclusive fullscreen applications and secure Windows desktops are not supported overlay targets.
 - Each delivered installer must receive a new version. Patch bumps cover fixes; minor bumps cover features. The build checks that npm, Cargo, lockfiles and Tauri versions match; the UI reads the native package version.
 
-The model sees titles, not page content. Window titles may contain sensitive text; review this before enabling AI. Ambiguous activity should not be treated as certain distraction. Failed AI requests leave local tracking available and show an error instead of fabricating a decision.
+The existing focus model sees window titles. Separately opting in to **Suggest tasks from visible text** allows bounded accessible foreground text plus goal/checklist context to be sent to Nebius while tracking and AI check-ins are enabled. This feature starts disabled and never changes a task without confirmation. Window titles and visible documents may contain sensitive text; review the consent before enabling AI. See [Companion MVP](docs/COMPANION_MVP.md) for mini chat, Windows voice typing, selected text, suppression rules and the Developer 1 event contract.
 
 ## Architecture
 

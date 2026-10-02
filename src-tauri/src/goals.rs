@@ -209,6 +209,8 @@ pub fn save_goal_plan(
         .map_err(|_| "Application state unavailable")?;
     inner.storage.save_goal_plan(&title, plan)?;
     changed(&mut inner);
+    inner.companion.invalidate();
+    crate::companion::emit(&app, "goal.active", inner.storage.goal()?);
     crate::buddy::sync(&app, &mut inner)
 }
 #[tauri::command(async)]
@@ -227,6 +229,18 @@ pub fn transition_goal(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.transition_goal(id, &action)?;
+    inner.companion.invalidate();
+    crate::companion::emit(
+        &app,
+        if action == "complete" {
+            "goal.completed"
+        } else if action == "resume" {
+            "goal.active"
+        } else {
+            "goal.deferred"
+        },
+        serde_json::json!({"id":id,"action":action}),
+    );
     inner.status.tracking = false;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();

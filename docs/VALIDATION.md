@@ -1,5 +1,17 @@
 # Validation record
 
+## Desktop companion MVP — 0.14.0 (local, unpublished)
+
+Verified on Windows on 2026-10-02: 46 frontend tests, 104 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact contract tests passed. The final frontend change to synchronize companion settings was followed by all 46 frontend tests and a TypeScript/Vite production build. Rust formatting and the debug/release builds passed; dependencies are unchanged.
+
+New regression coverage includes quiet hours, startup delay, midday progress gating, persisted cooldown/daily budget/deduplication, explicit completion tied to an unfinished step, stale revisions, changed active goals, local inbox behavior, opt-in sampling gates, sensitive-text filtering and Nebius HTTP request construction against a mock server. Provider transport tests use real HTTP with simulated servers; they do not send production content.
+
+Native UI verification used a separate debug-only fixture under ignored `.tools`, with both DEMO_MODE and AI_MOCK enabled, tracking disabled and no live provider calls. A single character click opened mini chat. Add task saved “Review companion draft” to the existing fixture goal; a read-only SQLite check confirmed one unfinished step, revision 1 and no extra goal. Light native chat and the dark browser preview at 380 × 560 were inspected. The isolated process and preview server were stopped. Production profile/goals and provider credentials were not used. Native dragging, tray/context-menu actions, microphone recognition, selected-text handling across applications and live task/completion detection still require end-to-end manual checks. Intervention policy and task-storage behavior are covered by automated tests.
+
+The signed Windows x64 NSIS installer was built locally. The executable reports 0.14.0; its updater signature verifies and changed installer bytes are rejected. The current epoch-1 manifest targets 0.14.0, while the archived legacy bridge remains 0.13.0. Installer SHA-256: `003991b078dac265d5423590bc31b92132160e735ee5373d08a93f3d5021e288`. Changed source, new files and frontend assets contain no local provider/signing keys. No install or release publication was performed during validation; source was prepared for the subsequent authorized commit and push. Pre-existing Russian handoff edits were preserved byte-for-byte.
+
+The Developer 1 integration contract, consent controls and MVP limitations are documented in [COMPANION_MVP.md](COMPANION_MVP.md).
+
 ## Final Windows release packaging — 0.13.0
 
 On 2026-10-02, after synchronizing the avatar fixes from GitHub main, the final Windows x64 NSIS installer was rebuilt from the reviewed 0.13.0 source with `./scripts/dev.ps1 -Task release`. Production frontend compilation passed. The existing primary key signed the installer locally; its signature and signed version verified, and altered installer bytes were rejected. Both `latest.json` and `updates-epoch-1.json` refer to this exact artifact. The generated public compatibility archive is committed with the release source. Private keys were not uploaded. The installed copy remains 0.12.0; a live install/restart through the published updater is still a separate check.

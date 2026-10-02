@@ -4,6 +4,7 @@ mod browser;
 mod buddy;
 mod collector;
 mod commands;
+mod companion;
 mod contact;
 mod credentials;
 mod goals;
@@ -45,6 +46,14 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
+            #[cfg(debug_assertions)]
+            let dir = if http::enabled("DEMO_MODE") && http::enabled("AI_MOCK") {
+                std::env::var_os("BUDDY_TEST_DATA_DIR")
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or(dir)
+            } else {
+                dir
+            };
             std::fs::create_dir_all(&dir)?;
             let database = if http::enabled("DEMO_MODE") {
                 "buddy-demo.db"
@@ -56,6 +65,8 @@ pub fn run() {
             app.manage(commands::AppState::new(storage).map_err(std::io::Error::other)?);
             app.manage(updates::UpdateState::default());
             tray::install(app)?;
+            #[cfg(windows)]
+            companion::windows::install_selection_shortcut(app.handle().clone());
             let settings = app
                 .state::<commands::AppState>()
                 .inner
@@ -128,9 +139,41 @@ pub fn run() {
                             .await;
                         });
                     }
+                    let detect = state
+                        .inner
+                        .lock()
+                        .is_ok_and(|inner| companion::detection_due(&inner));
+                    if detect {
+                        let handle = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            let state = handle.state::<commands::AppState>();
+                            // Missing accessibility support is normal; do not spam the workspace.
+                            let _ = companion::detect(&handle, &state).await;
+                        });
+                    }
                 }
             });
             Ok(())
+        })
+        .on_menu_event(|app, event| {
+            let Some(intent) = event.id().as_ref().strip_prefix("companion-") else {
+                return;
+            };
+            let app = app.clone();
+            let intent = intent.to_string();
+            tauri::async_runtime::spawn(async move {
+                let state = app.state::<commands::AppState>();
+                let result = match intent.as_str() {
+                    "hide" => buddy::show_desktop_buddy(false, app.clone(), state),
+                    "open" => buddy::open_workspace(app.clone()),
+                    _ => companion::open_companion_chat(intent, app.clone(), state),
+                };
+                if let Err(error) = result {
+                    if let Ok(mut inner) = app.state::<commands::AppState>().inner.lock() {
+                        inner.companion.view.notice = Some(error);
+                    }
+                }
+            });
         })
         .on_window_event(|window, event| {
             if window.label() == "main" {
@@ -144,13 +187,25 @@ pub fn run() {
                     api.prevent_close();
                     let app = window.app_handle().clone();
                     tauri::async_runtime::spawn(async move {
-                        let _ =
-                            commands::dismiss_buddy(app.clone(), app.state::<commands::AppState>());
+                        let _ = companion::close_companion_chat(
+                            app.clone(),
+                            app.state::<commands::AppState>(),
+                        );
                     });
                 }
             }
         })
         .invoke_handler(tauri::generate_handler![
+            companion::get_companion_view,
+            companion::get_companion_goal_context,
+            companion::set_companion_preferences,
+            companion::open_companion_chat,
+            companion::close_companion_chat,
+            companion::open_companion_context,
+            companion::companion_voice_input,
+            companion::companion_submit,
+            companion::respond_companion_intervention,
+            companion::update_companion_inbox,
             updates::check_app_update,
             updates::install_app_update,
             profile::save_onboarding,

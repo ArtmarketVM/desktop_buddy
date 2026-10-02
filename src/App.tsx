@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { defaultCompanionView } from "./companion/types";
 import {
   ArrowUpRight,
   LockKeyhole,
@@ -95,6 +97,24 @@ export default function App() {
     document.documentElement.classList.toggle("buddy-window", popup);
   }, [popup]);
   useEffect(() => {
+    if (!desktop || popup) return;
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    void listen<string>("buddy://navigate", (event) => {
+      if (pages.some((page) => page.id === event.payload))
+        setPage(event.payload as WorkspacePage);
+    })
+      .then((unlisten) => {
+        if (disposed) unlisten();
+        else stop = unlisten;
+      })
+      .catch(() => {});
+    return () => {
+      disposed = true;
+      stop?.();
+    };
+  }, [popup]);
+  useEffect(() => {
     if (data.user_settings) setTheme(data.user_settings.theme);
   }, [data.user_settings?.theme]);
   useEffect(() => {
@@ -148,7 +168,18 @@ export default function App() {
       <main className="popup-shell">
         {error && <p role="alert">{error}</p>}
         <DesktopBuddy
-          view={data.buddy}
+          view={
+            !desktop &&
+            new URLSearchParams(location.search).get("preview") === "chat"
+              ? {
+                  ...data.buddy,
+                  companion: { ...defaultCompanionView, chat_open: true },
+                }
+              : data.buddy
+          }
+          goal={data.goal}
+          plan={data.goal_plan}
+          onChanged={refresh}
           onDismiss={() => void run(() => api.snooze(true))}
           onDnd={() => void run(() => api.dnd(true))}
         />
@@ -233,6 +264,7 @@ export default function App() {
                   nebiusConfigured={data.status.nebius_configured}
                   tavilyConfigured={data.status.tavily_configured}
                   userSettings={userSettings}
+                  companionPreferences={data.buddy.companion?.preferences}
                   dnd={data.status.dnd}
                   onHistoryCleared={async () => {
                     setResults([]);

@@ -22,6 +22,7 @@ impl Runtime {
     pub fn new(preferences: BuddyPreferences) -> Self {
         Self {
             view: BuddyView {
+                companion: Default::default(),
                 avatar: Default::default(),
                 activity_state: Default::default(),
                 activity_event: Default::default(),
@@ -56,8 +57,16 @@ impl Runtime {
     }
 }
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
-    if !view.avatar.visible || snoozed(view) {
+    if view.companion.chat_open {
+        3
+    } else if !view.avatar.visible || snoozed(view) {
         0
+    } else if view.companion.intervention.is_some()
+        && !status.dnd
+        && !view.companion.preferences.paused
+        && view.quiet_reason.is_none()
+    {
+        2
     } else if status.tracking
         && !status.dnd
         && !view
@@ -123,12 +132,16 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     inner.buddy.view.activity_state = inner.activity_state.state;
     inner.buddy.view.activity_event = inner.activity_state.event;
     inner.buddy.view.activity_revision = inner.activity_state.revision;
+    inner.buddy.fullscreen = !inner.status.demo && crate::collector::foreground_fullscreen();
     inner.buddy.view.quiet_reason = crate::attention::quiet_reason(
         &inner.buddy.view.preferences,
         inner.buddy.foreground.as_ref(),
         inner.buddy.fullscreen,
-        inner.buddy.shown.is_some(),
+        inner.buddy.shown.is_some() || inner.companion.view.intervention.is_some(),
     );
+    if !inner.status.demo && crate::collector::foreground_meeting() {
+        inner.buddy.view.quiet_reason = Some("Meeting or presentation".into());
+    }
     if !inner.tracking_settings.working_now() {
         inner.buddy.view.quiet_reason = Some("Outside working hours".into());
     } else if inner
@@ -138,8 +151,27 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         .is_some_and(|a| a.media_playing)
     {
         inner.buddy.view.quiet_reason = Some("Media playback".into());
-    } else if inner.activity_state.state == crate::tracking::ActivityState::Paused {
+    } else if inner
+        .buddy
+        .foreground
+        .as_ref()
+        .is_some_and(|a| a.idle_seconds >= inner.tracking_settings.idle_seconds)
+        || (!inner.status.demo
+            && crate::collector::foreground_idle_seconds()
+                .is_some_and(|idle| idle >= inner.tracking_settings.idle_seconds))
+    {
         inner.buddy.view.quiet_reason = Some("You are away".into());
+    }
+    let local = chrono::Local::now();
+    if inner.companion.view.preferences.paused {
+        inner.buddy.view.quiet_reason = Some("Companion paused".into());
+    } else if inner
+        .companion
+        .view
+        .preferences
+        .quiet(chrono::Timelike::hour(&local) * 60 + chrono::Timelike::minute(&local))
+    {
+        inner.buddy.view.quiet_reason = Some("Quiet hours".into());
     }
     if inner
         .buddy
@@ -148,19 +180,80 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     {
         inner.buddy.clear();
     }
-    crate::insights::local_nudge(inner)?;
+    crate::companion::tick(app, inner)?;
+    inner.buddy.view.companion = inner.companion.view.clone();
+    if !inner.companion.view.chat_open && inner.companion.view.intervention.is_none() {
+        crate::insights::local_nudge(inner)?;
+    }
+    let legacy_card = inner.buddy.view.suggestion.is_some() || inner.buddy.view.decision.is_some();
+    if legacy_card
+        && inner.buddy.window_mode != 2
+        && !inner.companion.memory.allowed(
+            chrono::Utc::now().timestamp(),
+            &inner.companion.view.preferences,
+            chrono::Timelike::hour(&chrono::Local::now()) * 60
+                + chrono::Timelike::minute(&chrono::Local::now()),
+            inner.status.dnd || inner.companion.view.preferences.paused,
+        )
+    {
+        inner.buddy.clear();
+    }
     let mut mode = mode(&inner.status, &inner.buddy.view);
+    if inner.buddy.fullscreen && inner.companion.view.preferences.hide_fullscreen {
+        mode = 0;
+    }
     if mode != 2 && inner.buddy.shown.is_some() {
         inner.buddy.clear();
     }
     if mode == 2
+        && inner.companion.view.intervention.is_none()
         && inner.buddy.window_mode != 2
         && !inner.storage.reserve_nudge(&inner.buddy.view.preferences)?
     {
         inner.buddy.clear();
         mode = self::mode(&inner.status, &inner.buddy.view);
     }
+    if mode == 2 && inner.buddy.window_mode != 2 && inner.companion.view.intervention.is_none() {
+        let now = chrono::Utc::now().timestamp();
+        let reason = inner
+            .buddy
+            .view
+            .suggestion
+            .as_ref()
+            .map(|s| s.reason.as_str())
+            .or_else(|| {
+                inner
+                    .buddy
+                    .view
+                    .decision
+                    .as_ref()
+                    .map(|d| d.reason.as_str())
+            })
+            .unwrap_or("");
+        let prompt = crate::companion::engine::Intervention {
+            id: crate::companion::engine::fingerprint(&format!(
+                "legacy:{}:{reason}",
+                inner.companion.memory.day
+            )),
+            kind: crate::companion::engine::Kind::Midday,
+            text: String::new(),
+            confidence: 1.0,
+            goal_id: None,
+            plan_revision: None,
+            step_id: None,
+            expires_at: now + 45,
+        };
+        if inner.companion.memory.reserve(&prompt, now) {
+            inner
+                .storage
+                .write_setting("companion_memory", &inner.companion.memory)?;
+        } else {
+            inner.buddy.clear();
+            mode = self::mode(&inner.status, &inner.buddy.view);
+        }
+    }
     if mode == inner.buddy.window_mode {
+        crate::tray::sync(app, inner);
         return Ok(());
     }
     let window = app
@@ -169,10 +262,10 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     if mode == 0 {
         window.hide().map_err(|_| "Could not hide Buddy")?;
     } else {
-        let (width, height) = if mode == 1 {
-            (140.0, 140.0)
-        } else {
-            (380.0, 440.0)
+        let (width, height) = match mode {
+            1 => (120.0, 120.0),
+            3 => (380.0, 560.0),
+            _ => (380.0, 440.0),
         };
         window
             .set_size(LogicalSize::new(width, height))
@@ -221,6 +314,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         window.show().map_err(|_| "Could not show Buddy")?;
     }
     inner.buddy.window_mode = mode;
+    crate::tray::sync(app, inner);
     Ok(())
 }
 
@@ -239,6 +333,10 @@ pub fn show_desktop_buddy(
         return Err("Finish setup before showing your desktop companion".into());
     }
     settings.profile.avatar.visible = visible;
+    if !visible {
+        inner.companion.view.chat_open = false;
+        inner.companion.invalidate();
+    }
     inner.storage.write_setting("user_settings", &settings)?;
     if visible {
         inner.buddy.view.preferences.suggestions_only = false;

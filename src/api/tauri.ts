@@ -1,5 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type {
+  CompanionPreferences,
+  CompanionView,
+  CompanionReply,
+  CompanionAction,
+} from "../companion/types";
+import type {
   BuddyPreferences,
   Dashboard,
   Decision,
@@ -17,6 +23,33 @@ import type {
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  companionView: () => invoke<CompanionView>("get_companion_view"),
+  companionGoalContext: () => invoke<unknown>("get_companion_goal_context"),
+  companionPreferences: (preferences: CompanionPreferences) =>
+    invoke<void>("set_companion_preferences", { preferences }),
+  openChat: (intent: "ask" | "task" | "research" | "selection" = "ask") =>
+    invoke<void>("open_companion_chat", { intent }),
+  closeChat: () => invoke<void>("close_companion_chat"),
+  companionMenu: () => invoke<void>("open_companion_context"),
+  voiceInput: () => invoke<void>("companion_voice_input"),
+  companionSubmit: (
+    text: string,
+    action: CompanionAction,
+    goalId: number | null,
+    revision: number | null,
+  ) =>
+    invoke<CompanionReply>("companion_submit", {
+      text,
+      action,
+      goalId,
+      revision,
+    }),
+  companionRespond: (
+    id: string,
+    action: "accept" | "ignore" | "tomorrow" | "summary",
+  ) => invoke<void>("respond_companion_intervention", { id, action }),
+  companionInbox: (id: string, action: "complete" | "remove") =>
+    invoke<void>("update_companion_inbox", { id, action }),
   theme: (theme: "light" | "dark") => invoke<void>("set_user_theme", { theme }),
   resetProfile: () => invoke<void>("reset_local_profile"),
   installedApps: () => invoke<InstalledApp[]>("get_installed_apps"),

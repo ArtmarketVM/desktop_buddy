@@ -1,3 +1,4 @@
+import type { CompanionView } from "./companion/types";
 export interface Goal {
   id: number;
   text: string;
@@ -102,6 +103,7 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   excluded_apps: [],
 };
 export interface BuddyView {
+  companion?: CompanionView;
   avatar?: AvatarPreferences;
   activity_state?: "focused" | "paused" | "drifting";
   activity_event?:
@@ -184,7 +186,17 @@ export interface GoalHistory {
 
 export type Character = "cat" | "dog" | "seal" | "bird";
 export type AvatarState =
-  "working" | "paused" | "sleeping" | "completed" | "fun";
+  | "working"
+  | "paused"
+  | "sleeping"
+  | "completed"
+  | "fun"
+  | "idle"
+  | "listening"
+  | "thinking"
+  | "success"
+  | "stretching"
+  | "attention";
 export interface AvatarPreferences {
   character: Character;
   color: string;

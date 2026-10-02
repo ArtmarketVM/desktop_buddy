@@ -128,6 +128,7 @@ pub struct Suggestion {
 }
 #[derive(Clone, Serialize)]
 pub struct BuddyView {
+    pub companion: crate::companion::View,
     pub avatar: crate::profile::AvatarPreferences,
     pub activity_state: crate::tracking::ActivityState,
     pub activity_event: crate::tracking::ActivityEvent,

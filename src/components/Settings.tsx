@@ -5,6 +5,8 @@ import { PrivacySettings } from "./PrivacySettings";
 import { TrackingSettings } from "./TrackingSettings";
 import { FeedbackCard } from "./FeedbackCard";
 import { ContactSettings } from "./ContactSettings";
+import { CompanionSettings } from "../companion/CompanionSettings";
+import type { CompanionPreferences } from "../companion/types";
 import { defaultUserSettings, type UserSettings } from "../types";
 
 export function Settings({
@@ -17,6 +19,7 @@ export function Settings({
   nebiusConfigured = false,
   tavilyConfigured = false,
   userSettings = defaultUserSettings,
+  companionPreferences,
   children,
   dnd,
 }: {
@@ -29,6 +32,7 @@ export function Settings({
   nebiusConfigured?: boolean;
   tavilyConfigured?: boolean;
   userSettings?: UserSettings;
+  companionPreferences?: CompanionPreferences;
   children?: React.ReactNode;
   dnd?: boolean;
 }) {
@@ -87,6 +91,10 @@ export function Settings({
       )}
       {children}
       <TrackingSettings onChanged={onChanged} />
+      <CompanionSettings
+        onChanged={onChanged}
+        currentPreferences={companionPreferences}
+      />
       <details className="settings-group">
         <summary>
           Notifications and suggestions

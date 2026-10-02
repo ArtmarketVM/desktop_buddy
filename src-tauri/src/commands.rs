@@ -6,6 +6,7 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub companion: crate::companion::Runtime,
     pub tracking_settings: crate::tracking::TrackingSettings,
     pub activity_state: crate::tracking::StateTracker,
     pub usage: crate::insights::UsageTracker,
@@ -21,6 +22,7 @@ pub struct Inner {
     pub last_error: Option<String>,
 }
 pub struct AppState {
+    pub companion_request: tokio::sync::Mutex<()>,
     pub recommendation: tokio::sync::Mutex<()>,
     pub inner: Mutex<Inner>,
     pub client: reqwest::Client,
@@ -43,8 +45,10 @@ impl AppState {
             storage.purge_history(Some(&cutoff))?;
         }
         Ok(Self {
+            companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                companion: crate::companion::Runtime::load(&storage)?,
                 tracking_settings: storage.tracking_settings()?,
                 activity_state: Default::default(),
                 usage: Default::default(),
@@ -170,6 +174,7 @@ pub fn set_goal(text: String, app: AppHandle, state: State<AppState>) -> Result<
     inner.buddy.foreground = None;
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)?;
+    crate::companion::emit(&app, "goal.created", &goal);
     Ok(goal)
 }
 #[tauri::command(async)]
@@ -346,6 +351,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             inner.storage.record_interval(goal.id, &interval)?;
         }
         inner.buddy.foreground = Some(snapshot.clone());
+        crate::companion::observe(&mut inner, &snapshot, allowed);
         if allowed {
             inner.storage.activity(goal.id, &snapshot)?;
         }

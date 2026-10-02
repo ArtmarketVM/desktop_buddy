@@ -74,7 +74,7 @@ export function Avatar({
           )}
         </g>
       )}
-      {state === "completed" && (
+      {(state === "completed" || state === "success") && (
         <path
           d="m86 12 8 8 15-17"
           stroke="#497044"
@@ -86,6 +86,27 @@ export function Avatar({
         <text x="89" y="23" fill="#344333" fontSize="14">
           z
         </text>
+      )}
+      {(state === "thinking" || state === "attention") && (
+        <text x="92" y="23" fill="#344333" fontSize="19" fontWeight="600">
+          {state === "thinking" ? "…" : "?"}
+        </text>
+      )}
+      {state === "stretching" && (
+        <g
+          className="avatar-stretch-arms"
+          fill="none"
+          stroke="#344333"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        >
+          <path d="M25 77 10 69 5 56M95 77 110 69 115 56" />
+        </g>
+      )}
+      {state === "listening" && (
+        <g fill="none" stroke="#344333" strokeWidth="2">
+          <path d="M14 47q-8 13 0 26M8 42q-12 19 0 36" />
+        </g>
       )}
     </svg>
   );

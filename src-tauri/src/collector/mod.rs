@@ -20,6 +20,26 @@ pub fn foreground_fullscreen() -> bool {
         false
     }
 }
+pub fn foreground_meeting() -> bool {
+    #[cfg(windows)]
+    {
+        windows::foreground_meeting()
+    }
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+pub fn foreground_idle_seconds() -> Option<u64> {
+    #[cfg(windows)]
+    {
+        windows::foreground_idle_seconds()
+    }
+    #[cfg(not(windows))]
+    {
+        None
+    }
+}
 
 #[derive(Default)]
 pub struct DurationTracker {

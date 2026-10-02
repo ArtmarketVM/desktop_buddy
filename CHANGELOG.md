@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.0 — unpublished
+
+- Add single-click companion mini chat, local quick tasks/inbox, explicit AI help, Windows voice typing and a selected-text shortcut prototype.
+- Replace the Workspace label with native context actions and a persistent Open/Show/Hide/Tracking/Settings/Quit tray menu.
+- Add unified activity events, opt-in visible-text task/completion proposals and confirmation with concurrent-plan guards.
+- Add gentle daily check-ins, persisted cooldown/deduplication, a shared three-per-day prompt budget and meeting/full-screen/quiet-time suppression.
+- Add calm companion states and an optional stretch invitation; keep light/dark and reduced-motion support.
+- Document the Developer 1 boundary in `docs/COMPANION_MVP.md`.
+
 ## 0.13.0
 
 - Separate personal Windows builds without signing credentials from official signed releases.

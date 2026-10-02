@@ -171,3 +171,50 @@ pub fn foreground_fullscreen() -> bool {
             && rect.bottom >= info.rcMonitor.bottom
     }
 }
+/// Only a boolean safety guard is returned; nothing is recorded while tracking is off.
+pub fn foreground_idle_seconds() -> Option<u64> {
+    unsafe {
+        let mut last = LASTINPUTINFO {
+            cbSize: std::mem::size_of::<LASTINPUTINFO>() as u32,
+            dwTime: 0,
+        };
+        GetLastInputInfo(&mut last)
+            .as_bool()
+            .then(|| GetTickCount().wrapping_sub(last.dwTime) as u64 / 1000)
+    }
+}
+/// Only a boolean safety guard is returned; nothing is recorded while tracking is off.
+pub fn foreground_meeting() -> bool {
+    unsafe {
+        let window = GetForegroundWindow();
+        if window.0.is_null() {
+            return false;
+        }
+        let mut title = [0u16; 512];
+        let length = GetWindowTextW(window, &mut title).max(0) as usize;
+        let mut pid = 0;
+        GetWindowThreadProcessId(window, Some(&mut pid));
+        let mut process = String::new();
+        if let Ok(handle) = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) {
+            let mut path = [0u16; 32768];
+            let mut size = path.len() as u32;
+            if QueryFullProcessImageNameW(
+                handle,
+                PROCESS_NAME_WIN32,
+                PWSTR(path.as_mut_ptr()),
+                &mut size,
+            )
+            .is_ok()
+            {
+                process = process_basename(&String::from_utf16_lossy(&path[..size as usize]));
+            }
+            let _ = CloseHandle(handle);
+        }
+        let title = String::from_utf16_lossy(&title[..length]);
+        crate::attention::meeting(&ActivitySnapshot {
+            process_name: process,
+            window_title: title.clone(),
+            ..Default::default()
+        }) || title.to_ascii_lowercase().contains("powerpoint slide show")
+    }
+}

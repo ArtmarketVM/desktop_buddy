@@ -16,9 +16,10 @@ describe("desktop companion", () => {
     const html = renderToStaticMarkup(
       <DesktopBuddy view={view} onDismiss={noop} onDnd={noop} />,
     );
-    expect(html).toContain("Drag Buddy to move");
+    expect(html).toContain("Open Buddy mini chat");
+    expect(html).toContain("drag to move");
     expect(html).not.toContain("Open resource");
-    expect(html).toContain("Workspace");
+    expect(html).not.toContain("Workspace");
   });
   it("shows a sourced suggestion with dismiss and DND controls", () => {
     const html = renderToStaticMarkup(

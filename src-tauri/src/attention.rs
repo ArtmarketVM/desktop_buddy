@@ -30,6 +30,9 @@ pub fn quiet_reason(
     fullscreen: bool,
     card_visible: bool,
 ) -> Option<String> {
+    if preferences.suppress_fullscreen && fullscreen {
+        return Some("Fullscreen application".into());
+    }
     let activity = activity?;
     if excluded(preferences, &activity.process_name) {
         Some("Excluded application".into())

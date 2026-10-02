@@ -360,6 +360,12 @@ pub fn reset_local_profile(app: tauri::AppHandle, state: State<AppState>) -> Res
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.reset_local_profile()?;
+    inner.companion.view.chat_open = false;
+    inner.companion.invalidate();
+    inner.companion.view.preferences.screen_task_detection = false;
+    inner
+        .storage
+        .write_setting("companion_preferences", &inner.companion.view.preferences)?;
     inner.status.tracking = false;
     inner.status.ai_enabled = false;
     inner.buddy.view.preferences.proactive = false;
@@ -398,6 +404,7 @@ pub fn create_onboarding_goal(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     let goal = inner.storage.create_onboarding_goal(&text)?;
+    crate::companion::emit(&app, "goal.created", &goal);
     inner.status.tracking = false;
     inner.usage = Default::default();
     inner.activity_state.stop(false);
