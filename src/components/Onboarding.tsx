@@ -92,8 +92,8 @@ export function Onboarding({
         {draft.step === 0 && (
           <>
             <p>
-              Choose a character and color. You can change or hide your
-              companion in Settings.
+              Choose a character and color. You can change your companion from
+              the profile menu or show it on the desktop from Focus.
             </p>
             <AvatarPicker
               profile={profile}

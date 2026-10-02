@@ -46,6 +46,8 @@ switch ($Task) {
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         npm run test:release
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        npm run test:contact
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         cargo test --locked --manifest-path src-tauri/Cargo.toml
     }
 }

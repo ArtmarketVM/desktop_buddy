@@ -1,5 +1,6 @@
 import { AppWindow } from "lucide-react";
 import type { ActivitySnapshot } from "../types";
+import { duration } from "./ActivityInsights";
 export function ActivityTimeline({
   activity,
 }: {
@@ -27,10 +28,7 @@ export function ActivityTimeline({
                 {item.media_playing ? " · Media playing" : ""}
               </small>
             </div>
-            <span className="duration">
-              {Math.floor(item.active_seconds / 60)}m {item.active_seconds % 60}
-              s
-            </span>
+            <span className="duration">{duration(item.active_seconds)}</span>
           </div>
         ))
       ) : (

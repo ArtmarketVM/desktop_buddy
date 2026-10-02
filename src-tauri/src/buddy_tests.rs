@@ -2,6 +2,38 @@ use super::*;
 use crate::storage::Storage;
 
 #[test]
+fn passive_companion_stays_visible_while_quiet_but_never_displays_a_notification_card() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.buddy.view.preferences.suggestions_only = false;
+    inner.buddy.view.suggestion = Some(Suggestion {
+        id: 1,
+        title: "Private".into(),
+        url: "https://example.com".into(),
+        reason: "Help".into(),
+    });
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
+    assert!(!inner.status.tracking);
+    assert!(!inner.status.ai_enabled);
+    assert!(
+        !inner
+            .storage
+            .user_settings()
+            .unwrap()
+            .onboarding
+            .tracking_consent
+    );
+    inner.status.tracking = true;
+    inner.status.dnd = true;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
+    inner.status.dnd = false;
+    inner.buddy.view.quiet_reason = Some("Outside working hours".into());
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
+    inner.buddy.view.preferences.suggestions_only = true;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+}
+
+#[test]
 fn ratings_can_be_replaced_and_cleared_without_duplicates() {
     let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
     let goal = storage.set_goal("Learn Rust").unwrap();
@@ -47,6 +79,7 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     let mut inner = state.inner.lock().unwrap();
     inner.status.tracking = true;
     crate::tracking::allow_notifications(&mut inner);
+    inner.buddy.view.preferences.suggestions_only = true;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
     inner.buddy.view.preferences.suggestions_only = false;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
@@ -72,17 +105,17 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     assert!(!due(&inner));
     inner.buddy.view.avatar.visible = true;
     inner.status.dnd = true;
-    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
     assert!(!due(&inner));
     inner.status.dnd = false;
     inner.status.tracking = false;
     assert!(!due(&inner));
-    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
 }
 #[test]
 fn persists_preferences_and_deduplicates_per_goal() {
     let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
-    assert!(storage.buddy_preferences().unwrap().suggestions_only);
+    assert!(!storage.buddy_preferences().unwrap().suggestions_only);
     assert!(!storage.buddy_preferences().unwrap().proactive);
     storage
         .save_buddy_preferences(&BuddyPreferences {

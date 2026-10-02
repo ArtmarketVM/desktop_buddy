@@ -13,9 +13,26 @@ import type {
   UserSettings,
   OnboardingState,
   ProductFeedback,
+  InstalledApp,
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  theme: (theme: "light" | "dark") => invoke<void>("set_user_theme", { theme }),
+  resetProfile: () => invoke<void>("reset_local_profile"),
+  installedApps: () => invoke<InstalledApp[]>("get_installed_apps"),
+  showBuddy: (visible: boolean) =>
+    invoke<void>("show_desktop_buddy", { visible }),
+  feedbackDraft: (message: string, replyEmail: string) =>
+    invoke<void>("open_feedback_draft", { message, replyEmail }),
+  contactEndpoint: () => invoke<string | null>("get_contact_endpoint"),
+  saveContactEndpoint: (url: string) =>
+    invoke<void>("set_contact_endpoint", { url }),
+  sendContactFeedback: (message: string, replyEmail: string) =>
+    invoke<void>("send_contact_feedback", { message, replyEmail }),
+  subscribeEmail: (consent: boolean) =>
+    invoke<void>("subscribe_contact_email", { consent }),
+  shareRoleProfile: (profile: UserProfile, consent: boolean) =>
+    invoke<void>("share_role_profile", { profile, consent }),
   saveOnboarding: (profile: UserProfile, draft: OnboardingState) =>
     invoke<UserSettings>("save_onboarding", { profile, draft }),
   onboardingGoal: (text: string) => invoke("create_onboarding_goal", { text }),

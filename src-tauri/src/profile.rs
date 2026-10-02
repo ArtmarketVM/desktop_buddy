@@ -14,7 +14,7 @@ impl Default for AvatarPreferences {
     fn default() -> Self {
         Self {
             character: "cat".into(),
-            color: "#9BB784".into(),
+            color: "#4B8EF5".into(),
             visible: true,
         }
     }
@@ -25,6 +25,8 @@ pub struct UserProfile {
     pub name: String,
     pub email: String,
     pub role: String,
+    pub custom_role: String,
+    pub applications: Vec<String>,
     pub privacy_accepted: bool,
     pub privacy_notice_version: Option<String>,
     pub avatar: AvatarPreferences,
@@ -44,6 +46,7 @@ pub struct UserSettings {
     pub profile: UserProfile,
     pub onboarding: OnboardingState,
     pub autostart: bool,
+    pub theme: String,
 }
 impl Default for UserSettings {
     fn default() -> Self {
@@ -51,6 +54,7 @@ impl Default for UserSettings {
             profile: Default::default(),
             onboarding: Default::default(),
             autostart: true,
+            theme: "light".into(),
         }
     }
 }
@@ -91,14 +95,28 @@ pub fn presets() -> Result<PresetConfig, String> {
 pub fn validate_profile(profile: &mut UserProfile, require_identity: bool) -> Result<(), String> {
     profile.name = profile.name.trim().into();
     profile.email = profile.email.trim().into();
-    if !["cat", "dog", "seal", "bird"].contains(&profile.avatar.character.as_str())
-        || profile.avatar.color.len() != 7
-        || !profile.avatar.color.starts_with('#')
-        || !profile.avatar.color[1..]
-            .bytes()
-            .all(|b| b.is_ascii_hexdigit())
+    profile.custom_role = profile.custom_role.trim().into();
+    if profile.custom_role.chars().count() > 120
+        || profile.custom_role.chars().any(char::is_control)
     {
-        return Err("Choose a supported character and a hex color".into());
+        return Err("Use at most 120 characters for your role".into());
+    }
+    if profile.applications.len() > 20
+        || profile.applications.iter().any(|app| {
+            app.trim().is_empty() || app.chars().count() > 80 || app.chars().any(char::is_control)
+        })
+    {
+        return Err("List up to 20 apps, each with at most 80 characters".into());
+    }
+    profile.applications = profile
+        .applications
+        .iter()
+        .map(|app| app.trim().to_string())
+        .collect();
+    if !["cat", "dog", "seal", "bird"].contains(&profile.avatar.character.as_str())
+        || !["#EF6B6B", "#F2C94C", "#4B8EF5"].contains(&profile.avatar.color.as_str())
+    {
+        return Err("Choose a supported character and a red, yellow or blue color".into());
     }
     if profile.name.chars().count() > 120 || profile.name.chars().any(char::is_control) {
         return Err("Use at most 120 characters for your name".into());
@@ -127,6 +145,9 @@ pub fn validate_profile(profile: &mut UserProfile, require_identity: bool) -> Re
         if !presets()?.roles.iter().any(|r| r.id == profile.role) {
             return Err("Choose a professional role".into());
         }
+        if profile.role == "other" && profile.custom_role.is_empty() {
+            return Err("Tell us your role".into());
+        }
         profile.privacy_notice_version = Some("draft-v1".into());
     } else if !profile.email.is_empty() && !profile.privacy_accepted {
         return Err("Acknowledge the draft privacy notice before saving an email".into());
@@ -153,7 +174,31 @@ impl Storage {
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS product_feedback(id INTEGER PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),text TEXT NOT NULL,source TEXT NOT NULL,input_kind TEXT NOT NULL DEFAULT 'text',created_at TEXT NOT NULL);CREATE TABLE IF NOT EXISTS preset_exclusions(goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,process_name TEXT NOT NULL,PRIMARY KEY(goal_id,process_name));").map_err(|e|e.to_string())
     }
     pub fn user_settings(&self) -> Result<UserSettings, String> {
-        Ok(self.read_setting("user_settings")?.unwrap_or_default())
+        let mut settings: UserSettings = self.read_setting("user_settings")?.unwrap_or_default();
+        // Migrate legacy custom colors on read without losing any profile or goal data.
+        settings.profile.avatar.color = palette_color(&settings.profile.avatar.color).into();
+        if !["light", "dark"].contains(&settings.theme.as_str()) {
+            settings.theme = "light".into();
+        }
+        Ok(settings)
+    }
+    pub fn reset_local_profile(&self) -> Result<(), String> {
+        let saved = self.user_settings()?;
+        self.write_setting(
+            "user_settings",
+            &UserSettings {
+                theme: saved.theme,
+                autostart: saved.autostart,
+                profile: UserProfile {
+                    avatar: AvatarPreferences {
+                        visible: false,
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
     }
     pub fn apply_role(&self, goal: i64) -> Result<(), String> {
         let role = self.user_settings()?.profile.role;
@@ -235,6 +280,100 @@ impl Storage {
     }
 }
 
+pub fn palette_color(color: &str) -> &'static str {
+    let palette = [
+        ("#EF6B6B", [239_i32, 107, 107]),
+        ("#F2C94C", [242, 201, 76]),
+        ("#4B8EF5", [75, 142, 245]),
+    ];
+    let rgb = color
+        .strip_prefix('#')
+        .filter(|v| v.len() == 6 && v.is_ascii())
+        .and_then(|v| {
+            Some([
+                i32::from_str_radix(&v[0..2], 16).ok()?,
+                i32::from_str_radix(&v[2..4], 16).ok()?,
+                i32::from_str_radix(&v[4..6], 16).ok()?,
+            ])
+        });
+    rgb.map(|rgb| {
+        palette
+            .iter()
+            .min_by_key(|(_, p)| (0..3).map(|i| (rgb[i] - p[i]).pow(2)).sum::<i32>())
+            .unwrap()
+            .0
+    })
+    .unwrap_or("#4B8EF5")
+}
+
+pub fn apply_theme(app: &tauri::AppHandle, theme: &str) -> Result<(), String> {
+    use tauri::Manager;
+    let native = if theme == "dark" {
+        tauri::Theme::Dark
+    } else {
+        tauri::Theme::Light
+    };
+    let bytes = if theme == "dark" {
+        include_bytes!("../icons/theme-dark.rgba")
+    } else {
+        include_bytes!("../icons/theme-light.rgba")
+    };
+    let icon = tauri::image::Image::new_owned(bytes.to_vec(), 64, 64);
+    for window in app.webview_windows().values() {
+        window
+            .set_theme(Some(native))
+            .map_err(|_| "Could not update the window theme")?;
+        window
+            .set_icon(icon.clone())
+            .map_err(|_| "Could not update the window icon")?;
+    }
+    if let Some(tray) = app.tray_by_id("desktop-buddy-tray") {
+        tray.set_icon(Some(icon))
+            .map_err(|_| "Could not update the tray icon")?;
+    }
+    Ok(())
+}
+
+#[tauri::command(async)]
+pub fn set_user_theme(
+    theme: String,
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    if !["light", "dark"].contains(&theme.as_str()) {
+        return Err("Choose Light or Dark".into());
+    }
+    let inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    let mut settings = inner.storage.user_settings()?;
+    settings.theme = theme;
+    apply_theme(&app, &settings.theme)?;
+    inner.storage.write_setting("user_settings", &settings)
+}
+
+#[tauri::command(async)]
+pub fn reset_local_profile(app: tauri::AppHandle, state: State<AppState>) -> Result<(), String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    inner.storage.reset_local_profile()?;
+    inner.status.tracking = false;
+    inner.status.ai_enabled = false;
+    inner.buddy.view.preferences.proactive = false;
+    inner
+        .storage
+        .save_buddy_preferences(&inner.buddy.view.preferences)?;
+    inner.usage = Default::default();
+    inner.activity_state.stop(false);
+    inner.buddy.foreground = None;
+    inner.buddy.clear();
+    inner.privacy_revision += 1;
+    crate::buddy::sync(&app, &mut inner)
+}
+
 #[tauri::command(async)]
 pub fn save_onboarding(
     profile: UserProfile,
@@ -283,6 +422,7 @@ pub fn finish_onboarding(
         return Err("Finish the goal step first".into());
     }
     settings.onboarding.completed = true;
+    settings.profile.avatar.visible = true;
     settings.onboarding.tracking_consent = allow_tracking;
     crate::autostart::sync(settings.autostart)?;
     inner.storage.write_setting("user_settings", &settings)?;

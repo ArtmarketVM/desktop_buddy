@@ -22,6 +22,20 @@ export function identityError(profile: UserProfile): string | null {
     return "Enter a valid email address.";
   if (!roles.some((r) => r.id === profile.role))
     return "Choose your professional role.";
+  if (profile.role === "other" && !profile.custom_role?.trim())
+    return "Tell us your role.";
+  if (
+    (profile.custom_role ?? "").length > 120 ||
+    /[\x00-\x1f\x7f]/.test(profile.custom_role ?? "")
+  )
+    return "Use at most 120 characters for your role.";
+  if (
+    (profile.applications ?? []).length > 20 ||
+    (profile.applications ?? []).some(
+      (app) => !app.trim() || app.length > 80 || /[\x00-\x1f\x7f]/.test(app),
+    )
+  )
+    return "List up to 20 apps, each with at most 80 characters.";
   if (!profile.privacy_accepted)
     return "Read and acknowledge the draft privacy notice before saving your profile.";
   return null;

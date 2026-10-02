@@ -93,7 +93,7 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   local_nudges: false,
   daily_nudge_limit: 8,
   nudge_interval_minutes: 15,
-  suggestions_only: true,
+  suggestions_only: false,
   proactive: false,
   interval_minutes: 15,
   suppress_fullscreen: true,
@@ -125,6 +125,7 @@ export interface Recommendation {
 }
 export type AppCategory = "work" | "distraction" | "neutral";
 export interface AppRule {
+  preset_source?: string | null;
   process_name: string;
   category: AppCategory;
 }
@@ -193,6 +194,8 @@ export interface UserProfile {
   name: string;
   email: string;
   role: string;
+  custom_role?: string;
+  applications?: string[];
   privacy_accepted: boolean;
   privacy_notice_version: string | null;
   avatar: AvatarPreferences;
@@ -208,15 +211,18 @@ export interface UserSettings {
   profile: UserProfile;
   onboarding: OnboardingState;
   autostart: boolean;
+  theme: "light" | "dark";
 }
 export const defaultUserSettings: UserSettings = {
   profile: {
     name: "",
     email: "",
     role: "",
+    custom_role: "",
+    applications: [],
     privacy_accepted: false,
     privacy_notice_version: null,
-    avatar: { character: "cat", color: "#9BB784", visible: true },
+    avatar: { character: "cat", color: "#4B8EF5", visible: true },
   },
   onboarding: {
     step: 0,
@@ -226,7 +232,12 @@ export const defaultUserSettings: UserSettings = {
     tracking_consent: false,
   },
   autostart: true,
+  theme: "light",
 };
+export interface InstalledApp {
+  process_name: string;
+  name: string;
+}
 export interface ProductFeedback {
   goal_id: number | null;
   rating: number;

@@ -3,6 +3,7 @@ import { api, desktop } from "../api/tauri";
 import type { UserSettings } from "../types";
 import { identityError, roleApplications } from "../data/profile";
 import { AvatarPicker, IdentityFields } from "./ProfileFields";
+import { EmailUpdates } from "./ContactSettings";
 
 export function ProfileSettings({
   settings,
@@ -37,7 +38,7 @@ export function ProfileSettings({
   }
   const disabled = busy || !desktop;
   return (
-    <details className="inline-details">
+    <details open className="card profile-settings">
       <summary>Profile, companion and startup</summary>
       <label className="toggle-row">
         <span>
@@ -69,21 +70,20 @@ export function ProfileSettings({
         onChange={setProfile}
         disabled={disabled}
       />
-      <h3>Role app preset</h3>
-      <ul className="preset-apps">
-        {roleApplications(profile.role).map((app) => (
-          <li key={app.process}>
-            {app.name}{" "}
-            <span>
-              {app.group} · {app.category}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <h3>Suggested work tools</h3>
+      <p className="helper">
+        {roleApplications(profile.role)
+          .filter((app) => app.category === "work")
+          .map((app) => app.name)
+          .join(" · ")}
+        {profile.role === "other" &&
+          "No automatic app defaults for a custom role. Classify detected apps in Settings → Your apps."}
+      </p>
       <p className="helper">
         Role defaults apply to new goals and update preset rules for the current
         goal. Your manual app classifications are kept. Adjust apps for the
-        current goal below.
+        current goal in Settings → App categories. These suggestions do not mean
+        an app is installed.
       </p>
       <label className="toggle-row">
         <span>
@@ -105,6 +105,7 @@ export function ProfileSettings({
       </button>
       {error && <p role="alert">{error}</p>}
       {message && <p role="status">{message}</p>}
+      <EmailUpdates />
     </details>
   );
 }

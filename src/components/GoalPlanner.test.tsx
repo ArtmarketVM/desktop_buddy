@@ -11,7 +11,7 @@ const plan: GoalPlan = {
 };
 const noop = async () => {};
 describe("goal planning", () => {
-  it("shows editable criteria, steps and explicit outcome confirmation", () => {
+  it("starts with a checklist and keeps editing and outcome actions behind disclosures", () => {
     const html = renderToStaticMarkup(
       <GoalPlanner
         goal={{ id: 1, text: "Presentation", created_at: "2026-09-29" }}
@@ -24,11 +24,15 @@ describe("goal planning", () => {
     );
     expect(html).toContain("Export reviewed PDF");
     expect(html).toContain("Write draft");
-    expect(html).toContain("Working on this");
-    expect(html).toContain("Save plan");
+    expect(html).toContain("Current step");
+    expect(html).toContain("Edit plan");
+    expect(html).not.toContain('id="plan-title"');
+    expect(html).not.toContain("Save plan");
     expect(html).toContain("no activity history");
     expect(html).toContain("I confirm the goal");
     expect(html).toMatch(/<button disabled="">Complete goal/);
+    expect(html).toContain("<summary>Finish or pause this goal</summary>");
+    expect(html).not.toMatch(/<details[^>]*\bopen/);
   });
   it("distinguishes deferred from completed goals", () => {
     const html = renderToStaticMarkup(

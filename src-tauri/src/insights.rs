@@ -21,6 +21,7 @@ pub enum Category {
 pub struct AppRule {
     pub process_name: String,
     pub category: Category,
+    pub preset_source: Option<String>,
 }
 #[derive(Serialize)]
 pub struct AppTime {
@@ -113,17 +114,22 @@ impl NudgeBudget {
 
 impl Storage {
     pub fn app_rules(&self, goal: i64) -> Result<Vec<AppRule>, String> {
-        let mut q = self.connection.prepare("SELECT process_name,category FROM app_rules WHERE goal_id=?1 ORDER BY process_name").map_err(|e| e.to_string())?;
+        let mut q = self.connection.prepare("SELECT process_name,category,preset_source FROM app_rules WHERE goal_id=?1 ORDER BY process_name").map_err(|e| e.to_string())?;
         let rows = q
             .query_map([goal], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
             })
             .map_err(|e| e.to_string())?;
         rows.map(|r| {
-            let (process_name, value) = r.map_err(|e| e.to_string())?;
+            let (process_name, value, preset_source) = r.map_err(|e| e.to_string())?;
             Ok(AppRule {
                 process_name,
                 category: serde_json::from_str(&value).map_err(|e| e.to_string())?,
+                preset_source,
             })
         })
         .collect()

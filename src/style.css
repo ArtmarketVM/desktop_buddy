@@ -119,11 +119,9 @@
   display: block;
   margin: auto;
 }
-.avatar-working {
-  animation: buddy-float 3s ease-in-out infinite;
-}
+.avatar-working,
 .avatar-fun {
-  animation: avatar-bounce 1.8s ease-in-out infinite;
+  animation: none;
 }
 .avatar-paused,
 .avatar-sleeping {
@@ -200,15 +198,6 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
-}
-@keyframes avatar-bounce {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-2deg);
-  }
-  50% {
-    transform: translateY(-5px) rotate(2deg);
-  }
 }
 @media (max-width: 480px) {
   .onboarding-card {

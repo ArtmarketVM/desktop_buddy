@@ -7,6 +7,8 @@ use tauri::{
 
 pub fn install(app: &tauri::App) -> tauri::Result<()> {
     let open = MenuItem::with_id(app, "open", "Open workspace", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show companion on desktop", true, None::<&str>)?;
+    let hide = MenuItem::with_id(app, "hide", "Hide desktop companion", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause tracking", true, None::<&str>)?;
     let resume = MenuItem::with_id(app, "resume", "Resume tracking", true, None::<&str>)?;
     let snooze = MenuItem::with_id(app, "snooze", "Snooze Buddy for 1 hour", true, None::<&str>)?;
@@ -18,7 +20,10 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let quit = MenuItem::with_id(app, "quit", "Quit Desktop Buddy", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&open, &pause, &resume, &snooze, &wake, &quit])?;
+    let menu = Menu::with_items(
+        app,
+        &[&open, &show, &hide, &pause, &resume, &snooze, &wake, &quit],
+    )?;
     let mut builder = TrayIconBuilder::with_id("desktop-buddy-tray")
         .menu(&menu)
         .tooltip("Desktop Buddy — open workspace or quit from this menu")
@@ -35,6 +40,8 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
                 let state = app.state::<commands::AppState>();
                 let result = match id.as_str() {
                     "open" => buddy::open_workspace(app.clone()),
+                    "show" => buddy::show_desktop_buddy(true, app.clone(), state.clone()),
+                    "hide" => buddy::show_desktop_buddy(false, app.clone(), state.clone()),
                     "pause" => commands::set_tracking(false, app.clone(), state.clone()),
                     "resume" => commands::set_tracking(true, app.clone(), state.clone()),
                     "snooze" => buddy::snooze_buddy(true, app.clone(), state.clone()),

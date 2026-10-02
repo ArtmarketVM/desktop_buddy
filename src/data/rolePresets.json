@@ -205,6 +205,11 @@
         "msedge.exe",
         "firefox.exe"
       ]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "applications": []
     }
   ]
 }

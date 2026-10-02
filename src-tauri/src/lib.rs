@@ -4,11 +4,13 @@ mod browser;
 mod buddy;
 mod collector;
 mod commands;
+mod contact;
 mod credentials;
 mod goals;
 mod history;
 mod http;
 mod insights;
+mod installed_apps;
 mod models;
 mod nebius;
 mod privacy;
@@ -68,6 +70,7 @@ pub fn run() {
                     }
                 }
             }
+            profile::apply_theme(app.handle(), &settings.theme).map_err(std::io::Error::other)?;
             if std::env::args().any(|arg| arg == "--background") {
                 if let Some(window) = app.get_webview_window("main") {
                     window.hide()?;
@@ -153,6 +156,16 @@ pub fn run() {
             profile::create_onboarding_goal,
             profile::finish_onboarding,
             profile::save_user_profile,
+            profile::set_user_theme,
+            profile::reset_local_profile,
+            installed_apps::get_installed_apps,
+            contact::open_feedback_draft,
+            contact::get_contact_endpoint,
+            contact::set_contact_endpoint,
+            contact::send_contact_feedback,
+            contact::subscribe_contact_email,
+            contact::share_role_profile,
+            buddy::show_desktop_buddy,
             product_feedback::save_product_feedback,
             tracking::get_tracking_settings,
             tracking::set_tracking_settings,

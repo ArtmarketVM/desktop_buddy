@@ -1,0 +1,3 @@
+[functions.buddy-contact]
+# Public write-only endpoint. The function enforces input limits, confirmation and atomic rate caps.
+verify_jwt = false

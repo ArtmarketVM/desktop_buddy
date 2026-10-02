@@ -15,9 +15,35 @@ fn store() -> Storage {
 }
 
 #[test]
+fn legacy_profile_migration_and_signout_preserve_goals_but_remove_local_identity_and_consent() {
+    let mut s = store();
+    let goal = s.set_goal("Keep my work").unwrap();
+    let mut settings = UserSettings {
+        profile: profile("designer"),
+        ..Default::default()
+    };
+    settings.profile.avatar.color = "#9BB784".into();
+    settings.theme = "dark".into();
+    settings.onboarding.completed = true;
+    settings.onboarding.tracking_consent = true;
+    s.write_setting("user_settings", &settings).unwrap();
+    let migrated = s.user_settings().unwrap();
+    assert_eq!(migrated.profile.email, "dev@example.com");
+    assert!(["#EF6B6B", "#F2C94C", "#4B8EF5"].contains(&migrated.profile.avatar.color.as_str()));
+    s.reset_local_profile().unwrap();
+    let reset = s.user_settings().unwrap();
+    assert!(reset.profile.email.is_empty());
+    assert!(!reset.onboarding.completed);
+    assert!(!reset.onboarding.tracking_consent);
+    assert!(!reset.profile.avatar.visible);
+    assert_eq!(reset.theme, "dark");
+    assert_eq!(s.goal().unwrap().unwrap().id, goal.id);
+}
+
+#[test]
 fn all_presets_resolve_unique_apps_and_figma_is_design() {
     let config = presets().unwrap();
-    assert_eq!(config.roles.len(), 8);
+    assert_eq!(config.roles.len(), 9);
     for role in &config.roles {
         assert!(!role.name.is_empty());
         let unique: std::collections::BTreeSet<_> = role.applications.iter().collect();
@@ -65,6 +91,32 @@ fn identity_requires_email_notice_role_and_supported_avatar() {
     p.avatar.character = "dog".into();
     p.avatar.color = "red".into();
     assert!(validate_profile(&mut p, true).is_err());
+}
+
+#[test]
+fn custom_roles_and_apps_survive_reopening_without_inventing_tracking_rules() {
+    let mut s = store();
+    let mut p = profile("other");
+    assert!(validate_profile(&mut p, true).is_err());
+    p.custom_role = " Musician ".into();
+    p.applications = vec![" Ableton Live ".into(), "MuseScore".into()];
+    validate_profile(&mut p, true).unwrap();
+    assert_eq!(p.custom_role, "Musician");
+    let mut settings = s.user_settings().unwrap();
+    settings.profile = p.clone();
+    s.write_setting("user_settings", &settings).unwrap();
+    let goal = s.set_goal("Write a song").unwrap();
+    s.apply_role(goal.id).unwrap();
+    assert!(s.app_rules(goal.id).unwrap().is_empty());
+    assert_eq!(
+        s.user_settings().unwrap().profile.applications,
+        vec!["Ableton Live", "MuseScore"]
+    );
+    p.applications = vec!["x".repeat(81)];
+    assert!(validate_profile(&mut p, true).is_err());
+    let legacy: UserProfile =
+        serde_json::from_value(serde_json::json!({"role":"designer"})).unwrap();
+    assert!(legacy.custom_role.is_empty() && legacy.applications.is_empty());
 }
 #[test]
 fn onboarding_cannot_skip_profile_or_create_duplicate_goals_and_restores_progress() {

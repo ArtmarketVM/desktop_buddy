@@ -28,8 +28,8 @@ describe("local activity insights", () => {
         }}
       />,
     );
-    expect(html).toContain("3m");
-    expect(html).toContain("1m");
+    expect(html).toContain("3 min");
+    expect(html).toContain("1 min");
     expect(html).toContain("1 of 2 steps complete");
     expect(html).toContain('value="1"');
     expect(html).toContain('max="2"');
@@ -88,11 +88,36 @@ describe("local activity insights", () => {
     expect(html).toContain("No cards");
     expect(html).toContain("No AI or API key needed");
   });
+  it("never presents uninstalled role suggestions as discovered apps and keeps manual rules", () => {
+    const html = renderToStaticMarkup(
+      <AppRules
+        goalId={1}
+        rules={[
+          {
+            process_name: "figma.exe",
+            category: "work",
+            preset_source: "role",
+          },
+          {
+            process_name: "custom.exe",
+            category: "neutral",
+            preset_source: null,
+          },
+        ]}
+        processes={[]}
+        onChanged={noop}
+      />,
+    );
+    expect(html).not.toContain("Category for figma.exe");
+    expect(html).toContain("Category for custom.exe");
+    expect(html).toContain("Your rule");
+    expect(html).toContain("discovery is available in the Windows app");
+  });
   it("formats time without pretending a partial minute is a full minute", () => {
-    expect(duration(0)).toBe("0s");
-    expect(duration(59)).toBe("59s");
-    expect(duration(61)).toBe("1m");
-    expect(duration(3660)).toBe("1h 1m");
+    expect(duration(0)).toBe("0 min");
+    expect(duration(59)).toBe("<1 min");
+    expect(duration(61)).toBe("1 min");
+    expect(duration(3660)).toBe("1 h 1 min");
   });
   it("keeps AI consent, provider status and snooze controls in Settings", () => {
     const html = renderToStaticMarkup(

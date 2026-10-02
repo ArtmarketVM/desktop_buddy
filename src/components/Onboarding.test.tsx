@@ -21,7 +21,7 @@ const profile: UserProfile = {
 };
 describe("onboarding and profiles", () => {
   it("keeps a shared expandable role config with Figma in Design", () => {
-    expect(roles).toHaveLength(8);
+    expect(roles).toHaveLength(9);
     expect(
       roleApplications("designer").find((a) => a.process === "figma.exe")
         ?.group,
@@ -41,6 +41,26 @@ describe("onboarding and profiles", () => {
       "privacy",
     );
     expect(identityError({ ...profile, role: "unknown" })).toContain("role");
+  });
+  it("accepts a non-technical Other role but bounds declared apps", () => {
+    expect(
+      identityError({ ...profile, role: "other", custom_role: "" }),
+    ).toContain("role");
+    expect(
+      identityError({
+        ...profile,
+        role: "other",
+        custom_role: "Musician",
+        applications: ["Ableton Live", "MuseScore"],
+      }),
+    ).toBeNull();
+    expect(
+      identityError({
+        ...profile,
+        applications: Array.from({ length: 21 }, () => "An app"),
+      }),
+    ).toContain("20 apps");
+    expect(roleApplications("other")).toEqual([]);
   });
   it("orders avatar, identity, goal and then tracking choice without app editing", () => {
     const render = (step: number) =>

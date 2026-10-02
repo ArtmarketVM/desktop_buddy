@@ -109,7 +109,7 @@ impl Default for BuddyPreferences {
             local_nudges: false,
             daily_nudge_limit: 8,
             nudge_interval_minutes: 15,
-            suggestions_only: true,
+            suggestions_only: false,
             proactive: false,
             interval_minutes: 15,
             suppress_fullscreen: true,

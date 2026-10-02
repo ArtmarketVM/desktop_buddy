@@ -56,17 +56,16 @@ impl Runtime {
     }
 }
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
-    if !view.avatar.visible
-        || !status.tracking
-        || status.dnd
-        || snoozed(view)
-        || view
+    if !view.avatar.visible || snoozed(view) {
+        0
+    } else if status.tracking
+        && !status.dnd
+        && !view
             .quiet_reason
             .as_deref()
             .is_some_and(|r| r != "Waiting for a pause in input")
+        && (view.suggestion.is_some() || view.decision.is_some())
     {
-        0
-    } else if view.suggestion.is_some() || view.decision.is_some() {
         2
     } else if !view.preferences.suggestions_only {
         1
@@ -116,7 +115,11 @@ pub fn clamp_position(
 }
 pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
     remember_position(app, inner)?;
-    inner.buddy.view.avatar = inner.storage.user_settings()?.profile.avatar;
+    let settings = inner.storage.user_settings()?;
+    inner.buddy.view.avatar = settings.profile.avatar;
+    if !settings.onboarding.completed {
+        inner.buddy.view.avatar.visible = false;
+    }
     inner.buddy.view.activity_state = inner.activity_state.state;
     inner.buddy.view.activity_event = inner.activity_state.event;
     inner.buddy.view.activity_revision = inner.activity_state.revision;
@@ -147,7 +150,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     }
     crate::insights::local_nudge(inner)?;
     let mut mode = mode(&inner.status, &inner.buddy.view);
-    if mode == 0 && inner.buddy.shown.is_some() {
+    if mode != 2 && inner.buddy.shown.is_some() {
         inner.buddy.clear();
     }
     if mode == 2
@@ -219,6 +222,36 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     }
     inner.buddy.window_mode = mode;
     Ok(())
+}
+
+#[tauri::command(async)]
+pub fn show_desktop_buddy(
+    visible: bool,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    let mut settings = inner.storage.user_settings()?;
+    if !settings.onboarding.completed {
+        return Err("Finish setup before showing your desktop companion".into());
+    }
+    settings.profile.avatar.visible = visible;
+    inner.storage.write_setting("user_settings", &settings)?;
+    if visible {
+        inner.buddy.view.preferences.suggestions_only = false;
+        inner
+            .storage
+            .save_buddy_preferences(&inner.buddy.view.preferences)?;
+        inner.buddy.view.snoozed_until = None;
+        inner
+            .storage
+            .write_setting("buddy_snooze", &Option::<i64>::None)?;
+    }
+    inner.buddy.clear();
+    sync(&app, &mut inner)
 }
 #[tauri::command(async)]
 pub fn set_buddy_preferences(
