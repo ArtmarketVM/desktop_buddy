@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.15.0 — unpublished
+## 0.15.0
 
 - Combine the core workspace with the 0.14.0 desktop companion and its existing consent controls.
 - Add parallel goals and areas, editable steps, a one-to-three-goal Today plan and optional no-plan days.

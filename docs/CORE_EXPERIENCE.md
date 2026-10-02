@@ -1,6 +1,6 @@
 # Core experience and companion integration — 0.15.0
 
-This source version combines Developer 1's daily workspace with Developer 2's companion commit `d237c27`. It is unpublished; an installer requires the normal signed release workflow.
+This version combines Developer 1's daily workspace with Developer 2's companion commit `d237c27`. The Windows release uses the normal signed release workflow; private signing credentials remain on the release owner's computer.
 
 ## Daily flow
 

@@ -2,7 +2,7 @@
 
 A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
-The Windows workspace includes Focus, Activity, Discover, Goal history and grouped Settings. **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
+Version 0.15.0 combines the Today workspace, parallel goals, Progress and a manual focus timer with the desktop companion's mini chat and confirmed task suggestions. See [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
 
 ## Role selection and workspace — 0.12.0
 
@@ -14,7 +14,7 @@ Optional role research shares only the entered email, role and declared apps wit
 
 ## Quick start
 
-Requirements: Windows 10/11, Node.js 22+ (24 recommended), Rust stable with the MSVC target, Visual Studio C++ Build Tools with a Windows SDK, and Microsoft Edge WebView2. See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+Requirements: Windows 10/11, Node.js 22.13+ or 24+ (required by PDF.js), Rust stable with the MSVC target, Visual Studio C++ Build Tools with a Windows SDK, and Microsoft Edge WebView2. See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ```powershell
 git clone https://github.com/ArtmarketVM/desktop_buddy.git

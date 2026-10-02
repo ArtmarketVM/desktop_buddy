@@ -1,5 +1,15 @@
 # Validation record
 
+## Signed combined Windows update — 0.15.0
+
+Revalidated on 2026-10-03 after fast-forwarding to Developer 1 commit `abc7dfc`, which includes companion commit `d237c27`: 51 frontend tests, 113 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact contract tests passed. TypeScript/Vite production compilation, Rust formatting, debug build and signed NSIS release build passed. Node.js 24.19.0 was used for the final pipeline because PDF.js requires Node.js 22.13+ or 24+; dependencies were installed from the committed lockfile without engine warnings.
+
+Native Windows verification used only the existing isolated companion fixture with DEMO_MODE and AI_MOCK, activity tracking disabled and no live provider calls. The new Today and Goals screens loaded at 0.15.0. The existing 0.14.0 fixture goal and its unfinished checklist step were retained and displayed in the new Goals UI. The migrated character opened mini chat with the same active goal. A read-only SQLite check confirmed plan revision 1, the original step text and the additive open core-goal record. The test process and preview server were stopped; production profile/goals were not used or changed.
+
+The 5,277,433-byte installer reports 0.15.0. Its existing-owner updater signature verifies and altered bytes are rejected. SHA-256: `4e33f2cb6e3ed26e70fea1d44073e8a36d21134633ceaced566e4b9df5861d93`. The current epoch-1 channel points to 0.15.0; the archived legacy bridge remains byte-for-byte 0.13.0. No key was enrolled or rotated. Private signing credentials remain local. Changed files and frontend assets contain no local provider or signing keys. Release publication uses a draft, verifies uploaded asset sizes/digests, then publishes. The pre-existing Russian handoff modification remains outside the release commit.
+
+Microphone recognition, live AI/vision quality, app-specific selected-text behavior and a full updater install/restart cycle remain manual checks. This release validates packaging, signature integrity, retained local fixture data and the combined interface; it does not claim these untested end-to-end scenarios have passed.
+
 ## Combined core workspace and companion — 0.15.0 (source, unpublished)
 
 Validated on Windows on 2026-10-02 against companion commit `d237c27`: 59 frontend tests, 113 Rust tests (one optional Windows credential-vault test ignored), six release/signing tests and the TypeScript/Vite production build passed. No installer was built or published for this source version.
