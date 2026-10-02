@@ -1,6 +1,6 @@
 # Windows builds and team signing
 
-Status: source support is prepared for 0.13.0. The published and installed 0.12.0 app still trusts the original key. No additional developer is enrolled and no private key has been shared or uploaded to GitHub.
+Version 0.13.0 provides personal builds without signing credentials and support for approved team signers. Existing 0.12.0 installations still trust the original key and receive 0.13.0 through the initial compatibility channel. No additional developer is enrolled and no private key has been shared or uploaded to GitHub.
 
 ## Running and building without a private key
 

@@ -1,8 +1,12 @@
 # Validation record
 
-## Personal builds and trusted team signers — 0.13.0 (not published)
+## Final Windows release packaging — 0.13.0
 
-Prepared locally on Windows on 2026-10-02. The installed/published application remains 0.12.0. This milestone adds a no-key personal installer task, a separate signed release task, local DPAPI-protected developer key setup, reviewed public-key enrollment, multiple trusted updater signers, signed version binding and pinned compatibility channels for users who skip transition releases. No second developer is enrolled; the production public list contains only the existing primary key. No private key was shared or uploaded.
+On 2026-10-02, after synchronizing the avatar fixes from GitHub main, the final Windows x64 NSIS installer was rebuilt from the reviewed 0.13.0 source with `./scripts/dev.ps1 -Task release`. Production frontend compilation passed. The existing primary key signed the installer locally; its signature and signed version verified, and altered installer bytes were rejected. Both `latest.json` and `updates-epoch-1.json` refer to this exact artifact. The generated public compatibility archive is committed with the release source. Private keys were not uploaded. The installed copy remains 0.12.0; a live install/restart through the published updater is still a separate check.
+
+## Personal builds and trusted team signers — 0.13.0 (prepublication validation)
+
+Prepared locally on Windows on 2026-10-02, while the installed and published application was 0.12.0. This milestone adds a no-key personal installer task, a separate signed release task, local DPAPI-protected developer key setup, reviewed public-key enrollment, multiple trusted updater signers, signed version binding and pinned compatibility channels for users who skip transition releases. No second developer is enrolled; the production public list contains only the existing primary key. No private key was shared or uploaded.
 
 Automated checks: 44 frontend tests, 94 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight contact contract tests passed. TypeScript/Vite production build and PowerShell helper parsing passed. Two independent disposable signer fixtures verify; unknown keys, altered content/comments, wrong signed versions, duplicate enrollment, self-authorized transitions, missing bridges and replacement of archived bridge versions are rejected. Test fixture private keys were removed; only public keys and signatures are in source.
 

@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.13.0 (unreleased)
+## 0.13.0
 
 - Separate personal Windows builds without signing credentials from official signed releases.
 - Add local protected developer key setup and reviewed enrollment of multiple trusted update signers.
