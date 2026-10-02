@@ -2,7 +2,15 @@
 
 A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
-The Windows workspace includes Focus, Activity, Resources, Goal history and grouped Settings. **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
+The Windows workspace includes Focus, Activity, Discover, Goal history and grouped Settings. **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
+
+## Role selection and workspace — 0.12.0
+
+Nine illustrated role cards scroll continuously in either direction using arrows, the wheel or a touchpad. **Other** accepts a custom role, and any role can include up to 20 declared app names. These names describe a profile; they do not create tracking rules. Settings discovers installed Windows apps separately and lets you edit each app's category for the current goal.
+
+The workspace includes Light/Dark themes, a separate profile menu, an automatically saved checklist, a desktop-companion visibility switch that preserves its workspace preview, and expanded **Share an idea** feedback. The companion stays available when tracking is paused and the workspace closes; its body stays still.
+
+Optional role research shares only the entered email, role and declared apps with a configured private contact service after explicit consent and email confirmation. It does not subscribe the address to marketing. The backend template is prepared but **not deployed**; data stays local until a service is connected and sharing is requested. See [private service setup](docs/CONTACT_SERVICE.md), [developer handoff](docs/DEVELOPER_HANDOFF.md) and the [Russian update guide](docs/DEVELOPER_HANDOFF_RU.txt).
 
 ## Quick start
 

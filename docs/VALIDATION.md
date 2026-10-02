@@ -1,5 +1,35 @@
 # Validation record
 
+## Continuous roles and private research — 0.12.0
+
+Verified on Windows on 2026-10-02: 44 frontend tests, 91 Rust tests (one optional credential-vault test ignored), eight isolated contact contract tests and the release-manifest test passed. TypeScript/Vite production build and Rust formatting passed. Tests cover custom-role/app limits, legacy profile compatibility, persistence and preset rules, carousel index/rebase boundaries, separate research consent, payload minimization, confirmation purpose, expired/repeated links, scanner-safe GETs and research removal without marketing changes. Contact contract tests simulate dependencies and send no email.
+
+Browser checks covered nine accessible role buttons, repeated forward/reverse wraparound, direct Other selection, horizontal scrolling, custom-role/app inputs, and 760 × 600 without document overflow. Rapid arrow clicks originally displaced the selected role; preserving the navigation target during smooth scrolling fixed this. Role-specific background art uses local vectors. Light-theme cards and wheel navigation were also inspected in the native workspace.
+
+The signed x64 NSIS installer built successfully. Its updater signature verified and modified installer bytes were rejected. The installed executable and workspace report 0.12.0; the existing desktop shortcut points to that executable. The first silent installation attempt returned success while retaining the old binary; retry after process shutdown completed the upgrade. Always verify the installed version after a silent installation.
+
+Native verification used only a separate simulated fixture with tracking and live AI disabled: Other → Musician and Ableton Live/Canva saved successfully, then a read-only database check confirmed persistence and the retained goal/checklist. That fixture was backed up and removed afterward; the normal app was reopened. Production profile/goals and provider credentials were not used for these checks. Changed source and the frontend bundle were checked for the owner's provider and signing keys; none were found.
+
+The private service is prepared but not deployed. Live cloud RLS, confirmation delivery and removal require an owner-controlled Supabase project and mail provider. A newer-version download/restart cycle through the updater remains untested in this release; local installer upgrade and signature verification passed. The Russian handoff distinguishes updating source from updating the installed app.
+
+## Companion visibility and feedback — 0.11.2
+
+Frontend tests: 41 passed. TypeScript/Vite build and the signed Windows x64 installer build passed. Dependency versions are unchanged. The updater signature verified and modified installer bytes were rejected. The installed workspace reports 0.11.2. Local silent upgrades wait for the previous process to exit before running `/S /UPDATE`.
+
+The Focus companion card keeps its character preview when desktop visibility is off. A labelled keyboard-accessible switch controls only the desktop companion. Working and suggestion character states no longer move the body; blinking remains. Share an idea starts expanded and keeps its existing explicit draft/send behavior. Native verification uses an isolated cat fixture with tracking and live AI disabled; it does not modify production goals or send email.
+
+## Workspace and contact integration — 0.11.1
+
+Verified on Windows on 2026-10-02. Automated checks passed: 41 frontend tests, 89 Rust tests (one optional credential-vault test ignored), five isolated contact-server contract tests and the release-manifest test. TypeScript/Vite production build, Rust formatting, Prettier and whitespace checks passed. Contact tests use simulated HTTP dependencies and send no email.
+
+The signed x64 NSIS installer built successfully at `src-tauri/target/release/bundle/nsis/Desktop Buddy_0.11.1_x64-setup.exe`. Its updater signature verified; modified artifact bytes were rejected. A local upgrade with `/S /UPDATE /D=<existing installation directory>` installed the new executable. The existing desktop shortcut was checked against the installed path and the native workspace displayed version 0.11.1. Use `/UPDATE` for silent upgrades to an existing installation.
+
+Browser checks covered onboarding at 1280 pixels and 760 × 600, three fixed colors, horizontal role scrolling and wraparound arrows without page overflow. Native checks on an isolated demo fixture covered a saved checklist toggle, dark theme, showing/hiding the passive companion with tracking paused, and closing/reopening the workspace while the companion remained visible. Production profile and goal data were not edited for these checks. Test fixtures are separate from real activity.
+
+The private contact schema, server function and desktop connection are prepared; no cloud service has been deployed. Live database access policies, feedback delivery, confirmation and unsubscribe require a configured Supabase project and mail provider. Without that service, feedback opens a draft addressed to `artmarket.vm@gmail.com`; opening a draft does not send it. No local profile emails are uploaded automatically.
+
+The release has not been published to GitHub. An actual newer-version download/restart cycle remains to be checked after publishing a subsequent signed release. Character-generation prompts are in [BUDDY_ART_PROMPTS.md](BUDDY_ART_PROMPTS.md); the current app continues to use its SVG characters until approved artwork is supplied.
+
 ## Recommendation quality — 0.7.0
 
 Automated checks: 35 frontend tests and 62 Rust tests passed; the optional credential-vault test remains ignored. TypeScript/Vite build passed. New tests cover structured current-step context, goal-scoped bounded feedback beyond the global history limit, tracking-parameter/fragment deduplication, legacy URLs, batch duplicates, provider abstention, required next actions, invalid/refused/truncated output, and both HTTP stages against an isolated mock server. Frontend tests verify the next action and updated privacy disclosure render.
