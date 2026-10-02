@@ -21,27 +21,27 @@ export type WorkspacePage =
 export const pages = [
   {
     id: "focus",
-    label: "Focus",
+    label: "Today",
     icon: Compass,
-    description: "One intention. A little more progress.",
+    description: "A little room for what matters today.",
   },
   {
     id: "activity",
-    label: "Activity",
+    label: "Progress",
     icon: BarChart3,
-    description: "A clear view of where your time goes.",
+    description: "Your goals, completed steps and focused time.",
   },
   {
     id: "resources",
-    label: "Discover",
+    label: "Import",
     icon: BookOpen,
-    description: "Optional ideas and links to help with your goal.",
+    description: "Turn notes and thoughts into a plan you can review.",
   },
   {
     id: "history",
-    label: "Goal history",
+    label: "Goals",
     icon: History,
-    description: "Your completed goals and observed progress.",
+    description: "Keep several directions moving at your pace.",
   },
   {
     id: "settings",
@@ -53,8 +53,7 @@ export const pages = [
     id: "profile",
     label: "Your profile",
     icon: UserRound,
-    description:
-      "Your companion, role and personal details. Stored on this device.",
+    description: "Your name and companion. Stored on this device.",
   },
 ] as const;
 
@@ -139,7 +138,6 @@ export function AppShell({
             >
               <item.icon size={17} />
               {item.label}
-              {item.id === "focus" && <span>01</span>}
             </button>
           ))}
         </nav>

@@ -316,7 +316,7 @@ export function Settings({
   );
 }
 
-function ProviderKey({
+export function ProviderKey({
   provider,
   label,
   onChanged,

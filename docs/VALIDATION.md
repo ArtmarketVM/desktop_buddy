@@ -1,5 +1,13 @@
 # Validation record
 
+## Combined core workspace and companion — 0.15.0 (source, unpublished)
+
+Validated on Windows on 2026-10-02 against companion commit `d237c27`: 59 frontend tests, 113 Rust tests (one optional Windows credential-vault test ignored), six release/signing tests and the TypeScript/Vite production build passed. No installer was built or published for this source version.
+
+New coverage checks parallel goals without replacing the compatibility focus, Today limits/no-plan days, atomic/idempotent imports, optimistic plan revisions, manual time across sleep/restart/fractional ticks, history cleanup, bounded PCM, local attachment limits, name-only onboarding, and completion/deferral across the workspace and companion. Provider requests use real HTTP against a local fixture, without production content.
+
+Headless Edge verification used isolated test data and a fake IPC transport, with no production database or provider credentials. It verified expandable goal steps, no save before import confirmation, successful confirmation, composer drafts surviving navigation, retained companion settings, and layouts at 1280 and 800 pixels without horizontal overflow. Screenshots were inspected. This is browser UI verification; live microphone recognition, PDF/vision provider quality and native desktop mechanics still require the relevant manual checks described in [CORE_EXPERIENCE.md](CORE_EXPERIENCE.md) and [COMPANION_MVP.md](COMPANION_MVP.md).
+
 ## Desktop companion MVP — 0.14.0 (local, unpublished)
 
 Verified on Windows on 2026-10-02: 46 frontend tests, 104 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact contract tests passed. The final frontend change to synchronize companion settings was followed by all 46 frontend tests and a TypeScript/Vite production build. Rust formatting and the debug/release builds passed; dependencies are unchanged.

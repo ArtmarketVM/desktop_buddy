@@ -6,6 +6,8 @@ mod collector;
 mod commands;
 mod companion;
 mod contact;
+mod core;
+mod core_import;
 mod credentials;
 mod goals;
 mod history;
@@ -95,6 +97,11 @@ pub fn run() {
                 loop {
                     ticker.tick().await;
                     let state = handle.state::<commands::AppState>();
+                    if let Ok(mut inner) = state.inner.lock() {
+                        if let Err(error) = inner.storage.core_tick_at(chrono::Utc::now()) {
+                            inner.last_error = Some(error);
+                        }
+                    }
                     if let Err(error) = commands::collect(&state) {
                         if let Ok(mut inner) = state.inner.lock() {
                             if error != collector::CONTEXT_CHANGED {
@@ -206,6 +213,19 @@ pub fn run() {
             companion::companion_submit,
             companion::respond_companion_intervention,
             companion::update_companion_inbox,
+            core::get_core_snapshot,
+            core::add_core_goals,
+            core::save_core_goal,
+            core::transition_core_goal,
+            core::set_core_today,
+            core::plan_core_day,
+            core::set_core_timer,
+            core::tick_core_timer,
+            core::set_core_preferences,
+            core::finish_core_setup,
+            core::save_core_identity,
+            core_import::propose_core_import,
+            core_import::transcribe_core_voice,
             updates::check_app_update,
             updates::install_app_update,
             profile::save_onboarding,

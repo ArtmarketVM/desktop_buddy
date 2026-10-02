@@ -11,6 +11,7 @@ impl Storage {
         store.initialize()?;
         store.initialize_tracking()?;
         store.initialize_profile()?;
+        store.initialize_core()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -71,9 +72,23 @@ impl Storage {
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         tx.execute(
             "DELETE FROM usage_daily WHERE ?1 IS NULL OR day<?1",
-            [cutoff_day],
+            [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
+        for table in ["core_time", "core_events", "core_day_items", "core_days"] {
+            tx.execute(
+                &format!("DELETE FROM {table} WHERE ?1 IS NULL OR day<?1"),
+                [cutoff_day.as_deref()],
+            )
+            .map_err(|e| e.to_string())?;
+        }
+        if cutoff.is_none() {
+            tx.execute(
+                "INSERT OR REPLACE INTO preferences(name,value) VALUES('core_timer','null')",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         tx.execute("DELETE FROM feedback WHERE ?1 IS NULL OR julianday(timestamp)<julianday(?1) OR decision_id IN (SELECT id FROM decisions WHERE julianday(timestamp)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         for (table, column) in [
             ("product_feedback", "created_at"),
@@ -92,7 +107,7 @@ impl Storage {
             )
             .map_err(|e| e.to_string())?;
         }
-        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM usage_intervals WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM tracking_events WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=goals.id AND state IN ('open','deferred')) AND NOT EXISTS(SELECT 1 FROM usage_intervals WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM tracking_events WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn record_recommendation(

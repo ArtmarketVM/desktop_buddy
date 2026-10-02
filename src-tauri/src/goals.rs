@@ -109,6 +109,7 @@ impl Storage {
     pub fn save_goal_plan(&mut self, title: &str, plan: GoalPlan) -> Result<(), String> {
         let title = text(title, true)?;
         let mut plan = validate(plan)?;
+        let old = self.goal_plan(plan.goal_id)?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         let active: Option<i64> = tx
             .query_row(
@@ -130,6 +131,7 @@ impl Storage {
         if active != Some(plan.goal_id) || revision != plan.revision {
             return Err("Goal changed. Reload the plan before saving.".into());
         }
+        crate::core::record_step_changes(&tx, &old, &plan)?;
         plan.revision = revision
             .checked_add(1)
             .ok_or("Goal revision limit reached")?;
@@ -174,6 +176,7 @@ impl Storage {
                 return Err("The active goal changed".into());
             }
         }
+        crate::core::record_legacy_transition(&tx, id, action)?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn goal_context(&self, goal: &Goal) -> Result<String, String> {

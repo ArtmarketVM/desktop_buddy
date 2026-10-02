@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 — unpublished
+
+- Combine the core workspace with the 0.14.0 desktop companion and its existing consent controls.
+- Add parallel goals and areas, editable steps, a one-to-three-goal Today plan and optional no-plan days.
+- Add reviewed text, image, PDF and local Windows voice imports; AI proposals require explicit sharing and confirmation.
+- Add a manual focus timer, day/week progress and a positive daily summary without requiring screen tracking.
+- Simplify onboarding to a name, intentions, first goals and optional tracking; keep provider and companion controls in Settings.
+- Share plan revisions, completion history and goal transitions between the workspace and mini chat.
+
 ## 0.14.0 — unpublished
 
 - Add single-click companion mini chat, local quick tasks/inbox, explicit AI help, Windows voice typing and a selected-text shortcut prototype.
