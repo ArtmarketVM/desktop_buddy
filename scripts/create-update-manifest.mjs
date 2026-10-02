@@ -11,6 +11,8 @@ export function createManifest({ directory, version, tag, notes = "", publishedA
     throw new Error("Expected exactly one x64 installer for this release version.");
   }
   const installer = installers[0];
+  // GitHub normalizes spaces to periods when naming uploaded release assets.
+  const assetName = installer.replaceAll(" ", ".");
   if (readFileSync(resolve(directory, installer)).length === 0) throw new Error("The installer is empty.");
   const signature = readFileSync(resolve(directory, `${installer}.sig`), "utf8").trim();
   const decoded = Buffer.from(signature, "base64").toString("utf8");
@@ -21,7 +23,7 @@ export function createManifest({ directory, version, tag, notes = "", publishedA
     version, notes, pub_date: publishedAt,
     platforms: { "windows-x86_64": {
       signature,
-      url: `https://github.com/ArtmarketVM/desktop_buddy/releases/download/${tag}/${encodeURIComponent(installer)}`,
+      url: `https://github.com/ArtmarketVM/desktop_buddy/releases/download/${tag}/${encodeURIComponent(assetName)}`,
     } },
   };
 }

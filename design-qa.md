@@ -43,6 +43,7 @@ The available-state screenshot uses an explicitly labeled, ignored UI fixture wi
 - [x] Signed installer verified against the configured public key; tampered bytes rejected.
 - [x] Windows installation, shortcut launch and native GitHub update check verified.
 - [x] Public 0.10.0 manifest and version-pinned installer URL verified.
+- [x] Release metadata uses GitHub-normalized asset names (spaces become periods); the installer bytes and signature remain unchanged.
 - [x] Installed executable matches the build apart from Tauri's expected NSIS bundle marker.
 
 ## Residual gaps
