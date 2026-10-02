@@ -136,8 +136,16 @@
   border: 0;
   box-shadow: none;
   width: 100px;
-  height: 110px;
+  height: 100px;
   animation: none;
+}
+.desktop-buddy .desktop-character:hover:not(:disabled) {
+  background: transparent;
+  filter: none;
+}
+.desktop-buddy .desktop-character:focus-visible {
+  outline: 2px solid #547548;
+  outline-offset: 2px;
 }
 .desktop-character .avatar {
   width: 100%;
@@ -267,6 +275,10 @@ html.buddy-window,
   padding: 10px;
   gap: 5px;
 }
+.desktop-buddy.compact {
+  padding: 5px;
+  gap: 4px;
+}
 .desktop-character {
   position: relative;
   flex-shrink: 0;
@@ -318,9 +330,11 @@ html.buddy-window,
 .expanded .desktop-arm {
   animation: buddy-wave 1s ease-in-out 3;
 }
-.workspace-link {
+.desktop-buddy .workspace-link {
+  min-height: 26px;
   padding: 2px 9px;
   font-size: 11px;
+  line-height: 20px;
   background: #f6f7f2;
   color: #293e2a;
 }
