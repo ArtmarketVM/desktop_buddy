@@ -2,6 +2,8 @@
 
 A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
+The Windows workspace includes Focus, Activity, Resources, Goal history and grouped Settings. **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
+
 ## Quick start
 
 Requirements: Windows 10/11, Node.js 22+ (24 recommended), Rust stable with the MSVC target, Visual Studio C++ Build Tools with a Windows SDK, and Microsoft Edge WebView2. See [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
