@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.1
+
+- Keep the desktop avatar background transparent on hover and use a muted keyboard focus outline.
+- Fit the avatar and Workspace button inside the compact companion window so ears remain fully visible.
+
 ## 0.10.0
 
 - Refresh the Windows workspace with a compact sidebar, neutral dark surfaces, consistent typography and dedicated Focus, Activity, Resources, Goal history and Settings views.
