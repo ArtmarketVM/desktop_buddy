@@ -128,7 +128,7 @@ export function Experience({
           <section className="core-section">
             <div className="section-heading">
               <div>
-                <h2>Today</h2>
+                <h2>Today's intentions</h2>
                 <p className="helper">
                   One to three things that matter. You choose the pace.
                 </p>

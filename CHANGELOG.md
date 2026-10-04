@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 — local, unpublished
+
+- Check for and apply signed updates at startup before workspace editing; keep the installed version usable if GitHub or installation fails.
+- Keep background update checks as notifications, and check again when connectivity returns.
+- Pin updater installations to the running executable's folder and block downgrades in newly generated Windows installers.
+
+## 0.15.1 — local, unpublished
+
+- Remove decorative section frames and the repeated Progress heading; use spacing and a date-range toolbar to establish hierarchy.
+- Keep selected days visible with theme-aware accents, readable time totals and a horizontally scrollable seven-day strip on narrow windows.
+- Simplify Today sections, align page headings with the workspace and retain visible input and keyboard focus affordances.
+- Correct the empty preview's dates and replace undefined surface colors with the existing light/dark theme tokens.
+
 ## 0.15.0
 
 - Combine the core workspace with the 0.14.0 desktop companion and its existing consent controls.

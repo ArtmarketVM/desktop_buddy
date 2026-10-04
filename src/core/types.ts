@@ -48,22 +48,30 @@ export interface ImportProposal {
   reply: string;
   drafts: GoalDraft[];
 }
-export const emptyCore = (): CoreSnapshot => ({
-  date: new Date().toLocaleDateString("en-CA"),
-  day_mode: "unset",
-  today: [],
-  areas: [],
-  goals: [],
-  summary: { day: "", completed: [], goals: [] },
-  week: [],
-  timer: null,
-  focused_goal_id: null,
-  preferences: {
-    working_days: [1, 2, 3, 4, 5],
-    movement_reminders: false,
-    vision_model: "",
-  },
-});
+export const emptyCore = (): CoreSnapshot => {
+  const date = new Date().toLocaleDateString("en-CA");
+  const summary: DayProgress = { day: date, completed: [], goals: [] };
+  return {
+    date,
+    day_mode: "unset",
+    today: [],
+    areas: [],
+    goals: [],
+    summary,
+    week: Array.from({ length: 7 }, (_, index) => ({
+      day: shiftDate(date, -index),
+      completed: [],
+      goals: [],
+    })),
+    timer: null,
+    focused_goal_id: null,
+    preferences: {
+      working_days: [1, 2, 3, 4, 5],
+      movement_reminders: false,
+      vision_model: "",
+    },
+  };
+};
 export function duration(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   return minutes >= 60

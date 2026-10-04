@@ -3,16 +3,22 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 32px;
   color: var(--text);
 }
-.core-section,
+.core-section {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .core-composer,
 .day-summary {
-  padding: 26px;
-  background: var(--surface, #fff);
-  border: 1px solid var(--line, #e7e9e7);
-  border-radius: 16px;
+  padding: 24px;
+  background: var(--surface);
+  border: 0;
+  border-radius: 12px;
   box-shadow: none;
 }
 .core-workspace h2 {
@@ -57,8 +63,8 @@
 .buddy-dot {
   display: grid;
   place-items: center;
-  background: #eaf0e7;
-  color: #476544;
+  background: var(--accent-soft);
+  color: var(--accent);
   border-radius: 12px;
   width: 38px;
   height: 38px;
@@ -69,7 +75,8 @@
   min-height: 110px;
   resize: vertical;
   border: 0;
-  background: var(--bg, #f8f9f7);
+  background: var(--input);
+  border: 1px solid var(--line);
   width: 100%;
   padding: 16px;
   border-radius: 10px;
@@ -143,7 +150,7 @@
 }
 .attachment-list > span,
 .summary-areas > span {
-  background: var(--bg);
+  background: var(--raised);
   padding: 5px 9px;
   border-radius: 8px;
 }
@@ -237,7 +244,7 @@
   width: 20px;
   display: grid;
   place-items: center;
-  color: #618460;
+  color: var(--positive);
 }
 .goal-status-icon > span {
   width: 14px;
@@ -290,7 +297,7 @@
   justify-content: space-between;
 }
 .morning-plan {
-  background: var(--bg);
+  background: var(--raised);
   padding: 16px;
   border-radius: 10px;
 }
@@ -303,13 +310,13 @@
 .day-summary {
   display: flex;
   gap: 15px;
-  background: var(--surface);
+  background: var(--raised);
 }
 .summary-mark {
   width: 32px;
   height: 32px;
-  background: #ebf2e8;
-  color: #63885a;
+  background: var(--positive-soft);
+  color: var(--positive);
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -334,34 +341,58 @@
 }
 .week-strip {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(80px, 1fr));
   gap: 6px;
+  overflow-x: auto;
+  padding: 6px;
 }
 .week-strip button {
-  background: var(--bg);
+  background: transparent;
   color: var(--text);
-  border: 1px solid transparent;
-  padding: 12px 4px;
+  border: 0;
+  padding: 16px 6px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   align-items: center;
-  border-radius: 10px;
+  border-radius: 8px;
+}
+.week-strip button:hover:not(:disabled) {
+  background: var(--raised);
 }
 .week-strip button.selected {
-  border-color: #88a780;
-  background: #eef3ea;
-  color: #405b3a;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.week-strip button.selected:hover:not(:disabled) {
+  background: var(--accent-soft);
 }
 .week-strip span,
 .week-strip small {
-  font-size: 10px;
+  font-size: 11px;
 }
 .week-strip strong {
-  font-size: 14px;
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.progress-toolbar {
+  margin-bottom: 20px;
+}
+.progress-toolbar .progress-range {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.progress-history .day-summary {
+  background: transparent;
+  padding: 0;
+}
+.progress-history > .helper {
+  margin-top: 28px;
+  max-width: 640px;
 }
 .progress-date {
-  margin: 24px 0 16px;
+  margin: 32px 0 20px;
 }
 .goal-time-list {
   padding: 0;
@@ -387,12 +418,12 @@
   gap: 6px;
 }
 .movement-note {
-  background: #edf2e8;
+  background: var(--positive-soft);
   border-radius: 10px;
   padding: 12px 18px;
   display: flex;
   justify-content: space-between;
-  color: #405b3a;
+  color: var(--positive);
   font-size: 13px;
 }
 .core-dialog {
@@ -422,7 +453,7 @@
 }
 .delete-confirm {
   padding: 12px;
-  background: var(--bg);
+  background: var(--raised);
   border-radius: 8px;
   margin-top: 16px;
 }
@@ -491,13 +522,9 @@
   border: 0;
 }
 @media (max-width: 800px) {
-  .core-section,
   .core-composer,
   .day-summary {
     padding: 18px;
-  }
-  .week-strip {
-    grid-template-columns: repeat(4, 1fr);
   }
   .section-heading {
     align-items: flex-start;

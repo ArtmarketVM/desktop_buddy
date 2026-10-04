@@ -7,7 +7,7 @@ import { defaultBuddyPreferences, defaultUserSettings } from "./types";
 import { DesktopBuddy } from "./components/DesktopBuddy";
 import packageInfo from "../package.json";
 import { AppShell, pages, type WorkspacePage } from "./components/AppShell";
-import { UpdateDialog } from "./components/Updates";
+import { StartupUpdate, UpdateDialog } from "./components/Updates";
 import { useUpdates } from "./updates/useUpdates";
 import { ResetProfileDialog } from "./components/ResetProfileDialog";
 import { Experience } from "./core/Experience";
@@ -58,6 +58,7 @@ export default function App() {
   );
   const popup = new URLSearchParams(location.search).has("buddy");
   const { controller, snapshot: update } = useUpdates(!popup);
+  const startupBlocked = desktop && !popup && update.startup !== "ready";
   const settings = data.user_settings ?? defaultUserSettings;
   const preview =
     !desktop &&
@@ -168,7 +169,8 @@ export default function App() {
   const title = pages.find((item) => item.id === page)!;
   return (
     <>
-      <div inert={updatesOpen || resetOpen}>
+      {startupBlocked && <StartupUpdate snapshot={update} />}
+      <div inert={startupBlocked || updatesOpen || resetOpen}>
         <AppShell
           page={page}
           onNavigate={setPage}
@@ -215,6 +217,12 @@ export default function App() {
               {error && (
                 <p className="error" role="alert">
                   {error}
+                </p>
+              )}
+              {update.error && !startupBlocked && (
+                <p className="notice" role="status">
+                  Automatic update unavailable. Your installed version is ready
+                  to use. Open Updates to retry.
                 </p>
               )}
               <div hidden={page === "settings" || page === "profile"}>

@@ -77,15 +77,23 @@ export function Progress({
     snapshot.summary;
   const newest = anchor ?? snapshot.date;
   return (
-    <section className="core-section" aria-label="Progress history">
-      <div className="section-heading">
-        <div>
-          <h2>Progress</h2>
-          <p className="helper">
-            Completed items and focus time, one day at a time.
-          </p>
-        </div>
-        <div className="week-navigation">
+    <section
+      className="core-section progress-history"
+      aria-label="Progress history"
+    >
+      <div className="section-heading progress-toolbar">
+        <p className="progress-range">
+          {dateLabel(
+            snapshot.week[snapshot.week.length - 1]?.day ?? snapshot.date,
+          )}
+          {" – "}
+          {dateLabel(newest)}
+        </p>
+        <div
+          className="week-navigation"
+          role="group"
+          aria-label="Week navigation"
+        >
           <button
             className="text-button"
             aria-label="Previous week"

@@ -45,6 +45,24 @@ fn validate_download(url: &reqwest::Url) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(any(windows, test))]
+fn installation_argument(executable: &std::path::Path) -> Result<String, String> {
+    if !executable.is_absolute() {
+        return Err("The installed application path must be absolute".into());
+    }
+    let directory = executable
+        .parent()
+        .ok_or("The installation folder is unavailable")?;
+    let directory = directory
+        .to_str()
+        .ok_or("The installation folder is not valid Unicode")?;
+    if directory.contains(['"', '\n', '\r']) {
+        return Err("The installation folder is invalid".into());
+    }
+    // NSIS requires /D to be last and unquoted, including paths with spaces.
+    Ok(format!("/D={directory}"))
+}
+
 #[tauri::command(async)]
 pub async fn check_app_update(
     window: WebviewWindow,
@@ -91,7 +109,7 @@ pub async fn check_app_update(
         .and_then(|s| s.as_str())
         .ok_or("The update has no Windows signature")?;
     let pubkey = trust.public_key_for(signature)?;
-    let updater = app
+    let builder = app
         .updater_builder()
         .endpoints(vec![trust
             .endpoint()
@@ -99,7 +117,12 @@ pub async fn check_app_update(
             .map_err(|_| "Invalid update endpoint")?])
         .map_err(|_| "Invalid update endpoint")?
         .pubkey(pubkey)
-        .timeout(Duration::from_secs(15))
+        .timeout(Duration::from_secs(15));
+    #[cfg(windows)]
+    let builder = builder.installer_arg(installation_argument(
+        &std::env::current_exe().map_err(|_| "Could not locate the installed application")?,
+    )?);
+    let updater = builder
         .build()
         .map_err(|_| "Update configuration is unavailable")?;
     if let Some(mut update) = updater
@@ -184,6 +207,19 @@ pub async fn install_app_update(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pins_updates_to_the_running_installation_and_rejects_unsafe_paths() {
+        let directory = std::env::temp_dir().join("Buddy install with spaces");
+        assert_eq!(
+            installation_argument(&directory.join("desktop-buddy.exe")).unwrap(),
+            format!("/D={}", directory.display())
+        );
+        assert!(installation_argument(std::path::Path::new("relative/buddy.exe")).is_err());
+        assert!(
+            installation_argument(&std::env::temp_dir().join("bad\nfolder").join("buddy.exe"))
+                .is_err()
+        );
+    }
     #[test]
     fn accepts_only_https_installers_from_the_pinned_repository() {
         let valid = "https://github.com/ArtmarketVM/desktop_buddy/releases/download/v0.11.0/Desktop.Buddy_0.11.0_x64-setup.exe";

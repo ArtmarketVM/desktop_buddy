@@ -1,5 +1,23 @@
 # Validation record
 
+## Startup updates and installation repair — 0.16.0 (installed locally, unpublished)
+
+Validated on 2026-10-03: 54 frontend tests, 114 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact tests passed. Production compilation and the signed Windows NSIS build passed. New coverage verifies one-time startup checks/install, offline/download fallback, notification-only checks during a session and safe installation-directory arguments. The generated NSIS script sets `ALLOWDOWNGRADES` to false.
+
+The installer is 5,279,266 bytes, SHA-256 `4934defd06498a165e597c32c8913c283b05fb275ef26cf6124dd6fa3df92530`. Its owner signature verifies and modified bytes are rejected. Version 0.16.0 was installed under the real `mkors` account at `C:\Users\mkors\Applications\Desktop Buddy`. Registry metadata, desktop/Start Menu shortcuts, startup command and the launched executable all refer to this installation. Native UI showed Installed version 0.16.0. The native screenshot is saved locally at `.tools/installed-0.16.0.png`; logs are in `.tools/startup-0.16.0-tests.log` and `.tools/startup-0.16.0-release.log`.
+
+Before installation, SQLite backup/integrity validation and installation/shortcut/startup backups were saved outside OneDrive under `%USERPROFILE%/.desktop-buddy/backups/20261003-install-repair`. Eighteen previous installer/signature files were archived in a ZIP and hash-verified before removal from the bundle folder. The inactive 0.10.0 installation was moved into the same private backup root. The bundle folder retains only the 0.16.0 installer/signature pair. A read-only post-install check verified database integrity and that every original goals/goal_plans row remains present. Credentials were neither exported nor modified.
+
+Automatic startup fallback/controller behavior is tested, and native launch/current-version checks succeeded. A future newer signed release installing/restarting through the live updater has not yet been tested end to end. Version 0.16.0 remains unpublished, and old GitHub release assets/compatibility channels were retained. Newly built installers reject downgrades; previously delivered installers cannot be retroactively changed. Offline operation uses the last installed version rather than guaranteeing the newest remote release.
+
+## Minimal workspace design — 0.15.1 (local, unpublished)
+
+Validated on 2026-10-03: 51 frontend tests, 113 Rust tests (one optional credential-vault test ignored), six signing/release tests and eight isolated contact tests passed. The final TypeScript/Vite production build and signed Windows NSIS build passed using Node.js 24.19.0. No dependencies or Rust behavior changed.
+
+Current-run in-app browser screenshots compare Progress and Today before and after the changes. Light/dark Progress, day selection, visible keyboard focus, retained composer drafts across navigation and the Settings input layout were checked. At the native minimum width of 760 pixels, the day strip scrolls independently; a sidebar overflow found during inspection was corrected. Screenshots and step notes are saved locally in `.tools/design-audit/REPORT.md`. These checks cover the browser interface with empty preview data, not a native installation, live AI, microphone input or full screen-reader compliance. The existing installed app and production data were not changed.
+
+The local installer reports 0.15.1 and is 5,276,249 bytes. SHA-256: `07ba85c2e5e0e3abec4ff49914b139de8ada7c75de249f34c9f7ec188efde140`. Its existing-owner updater signature verifies; altered bytes are rejected. The local current channel targets 0.15.1 while the compatibility bridge remains 0.13.0. Credentials remain local, and the source/frontend scan found no provider or signing keys. No commit, push or GitHub release was made for this design update.
+
 ## Signed combined Windows update — 0.15.0
 
 Revalidated on 2026-10-03 after fast-forwarding to Developer 1 commit `abc7dfc`, which includes companion commit `d237c27`: 51 frontend tests, 113 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact contract tests passed. TypeScript/Vite production compilation, Rust formatting, debug build and signed NSIS release build passed. Node.js 24.19.0 was used for the final pipeline because PDF.js requires Node.js 22.13+ or 24+; dependencies were installed from the committed lockfile without engine warnings.
