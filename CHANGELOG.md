@@ -1,6 +1,11 @@
 # Changelog
 
-## 0.16.0 — local, unpublished
+## 0.16.1
+
+- Initialize the database and managed command state before creating either webview, preventing startup requests from reporting unmanaged state.
+- Clear recovered dashboard and goal-loading errors without dismissing failed user actions.
+
+## 0.16.0
 
 - Check for and apply signed updates at startup before workspace editing; keep the installed version usable if GitHub or installation fails.
 - Keep background update checks as notifications, and check again when connectivity returns.

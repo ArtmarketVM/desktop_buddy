@@ -44,6 +44,8 @@ const empty: Dashboard = {
 export default function App() {
   const [data, setData] = useState<Dashboard>(empty);
   const [error, setError] = useState("");
+  const [dashboardError, setDashboardError] = useState("");
+  const displayedError = error || dashboardError;
   const [busy, setBusy] = useState(false);
   const [draftDirty, setDraftDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -95,6 +97,7 @@ export default function App() {
   const refresh = useCallback(async () => {
     if (desktop) {
       setData(await api.dashboard());
+      setDashboardError("");
       setLoaded(true);
     }
   }, []);
@@ -106,11 +109,12 @@ export default function App() {
           const next = await api.dashboard();
           if (active) {
             setData(next);
+            setDashboardError("");
             setLoaded(true);
           }
         }
       } catch (e) {
-        if (active) setError(String(e));
+        if (active) setDashboardError(String(e));
       }
     };
     void poll();
@@ -137,7 +141,7 @@ export default function App() {
   if (popup)
     return (
       <main className="popup-shell">
-        {error && <p role="alert">{error}</p>}
+        {displayedError && <p role="alert">{displayedError}</p>}
         <DesktopBuddy
           view={
             !desktop &&
@@ -161,7 +165,7 @@ export default function App() {
       <main className="onboarding-shell">
         <section className="card">
           <p role="status">Opening your workspace…</p>
-          {error && <p role="alert">{error}</p>}
+          {displayedError && <p role="alert">{displayedError}</p>}
           <button onClick={() => void run(refresh)}>Retry</button>
         </section>
       </main>
@@ -214,9 +218,9 @@ export default function App() {
                     : "Real Nebius integration"}
                 </p>
               )}
-              {error && (
+              {displayedError && (
                 <p className="error" role="alert">
-                  {error}
+                  {displayedError}
                 </p>
               )}
               {update.error && !startupBlocked && (

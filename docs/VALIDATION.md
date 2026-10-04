@@ -1,5 +1,13 @@
 # Validation record
 
+## Managed-state startup repair — 0.16.1
+
+Validated on 2026-10-04: 54 frontend tests, 115 backend tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact tests passed. Production frontend compilation, Rust formatting and the signed Windows NSIS build passed.
+
+The Tauri 2.11.6 startup implementation creates configured webviews before invoking the application setup hook. Both window configurations now disable automatic creation; application and updater state are registered before those windows are built explicitly. The regression test drives Tauri's mock startup lifecycle with the real window configuration and an in-memory database, asserts that no webview opens before initialization, and invokes `get_dashboard` through IPC immediately afterward. Backend tests run as an explicit Cargo test target so the Windows Common Controls manifest can be linked to the test executable without duplicating production resources.
+
+Dashboard and goal polling errors clear after a successful retry. User-action errors have separate state and are retained across successful background polls. The signed installer reports 0.16.1; SHA-256 is `7f64d8be627ddd649aa47a4a7a65880c223cae8af5c9a16941b7e760894238fa`. Its signature and epoch-1 update manifest verify. The existing legacy bridge remains 0.13.0. Native installation was not performed during validation; source and artifacts were prepared for subsequent authorized GitHub publication. The running production copy remains 0.16.0, and its profile, goals and provider credentials were not changed.
+
 ## Startup updates and installation repair — 0.16.0 (installed locally, unpublished)
 
 Validated on 2026-10-03: 54 frontend tests, 114 Rust tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact tests passed. Production compilation and the signed Windows NSIS build passed. New coverage verifies one-time startup checks/install, offline/download fallback, notification-only checks during a session and safe installation-directory arguments. The generated NSIS script sets `ALLOWDOWNGRADES` to false.

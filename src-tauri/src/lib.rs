@@ -21,6 +21,7 @@ mod product_feedback;
 mod profile;
 mod recommendations;
 mod signing_trust;
+mod startup;
 mod storage;
 mod tavily;
 mod tracking;
@@ -64,8 +65,7 @@ pub fn run() {
             };
             let storage =
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
-            app.manage(commands::AppState::new(storage).map_err(std::io::Error::other)?);
-            app.manage(updates::UpdateState::default());
+            startup::initialize(app, storage)?;
             tray::install(app)?;
             #[cfg(windows)]
             companion::windows::install_selection_shortcut(app.handle().clone());

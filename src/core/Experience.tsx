@@ -22,6 +22,8 @@ export function Experience({
   const [snapshot, setSnapshot] = useState<CoreSnapshot>(emptyCore);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const displayedError = error || loadError;
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<CoreGoal | null>(null);
   const [composerDirty, setComposerDirty] = useState(false);
@@ -32,6 +34,7 @@ export function Experience({
     if (desktop) {
       const next = await coreApi.snapshot(anchor);
       setSnapshot(next);
+      setLoadError("");
       setReady(true);
     }
   }, [anchor]);
@@ -43,11 +46,12 @@ export function Experience({
           const next = await coreApi.snapshot(anchor);
           if (live) {
             setSnapshot(next);
+            setLoadError("");
             setReady(true);
           }
         }
       } catch (e) {
-        if (live) setError(String(e));
+        if (live) setLoadError(String(e));
       }
     };
     void poll();
@@ -89,9 +93,9 @@ export function Experience({
     Math.floor(focusedSeconds / 2700) > movementDismissed;
   return (
     <div className="core-workspace">
-      {error && (
+      {displayedError && (
         <p className="error" role="alert">
-          {error}
+          {displayedError}
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
