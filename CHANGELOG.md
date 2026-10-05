@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.17.1 — prepared, unpublished
+
+- Preserve all 0.17.0 Goals / Today features while enrolling the owner's second Windows computer as update signer `developer2`.
+- Advance signing trust to epoch 2, retaining the primary key and verified update paths for older installations.
+- Handle Tauri key-generation warnings in Windows PowerShell without aborting setup or exposing captured signing output.
+
 ## 0.17.0 — local, unpublished
 
 - Simplify Today around goals with direct entry, inline steps and clear goal actions.

@@ -1,5 +1,13 @@
 # Validation record
 
+## Second-computer signing transition — 0.17.1 (prepared, unpublished)
+
+Validated on 2026-10-05 after integrating the complete 0.17.0 source from `3b68228`: 66 frontend tests, 121 backend tests (one optional credential-vault test ignored), and six release/signing tests passed. The TypeScript/Vite production build and synchronized-version/trust-epoch check passed. Rust required new deep-link/single-instance dependencies; its initial sandboxed download failed, and the authorized retry outside the sandbox succeeded.
+
+All 0.17.0 frontend/backend feature files, the browser extension, and the AI contract remain unchanged. Dependency declarations and lock entries are preserved apart from the root application version. The `desktopbuddy` protocol configuration is preserved. Trust epoch 2 contains the unchanged primary public key and the second computer's `developer2` public key, verified against its local public file. The epoch-1 trust snapshot and legacy 0.13.0 compatibility bridge are preserved.
+
+The `developer2` key's Windows DPAPI round trip and overwrite guard were verified during initial local setup. Its protected private file remains outside the repository on the second computer. No installer was built or published. The original computer must sign the 0.17.1 transition with `primary` and publish all updater channels before `developer2` can sign later releases. See [RELEASE_0.17.1.md](RELEASE_0.17.1.md).
+
 ## Goals / Today core — 0.17.0 (local, unpublished)
 
 Validated on 2026-10-06: 58 frontend tests, 121 backend tests (one optional credential-vault test ignored), six release/signing tests, TypeScript/Vite production build, Rust formatting and signed Windows NSIS build passed. The core tests cover revision conflicts, atomic deadline edits, metadata preservation across step saves, completion/reopening, carryover dismissal across days, date selectors, retry-safe quick entry and persistence after closing/reopening SQLite. Draft intake tests cover bounded/validated URLs, review-before-creation and discard/retry behavior.

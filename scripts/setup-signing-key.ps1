@@ -15,8 +15,14 @@ $restoredBytes = $null
 try {
     [void][IO.Directory]::CreateDirectory($temporaryFolder)
     # Capture CLI output: key-generation output must never reach logs or chat.
-    $captured = & node (Join-Path $projectRoot 'node_modules/@tauri-apps/cli/tauri.js') signer generate --ci --write-keys $keyPath 2>&1
-    if ($LASTEXITCODE -ne 0) { throw 'Key generation failed. Install project dependencies and Node.js first.' }
+    # Windows PowerShell treats native stderr warnings as errors under Stop.
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $captured = & node (Join-Path $projectRoot 'node_modules/@tauri-apps/cli/tauri.js') signer generate --ci --write-keys $keyPath 2>&1
+        $generationExitCode = $LASTEXITCODE
+    } finally { $ErrorActionPreference = $previousErrorActionPreference }
+    if ($generationExitCode -ne 0) { throw 'Key generation failed. Install project dependencies and Node.js first.' }
     $keyBytes = [IO.File]::ReadAllBytes($keyPath)
     $encrypted = [Security.Cryptography.ProtectedData]::Protect($keyBytes, $null, [Security.Cryptography.DataProtectionScope]::CurrentUser)
     [void][IO.Directory]::CreateDirectory($storageFolder)
