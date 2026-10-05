@@ -42,6 +42,39 @@ pub struct CoreGoal {
     pub area_id: i64,
     pub plan: GoalPlan,
     pub focused_seconds: u64,
+    pub due_at: Option<String>,
+    pub priority: Option<String>,
+    pub description: String,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(default, deny_unknown_fields)]
+pub struct GoalDetails {
+    pub due_at: Option<String>,
+    pub priority: Option<String>,
+    pub description: String,
+}
+impl GoalDetails {
+    fn validate(mut self) -> Result<Self, String> {
+        if let Some(value) = &self.due_at {
+            let parsed =
+                DateTime::parse_from_rfc3339(value).map_err(|_| "Choose a valid deadline")?;
+            self.due_at = Some(parsed.with_timezone(&Utc).to_rfc3339());
+        }
+        if self
+            .priority
+            .as_deref()
+            .is_some_and(|p| !["low", "medium", "high"].contains(&p))
+        {
+            return Err("Choose a valid priority".into());
+        }
+        self.description = self.description.trim().into();
+        if self.description.chars().count() > 4000 {
+            return Err("Use up to 4,000 characters for a description".into());
+        }
+        Ok(self)
+    }
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -66,6 +99,9 @@ pub struct DayProgress {
 #[derive(Serialize)]
 pub struct CoreSnapshot {
     pub date: String,
+    pub selected_date: String,
+    pub date_goals: Vec<i64>,
+    pub carryover: Vec<i64>,
     pub day_mode: String,
     pub today: Vec<i64>,
     pub areas: Vec<Area>,
@@ -188,7 +224,10 @@ impl Storage {
             CREATE TABLE IF NOT EXISTS core_events(id INTEGER PRIMARY KEY,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,step_id TEXT NOT NULL,title TEXT NOT NULL,kind TEXT NOT NULL,day TEXT NOT NULL,created_at TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS core_events_day ON core_events(day);
             CREATE TABLE IF NOT EXISTS core_time(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,seconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id));
-            CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);").map_err(db)?;
+            CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS core_goal_details(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,due_at TEXT,priority TEXT,description TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS core_carryover_dismissals(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,PRIMARY KEY(day,goal_id));").map_err(db)?;
+        self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_quick_batches(batch_id TEXT PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL);").map_err(db)?;
         // A manual timer resumes only after an explicit user action on a new app run.
         self.write_setting("core_timer", &Option::<Timer>::None)?;
         self.adopt_core_goals()
@@ -283,12 +322,23 @@ impl Storage {
         }
         tx.commit().map_err(db)
     }
+    #[cfg(test)]
     pub fn core_save_goal(
         &mut self,
         title: &str,
         area: &str,
-        mut plan: GoalPlan,
+        plan: GoalPlan,
     ) -> Result<(), String> {
+        self.core_save_goal_details(title, area, plan, None)
+    }
+    pub fn core_save_goal_details(
+        &mut self,
+        title: &str,
+        area: &str,
+        mut plan: GoalPlan,
+        details: Option<GoalDetails>,
+    ) -> Result<(), String> {
+        let details = details.map(GoalDetails::validate).transpose()?;
         let title = goals::text(title, true)?;
         let area = area_title(area)?;
         plan = goals::validate(plan)?;
@@ -318,6 +368,9 @@ impl Storage {
             params![title, plan.goal_id],
         )
         .map_err(db)?;
+        if let Some(details) = details {
+            tx.execute("INSERT INTO core_goal_details(goal_id,due_at,priority,description) VALUES(?1,?2,?3,?4) ON CONFLICT(goal_id) DO UPDATE SET due_at=excluded.due_at,priority=excluded.priority,description=excluded.description", params![plan.goal_id,details.due_at,details.priority,details.description]).map_err(db)?;
+        }
         record_step_changes(&tx, &old, &plan)?;
         plan.revision = plan
             .revision
@@ -433,6 +486,93 @@ impl Storage {
         }
         tx.commit().map_err(db)
     }
+    pub fn core_dismiss_carryover(&self, id: i64, date: &str) -> Result<(), String> {
+        day(date)?;
+        self.connection
+            .execute(
+                "INSERT OR IGNORE INTO core_carryover_dismissals(day,goal_id) VALUES(?1,?2)",
+                params![date, id],
+            )
+            .map_err(db)?;
+        Ok(())
+    }
+    pub fn core_create_goal(&mut self, title: &str, batch: &str, date: &str) -> Result<(), String> {
+        let title = goals::text(title, true)?;
+        day(date)?;
+        if batch.is_empty()
+            || batch.len() > 80
+            || !batch
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || c == b'-')
+        {
+            return Err("Invalid draft identifier".into());
+        }
+        let tx = self.connection.transaction().map_err(db)?;
+        let seen: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM core_quick_batches WHERE batch_id=?1)",
+                [batch],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if seen {
+            return Ok(());
+        }
+        let count: u32 = tx
+            .query_row("SELECT COUNT(*) FROM goals", [], |r| r.get(0))
+            .map_err(db)?;
+        if count >= 500 {
+            return Err("Keep up to 500 goals; remove an older goal before adding more".into());
+        }
+        tx.execute(
+            "INSERT OR IGNORE INTO core_areas(title) VALUES('General')",
+            [],
+        )
+        .map_err(db)?;
+        tx.execute(
+            "INSERT INTO goals(text,status,created_at) VALUES(?1,'deferred',?2)",
+            params![title, Utc::now().to_rfc3339()],
+        )
+        .map_err(db)?;
+        let id = tx.last_insert_rowid();
+        tx.execute("INSERT INTO core_goals(goal_id,area_id,state) VALUES(?1,(SELECT id FROM core_areas WHERE title='General'),'open')", [id]).map_err(db)?;
+        tx.execute(
+            "INSERT INTO core_quick_batches(batch_id,goal_id) VALUES(?1,?2)",
+            params![batch, id],
+        )
+        .map_err(db)?;
+        let today_count: u32 = tx
+            .query_row(
+                "SELECT COUNT(*) FROM core_day_items WHERE day=?1",
+                [date],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if today_count < 3 {
+            tx.execute(
+                "INSERT INTO core_day_items(day,goal_id) VALUES(?1,?2)",
+                params![date, id],
+            )
+            .map_err(db)?;
+            tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
+        }
+        tx.commit().map_err(db)
+    }
+    pub fn core_goals_for_date(&self, date: &str) -> Result<Vec<i64>, String> {
+        day(date)?;
+        let mut query = self
+            .connection
+            .prepare("SELECT goal_id FROM core_day_items WHERE day=?1 ORDER BY rowid")
+            .map_err(db)?;
+        let rows = query.query_map([date], |r| r.get(0)).map_err(db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(db)
+    }
+    pub fn core_carryover(&self, date: &str) -> Result<Vec<i64>, String> {
+        day(date)?;
+        let mut query = self.connection.prepare("SELECT c.goal_id FROM core_goals c JOIN goals g ON g.id=c.goal_id WHERE c.state='open' AND g.status!='completed' AND EXISTS(SELECT 1 FROM core_day_items d WHERE d.goal_id=c.goal_id AND d.day<?1) AND NOT EXISTS(SELECT 1 FROM core_day_items d WHERE d.goal_id=c.goal_id AND d.day=?1) AND NOT EXISTS(SELECT 1 FROM core_carryover_dismissals x WHERE x.goal_id=c.goal_id AND x.day=?1) ORDER BY c.goal_id").map_err(db)?;
+        let rows = query.query_map([date], |r| r.get(0)).map_err(db)?;
+        rows.collect::<Result<Vec<_>, _>>().map_err(db)
+    }
     pub fn core_timer(&self) -> Result<Option<Timer>, String> {
         self.read_setting("core_timer")
     }
@@ -531,7 +671,7 @@ impl Storage {
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
-        let mut q=self.connection.prepare("SELECT g.id,g.text,CASE WHEN g.status='completed' THEN 'completed' ELSE c.state END,c.area_id,COALESCE((SELECT SUM(seconds) FROM core_time WHERE goal_id=g.id),0) FROM goals g JOIN core_goals c ON c.goal_id=g.id ORDER BY CASE c.state WHEN 'open' THEN 0 WHEN 'deferred' THEN 1 ELSE 2 END,g.id DESC").map_err(db)?;
+        let mut q=self.connection.prepare("SELECT g.id,g.text,CASE WHEN g.status='completed' THEN 'completed' ELSE c.state END,c.area_id,COALESCE((SELECT SUM(seconds) FROM core_time WHERE goal_id=g.id),0),m.due_at,m.priority,COALESCE(m.description,''),g.created_at,g.completed_at FROM goals g JOIN core_goals c ON c.goal_id=g.id LEFT JOIN core_goal_details m ON m.goal_id=g.id ORDER BY CASE c.state WHEN 'open' THEN 0 WHEN 'deferred' THEN 1 ELSE 2 END,g.id DESC").map_err(db)?;
         let rows = q
             .query_map([], |r| {
                 Ok((
@@ -540,6 +680,11 @@ impl Storage {
                     r.get::<_, String>(2)?,
                     r.get::<_, i64>(3)?,
                     r.get::<_, u64>(4)?,
+                    r.get::<_, Option<String>>(5)?,
+                    r.get::<_, Option<String>>(6)?,
+                    r.get::<_, String>(7)?,
+                    r.get::<_, String>(8)?,
+                    r.get::<_, Option<String>>(9)?,
                 ))
             })
             .map_err(db)?
@@ -547,16 +692,34 @@ impl Storage {
             .map_err(db)?;
         let goals = rows
             .into_iter()
-            .map(|(id, title, status, area_id, focused_seconds)| {
-                Ok(CoreGoal {
+            .map(
+                |(
                     id,
                     title,
                     status,
                     area_id,
-                    plan: self.goal_plan(id)?,
                     focused_seconds,
-                })
-            })
+                    due_at,
+                    priority,
+                    description,
+                    created_at,
+                    completed_at,
+                )| {
+                    Ok(CoreGoal {
+                        id,
+                        title,
+                        status,
+                        area_id,
+                        plan: self.goal_plan(id)?,
+                        focused_seconds,
+                        due_at,
+                        priority,
+                        description,
+                        created_at,
+                        completed_at,
+                    })
+                },
+            )
             .collect::<Result<Vec<_>, String>>()?;
         let mut q = self
             .connection
@@ -580,6 +743,9 @@ impl Storage {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(CoreSnapshot {
             date: date.clone(),
+            selected_date: anchor.to_string(),
+            date_goals: self.core_goals_for_date(&anchor.to_string())?,
+            carryover: self.core_carryover(&date)?,
             day_mode: mode,
             today: items,
             areas,
@@ -718,14 +884,38 @@ pub fn add_core_goals(
     mutate(&state, &app, |s| s.core_add_goals(drafts, &batch))
 }
 #[tauri::command(async)]
+pub fn create_core_goal(
+    state: State<AppState>,
+    app: AppHandle,
+    title: String,
+    batch: String,
+) -> Result<CoreSnapshot, String> {
+    mutate(&state, &app, |s| {
+        s.core_create_goal(&title, &batch, &Local::now().date_naive().to_string())
+    })
+}
+#[tauri::command(async)]
 pub fn save_core_goal(
     state: State<AppState>,
     app: AppHandle,
     title: String,
     area: String,
     plan: GoalPlan,
+    details: Option<GoalDetails>,
 ) -> Result<CoreSnapshot, String> {
-    mutate(&state, &app, |s| s.core_save_goal(&title, &area, plan))
+    mutate(&state, &app, |s| {
+        s.core_save_goal_details(&title, &area, plan, details)
+    })
+}
+#[tauri::command(async)]
+pub fn dismiss_core_carryover(
+    state: State<AppState>,
+    app: AppHandle,
+    id: i64,
+) -> Result<CoreSnapshot, String> {
+    mutate(&state, &app, |s| {
+        s.core_dismiss_carryover(id, &Local::now().date_naive().to_string())
+    })
 }
 #[tauri::command(async)]
 pub fn transition_core_goal(

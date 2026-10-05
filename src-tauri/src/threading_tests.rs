@@ -32,6 +32,7 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("contact", include_str!("contact.rs")),
         ("core", include_str!("core.rs")),
         ("core_import", include_str!("core_import.rs")),
+        ("core_capture", include_str!("core_capture.rs")),
     ];
     for (_, source) in modules {
         assert_worker_dispatch(source);

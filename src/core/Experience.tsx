@@ -1,23 +1,35 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pause } from "lucide-react";
+import { listen } from "@tauri-apps/api/event";
 import { desktop } from "../api/tauri";
 import type { WorkspacePage } from "../components/AppShell";
 import { coreApi } from "./api";
 import { Composer } from "./Composer";
 import { GoalAreas, GoalEditor, GoalRow } from "./Goals";
 import { DaySummary, Progress } from "./Progress";
-import { emptyCore, type CoreGoal, type CoreSnapshot } from "./types";
+import {
+  dateLabel,
+  shiftDate,
+  emptyCore,
+  type CoreGoal,
+  type CoreSnapshot,
+} from "./types";
+import { QuickGoal } from "./QuickGoal";
+import { CapturedGoal } from "./CapturedGoal";
+import type { GoalEnhancement } from "./analysis";
 
 export function Experience({
   page,
   onDirty,
   onChanged,
   revision,
+  enhancement,
 }: {
   page: WorkspacePage;
   onDirty: (dirty: boolean) => void;
   onChanged: () => Promise<void>;
   revision: string;
+  enhancement?: GoalEnhancement;
 }) {
   const [snapshot, setSnapshot] = useState<CoreSnapshot>(emptyCore);
   const [anchor, setAnchor] = useState<string | null>(null);
@@ -27,25 +39,43 @@ export function Experience({
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<CoreGoal | null>(null);
   const [composerDirty, setComposerDirty] = useState(false);
+  const [quickDirty, setQuickDirty] = useState(false);
   const [picking, setPicking] = useState(false);
+  const [historyDate, setHistoryDate] = useState("");
+  const [showImport, setShowImport] = useState(false);
+  const [drafts, setDrafts] = useState<Array<{ id: string; text: string }>>([]);
+  const snapshotAnchor =
+    page === "history"
+      ? historyDate || null
+      : page === "activity"
+        ? anchor
+        : null;
   const [movementDismissed, setMovementDismissed] = useState(0);
   const [ready, setReady] = useState(!desktop);
   const refresh = useCallback(async () => {
     if (desktop) {
-      const next = await coreApi.snapshot(anchor);
+      const [next, captured] = await Promise.all([
+        coreApi.snapshot(snapshotAnchor),
+        coreApi.drafts(),
+      ]);
       setSnapshot(next);
+      setDrafts(captured);
       setLoadError("");
       setReady(true);
     }
-  }, [anchor]);
+  }, [snapshotAnchor]);
   useEffect(() => {
     let live = true;
     const poll = async () => {
       try {
         if (desktop) {
-          const next = await coreApi.snapshot(anchor);
+          const [next, captured] = await Promise.all([
+            coreApi.snapshot(snapshotAnchor),
+            coreApi.drafts(),
+          ]);
           if (live) {
             setSnapshot(next);
+            setDrafts(captured);
             setLoadError("");
             setReady(true);
           }
@@ -55,16 +85,25 @@ export function Experience({
       }
     };
     void poll();
+    let stop: (() => void) | undefined;
+    if (desktop)
+      void listen("buddy://drafts-updated", () => void poll())
+        .then((unlisten) => {
+          if (live) stop = unlisten;
+          else unlisten();
+        })
+        .catch(() => {});
     const id = setInterval(() => void poll(), 15000);
     return () => {
       live = false;
       clearInterval(id);
+      stop?.();
     };
-  }, [anchor, revision]);
+  }, [snapshotAnchor, revision]);
   useEffect(() => {
-    onDirty(composerDirty || !!editor);
+    onDirty(composerDirty || quickDirty || !!editor);
     return () => onDirty(false);
-  }, [composerDirty, editor, onDirty]);
+  }, [composerDirty, quickDirty, editor, onDirty]);
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -99,9 +138,7 @@ export function Experience({
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
-      <div
-        hidden={page !== "focus" && page !== "resources" && page !== "history"}
-      >
+      <div hidden={page !== "resources" && !(page === "focus" && showImport)}>
         <Composer
           importMode={page === "resources"}
           onDirty={setComposerDirty}
@@ -132,10 +169,7 @@ export function Experience({
           <section className="core-section">
             <div className="section-heading">
               <div>
-                <h2>Today's intentions</h2>
-                <p className="helper">
-                  One to three things that matter. You choose the pace.
-                </p>
+                <h2>Goals for today</h2>
               </div>
               <button
                 className="text-button"
@@ -146,6 +180,31 @@ export function Experience({
                 Choose goals
               </button>
             </div>
+            <QuickGoal
+              disabled={busy || !desktop}
+              onDirty={setQuickDirty}
+              save={(title, batch) => run(() => coreApi.create(title, batch))}
+            />
+            {drafts.length > 0 && (
+              <section aria-label="Selected text drafts">
+                <h3>Drafts to review</h3>
+                {drafts.map((draft) => (
+                  <CapturedGoal
+                    key={draft.id}
+                    draft={draft}
+                    disabled={busy || !desktop}
+                    resolve={(id, title) =>
+                      run(() => coreApi.resolveDraft(id, title))
+                    }
+                  />
+                ))}
+              </section>
+            )}
+            {snapshot.today.length >= 3 && (
+              <p className="helper">
+                Today has three goals. New goals are saved in Goals for later.
+              </p>
+            )}
             {snapshot.day_mode === "unset" && (
               <div className="morning-plan">
                 <p>
@@ -192,16 +251,48 @@ export function Experience({
                 busy={busy}
                 run={run}
                 edit={setEditor}
+                enhancement={enhancement}
               />
             ))}
             {picking && (
               <div className="today-picker">
                 <h3>Choose up to three open goals</h3>
+                {snapshot.carryover.length > 0 && (
+                  <section aria-label="Unfinished goals from previous days">
+                    <h3>Pick up where you left off</h3>
+                    {snapshot.goals
+                      .filter((goal) => snapshot.carryover.includes(goal.id))
+                      .map((goal) => (
+                        <div className="carryover-row" key={goal.id}>
+                          <span>{goal.title}</span>
+                          <button
+                            className="text-button"
+                            disabled={busy || snapshot.today.length >= 3}
+                            onClick={() =>
+                              void run(() => coreApi.today(goal.id, true))
+                            }
+                          >
+                            Add to today
+                          </button>
+                          <button
+                            className="text-button"
+                            disabled={busy}
+                            onClick={() =>
+                              void run(() => coreApi.dismissCarryover(goal.id))
+                            }
+                          >
+                            Dismiss
+                          </button>
+                        </div>
+                      ))}
+                  </section>
+                )}
                 {snapshot.goals
                   .filter(
                     (goal) =>
                       goal.status === "open" &&
-                      !snapshot.today.includes(goal.id),
+                      !snapshot.today.includes(goal.id) &&
+                      !snapshot.carryover.includes(goal.id),
                   )
                   .map((goal) => (
                     <button
@@ -238,20 +329,98 @@ export function Experience({
               </button>
             )}
           </section>
-          <GoalAreas
-            snapshot={snapshot}
-            busy={busy}
-            run={run}
-            edit={setEditor}
-          />
-          <DaySummary
-            day={snapshot.summary}
-            unfinished={today.filter((g) => g.status === "open").length}
-          />
+          <button
+            className="text-button"
+            aria-expanded={showImport}
+            onClick={() => setShowImport(!showImport)}
+          >
+            Import notes or ask Buddy
+          </button>
+          {(snapshot.summary.completed.length > 0 || focusedSeconds > 0) && (
+            <DaySummary
+              day={snapshot.summary}
+              unfinished={today.filter((g) => g.status === "open").length}
+            />
+          )}
         </>
       )}
       {page === "history" && (
-        <GoalAreas snapshot={snapshot} busy={busy} run={run} edit={setEditor} />
+        <>
+          <div className="section-heading history-navigation">
+            <h2>Goal history</h2>
+            <label>
+              Planned on
+              <input
+                type="date"
+                value={historyDate}
+                max={snapshot.date}
+                disabled={busy}
+                onChange={(event) => setHistoryDate(event.target.value)}
+              />
+            </label>
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() =>
+                setHistoryDate(shiftDate(historyDate || snapshot.date, -1))
+              }
+            >
+              Previous day
+            </button>
+            <button
+              className="text-button"
+              disabled={busy || !historyDate || historyDate >= snapshot.date}
+              onClick={() => setHistoryDate(shiftDate(historyDate, 1))}
+            >
+              Next day
+            </button>
+            <button
+              className="text-button"
+              disabled={busy || !historyDate}
+              onClick={() => setHistoryDate("")}
+            >
+              All goals
+            </button>
+          </div>
+          {historyDate ? (
+            <section aria-label="Goals by date">
+              <h3>{dateLabel(historyDate)}</h3>
+              <p className="helper">
+                Goals planned on this date, with their current status.
+              </p>
+              {snapshot.selected_date !== historyDate ? (
+                <p role="status">Loading goals…</p>
+              ) : (
+                <>
+                  {snapshot.goals
+                    .filter((goal) => snapshot.date_goals.includes(goal.id))
+                    .map((goal) => (
+                      <GoalRow
+                        key={goal.id}
+                        goal={goal}
+                        snapshot={snapshot}
+                        busy={busy}
+                        run={run}
+                        edit={setEditor}
+                        enhancement={enhancement}
+                      />
+                    ))}
+                  {snapshot.date_goals.length === 0 && (
+                    <p>No goals were planned on this day.</p>
+                  )}
+                </>
+              )}
+            </section>
+          ) : (
+            <GoalAreas
+              snapshot={snapshot}
+              busy={busy}
+              run={run}
+              edit={setEditor}
+              enhancement={enhancement}
+            />
+          )}
+        </>
       )}
       {page === "resources" && (
         <p className="helper">
@@ -272,8 +441,8 @@ export function Experience({
           goal={editor}
           snapshot={snapshot}
           close={() => setEditor(null)}
-          save={(title, area, plan) =>
-            run(() => coreApi.save(title, area, plan))
+          save={(title, area, plan, details) =>
+            run(() => coreApi.save(title, area, plan, details))
           }
           remove={() =>
             run(() => coreApi.transition(editor.id, "delete", true))

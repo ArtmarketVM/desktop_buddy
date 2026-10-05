@@ -11,6 +11,16 @@ export interface CoreGoal {
   area_id: number;
   plan: GoalPlan;
   focused_seconds: number;
+  due_at?: string | null;
+  priority?: "low" | "medium" | "high" | null;
+  description?: string;
+  created_at?: string;
+  completed_at?: string | null;
+}
+export interface GoalDetails {
+  due_at: string | null;
+  priority: "low" | "medium" | "high" | null;
+  description: string;
 }
 export interface CorePreferences {
   working_days: number[];
@@ -30,6 +40,9 @@ export interface DayProgress {
 }
 export interface CoreSnapshot {
   date: string;
+  selected_date: string;
+  date_goals: number[];
+  carryover: number[];
   day_mode: "unset" | "plan" | "no_plan";
   today: number[];
   areas: { id: number; title: string }[];
@@ -53,6 +66,9 @@ export const emptyCore = (): CoreSnapshot => {
   const summary: DayProgress = { day: date, completed: [], goals: [] };
   return {
     date,
+    selected_date: date,
+    date_goals: [],
+    carryover: [],
     day_mode: "unset",
     today: [],
     areas: [],
@@ -78,7 +94,22 @@ export function duration(seconds: number): string {
     ? `${Math.floor(minutes / 60)}h ${minutes % 60}m`
     : minutes > 0
       ? `${minutes}m`
-      : `${Math.floor(seconds)}s`;
+      : seconds > 0
+        ? "<1m"
+        : "0m";
+}
+export function localDeadline(value?: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}T${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+export function deadlineISO(value: string): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime()))
+    throw new Error("Choose a valid deadline");
+  return date.toISOString();
 }
 export function dateLabel(day: string): string {
   return new Date(`${day}T12:00:00`).toLocaleDateString("en", {

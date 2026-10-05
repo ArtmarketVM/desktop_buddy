@@ -115,7 +115,8 @@ unsafe fn sample(automation: &IUIAutomation2, window: HWND, selected: bool) -> O
     let mut stack = vec![(root, 0usize)];
     let mut visited = 0;
     let mut pieces = vec![];
-    let mut remaining = 3000usize;
+    // Manual selection reads one extra character so goal intake can reject oversize text.
+    let mut remaining = if selected { 4001usize } else { 3000usize };
     while let Some((element, depth)) = stack.pop() {
         visited += 1;
         if visited > 80 || Instant::now() > deadline || remaining == 0 {
@@ -205,14 +206,15 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
     use tauri::Manager;
     use windows::Win32::UI::{Input::KeyboardAndMouse::*, WindowsAndMessaging::*};
     std::thread::spawn(move || unsafe {
-        if RegisterHotKey(None, 0x4244, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x42).is_err() {
-            if let Ok(mut inner) = app.state::<crate::commands::AppState>().inner.lock() {
-                inner.companion.view.shortcut_available = false;
-            }
-            return;
-        }
+        let companion_available =
+            RegisterHotKey(None, 0x4244, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x42).is_ok();
+        let goal_available =
+            RegisterHotKey(None, 0x4247, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, 0x47).is_ok();
         if let Ok(mut inner) = app.state::<crate::commands::AppState>().inner.lock() {
-            inner.companion.view.shortcut_available = true;
+            inner.companion.view.shortcut_available = companion_available;
+        }
+        if !companion_available && !goal_available {
+            return;
         }
         let mut message = MSG::default();
         while GetMessageW(&mut message, None, 0, 0).0 > 0 {
@@ -225,6 +227,7 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
             }
             let handle = app.clone();
             let window = hwnd.0 as usize;
+            let as_goal = message.wParam.0 == 0x4247;
             tauri::async_runtime::spawn(async move {
                 let allowed = handle
                     .state::<crate::commands::AppState>()
@@ -241,10 +244,16 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
                 }
                 let result =
                     tauri::async_runtime::spawn_blocking(move || context(window, true)).await;
-                let (text, notice) = match result {
+                let (text, mut notice) = match result {
                     Ok(Ok(text)) if !text.trim().is_empty() => (text, None),
                     _ => (String::new(), Some("Selected text is unavailable in this app. Paste it into Buddy instead.".to_string())),
                 };
+                if as_goal && !text.is_empty() {
+                    match crate::core_capture::receive(&handle, &text) {
+                        Ok(()) => return,
+                        Err(error) => notice = Some(error),
+                    }
+                }
                 let state = handle.state::<crate::commands::AppState>();
                 if let Ok(mut inner) = state.inner.lock() {
                     inner.companion.view.notice = notice;
@@ -259,5 +268,6 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
             });
         }
         let _ = UnregisterHotKey(None, 0x4244);
+        let _ = UnregisterHotKey(None, 0x4247);
     });
 }

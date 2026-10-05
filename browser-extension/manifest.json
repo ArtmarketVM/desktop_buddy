@@ -1,0 +1,8 @@
+{
+  "manifest_version": 3,
+  "name": "Add to Desktop Buddy",
+  "version": "1.0.0",
+  "description": "Send explicitly selected text to Desktop Buddy as a draft goal.",
+  "permissions": ["contextMenus"],
+  "background": { "service_worker": "background.js", "type": "module" }
+}

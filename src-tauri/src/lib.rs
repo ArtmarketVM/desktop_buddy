@@ -7,6 +7,7 @@ mod commands;
 mod companion;
 mod contact;
 mod core;
+mod core_capture;
 mod core_import;
 mod credentials;
 mod goals;
@@ -45,6 +46,13 @@ pub fn run() {
             dotenvy::from_path(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.env"));
     }
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            if let Some(window) = app.get_webview_window("main") {
+                let _ = window.show();
+                let _ = window.set_focus();
+            }
+        }))
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
@@ -66,6 +74,7 @@ pub fn run() {
             let storage =
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
             startup::initialize(app, storage)?;
+            core_capture::install(app.handle())?;
             tray::install(app)?;
             #[cfg(windows)]
             companion::windows::install_selection_shortcut(app.handle().clone());
@@ -77,7 +86,12 @@ pub fn run() {
                 .storage
                 .user_settings()
                 .map_err(std::io::Error::other)?;
-            if settings.onboarding.completed {
+            // Isolated UI validation must not rewrite the installed app's startup entry.
+            let isolated_test = cfg!(debug_assertions)
+                && http::enabled("DEMO_MODE")
+                && http::enabled("AI_MOCK")
+                && std::env::var_os("BUDDY_TEST_DATA_DIR").is_some();
+            if settings.onboarding.completed && !isolated_test {
                 if let Err(error) = autostart::sync(settings.autostart) {
                     if let Ok(mut inner) = app.state::<commands::AppState>().inner.lock() {
                         inner.last_error = Some(error);
@@ -173,6 +187,7 @@ pub fn run() {
                 let result = match intent.as_str() {
                     "hide" => buddy::show_desktop_buddy(false, app.clone(), state),
                     "open" => buddy::open_workspace(app.clone()),
+                    "goal" => core_capture::capture_companion_goal(app.clone(), state),
                     _ => companion::open_companion_chat(intent, app.clone(), state),
                 };
                 if let Err(error) = result {
@@ -214,11 +229,15 @@ pub fn run() {
             companion::respond_companion_intervention,
             companion::update_companion_inbox,
             core::get_core_snapshot,
+            core_capture::get_core_drafts,
+            core_capture::resolve_core_draft,
             core::add_core_goals,
+            core::create_core_goal,
             core::save_core_goal,
             core::transition_core_goal,
             core::set_core_today,
             core::plan_core_day,
+            core::dismiss_core_carryover,
             core::set_core_timer,
             core::tick_core_timer,
             core::set_core_preferences,

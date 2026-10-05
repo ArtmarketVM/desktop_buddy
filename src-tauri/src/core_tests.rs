@@ -10,6 +10,142 @@ fn draft(title: &str, area: &str) -> GoalDraft {
     }
 }
 #[test]
+fn deadlines_are_atomic_revisioned_and_survive_other_plan_updates() {
+    let mut s = store();
+    s.core_add_goals(vec![draft("Ship", "Work")], "deadline")
+        .unwrap();
+    let first = s.core_snapshot(None).unwrap().goals.remove(0);
+    let details = GoalDetails {
+        due_at: Some("2026-10-10T17:00:00+03:00".into()),
+        priority: Some("high".into()),
+        description: "Release the Windows app".into(),
+    };
+    s.core_save_goal_details("Ship safely", "Work", first.plan.clone(), Some(details))
+        .unwrap();
+    let current = s.core_snapshot(None).unwrap().goals.remove(0);
+    assert_eq!(current.due_at.as_deref(), Some("2026-10-10T14:00:00+00:00"));
+    assert_eq!(current.priority.as_deref(), Some("high"));
+    assert!(!current.created_at.is_empty());
+    assert!(s
+        .core_save_goal_details("Stale", "Work", first.plan, Some(GoalDetails::default()))
+        .is_err());
+    s.core_save_goal("Ship safely", "Work", current.plan.clone())
+        .unwrap();
+    let current = s.core_snapshot(None).unwrap().goals.remove(0);
+    assert_eq!(current.priority.as_deref(), Some("high"));
+    assert!(s
+        .core_save_goal_details(
+            "Invalid",
+            "Work",
+            current.plan.clone(),
+            Some(GoalDetails {
+                due_at: Some("tomorrow".into()),
+                ..Default::default()
+            })
+        )
+        .is_err());
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].title, "Ship safely");
+    s.core_transition(current.id, "complete").unwrap();
+    assert!(s.core_snapshot(None).unwrap().goals[0]
+        .completed_at
+        .is_some());
+    s.core_transition(current.id, "resume").unwrap();
+    assert!(s.core_snapshot(None).unwrap().goals[0]
+        .completed_at
+        .is_none());
+    let current = s.core_snapshot(None).unwrap().goals.remove(0);
+    s.core_save_goal_details(
+        &current.title,
+        "Work",
+        current.plan,
+        Some(GoalDetails::default()),
+    )
+    .unwrap();
+    assert!(s.core_snapshot(None).unwrap().goals[0].due_at.is_none());
+}
+#[test]
+fn carryover_is_opt_in_and_dismissal_is_persistent_for_only_one_day() {
+    let mut s = store();
+    s.core_create_goal("Yesterday", "carry-one", "2026-10-01")
+        .unwrap();
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    assert_eq!(s.core_carryover("2026-10-02").unwrap(), vec![id]);
+    assert!(s.core_goals_for_date("2026-10-02").unwrap().is_empty());
+    s.core_dismiss_carryover(id, "2026-10-02").unwrap();
+    s.initialize_core().unwrap();
+    assert!(s.core_carryover("2026-10-02").unwrap().is_empty());
+    assert_eq!(s.core_carryover("2026-10-03").unwrap(), vec![id]);
+    s.core_today(id, true, "2026-10-03").unwrap();
+    assert!(s.core_carryover("2026-10-03").unwrap().is_empty());
+    s.core_transition(id, "complete").unwrap();
+    assert!(s.core_carryover("2026-10-04").unwrap().is_empty());
+    assert_eq!(s.core_goals_for_date("2026-10-01").unwrap(), vec![id]);
+    let historical = s.core_snapshot(Some("2026-10-01")).unwrap();
+    assert_eq!(historical.selected_date, "2026-10-01");
+    assert_eq!(historical.date_goals, vec![id]);
+    assert_eq!(historical.date, Local::now().date_naive().to_string());
+    s.core_transition(id, "resume").unwrap();
+    s.core_transition(id, "defer").unwrap();
+    assert!(s.core_carryover("2026-10-04").unwrap().is_empty());
+}
+#[test]
+fn quick_goal_retries_never_select_an_unrelated_goal_and_respect_daily_capacity() {
+    let mut s = store();
+    for i in 0..4 {
+        s.core_create_goal(&format!("Goal {i}"), &format!("quick-{i}"), "2026-10-01")
+            .unwrap();
+    }
+    s.core_create_goal("Retry", "quick-0", "2026-10-02")
+        .unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 4);
+    assert_eq!(s.core_goals_for_date("2026-10-01").unwrap().len(), 3);
+    assert!(s.core_goals_for_date("2026-10-02").unwrap().is_empty());
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    s.core_transition(id, "delete").unwrap();
+    s.core_create_goal("Deleted retry", "quick-3", "2026-10-02")
+        .unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 3);
+}
+#[test]
+fn new_goal_metadata_and_dismissal_survive_database_reopening() {
+    let path = std::env::temp_dir().join(format!(
+        "buddy-goal-core-{}-{}.db",
+        std::process::id(),
+        Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    let id;
+    {
+        let mut s = Storage::open(&path).unwrap();
+        s.core_create_goal("Persistent", "persist-create", "2026-10-01")
+            .unwrap();
+        let goal = s.core_snapshot(None).unwrap().goals.remove(0);
+        id = goal.id;
+        s.core_save_goal_details(
+            &goal.title,
+            "General",
+            goal.plan,
+            Some(GoalDetails {
+                due_at: Some("2026-10-10T12:00:00Z".into()),
+                priority: Some("medium".into()),
+                description: "Context".into(),
+            }),
+        )
+        .unwrap();
+        s.core_dismiss_carryover(id, "2026-10-02").unwrap();
+    }
+    {
+        let s = Storage::open(&path).unwrap();
+        let goal = s.core_snapshot(None).unwrap().goals.remove(0);
+        assert_eq!(goal.id, id);
+        assert_eq!(goal.description, "Context");
+        assert_eq!(goal.priority.as_deref(), Some("medium"));
+        assert!(goal.due_at.is_some());
+        assert!(s.core_carryover("2026-10-02").unwrap().is_empty());
+        assert_eq!(s.core_goals_for_date("2026-10-01").unwrap(), vec![id]);
+    }
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
 fn parallel_goals_and_today_are_persisted_without_replacing_the_legacy_focus() {
     let mut s = store();
     let legacy = s.set_goal("Original focus").unwrap();

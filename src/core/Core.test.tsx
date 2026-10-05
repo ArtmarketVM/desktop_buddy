@@ -5,8 +5,105 @@ import { textGoals, wav, readAttachment } from "./media";
 import { DaySummary } from "./Progress";
 import { CoreOnboarding } from "./Onboarding";
 import { defaultUserSettings } from "../types";
+import {
+  duration,
+  deadlineISO,
+  localDeadline,
+  emptyCore,
+  type CoreGoal,
+} from "./types";
+import { AnalysisResult, analysisInput, safeSource } from "./analysis";
+import { GoalRow } from "./Goals";
+import { goalLink } from "../../browser-extension/link.mjs";
 
 describe("core daily flow boundaries", () => {
+  it("uses minutes and hours while preserving local deadline round trips", () => {
+    expect([0, 1, 59, 60, 3600, 3660].map(duration)).toEqual([
+      "0m",
+      "<1m",
+      "<1m",
+      "1m",
+      "1h 0m",
+      "1h 1m",
+    ]);
+    const local = "2026-10-10T17:30";
+    expect(localDeadline(deadlineISO(local))).toBe(local);
+    expect(deadlineISO("")).toBeNull();
+    expect(() => deadlineISO("nonsense")).toThrow();
+  });
+  it("exposes direct goal actions and a provider-independent analysis contract", () => {
+    const goal: CoreGoal = {
+      id: 4,
+      title: "Ship",
+      status: "open",
+      area_id: 1,
+      focused_seconds: 5,
+      due_at: "2026-10-10T12:00:00Z",
+      priority: "high",
+      plan: {
+        goal_id: 4,
+        revision: 2,
+        done_when: "",
+        steps: [{ id: "a", text: "Build", done: false }],
+        current_step: null,
+      },
+    };
+    const html = renderToStaticMarkup(
+      createElement(GoalRow, {
+        goal,
+        snapshot: emptyCore(),
+        busy: false,
+        run: async () => true,
+        edit: () => {},
+      }),
+    );
+    expect(html).toContain("Add step");
+    expect(html).toContain("More actions for Ship");
+    expect(html).toContain("high priority");
+    expect(html).toContain("Improve goal");
+    expect(html).not.toContain("5s");
+    const input = analysisInput(goal);
+    expect(input.goalId).toBe("4");
+    expect(input.dueAt).toBe(goal.due_at);
+    input.existingSteps[0].text = "Changed";
+    expect(goal.plan.steps[0].text).toBe("Build");
+  });
+  it("renders analysis as proposals and rejects unsafe source URLs", () => {
+    expect(safeSource("javascript:alert(1)")).toBeUndefined();
+    expect(safeSource("https://user:secret@example.com")).toBeUndefined();
+    const html = renderToStaticMarkup(
+      createElement(AnalysisResult, {
+        result: {
+          improvedTitle: "Ship safely",
+          suggestedSteps: [
+            { title: "Verify", sourceUrl: "https://example.com/docs" },
+          ],
+          warnings: [
+            {
+              title: "Check",
+              detail: "<script>untrusted</script>",
+              sourceUrl: "javascript:alert(1)",
+            },
+          ],
+        },
+        disabled: false,
+        acceptTitle: () => {},
+        acceptStep: () => {},
+      }),
+    );
+    expect(html).toContain("Use title");
+    expect(html).toContain("Add step");
+    expect(html).toContain("https://example.com/docs");
+    expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("<script>");
+  });
+  it("encodes selected text without giving it control over the destination", () => {
+    const url = new URL(goalLink("Goal &text=Other #secret"));
+    expect(url.host).toBe("goal");
+    expect(url.searchParams.get("text")).toBe("Goal &text=Other #secret");
+    expect(url.searchParams.size).toBe(1);
+    expect(() => goalLink("x".repeat(4001))).toThrow();
+  });
   it("preserves each explicitly entered goal and rejects silent truncation", () => {
     expect(
       textGoals("- Ship release\n2. Read notes\n\n• Take a walk").map(

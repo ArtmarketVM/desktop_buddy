@@ -75,7 +75,13 @@ impl Storage {
             [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
-        for table in ["core_time", "core_events", "core_day_items", "core_days"] {
+        for table in [
+            "core_time",
+            "core_events",
+            "core_day_items",
+            "core_days",
+            "core_carryover_dismissals",
+        ] {
             tx.execute(
                 &format!("DELETE FROM {table} WHERE ?1 IS NULL OR day<?1"),
                 [cutoff_day.as_deref()],

@@ -1,5 +1,15 @@
 # Validation record
 
+## Goals / Today core — 0.17.0 (local, unpublished)
+
+Validated on 2026-10-06: 58 frontend tests, 121 backend tests (one optional credential-vault test ignored), six release/signing tests, TypeScript/Vite production build, Rust formatting and signed Windows NSIS build passed. The core tests cover revision conflicts, atomic deadline edits, metadata preservation across step saves, completion/reopening, carryover dismissal across days, date selectors, retry-safe quick entry and persistence after closing/reopening SQLite. Draft intake tests cover bounded/validated URLs, review-before-creation and discard/retry behavior.
+
+Native UI validation used a separately seeded `.tools/goals-qa-0.17.0/buddy-demo.db` with DEMO_MODE and AI_MOCK enabled. Cold and warm URL launches produced reviewed drafts; the warm launch forwarded to the running process without leaving a second app instance. A confirmed draft became a Today goal, an inline step persisted, and carryover dismissal persisted without deleting the goal. A UTC deadline displayed in local time; resaving deadline/priority through the editor preserved the step. The editor overlay was visually checked after correcting its missing fixed positioning. Isolated debug validation skips startup-entry synchronization so the production installation is unaffected.
+
+Installer: `Desktop Buddy_0.17.0_x64-setup.exe`, 5,327,969 bytes, SHA-256 `07c35dc608a89a9c8480d1e1f5d3a8f5dd2cd4862757178bf5084ab92acaa4ff`. The generated updater manifest verifies the artifact signature against trust epoch 1. Versions are synchronized across all five release files. The existing Tauri 2.11.6 dependency graph is retained; only the compatible deep-link/single-instance plugins and their required dependencies were added.
+
+The installer was built locally, not installed or published. The browser context-menu extension is provided unpacked with setup instructions; installation and the browser-to-OS permission prompt were not exercised. Arbitrary Windows applications can expose different accessibility selection support or reserve Ctrl+Alt+G. AI analysis callbacks and proposal rendering are implemented; live analysis generation remains Developer 2's responsibility under this task's scope. See [Goals / Today core](GOALS_TODAY_CORE.md).
+
 ## Managed-state startup repair — 0.16.1
 
 Validated on 2026-10-04: 54 frontend tests, 115 backend tests (one optional credential-vault test ignored), six release/signing tests and eight isolated contact tests passed. Production frontend compilation, Rust formatting and the signed Windows NSIS build passed.

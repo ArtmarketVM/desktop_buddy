@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.17.0 — local, unpublished
+
+- Simplify Today around goals with direct entry, inline steps and clear goal actions.
+- Add deadlines, priority and descriptions without rewriting existing goals.
+- Offer unfinished goals during planning, with persistent per-day dismissal.
+- Add goals by planning date and minute/hour progress formatting.
+- Receive reviewed selected-text drafts through Windows accessibility and a Chrome/Edge context-menu extension.
+- Provide Developer 2 with goal analysis callbacks and suggestion/warning/resource rendering.
+
 ## 0.16.1
 
 - Initialize the database and managed command state before creating either webview, preventing startup requests from reporting unmanaged state.

@@ -634,6 +634,7 @@ pub fn close_companion_chat(app: AppHandle, state: State<AppState>) -> Result<()
 pub fn open_companion_context(app: AppHandle) -> Result<(), String> {
     use tauri::menu::{Menu, MenuItem};
     let actions = [
+        ("goal", "Add selected text as goal"),
         ("task", "Add task"),
         ("ask", "Ask Buddy"),
         ("research", "Research selected topic"),

@@ -225,6 +225,120 @@
 .core-goal {
   border-top: 1px solid var(--line);
 }
+.goal-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0 8px;
+}
+.goal-heading .goal-status-icon {
+  padding: 6px;
+  flex-shrink: 0;
+}
+.goal-overflow {
+  position: relative;
+}
+.goal-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 8px 24px #0002;
+  display: grid;
+  gap: 2px;
+}
+.goal-menu button {
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  border: 0;
+  padding: 10px;
+}
+.goal-menu button:hover {
+  background: var(--raised);
+}
+.goal-menu button.danger-text,
+.overdue {
+  color: var(--danger, #c34f56);
+}
+.quick-goal,
+.inline-step,
+.carryover-row,
+.suggested-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+.quick-goal input,
+.inline-step input,
+.carryover-row > span,
+.suggested-step > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.quick-goal input,
+.inline-step input {
+  padding: 12px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.goal-enhancement {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.goal-enhancement > summary {
+  cursor: pointer;
+  padding: 5px 0;
+}
+.goal-analysis {
+  color: var(--text);
+  margin-top: 12px;
+}
+.goal-analysis a {
+  color: var(--accent);
+}
+.history-navigation {
+  flex-wrap: wrap;
+}
+.captured-goal {
+  margin: 12px 0;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+}
+.captured-goal textarea {
+  min-height: 80px;
+}
+.core-dialog select {
+  display: block;
+  width: 100%;
+  margin: 7px 0 15px;
+  padding: 10px;
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--input);
+  border: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .goal-time {
+    display: none;
+  }
+  .carryover-row,
+  .inline-step {
+    flex-wrap: wrap;
+  }
+  .carryover-row > span,
+  .inline-step input {
+    flex-basis: 100%;
+  }
+}
 .core-goal > summary {
   padding: 15px 0;
 }
@@ -435,6 +549,16 @@
   overflow: auto;
   padding: 26px;
   color: var(--text);
+}
+.core-workspace .modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgb(0 0 0 / 30%);
+  backdrop-filter: blur(3px);
 }
 .core-dialog fieldset > label {
   display: block;
