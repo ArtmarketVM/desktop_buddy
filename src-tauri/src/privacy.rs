@@ -71,6 +71,7 @@ pub fn clear_local_history(
         .map_err(|_| "Application state unavailable")?;
     inner.storage.purge_history(None)?;
     inner.status.tracking = false;
+    inner.storage.write_setting("tracking_requested", &false)?;
     invalidate(&mut inner);
     crate::buddy::sync(&app, &mut inner)
 }

@@ -10,6 +10,52 @@ pub struct UsageInterval {
     pub activity: ActivitySnapshot,
     pub state: ActivityState,
 }
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActivitySegment {
+    pub goal_id: String,
+    pub app: String,
+    pub title: Option<String>,
+    pub url: Option<String>,
+    pub domain: Option<String>,
+    pub started_at: String,
+    pub ended_at: String,
+    pub duration_seconds: f64,
+    pub state: String,
+}
+impl Storage {
+    pub fn activity_segments(&self, goal_id: Option<i64>) -> Result<Vec<ActivitySegment>, String> {
+        let mut query = self.connection.prepare("SELECT goal_id,process_name,COALESCE(page_title,window_title),domain,started_at,ended_at,milliseconds,state FROM usage_intervals WHERE (?1 IS NULL OR goal_id=?1) ORDER BY id DESC LIMIT 500").map_err(|e|e.to_string())?;
+        let rows = query
+            .query_map([goal_id], |r| {
+                Ok(ActivitySegment {
+                    goal_id: r.get::<_, i64>(0)?.to_string(),
+                    app: r.get(1)?,
+                    title: r.get(2)?,
+                    domain: r.get(3)?,
+                    url: None,
+                    started_at: r.get(4)?,
+                    ended_at: r.get(5)?,
+                    duration_seconds: r.get::<_, u64>(6)? as f64 / 1000.,
+                    state: r.get::<_, String>(7)?.trim_matches('"').to_string(),
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+}
+#[tauri::command(async)]
+pub fn get_activity_segments(
+    goal_id: Option<i64>,
+    state: State<crate::commands::AppState>,
+) -> Result<Vec<ActivitySegment>, String> {
+    state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?
+        .storage
+        .activity_segments(goal_id)
+}
 
 #[derive(Serialize)]
 pub struct ContextTime {
@@ -86,7 +132,25 @@ impl Storage {
             timestamp TEXT NOT NULL, event TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS tracking_events_goal ON tracking_events(goal_id,id);",
             )
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+        let mut query = self
+            .connection
+            .prepare("PRAGMA table_info(usage_intervals)")
+            .map_err(|e| e.to_string())?;
+        let columns = query
+            .query_map([], |r| r.get::<_, String>(1))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        if !columns.iter().any(|c| c == "window_title") {
+            self.connection
+                .execute(
+                    "ALTER TABLE usage_intervals ADD COLUMN window_title TEXT",
+                    [],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        Ok(())
     }
     pub fn tracking_event(
         &self,
@@ -134,10 +198,10 @@ impl Storage {
         if overlaps {
             return Err("Overlapping usage interval rejected".into());
         }
-        tx.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,domain,page_title,state,category,media_playing) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)",
+        tx.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,domain,page_title,state,category,media_playing,window_title) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
             params![goal, interval.start.to_rfc3339(), interval.end.to_rfc3339(), duration, process, domain, title,
                 serde_json::to_string(&interval.state).map_err(|e| e.to_string())?,
-                category.map(|c| serde_json::to_string(&c)).transpose().map_err(|e| e.to_string())?, interval.activity.media_playing]).map_err(|e| e.to_string())?;
+                category.map(|c| serde_json::to_string(&c)).transpose().map_err(|e| e.to_string())?, interval.activity.media_playing, crate::browser::minimize_title(&interval.activity.window_title)]).map_err(|e| e.to_string())?;
         if interval.state != ActivityState::Paused {
             let mut cursor = interval.start.timestamp_millis();
             while cursor < interval.end.timestamp_millis() {

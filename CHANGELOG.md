@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.18.0 — prepared, unpublished
+
+- Connect Goal Analyzer to Nebius with conditional Tavily research, sourced prerequisites, relevant resources and conservative time/difficulty estimates.
+- Add explicit AI/context/web permissions, direct Ask Buddy, and visible Tavily key/connection controls.
+- Replace the mini chat modes with a shared persistent conversation, attachments, editable voice input, source explanations and retained local inbox actions.
+- Preserve tracking consent and pause choices across goal switches; expose collection errors and activity segments, and show observed time separately from the manual timer.
+- Offer bounded midday help for overdue goals or measured overruns against user estimates; keep task changes explicitly confirmed.
+- Improve local Russian/English phrase selection, reject uncertain recognition and show installed speech languages with retry/paste fallbacks.
+- Preserve signing trust epoch 2 and the published 0.17.1 update bridge.
+
 ## 0.17.1 — prepared, unpublished
 
 - Preserve all 0.17.0 Goals / Today features while enrolling the owner's second Windows computer as update signer `developer2`.

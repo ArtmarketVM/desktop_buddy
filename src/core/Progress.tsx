@@ -174,6 +174,11 @@ export function Progress({
               <span>
                 <Clock3 size={14} />
                 {duration(goal.seconds)}
+                {(goal.tracked_seconds ?? 0) > 0 && (
+                  <small>
+                    {duration(goal.tracked_seconds!)} observed activity
+                  </small>
+                )}
               </span>
             </li>
           ))}
@@ -181,7 +186,8 @@ export function Progress({
       )}
       <p className="helper">
         Focus time comes from the timer you start. App downtime and sleep are
-        skipped; screen tracking is not required.
+        skipped; screen tracking is not required. Observed activity is shown
+        separately and is not added to timer time.
       </p>
     </section>
   );

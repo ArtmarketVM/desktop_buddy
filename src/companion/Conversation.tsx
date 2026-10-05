@@ -1,0 +1,474 @@
+import { useEffect, useRef, useState } from "react";
+import "./conversation.css";
+import { ArrowUpRight, Mic, Paperclip, Send, Trash2, X } from "lucide-react";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { api, desktop, safeUrl } from "../api/tauri";
+import {
+  aiApi,
+  defaultAiPreferences,
+  type ChatMessage,
+  type CoachingInsight,
+} from "../ai/api";
+import { readAttachment } from "../core/media";
+import type { AvatarState, Goal, GoalPlan } from "../types";
+import type { CompanionView } from "./types";
+
+export function Conversation({
+  view,
+  goal,
+  plan,
+  onChanged,
+  onState,
+}: {
+  view: CompanionView;
+  goal: Goal | null;
+  plan: GoalPlan | null;
+  onChanged: () => Promise<void>;
+  onState: (state: AvatarState) => void;
+}) {
+  const [text, setText] = useState(view.seed.slice(0, 4000));
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [preferences, setPreferences] = useState(defaultAiPreferences);
+  const [attachment, setAttachment] = useState<{
+    name: string;
+    text: string;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [voice, setVoice] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [coaching, setCoaching] = useState<CoachingInsight | null>(null);
+  const [expected, setExpected] = useState("");
+  const input = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const scroll = useRef<HTMLDivElement>(null);
+  const sending = useRef(false);
+  useEffect(() => {
+    input.current?.focus();
+    if (desktop)
+      void Promise.all([aiApi.history(), aiApi.preferences()])
+        .then(([history, prefs]) => {
+          setMessages(history);
+          setPreferences(prefs);
+        })
+        .catch((e) => setError(String(e)));
+  }, []);
+  useEffect(() => {
+    setText(view.seed.slice(0, 4000));
+    setError("");
+  }, [view.seed, view.intent]);
+  useEffect(() => {
+    let active = true;
+    setCoaching(null);
+    setExpected("");
+    if (desktop && goal)
+      void aiApi
+        .coaching(goal.id)
+        .then((result) => {
+          if (active) {
+            setCoaching(result);
+            setExpected(result.user_expected_minutes?.toString() ?? "");
+          }
+        })
+        .catch((e) => {
+          if (active) setError(String(e));
+        });
+    return () => {
+      active = false;
+    };
+  }, [goal?.id]);
+  useEffect(() => {
+    if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+  }, [messages, busy]);
+  useEffect(() => {
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        void api
+          .closeChat()
+          .then(onChanged)
+          .catch((e) => setError(String(e)));
+      }
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [onChanged]);
+  async function run(work: () => Promise<unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      await work();
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function submit(prefix = "") {
+    if (!text.trim() || !desktop || sending.current) return;
+    sending.current = true;
+    onState("thinking");
+    await run(async () => {
+      await aiApi.send(prefix + text.trim(), attachment?.text ?? null);
+      setMessages(await aiApi.history());
+      setText("");
+      setAttachment(null);
+      setVoice(false);
+    });
+    sending.current = false;
+    onState("idle");
+    input.current?.focus();
+  }
+  async function attach(file: File | undefined) {
+    if (!file) return;
+    await run(async () => {
+      const result = await readAttachment(file);
+      if (result.images.length)
+        throw new Error(
+          "This attachment needs vision. Use Import to review an image or scanned PDF.",
+        );
+      setAttachment({ name: file.name, text: result.text });
+    });
+    if (fileInput.current) fileInput.current.value = "";
+  }
+  async function openResource(url: string, goalId: number | null) {
+    const safe = safeUrl(url);
+    if (!safe) return;
+    await run(async () => {
+      await openUrl(safe);
+      await aiApi.resourceOpened(goalId, safe);
+    });
+  }
+  return (
+    <section className="companion-chat" aria-label="Buddy mini chat">
+      <header>
+        <div>
+          <strong>Buddy</strong>
+        </div>
+        <button
+          className="companion-icon"
+          aria-label="Clear conversation"
+          disabled={!desktop || busy || !messages.length}
+          onClick={() => setConfirmClear(true)}
+        >
+          <Trash2 size={15} />
+        </button>
+        <button
+          className="text-button"
+          title="Open full app"
+          onClick={() => void run(api.openWorkspace)}
+        >
+          <ArrowUpRight size={15} />
+          Open app
+        </button>
+        <button
+          className="companion-icon"
+          aria-label="Close mini chat"
+          onClick={() => void run(api.closeChat)}
+        >
+          <X size={16} />
+        </button>
+      </header>
+      {goal && (
+        <details className="conversation-context">
+          <summary>{goal.text}</summary>
+          <p className="helper">
+            {preferences.share_goal_context
+              ? "Goal context is included in chat."
+              : "Goal context sharing is off in Settings."}
+          </p>
+          {coaching && (
+            <p>
+              {coaching.observed_active_minutes}m observed activity
+              {coaching.user_expected_minutes
+                ? ` · ${coaching.user_expected_minutes}m expected`
+                : ""}
+              {coaching.over_expected ? " · Taking longer than expected" : ""}
+            </p>
+          )}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(async () => {
+                await aiApi.expectedMinutes(
+                  goal.id,
+                  expected ? Number(expected) : null,
+                );
+                setCoaching(await aiApi.coaching(goal.id));
+              });
+            }}
+          >
+            <label>
+              Expected minutes
+              <input
+                type="number"
+                min={1}
+                max={10080}
+                value={expected}
+                onChange={(e) => setExpected(e.target.value)}
+                placeholder="Your estimate"
+                disabled={busy}
+              />
+            </label>
+            <button disabled={!desktop || busy}>Save estimate</button>
+          </form>
+        </details>
+      )}
+      <div
+        className="companion-chat-scroll conversation-history"
+        ref={scroll}
+        role="log"
+        aria-label="Conversation history"
+        aria-live="polite"
+      >
+        {!messages.length && (
+          <p className="conversation-empty">
+            What is getting in the way? Tell Buddy what you need.
+          </p>
+        )}
+        {messages.map((message) => (
+          <article
+            className={`conversation-message ${message.role}`}
+            key={message.id}
+          >
+            <span className="sr-only">
+              {message.role === "user" ? "You" : "Buddy"}
+            </span>
+            <p>{message.text}</p>
+            {message.resources.map((resource) => (
+              <button
+                className="companion-resource"
+                key={resource.url}
+                disabled={!safeUrl(resource.url) || busy}
+                onClick={() => void openResource(resource.url, message.goal_id)}
+              >
+                <span>
+                  {resource.title}
+                  <small>{resource.whyRelevant}</small>
+                </span>
+                <ArrowUpRight size={14} />
+              </button>
+            ))}
+          </article>
+        ))}
+        {busy && (
+          <p role="status">
+            {sending.current ? "Buddy is thinking…" : "Working…"}
+          </p>
+        )}
+      </div>
+      {view.inbox.length > 0 && (
+        <details className="conversation-context" aria-label="Saved for later">
+          <summary>
+            Saved for later ({view.inbox.filter((item) => !item.done).length})
+          </summary>
+          {view.inbox.map((item) => (
+            <div className="conversation-inbox-item" key={item.id}>
+              <span>
+                {item.text}
+                {item.done ? " · Done" : ""}
+              </span>
+              {!item.done && (
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(() => api.companionInbox(item.id, "complete"))
+                  }
+                >
+                  Done
+                </button>
+              )}
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() =>
+                  void run(() => api.companionInbox(item.id, "remove"))
+                }
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </details>
+      )}
+      {confirmClear && (
+        <div className="conversation-confirm" role="alert">
+          <p>Clear the saved conversation on this PC?</p>
+          <button
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                await aiApi.clearHistory();
+                setMessages([]);
+                setConfirmClear(false);
+              })
+            }
+          >
+            Clear history
+          </button>
+          <button
+            className="text-button"
+            onClick={() => setConfirmClear(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
+      {(error || view.notice) && (
+        <p className="companion-error" role="alert">
+          {error || view.notice}
+        </p>
+      )}
+      <form
+        className="conversation-composer"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        {attachment && (
+          <div className="conversation-attachment">
+            <span>{attachment.name}</span>
+            <button
+              type="button"
+              className="companion-icon"
+              aria-label="Remove attachment"
+              onClick={() => setAttachment(null)}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
+        <label htmlFor="companion-input" className="sr-only">
+          Your message or task
+        </label>
+        <textarea
+          id="companion-input"
+          ref={input}
+          value={text}
+          maxLength={4000}
+          rows={3}
+          disabled={busy}
+          placeholder="Message Buddy…"
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (
+              !e.nativeEvent.isComposing &&
+              e.key === "Enter" &&
+              (e.ctrlKey || e.metaKey)
+            ) {
+              e.preventDefault();
+              void submit();
+            }
+          }}
+        />
+        <div className="companion-composer-actions">
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".txt,.md,.pdf"
+            hidden
+            onChange={(e) => void attach(e.target.files?.[0])}
+          />
+          <button
+            type="button"
+            className="companion-icon"
+            aria-label="Attach text or PDF"
+            disabled={!desktop || busy}
+            onClick={() => fileInput.current?.click()}
+          >
+            <Paperclip size={16} />
+          </button>
+          <button
+            type="button"
+            className="companion-icon"
+            aria-label={
+              voice ? "Stop Windows voice typing" : "Start Windows voice typing"
+            }
+            title="Voice typing · Windows + H"
+            disabled={!desktop || busy}
+            onClick={() => {
+              input.current?.focus();
+              setVoice(!voice);
+              onState(voice ? "idle" : "listening");
+              void api.voiceInput().catch((e) => {
+                setError(String(e));
+                setVoice(false);
+                onState("idle");
+              });
+            }}
+          >
+            <Mic size={16} />
+          </button>
+          <span>Ctrl + Enter</span>
+          <button
+            type="submit"
+            disabled={!desktop || busy || !text.trim()}
+            aria-label="Send message"
+          >
+            <Send size={15} />
+          </button>
+        </div>
+        {view.intent === "task" && (
+          <button
+            type="button"
+            className="text-button"
+            disabled={!desktop || busy || !text.trim() || text.length > 500}
+            onClick={() =>
+              void run(async () => {
+                await api.companionSubmit(
+                  text.trim(),
+                  "task",
+                  goal?.id ?? null,
+                  plan?.revision ?? null,
+                );
+                setText("");
+              })
+            }
+          >
+            Add task locally
+          </button>
+        )}
+        {view.intent === "selection" && (
+          <div className="conversation-selection">
+            <button
+              type="button"
+              className="text-button"
+              disabled={!desktop || busy || !text.trim()}
+              onClick={() => void submit("Explain this selected text: ")}
+            >
+              Explain
+            </button>
+            <button
+              type="button"
+              className="text-button"
+              disabled={!desktop || busy || !text.trim() || text.length > 500}
+              onClick={() =>
+                void run(async () => {
+                  await api.companionSubmit(
+                    text.trim(),
+                    "save",
+                    goal?.id ?? null,
+                    plan?.revision ?? null,
+                  );
+                  setText("");
+                })
+              }
+            >
+              Save for later
+            </button>
+          </div>
+        )}
+        {voice && (
+          <p className="helper" role="status">
+            Windows voice typing uses your input language. Switch
+            Russian/English with Windows + Space. Review the transcript before
+            sending.
+          </p>
+        )}
+      </form>
+    </section>
+  );
+}

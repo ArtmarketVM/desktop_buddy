@@ -11,6 +11,7 @@ import { PrivacySettings } from "../components/PrivacySettings";
 import { FeedbackCard } from "../components/FeedbackCard";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
+import { AiSettings } from "../ai/AiSettings";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
@@ -238,7 +239,18 @@ export function CoreSettings({
             type="checkbox"
             checked={data.status.tracking}
             disabled={busy || !desktop || (!data.goal && !data.status.tracking)}
-            onChange={(e) => void run(() => api.tracking(e.target.checked))}
+            onChange={(e) => {
+              const enabled = e.target.checked;
+              if (
+                enabled &&
+                !settings.onboarding.tracking_consent &&
+                !window.confirm(
+                  "Enable local tracking of foreground apps, window/tab titles and active time for your selected goal? You can pause it here. Tracking alone sends nothing to AI services.",
+                )
+              )
+                return;
+              void run(() => api.tracking(enabled));
+            }}
           />
         </label>
         {!data.goal && (
@@ -246,6 +258,12 @@ export function CoreSettings({
             Start a goal's focus timer to select it for optional tracking.
           </p>
         )}
+        <p className="helper" role="status">
+          {data.status.tracking_error ||
+            (data.status.tracking
+              ? "Tracking on · active time is attributed to the selected goal."
+              : "Tracking paused · no activity is collected.")}
+        </p>
         {error && (
           <p className="error" role="alert">
             {error}
@@ -274,12 +292,23 @@ export function CoreSettings({
         </button>
       </details>
       <details className="core-section">
-        <summary>AI connection</summary>
+        <summary>AI and web connections</summary>
         <p className="helper">
-          Typing goals needs no provider. Ask Buddy uses Nebius after you
-          confirm what to share.
+          Typing goals needs no provider. Enable AI assistance once below; Ask
+          Buddy then works directly.
         </p>
         <ProviderKey provider="nebius" label="Nebius" onChanged={onChanged} />
+        <p className="connection">
+          Nebius ·{" "}
+          {data.status.nebius_configured ? "Key configured" : "Not configured"}
+        </p>
+        <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
+        <p className="connection">
+          Tavily ·{" "}
+          {data.status.tavily_configured ? "Key configured" : "Not configured"}.
+          Use Test saved connection to verify access.
+        </p>
+        <AiSettings onChanged={onChanged} />
         <label>
           Vision model (optional)
           <input

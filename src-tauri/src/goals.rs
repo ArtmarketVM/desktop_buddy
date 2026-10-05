@@ -244,7 +244,8 @@ pub fn transition_goal(
         },
         serde_json::json!({"id":id,"action":action}),
     );
-    inner.status.tracking = false;
+    inner.status.tracking = crate::tracking::requested(&inner.storage)?;
+    inner.status.tracking_error = None;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();
     inner.activity_state.stop(action == "complete");

@@ -169,6 +169,14 @@ export function GoalRow({
             {duration(goal.focused_seconds)}
           </span>
         )}
+        {(goal.tracked_seconds ?? 0) > 0 && (
+          <span
+            className="goal-time"
+            title="Observed foreground activity, separate from the focus timer"
+          >
+            {duration(goal.tracked_seconds!)} observed
+          </span>
+        )}
         {!readOnly && (
           <div
             className="goal-overflow"
@@ -375,6 +383,7 @@ export function GoalRow({
             {analysisError && <p role="alert">{analysisError}</p>}
             {result && (
               <AnalysisResult
+                goalId={goal.id}
                 result={result}
                 disabled={
                   disabled ||

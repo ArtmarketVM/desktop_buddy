@@ -25,6 +25,9 @@ impl Storage {
         CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY, decision_id INTEGER NOT NULL REFERENCES decisions(id), related INTEGER NOT NULL, timestamp TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS activity_goal ON activity(goal_id, id);
         CREATE TABLE IF NOT EXISTS preferences(name TEXT PRIMARY KEY, value TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS buddy_messages(id INTEGER PRIMARY KEY,role TEXT NOT NULL CHECK(role IN ('user','assistant')),text TEXT NOT NULL,created_at TEXT NOT NULL,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,resources TEXT NOT NULL DEFAULT '[]');
+        CREATE TABLE IF NOT EXISTS resource_views(id INTEGER PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE CASCADE,url TEXT NOT NULL,created_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS ai_goal_estimates(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,minutes INTEGER NOT NULL CHECK(minutes BETWEEN 1 AND 10080));
         CREATE TABLE IF NOT EXISTS suggestions(goal_id INTEGER NOT NULL REFERENCES goals(id), url TEXT NOT NULL, timestamp TEXT NOT NULL, PRIMARY KEY(goal_id,url));
         CREATE TABLE IF NOT EXISTS recommendation_history(id INTEGER PRIMARY KEY, goal_id INTEGER NOT NULL REFERENCES goals(id), title TEXT NOT NULL, url TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL, feedback INTEGER CHECK(feedback IN (0,1)), UNIQUE(goal_id,url));
         INSERT OR IGNORE INTO recommendation_history(goal_id,title,url,reason,created_at) SELECT goal_id,url,url,'Offered by an earlier version. Details were not retained.',timestamp FROM suggestions;").map_err(|e| e.to_string())
@@ -98,6 +101,8 @@ impl Storage {
         tx.execute("DELETE FROM feedback WHERE ?1 IS NULL OR julianday(timestamp)<julianday(?1) OR decision_id IN (SELECT id FROM decisions WHERE julianday(timestamp)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         for (table, column) in [
             ("product_feedback", "created_at"),
+            ("buddy_messages", "created_at"),
+            ("resource_views", "created_at"),
             ("usage_intervals", "ended_at"),
             ("tracking_events", "timestamp"),
             ("decisions", "timestamp"),

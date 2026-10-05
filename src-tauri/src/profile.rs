@@ -360,6 +360,11 @@ pub fn reset_local_profile(app: tauri::AppHandle, state: State<AppState>) -> Res
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.reset_local_profile()?;
+    inner.storage.write_setting("tracking_requested", &false)?;
+    inner.storage.write_setting(
+        "ai_assistance_preferences",
+        &crate::goal_analysis::AiPreferences::default(),
+    )?;
     inner.companion.view.chat_open = false;
     inner.companion.invalidate();
     inner.companion.view.preferences.screen_task_detection = false;
@@ -433,6 +438,9 @@ pub fn finish_onboarding(
     settings.onboarding.tracking_consent = allow_tracking;
     crate::autostart::sync(settings.autostart)?;
     inner.storage.write_setting("user_settings", &settings)?;
+    inner
+        .storage
+        .write_setting("tracking_requested", &allow_tracking)?;
     inner.status.tracking = allow_tracking && inner.storage.goal()?.is_some();
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();

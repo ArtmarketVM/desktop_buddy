@@ -1,3 +1,4 @@
+mod ai_chat;
 mod attention;
 mod autostart;
 mod browser;
@@ -10,6 +11,7 @@ mod core;
 mod core_capture;
 mod core_import;
 mod credentials;
+mod goal_analysis;
 mod goals;
 mod history;
 mod http;
@@ -225,6 +227,16 @@ pub fn run() {
             companion::close_companion_chat,
             companion::open_companion_context,
             companion::companion_voice_input,
+            goal_analysis::get_ai_preferences,
+            goal_analysis::set_ai_preferences,
+            goal_analysis::analyze_core_goal,
+            ai_chat::get_buddy_chat_history,
+            ai_chat::clear_buddy_chat,
+            ai_chat::send_buddy_message,
+            ai_chat::record_resource_view,
+            ai_chat::set_goal_expected_minutes,
+            ai_chat::get_buddy_coaching,
+            history::get_activity_segments,
             companion::companion_submit,
             companion::respond_companion_intervention,
             companion::update_companion_inbox,
@@ -245,6 +257,7 @@ pub fn run() {
             core::save_core_identity,
             core_import::propose_core_import,
             core_import::transcribe_core_voice,
+            core_import::get_local_voice_languages,
             updates::check_app_update,
             updates::install_app_update,
             profile::save_onboarding,

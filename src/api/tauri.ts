@@ -122,7 +122,11 @@ export const api = {
 export function safeUrl(value: string): string | undefined {
   try {
     const url = new URL(value);
-    return ["https:", "http:"].includes(url.protocol) ? url.href : undefined;
+    return ["https:", "http:"].includes(url.protocol) &&
+      !url.username &&
+      !url.password
+      ? url.href
+      : undefined;
   } catch {
     return undefined;
   }

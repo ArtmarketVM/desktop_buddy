@@ -44,6 +44,7 @@ impl AppState {
                 (chrono::Utc::now() - chrono::Duration::days(retention_days as i64)).to_rfc3339();
             storage.purge_history(Some(&cutoff))?;
         }
+        let tracking = crate::tracking::requested(&storage)?;
         Ok(Self {
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
@@ -59,7 +60,8 @@ impl AppState {
                 storage,
                 collector: collector::create(demo),
                 status: Status {
-                    tracking: false,
+                    tracking,
+                    tracking_error: None,
                     ai_enabled: false,
                     dnd: false,
                     demo,
@@ -215,7 +217,11 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         settings.onboarding.tracking_consent = true;
         inner.storage.write_setting("user_settings", &settings)?;
     }
+    inner
+        .storage
+        .write_setting("tracking_requested", &enabled)?;
     inner.status.tracking = enabled;
+    inner.status.tracking_error = None;
     if !enabled {
         if let Some(goal) = inner.storage.goal()? {
             if inner.activity_state.state != crate::tracking::ActivityState::Paused {
@@ -325,7 +331,23 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         let settings = inner.tracking_settings.clone();
         let excluded = inner.buddy.view.preferences.excluded_apps.clone();
         inner.collector.configure(&settings, &excluded);
-        let mut snapshot = inner.collector.collect()?;
+        let mut snapshot = match inner.collector.collect() {
+            Ok(snapshot) => {
+                inner.status.tracking_error = None;
+                snapshot
+            }
+            Err(error) => {
+                inner.usage = Default::default();
+                if error == collector::CONTEXT_CHANGED {
+                    return Ok(());
+                }
+                inner.status.tracking_error = Some(
+                    "Active-window tracking is unavailable. Pause and resume tracking to retry."
+                        .into(),
+                );
+                return Err("Active-window tracking is unavailable".into());
+            }
+        };
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
         let allowed = !snapshot
             .process_name
@@ -506,6 +528,7 @@ mod tests {
     fn nudges_respect_consent_pause_dnd_idle_and_confidence() {
         let mut status = Status {
             tracking: true,
+            tracking_error: None,
             ai_enabled: true,
             dnd: false,
             demo: false,

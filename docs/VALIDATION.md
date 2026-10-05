@@ -1,5 +1,15 @@
 # Validation record
 
+## Buddy AI, Tavily and tracking — 0.18.0 (prepared, unpublished)
+
+Validated on the second Windows computer on 2026-10-06: 66 frontend tests, 134 backend tests (one optional credential-vault test ignored), six update/signing tests and the TypeScript/Vite production build passed. Release versions are synchronized across all five files; trust epoch 2 and the published 0.17.1 bridge are unchanged.
+
+New backend checks cover classification and structured suggestions over real HTTP to isolated test servers, conditional/no-search behavior, advanced Tavily request/authentication and safe 401 handling, source/evidence validation, revoked sharing consent, common conversation persistence after SQLite reopening, bounded retention, measured overrun/deadline triggers, completed-goal suppression and separate timer/observed totals. Existing tracking checks now verify the ActivitySegment contract after reopening the database, including domain-only URLs, tab titles and duration/state attribution.
+
+Browser checks used mock IPC, synthetic responses and a separate localStorage history, with no provider calls or production database access. Ctrl+Enter issued one send; messages rendered on the intended sides; chat worked with no active goal; a simulated provider failure kept the message draft. The preview is a UI test rather than a native application or provider smoke test.
+
+Local Windows speech discovery returned only `en-US`. Phrase-selection tests cover Russian/English segments, competing overlaps and uncertain/noisy input. Russian/mixed microphone quality remains unverified until a Russian recognizer is installed. No installer was built, installed, signed or published for 0.18.0; see [AI_BUDDY_TAVILY_TRACKING.md](AI_BUDDY_TAVILY_TRACKING.md) for setup and remaining live checks.
+
 ## Primary-signed transition artifact — 0.17.1 (local, unpublished)
 
 Validated on the original Windows computer on 2026-10-06: 58 frontend tests, 121 backend tests (one optional credential-vault test ignored), six release/signing tests and eight contact tests passed. TypeScript/Vite compilation and the signed Windows NSIS build passed. The executable reports 0.17.1. Installer: 5,335,602 bytes, SHA-256 `453af89db3d58f60d6f800d8c3594548a57cd4f48d2b7d0605fa4ffd1564f620`.

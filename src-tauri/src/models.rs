@@ -64,6 +64,7 @@ pub struct SearchResult {
 #[derive(Clone, Serialize)]
 pub struct Status {
     pub tracking: bool,
+    pub tracking_error: Option<String>,
     pub ai_enabled: bool,
     pub dnd: bool,
     pub demo: bool,

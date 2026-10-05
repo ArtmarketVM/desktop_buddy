@@ -55,6 +55,7 @@ export interface SearchResult {
 }
 export interface Status {
   tracking: boolean;
+  tracking_error?: string | null;
   ai_enabled: boolean;
   dnd: boolean;
   demo: boolean;

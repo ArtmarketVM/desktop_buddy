@@ -12,6 +12,7 @@ import { useUpdates } from "./updates/useUpdates";
 import { ResetProfileDialog } from "./components/ResetProfileDialog";
 import { Experience } from "./core/Experience";
 import { CoreSettings } from "./core/Settings";
+import { goalEnhancement } from "./ai/api";
 import { CoreOnboarding } from "./core/Onboarding";
 const empty: Dashboard = {
   app_rules: [],
@@ -231,6 +232,7 @@ export default function App() {
               )}
               <div hidden={page === "settings" || page === "profile"}>
                 <Experience
+                  enhancement={desktop ? goalEnhancement : undefined}
                   page={page}
                   onDirty={setDraftDirty}
                   onChanged={refresh}

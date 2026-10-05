@@ -42,6 +42,7 @@ pub struct CoreGoal {
     pub area_id: i64,
     pub plan: GoalPlan,
     pub focused_seconds: u64,
+    pub tracked_seconds: u64,
     pub due_at: Option<String>,
     pub priority: Option<String>,
     pub description: String,
@@ -89,6 +90,7 @@ pub struct GoalTime {
     pub title: String,
     pub area: String,
     pub seconds: u64,
+    pub tracked_seconds: u64,
 }
 #[derive(Serialize)]
 pub struct DayProgress {
@@ -633,7 +635,7 @@ impl Storage {
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
-        let mut q=self.connection.prepare("SELECT t.goal_id,g.text,a.title,t.seconds FROM core_time t JOIN goals g ON g.id=t.goal_id JOIN core_goals c ON c.goal_id=g.id JOIN core_areas a ON a.id=c.area_id WHERE t.day=?1 ORDER BY t.seconds DESC,g.id").map_err(db)?;
+        let mut q=self.connection.prepare("WITH times AS (SELECT goal_id,seconds,0 tracked_seconds FROM core_time WHERE day=?1 UNION ALL SELECT goal_id,0,SUM(milliseconds)/1000 FROM usage_daily WHERE day=?1 GROUP BY goal_id) SELECT t.goal_id,g.text,a.title,SUM(t.seconds),SUM(t.tracked_seconds) FROM times t JOIN goals g ON g.id=t.goal_id JOIN core_goals c ON c.goal_id=g.id JOIN core_areas a ON a.id=c.area_id GROUP BY t.goal_id ORDER BY SUM(t.seconds)+SUM(t.tracked_seconds) DESC,g.id").map_err(db)?;
         let goals = q
             .query_map([date], |r| {
                 Ok(GoalTime {
@@ -641,6 +643,7 @@ impl Storage {
                     title: r.get(1)?,
                     area: r.get(2)?,
                     seconds: r.get(3)?,
+                    tracked_seconds: r.get(4)?,
                 })
             })
             .map_err(db)?
@@ -712,6 +715,7 @@ impl Storage {
                         area_id,
                         plan: self.goal_plan(id)?,
                         focused_seconds,
+                        tracked_seconds: self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0)/1000 FROM usage_daily WHERE goal_id=?1", [id], |r| r.get(0)).map_err(db)?,
                         due_at,
                         priority,
                         description,
@@ -806,6 +810,9 @@ pub fn finish_core_setup(
     crate::autostart::sync(settings.autostart)?;
     inner.storage.write_setting("user_settings", &settings)?;
     inner.status.tracking = allow_tracking && inner.storage.goal()?.is_some();
+    inner
+        .storage
+        .write_setting("tracking_requested", &allow_tracking)?;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();
     inner.activity_state.stop(false);
@@ -850,7 +857,7 @@ fn mutate(
     let focus = inner.storage.goal()?.map(|g| g.id);
     work(&mut inner.storage)?;
     if focus != inner.storage.goal()?.map(|g| g.id) {
-        inner.status.tracking = false;
+        inner.status.tracking = crate::tracking::requested(&inner.storage)?;
         inner.collector = crate::collector::create(inner.status.demo);
         inner.usage = Default::default();
         inner.activity_state.stop(false);

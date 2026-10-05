@@ -18,6 +18,8 @@ fn assert_worker_dispatch(source: &str) {
 fn all_registered_command_modules_dispatch_on_workers() {
     let modules = [
         ("updates", include_str!("updates.rs")),
+        ("ai_chat", include_str!("ai_chat.rs")),
+        ("goal_analysis", include_str!("goal_analysis.rs")),
         ("commands", include_str!("commands.rs")),
         ("companion", include_str!("companion/mod.rs")),
         ("buddy", include_str!("buddy.rs")),

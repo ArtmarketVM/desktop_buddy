@@ -100,6 +100,9 @@ pub async fn propose_core_import(
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
+        if !inner.storage.ai_preferences()?.enabled {
+            return Err("Enable Buddy AI assistance in Settings before sharing this draft".into());
+        }
         (
             inner.status.mock_ai,
             inner.privacy_revision,
@@ -155,11 +158,35 @@ pub async fn propose_core_import(
 pub fn transcribe_core_voice(
     window: tauri::WebviewWindow,
     audio: Vec<u8>,
+    language: Option<String>,
 ) -> Result<String, String> {
     if window.label() != "main" || !valid_voice_audio(&audio) {
         return Err("Record up to 60 seconds of WAV audio".into());
     }
-    transcribe(&audio)
+    let language = language.as_deref().unwrap_or("auto");
+    if !["auto", "ru", "en"].contains(&language) {
+        return Err("Choose Russian, English or automatic local recognition".into());
+    }
+    transcribe(&audio, language)
+}
+#[tauri::command(async)]
+pub fn get_local_voice_languages() -> Result<Vec<String>, String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        let output = std::process::Command::new("powershell.exe")
+            .args(["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Speech; [Console]::OutputEncoding=[Text.Encoding]::UTF8; [Console]::Write((ConvertTo-Json -InputObject @([System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers() | ForEach-Object {$_.Culture.Name}) -Compress))"])
+            .creation_flags(0x08000000).output().map_err(|_| "Local speech recognition is unavailable")?;
+        if !output.status.success() {
+            return Err("Local speech recognition is unavailable".into());
+        }
+        serde_json::from_slice(&output.stdout)
+            .map_err(|_| "Could not read installed Windows speech languages".into())
+    }
+    #[cfg(not(windows))]
+    {
+        Ok(vec![])
+    }
 }
 fn valid_voice_audio(audio: &[u8]) -> bool {
     if audio.len() < 46 || audio.len() > 1_920_044 {
@@ -189,7 +216,7 @@ fn valid_voice_audio(audio: &[u8]) -> bool {
         && (audio.len() - 44) % 2 == 0
 }
 #[cfg(windows)]
-fn transcribe(audio: &[u8]) -> Result<String, String> {
+fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
     use std::os::windows::process::CommandExt;
     let directory = std::env::temp_dir().join("DesktopBuddyVoice");
     std::fs::create_dir_all(&directory)
@@ -201,7 +228,9 @@ fn transcribe(audio: &[u8]) -> Result<String, String> {
     let file = directory.join(format!("{}-{stamp}.wav", std::process::id()));
     std::fs::write(&file, audio).map_err(|_| "Could not prepare the voice recording")?;
     let path = file.to_string_lossy().replace('\'', "''");
-    let script=format!("$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Speech; $engines=[System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers(); if ($engines.Count -eq 0) {{ exit 2 }}; $preferred=$engines | Where-Object {{$_.Culture.Name -eq [Globalization.CultureInfo]::CurrentUICulture.Name}} | Select-Object -First 1; if (-not $preferred) {{$preferred=$engines[0]}}; $engine=New-Object System.Speech.Recognition.SpeechRecognitionEngine($preferred); try {{$engine.LoadGrammar((New-Object System.Speech.Recognition.DictationGrammar)); $engine.SetInputToWaveFile('{path}'); $parts=New-Object System.Collections.Generic.List[string]; while ($result=$engine.Recognize([TimeSpan]::FromSeconds(10))) {{$parts.Add($result.Text)}}; [Console]::OutputEncoding=[Text.Encoding]::UTF8; [Console]::Write(($parts -join ' '))}} finally {{$engine.Dispose()}}");
+    let script = include_str!("../../scripts/local-transcribe.ps1")
+        .replace("__AUDIO_PATH__", &path)
+        .replace("__LANGUAGE__", language);
     let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
     let result = std::process::Command::new("powershell.exe")
         .args([
@@ -219,13 +248,56 @@ fn transcribe(audio: &[u8]) -> Result<String, String> {
     }
     let text = String::from_utf8(output.stdout)
         .map_err(|_| "Windows returned an unreadable transcript")?;
-    if text.trim().is_empty() || text.chars().count() > 16000 {
-        return Err("No clear speech was recognized. Try again or paste a transcript.".into());
+    select_transcript(&text)
+}
+#[derive(serde::Deserialize)]
+struct SpeechCandidate {
+    text: String,
+    confidence: f64,
+    start: f64,
+    end: f64,
+}
+fn select_transcript(json: &str) -> Result<String, String> {
+    let mut candidates: Vec<SpeechCandidate> =
+        serde_json::from_str(json).map_err(|_| "Windows returned an unreadable transcript")?;
+    if candidates.len() > 1000 {
+        return Err("Windows returned too many speech segments".into());
     }
-    Ok(text.trim().into())
+    candidates.retain(|c| {
+        c.confidence.is_finite()
+            && c.confidence >= 0.65
+            && c.start.is_finite()
+            && c.end.is_finite()
+            && c.start >= 0.0
+            && c.end > c.start
+            && c.end <= 61.0
+            && !c.text.trim().is_empty()
+    });
+    // Russian and English recognizers may overlap. Keep only the most confident
+    // phrase in each interval instead of repeating competing transcriptions.
+    candidates.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
+    let mut chosen: Vec<SpeechCandidate> = Vec::new();
+    for candidate in candidates {
+        if !chosen
+            .iter()
+            .any(|c| candidate.start < c.end && candidate.end > c.start)
+        {
+            chosen.push(candidate);
+        }
+    }
+    chosen.sort_by(|a, b| a.start.total_cmp(&b.start));
+    let text = chosen
+        .iter()
+        .map(|c| c.text.trim())
+        .collect::<Vec<_>>()
+        .join(" ");
+    if text.is_empty() || text.chars().count() > 16000 {
+        return Err("No clear speech was recognized. Try again, use Windows + H with the correct input language, or paste a transcript.".into());
+    }
+    Ok(text)
 }
 #[cfg(not(windows))]
-fn transcribe(_audio: &[u8]) -> Result<String, String> {
+fn transcribe(_audio: &[u8], _language: &str) -> Result<String, String> {
     Err(
         "Local voice recognition is available on Windows. Paste a transcript on this platform."
             .into(),
@@ -235,6 +307,23 @@ fn transcribe(_audio: &[u8]) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn speech_combines_clear_language_segments_without_duplicates_or_guessing_noise() {
+        let text = select_transcript(
+            r#"[
+            {"text":"Prepare the report","confidence":0.9,"start":0.0,"end":2.0},
+            {"text":"wrong language","confidence":0.7,"start":0.0,"end":2.0},
+            {"text":"Продолжить завтра","confidence":0.85,"start":2.1,"end":4.0},
+            {"text":"noise","confidence":0.2,"start":4.1,"end":5.0}
+        ]"#,
+        )
+        .unwrap();
+        assert_eq!(text, "Prepare the report Продолжить завтра");
+        assert!(select_transcript("[]").is_err());
+        assert!(
+            select_transcript(r#"[{"text":"noise","confidence":0.2,"start":0,"end":1}]"#).is_err()
+        );
+    }
     #[tokio::test]
     async fn import_uses_real_http_with_only_explicit_content() {
         use wiremock::{

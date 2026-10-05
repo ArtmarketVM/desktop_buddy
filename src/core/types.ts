@@ -11,6 +11,7 @@ export interface CoreGoal {
   area_id: number;
   plan: GoalPlan;
   focused_seconds: number;
+  tracked_seconds?: number;
   due_at?: string | null;
   priority?: "low" | "medium" | "high" | null;
   description?: string;
@@ -32,6 +33,7 @@ export interface GoalTime {
   title: string;
   area: string;
   seconds: number;
+  tracked_seconds?: number;
 }
 export interface DayProgress {
   day: string;

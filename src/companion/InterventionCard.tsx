@@ -27,7 +27,9 @@ export function InterventionCard({
           ? "Plan today"
           : prompt.kind === "movement"
             ? "Done"
-            : "Review progress";
+            : prompt.kind === "midday"
+              ? "Ask Buddy"
+              : "Review progress";
   return (
     <section
       className="suggestion-card companion-prompt"

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pause } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
-import { desktop } from "../api/tauri";
+import { api, desktop } from "../api/tauri";
 import type { WorkspacePage } from "../components/AppShell";
 import { coreApi } from "./api";
 import { Composer } from "./Composer";
@@ -334,7 +334,16 @@ export function Experience({
             aria-expanded={showImport}
             onClick={() => setShowImport(!showImport)}
           >
-            Import notes or ask Buddy
+            Import notes
+          </button>
+          <button
+            className="text-button"
+            disabled={!desktop}
+            onClick={() =>
+              void api.openChat().catch((e) => setError(String(e)))
+            }
+          >
+            Ask Buddy
           </button>
           {(snapshot.summary.completed.length > 0 || focusedSeconds > 0) && (
             <DaySummary

@@ -23,10 +23,12 @@ describe("companion interaction boundary", () => {
     expect(html).toContain("Start Windows voice typing");
     expect(html).toContain("Explain");
     expect(html).toContain("Save for later");
-    expect(html).toContain("Ctrl + Alt + B");
+    expect(html).toContain("Ctrl + Enter");
+    expect(html).toContain("Attach text or PDF");
+    expect(html).toContain('role="log"');
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
-    expect(html).toContain("Saved locally in your Buddy inbox");
+    expect(html).not.toContain("Share this context");
   });
   it("requires confirmation for a suspected completion and offers an explicit refusal", () => {
     const prompt: Intervention = {

@@ -351,6 +351,15 @@ fn history_is_disjoint_goal_specific_and_retains_recommendations_after_restart()
         assert_eq!(h.sites[0].domain.as_deref(), Some("doc.rust-lang.org"));
         assert_eq!(h.tabs.len(), 1);
         assert_eq!(h.recommendations.len(), 1);
+        let segments = s.activity_segments(Some(goal.id)).unwrap();
+        assert_eq!(segments.len(), 3);
+        assert_eq!(segments[0].goal_id, goal.id.to_string());
+        assert_eq!(segments[0].app, "chrome.exe");
+        assert_eq!(segments[0].title.as_deref(), Some("Rust docs"));
+        assert_eq!(segments[0].domain.as_deref(), Some("doc.rust-lang.org"));
+        assert!(segments[0].url.is_none());
+        assert_eq!(segments[0].duration_seconds, 3.0);
+        assert_eq!(segments[0].state, "drifting");
         let interval = UsageInterval {
             start: Utc::now(),
             end: Utc::now() + chrono::Duration::seconds(3),

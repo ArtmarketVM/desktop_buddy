@@ -38,8 +38,12 @@ export const coreApi = {
     invoke<void>("set_core_preferences", { preferences }),
   propose: (text: string, images: ImageInput[], confirmed: boolean) =>
     invoke<ImportProposal>("propose_core_import", { text, images, confirmed }),
-  transcribe: (audio: Uint8Array) =>
-    invoke<string>("transcribe_core_voice", { audio: Array.from(audio) }),
+  voiceLanguages: () => invoke<string[]>("get_local_voice_languages"),
+  transcribe: (audio: Uint8Array, language = "auto") =>
+    invoke<string>("transcribe_core_voice", {
+      audio: Array.from(audio),
+      language,
+    }),
   setup: (
     name: string,
     drafts: GoalDraft[],

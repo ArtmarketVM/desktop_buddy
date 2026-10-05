@@ -4,6 +4,15 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use tauri::State;
 pub const DEFAULT_IDLE_SECONDS: u64 = 300;
+pub fn requested(storage: &crate::storage::Storage) -> Result<bool, String> {
+    let settings = storage.user_settings()?;
+    Ok(settings.onboarding.completed
+        && settings.onboarding.tracking_consent
+        && storage
+            .read_setting::<bool>("tracking_requested")?
+            .unwrap_or(false)
+        && storage.goal()?.is_some())
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]

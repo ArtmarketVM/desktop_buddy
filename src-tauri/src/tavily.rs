@@ -13,7 +13,12 @@ pub fn parse_results(value: Value) -> Result<Vec<SearchResult>, String> {
         .into_iter()
         .filter(|r| {
             reqwest::Url::parse(&r.url)
-                .map(|u| matches!(u.scheme(), "https" | "http"))
+                .map(|u| {
+                    matches!(u.scheme(), "https" | "http")
+                        && u.username().is_empty()
+                        && u.password().is_none()
+                        && u.host_str().is_some()
+                })
                 .unwrap_or(false)
         })
         .take(5)
@@ -43,6 +48,32 @@ async fn call(
         .await?,
     )
 }
+pub async fn research(client: &reqwest::Client, query: &str) -> Result<Vec<SearchResult>, String> {
+    research_call(
+        client,
+        &http::endpoint("TAVILY_API_URL")?,
+        &http::secret("TAVILY_API_KEY")?,
+        query,
+    )
+    .await
+}
+async fn research_call(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    query: &str,
+) -> Result<Vec<SearchResult>, String> {
+    let results = parse_results(http::post_json(client, url, key,
+        &json!({"query":query,"search_depth":"advanced","topic":"general","max_results":5,"include_raw_content":false})).await?)?;
+    Ok(results
+        .into_iter()
+        .map(|r| SearchResult {
+            title: r.title.chars().take(180).collect(),
+            url: r.url,
+            content: r.content.chars().take(2400).collect(),
+        })
+        .collect())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -61,6 +92,35 @@ mod tests {
     #[test]
     fn rejects_missing_results() {
         assert!(parse_results(json!({})).is_err());
+    }
+    #[tokio::test]
+    async fn research_uses_advanced_search_and_reports_invalid_keys_safely() {
+        use wiremock::matchers::header;
+        let server = MockServer::start().await;
+        Mock::given(method("POST")).and(header("authorization","Bearer fixture"))
+            .and(body_partial_json(json!({"query":"official application workflow","search_depth":"advanced","topic":"general","max_results":5,"include_raw_content":false})))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({"results":[{"title":"Official workflow","url":"https://example.com/workflow","content":"x".repeat(5000)}]})))
+            .expect(1).mount(&server).await;
+        let results = research_call(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            "official application workflow",
+        )
+        .await
+        .unwrap();
+        assert_eq!(results[0].content.len(), 2400);
+        let invalid = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("secret-body-fixture"))
+            .expect(1)
+            .mount(&invalid)
+            .await;
+        let error = research_call(&reqwest::Client::new(), &invalid.uri(), "fixture", "query")
+            .await
+            .unwrap_err();
+        assert!(!error.contains("secret-body-fixture"));
+        assert!(!error.contains("fixture"));
     }
     #[tokio::test]
     async fn searches_and_normalizes_results() {

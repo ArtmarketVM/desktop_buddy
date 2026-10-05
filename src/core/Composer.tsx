@@ -25,8 +25,9 @@ export function Composer({
   const [batch, setBatch] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [shared, setShared] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [voiceLanguage, setVoiceLanguage] = useState("auto");
+  const [voiceLanguages, setVoiceLanguages] = useState<string[] | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
   const timeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,6 +35,13 @@ export function Composer({
   useEffect(() => {
     onDirty?.(dirty);
   }, [dirty, onDirty]);
+  useEffect(() => {
+    if (desktop && importMode)
+      void coreApi
+        .voiceLanguages()
+        .then(setVoiceLanguages)
+        .catch(() => setVoiceLanguages([]));
+  }, [importMode]);
   useEffect(
     () => () => {
       recorder.current?.cancel();
@@ -72,7 +80,6 @@ export function Composer({
       setImages(nextImages);
       setFiles(names);
       setProposal(null);
-      setShared(false);
     });
     if (fileInput.current) fileInput.current.value = "";
   }
@@ -83,9 +90,11 @@ export function Composer({
     recorder.current = null;
     if (!active) return;
     await run(async () => {
-      const transcript = await coreApi.transcribe(await active.stop());
+      const transcript = await coreApi.transcribe(
+        await active.stop(),
+        voiceLanguage,
+      );
       setText((previous) => `${previous}${previous ? "\n" : ""}${transcript}`);
-      setShared(false);
       setProposal(null);
     });
   }
@@ -95,6 +104,16 @@ export function Composer({
       return;
     }
     await run(async () => {
+      const languages = voiceLanguages ?? (await coreApi.voiceLanguages());
+      setVoiceLanguages(languages);
+      if (
+        !languages.some(
+          (name) => voiceLanguage === "auto" || name.startsWith(voiceLanguage),
+        )
+      )
+        throw new Error(
+          "Install the selected Windows speech language, or use Windows + H and paste the transcript.",
+        );
       recorder.current = await recordVoice();
       setRecording(true);
       timeout.current = setTimeout(() => void stopVoice(), 60000);
@@ -105,7 +124,6 @@ export function Composer({
     setImages([]);
     setFiles([]);
     setProposal(null);
-    setShared(false);
     setError("");
   }
   async function save(drafts: GoalDraft[], token: string) {
@@ -143,7 +161,6 @@ export function Composer({
         disabled={busy || disabled || recording}
         onChange={(e) => {
           setText(e.target.value);
-          setShared(false);
           setProposal(null);
         }}
       />
@@ -160,7 +177,6 @@ export function Composer({
               setImages([]);
               setFiles([]);
               setProposal(null);
-              setShared(false);
             }}
           >
             <X size={14} />
@@ -227,7 +243,6 @@ export function Composer({
             disabled ||
             !desktop ||
             (!text.trim() && !images.length) ||
-            !shared ||
             recording
           }
           onClick={() =>
@@ -242,33 +257,34 @@ export function Composer({
           {busy ? "Working…" : "Ask Buddy"}
         </button>
       </div>
-      <details className="composer-sharing" open>
-        <summary>Before asking Buddy</summary>
-        <p>
-          PDFs and Windows voice recordings are read on this PC. Asking Buddy
-          sends only the text and images shown here to Nebius. Your profile,
-          screen activity and existing goals are not included. Nothing is added
-          until you confirm the proposal.
-          {mock
-            ? " AI_MOCK is enabled: the reply will be a labeled local example."
-            : ""}
-        </p>
-        <label>
-          <input
-            type="checkbox"
-            checked={shared}
-            disabled={busy}
-            onChange={(e) => setShared(e.target.checked)}
-          />
-          Share this content with Buddy's AI provider
+      {importMode && (
+        <label className="helper">
+          Local voice language
+          <select
+            value={voiceLanguage}
+            disabled={busy || disabled || recording}
+            onChange={(e) => setVoiceLanguage(e.target.value)}
+          >
+            <option value="auto">Automatic / mixed</option>
+            <option value="ru">Russian</option>
+            <option value="en">English</option>
+          </select>
+          <span>
+            Windows local recognizers:{" "}
+            {voiceLanguages === null
+              ? "checking…"
+              : voiceLanguages.join(", ") || "none installed"}
+            . Mixed speech needs both Russian and English speech packs. Review
+            the transcript before asking Buddy.
+          </span>
         </label>
-        {images.length > 0 && (
-          <small>
-            Image parsing requires a vision-capable model configured in
-            Settings.
-          </small>
-        )}
-      </details>
+      )}
+      <p className="helper">
+        Ask Buddy sends this draft to Nebius when AI assistance is enabled in
+        Settings. Review attachments before asking; suggestions need your
+        acceptance.
+        {mock ? " AI_MOCK is enabled: no provider request is sent." : ""}
+      </p>
       {recording && (
         <p role="status">
           Recording for up to 60 seconds. Stop to create a local transcript.

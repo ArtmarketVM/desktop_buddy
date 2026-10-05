@@ -1,5 +1,7 @@
 import type { GoalStep } from "../types";
 import type { CoreGoal } from "./types";
+import { aiApi } from "../ai/api";
+import { desktop } from "../api/tauri";
 
 // Provider-independent contract. A caller chooses which user context to share.
 export interface GoalAnalysisInput {
@@ -52,13 +54,23 @@ export function safeSource(value?: string): string | undefined {
 function Source({
   url,
   children,
+  goalId,
 }: {
   url?: string;
   children: React.ReactNode;
+  goalId?: number;
 }) {
   const safe = safeSource(url);
   return safe ? (
-    <a href={safe} target="_blank" rel="noopener noreferrer">
+    <a
+      href={safe}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => {
+        if (desktop && goalId !== undefined)
+          void aiApi.resourceOpened(goalId, safe).catch(() => {});
+      }}
+    >
       {children}
     </a>
   ) : (
@@ -67,11 +79,13 @@ function Source({
 }
 export function AnalysisResult({
   result,
+  goalId,
   disabled,
   acceptTitle,
   acceptStep,
 }: {
   result: GoalAnalysisResult;
+  goalId?: number;
   disabled: boolean;
   acceptTitle: (title: string) => void;
   acceptStep: (title: string) => void;
@@ -100,7 +114,9 @@ export function AnalysisResult({
       )}
       {result.suggestedSteps?.map((step, i) => (
         <div className="suggested-step" key={i}>
-          <Source url={step.sourceUrl}>{step.title}</Source>
+          <Source url={step.sourceUrl} goalId={goalId}>
+            {step.title}
+          </Source>
           <button
             className="text-button"
             disabled={disabled || !step.title.trim() || step.title.length > 500}
@@ -115,7 +131,7 @@ export function AnalysisResult({
           <strong>{warning.title}</strong>
           <p>
             {warning.detail}{" "}
-            <Source url={warning.sourceUrl}>
+            <Source url={warning.sourceUrl} goalId={goalId}>
               {warning.sourceUrl ? "Source" : ""}
             </Source>
           </p>
@@ -123,7 +139,9 @@ export function AnalysisResult({
       ))}
       {result.resources?.map((resource, i) => (
         <p key={i}>
-          <Source url={resource.url}>{resource.title}</Source>
+          <Source url={resource.url} goalId={goalId}>
+            {resource.title}
+          </Source>
           {resource.whyRelevant && <small> — {resource.whyRelevant}</small>}
         </p>
       ))}
