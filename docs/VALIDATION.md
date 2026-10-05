@@ -1,5 +1,11 @@
 # Validation record
 
+## Primary-signed transition artifact — 0.17.1 (local, unpublished)
+
+Validated on the original Windows computer on 2026-10-06: 58 frontend tests, 121 backend tests (one optional credential-vault test ignored), six release/signing tests and eight contact tests passed. TypeScript/Vite compilation and the signed Windows NSIS build passed. The executable reports 0.17.1. Installer: 5,335,602 bytes, SHA-256 `453af89db3d58f60d6f800d8c3594548a57cd4f48d2b7d0605fa4ffd1564f620`.
+
+The actual artifact signature verifies as `primary` against both the historical epoch-1 trust and the current epoch-2 trust. Epoch 2 retains `primary` and adds `developer2`. Both generated epoch channels offer the same 0.17.1 artifact; `updates/compatibility.json` archives the primary-signed epoch-1 bridge for future releases. The legacy channel remains the unchanged 0.13.0 bridge. The private key was used locally and was not exported. The installer has not been installed or published during this verification.
+
 ## Second-computer signing transition — 0.17.1 (prepared, unpublished)
 
 Validated on 2026-10-05 after integrating the complete 0.17.0 source from `3b68228`: 66 frontend tests, 121 backend tests (one optional credential-vault test ignored), and six release/signing tests passed. The TypeScript/Vite production build and synchronized-version/trust-epoch check passed. Rust required new deep-link/single-instance dependencies; its initial sandboxed download failed, and the authorized retry outside the sandbox succeeded.

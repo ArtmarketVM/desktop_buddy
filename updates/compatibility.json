@@ -9,5 +9,16 @@
         "url": "https://github.com/ArtmarketVM/desktop_buddy/releases/download/v0.13.0/Desktop.Buddy_0.13.0_x64-setup.exe"
       }
     }
+  },
+  "updates-epoch-1.json": {
+    "version": "0.17.1",
+    "notes": "A refreshed Windows workspace with signed, on-demand app updates. See the GitHub release for details.",
+    "pub_date": "2026-10-05T22:27:26.568Z",
+    "platforms": {
+      "windows-x86_64": {
+        "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUbGlxZDdCdlpXM0RzQmpHT3BPNTFrVHM3VzlLQW0xbm1ITDl1NDUvSTM3c1ZJaFRjMFpFTzZiNkRFbEszRnJ2Qy92MEcrSVN3Tjl6cDZOeHV5Um51QjdwNk5RTnRTL0FRPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkxMjM5MjQ1CWZpbGU6RGVza3RvcCBCdWRkeV8wLjE3LjFfeDY0LXNldHVwLmV4ZQl2ZXJzaW9uOjAuMTcuMQpBS2VZUnlkd01iTVRUKzk1UVQxOEtiZnoxM2hGMGtLb0tRQWFFejhJSVNmTnkzaUpVZUdqeWk3NTBsTTZMWGhMVWxEOEZEL0FKVlh5dEhMZVhJeUFCdz09Cg==",
+        "url": "https://github.com/ArtmarketVM/desktop_buddy/releases/download/v0.17.1/Desktop.Buddy_0.17.1_x64-setup.exe"
+      }
+    }
   }
 }
