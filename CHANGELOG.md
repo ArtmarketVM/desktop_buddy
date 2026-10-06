@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.18.0 — prepared, unpublished
+## 0.18.0
 
 - Connect Goal Analyzer to Nebius with conditional Tavily research, sourced prerequisites, relevant resources and conservative time/difficulty estimates.
 - Add explicit AI/context/web permissions, direct Ask Buddy, and visible Tavily key/connection controls.
@@ -10,7 +10,7 @@
 - Improve local Russian/English phrase selection, reject uncertain recognition and show installed speech languages with retry/paste fallbacks.
 - Preserve signing trust epoch 2 and the published 0.17.1 update bridge.
 
-## 0.17.1 — prepared, unpublished
+## 0.17.1
 
 - Preserve all 0.17.0 Goals / Today features while enrolling the owner's second Windows computer as update signer `developer2`.
 - Advance signing trust to epoch 2, retaining the primary key and verified update paths for older installations.

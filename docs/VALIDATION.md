@@ -1,6 +1,6 @@
 # Validation record
 
-## Buddy AI, Tavily and tracking — 0.18.0 (prepared, unpublished)
+## Buddy AI, Tavily and tracking — 0.18.0
 
 Validated on the second Windows computer on 2026-10-06: 66 frontend tests, 134 backend tests (one optional credential-vault test ignored), six update/signing tests and the TypeScript/Vite production build passed. Release versions are synchronized across all five files; trust epoch 2 and the published 0.17.1 bridge are unchanged.
 
@@ -8,7 +8,11 @@ New backend checks cover classification and structured suggestions over real HTT
 
 Browser checks used mock IPC, synthetic responses and a separate localStorage history, with no provider calls or production database access. Ctrl+Enter issued one send; messages rendered on the intended sides; chat worked with no active goal; a simulated provider failure kept the message draft. The preview is a UI test rather than a native application or provider smoke test.
 
-Local Windows speech discovery returned only `en-US`. Phrase-selection tests cover Russian/English segments, competing overlaps and uncertain/noisy input. Russian/mixed microphone quality remains unverified until a Russian recognizer is installed. No installer was built, installed, signed or published for 0.18.0; see [AI_BUDDY_TAVILY_TRACKING.md](AI_BUDDY_TAVILY_TRACKING.md) for setup and remaining live checks.
+Local Windows speech discovery returned only `en-US`. Phrase-selection tests cover Russian/English segments, competing overlaps and uncertain/noisy input. Russian/mixed microphone quality remains unverified until a Russian recognizer is installed. See [AI_BUDDY_TAVILY_TRACKING.md](AI_BUDDY_TAVILY_TRACKING.md) for setup and remaining live checks.
+
+Optimized Windows x64 compilation and NSIS packaging passed on 2026-10-06. Both executable version fields report 0.18.0. Installer: `Desktop Buddy_0.18.0_x64-setup.exe`, 5,474,577 bytes, SHA-256 `9e5ceaac553375418fae210effaa8f2d023c26f15373b3c52b1d40ab3635b125`. The actual installer and its trusted version comment verify as signer `developer2` against the unchanged epoch-2 trust. The private key was decrypted only for the local signing process and remains outside the repository.
+
+All six update/signing checks passed again after packaging. The generated legacy and epoch-1 manifests exactly preserve the compatibility archive; epoch 2 offers 0.18.0. The public 0.13.0 and 0.17.1 bridge installers were downloaded and cryptographically verified as `primary` against historical epoch-1 trust, and the public 0.17.1 manifests match the retained channels. SHA256SUMS.txt covers the new installer, its signature and all three manifests. The release assets are ready for publication; native installation and an existing user's full update/restart flow were not exercised.
 
 ## Primary-signed transition artifact — 0.17.1 (local, unpublished)
 
