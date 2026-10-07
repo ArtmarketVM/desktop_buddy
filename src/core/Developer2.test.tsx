@@ -30,8 +30,13 @@ describe("automatic AI and relevant progress", () => {
       ),
     ).toHaveLength(20);
   });
-  it("offers selected and all steps with new AI defaults enabled", () => {
-    expect(Object.values(defaultAiPreferences).every(Boolean)).toBe(true);
+  it("offers selected and all steps while cloud matching requires opt-in", () => {
+    expect(
+      defaultAiPreferences.enabled &&
+        defaultAiPreferences.share_goal_context &&
+        defaultAiPreferences.web_research,
+    ).toBe(true);
+    expect(defaultAiPreferences.automatic_goal_matching).toBe(false);
     const html = renderToStaticMarkup(
       createElement(AnalysisResult, {
         result: {

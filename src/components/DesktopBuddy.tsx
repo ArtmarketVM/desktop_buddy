@@ -27,6 +27,56 @@ export function DesktopBuddy({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [chatState, setChatState] = useState<AvatarState>("idle");
+  const floating = useRef<HTMLDivElement>(null);
+  const [cardSize, setCardSize] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("buddy-chat-card-size") ?? "null",
+      );
+      return {
+        width: Number.isFinite(saved?.width) ? Math.max(280, saved.width) : 360,
+        height: Number.isFinite(saved?.height)
+          ? Math.max(280, saved.height)
+          : 460,
+      };
+    } catch {
+      return { width: 360, height: 460 };
+    }
+  });
+  const cardDrag = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [cardPosition, setCardPosition] = useState(() => {
+    try {
+      const saved = JSON.parse(
+        localStorage.getItem("buddy-chat-card") ?? "null",
+      );
+      return {
+        left: Number.isFinite(saved?.left) ? Math.max(0, saved.left) : 8,
+        top: Number.isFinite(saved?.top) ? Math.max(0, saved.top) : 8,
+      };
+    } catch {
+      return { left: 8, top: 8 };
+    }
+  });
+  useEffect(() => {
+    localStorage.setItem("buddy-chat-card", JSON.stringify(cardPosition));
+  }, [cardPosition]);
+  const positionCard = (left: number, top: number) => {
+    const bounds = floating.current?.getBoundingClientRect();
+    const next = {
+      left: Math.max(0, Math.min(left, innerWidth - (bounds?.width ?? 360))),
+      top: Math.max(0, Math.min(top, innerHeight - (bounds?.height ?? 440))),
+    };
+    setCardPosition((previous) =>
+      previous.left === next.left && previous.top === next.top
+        ? previous
+        : next,
+    );
+  };
   const [responseState, setResponseState] = useState<AvatarState | null>(null);
   const responseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -46,6 +96,27 @@ export function DesktopBuddy({
     null,
   );
   const companion = view.companion ?? defaultCompanionView;
+  useEffect(() => {
+    const fit = () => positionCard(cardPosition.left, cardPosition.top);
+    if (companion.chat_open) fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [cardPosition.left, cardPosition.top, companion.chat_open]);
+  useEffect(() => {
+    const node = floating.current;
+    if (!node || !companion.chat_open) return;
+    const observer = new ResizeObserver(() => {
+      const size = { width: node.offsetWidth, height: node.offsetHeight };
+      setCardSize((previous) =>
+        previous.width === size.width && previous.height === size.height
+          ? previous
+          : size,
+      );
+      localStorage.setItem("buddy-chat-card-size", JSON.stringify(size));
+    });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [companion.chat_open]);
   const card = view.suggestion || view.decision;
   const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
   async function action(work: () => Promise<unknown>, celebrate = false) {
@@ -78,15 +149,89 @@ export function DesktopBuddy({
   return (
     <main
       className={`desktop-buddy ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
+      onPointerMove={(event) => {
+        const drag = cardDrag.current;
+        if (drag)
+          positionCard(
+            drag.left + event.clientX - drag.x,
+            drag.top + event.clientY - drag.y,
+          );
+      }}
+      onPointerUp={() => {
+        cardDrag.current = null;
+      }}
+      onPointerCancel={() => {
+        cardDrag.current = null;
+      }}
     >
       {companion.chat_open ? (
-        <CompanionChat
-          view={companion}
-          goal={goal}
-          plan={plan}
-          onChanged={onChanged}
-          onState={setChatState}
-        />
+        <div
+          className="floating-chat-card"
+          ref={floating}
+          style={{
+            left: cardPosition.left,
+            top: cardPosition.top,
+            width: cardSize.width,
+            height: cardSize.height,
+          }}
+        >
+          <CompanionChat
+            view={companion}
+            goal={goal}
+            plan={plan}
+            onChanged={onChanged}
+            onState={setChatState}
+            onMove={(event) => {
+              if (
+                event.button !== 0 ||
+                (event.target as HTMLElement).closest("button")
+              )
+                return;
+              cardDrag.current = {
+                x: event.clientX,
+                y: event.clientY,
+                ...cardPosition,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onResize={() => {
+              if (desktop)
+                void action(() =>
+                  getCurrentWindow().startResizeDragging("SouthEast"),
+                );
+            }}
+          />
+          <div
+            className="card-position-controls"
+            aria-label="Move chat relative to Buddy"
+          >
+            {(
+              [
+                [-16, 0, "left"],
+                [16, 0, "right"],
+                [0, -16, "up"],
+                [0, 16, "down"],
+              ] as const
+            ).map(([x, y, label]) => (
+              <button
+                className="text-button"
+                key={label}
+                aria-label={`Move chat card ${label}`}
+                onClick={() =>
+                  positionCard(cardPosition.left + x, cardPosition.top + y)
+                }
+              >
+                {label === "left"
+                  ? "←"
+                  : label === "right"
+                    ? "→"
+                    : label === "up"
+                      ? "↑"
+                      : "↓"}
+              </button>
+            ))}
+          </div>
+        </div>
       ) : companion.intervention ? (
         <InterventionCard
           prompt={companion.intervention}

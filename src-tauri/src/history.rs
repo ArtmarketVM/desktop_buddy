@@ -196,6 +196,14 @@ impl Storage {
         Ok(())
     }
     pub fn record_interval(&mut self, goal: i64, interval: &UsageInterval) -> Result<(), String> {
+        self.record_interval_with_match(goal, interval, None)
+    }
+    pub(crate) fn record_interval_with_match(
+        &mut self,
+        goal: i64,
+        interval: &UsageInterval,
+        attribution: Option<crate::relevance::ActivityMatch>,
+    ) -> Result<(), String> {
         let duration = (interval.end - interval.start).num_milliseconds();
         if !(1..=15000).contains(&duration) {
             return Ok(());
@@ -216,8 +224,14 @@ impl Storage {
             .browser
             .as_ref()
             .map(|b| b.page_title.chars().take(160).collect::<String>());
-        let matched = self.match_activity(&interval.activity)?;
+        let matched = match attribution {
+            Some(matched) => matched,
+            None => self.match_activity(&interval.activity)?,
+        };
         let relevant = interval.state == ActivityState::Focused
+            && category != Some(crate::insights::Category::Distraction)
+            && matched.confidence.is_finite()
+            && (crate::relevance::THRESHOLD..=1.0).contains(&matched.confidence)
             && matched.goal_id.as_deref() == Some(goal.to_string().as_str());
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         // Intervals are strictly disjoint per goal. Reject retries and overlap

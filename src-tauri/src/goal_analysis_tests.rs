@@ -173,6 +173,7 @@ fn new_ai_defaults_are_enabled_but_explicit_opt_out_survives() {
                 enabled: false,
                 share_goal_context: false,
                 web_research: false,
+                automatic_goal_matching: false,
             },
         )
         .unwrap();

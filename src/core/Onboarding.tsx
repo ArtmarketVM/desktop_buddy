@@ -1,39 +1,51 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktop } from "../api/tauri";
 import type { UserSettings } from "../types";
-import { Composer } from "./Composer";
+import { AvatarPicker } from "../components/ProfileFields";
 import { coreApi } from "./api";
-import type { GoalDraft } from "./types";
 
 export function CoreOnboarding({
   initial,
   onChanged,
   onDirty,
+  onComplete,
 }: {
   initial: UserSettings;
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
+  onComplete?: () => void;
 }) {
   const [step, setStep] = useState(0);
-  const [name, setName] = useState(initial.profile.name);
-  const [intent, setIntent] = useState("A little more focus");
-  const [drafts, setDrafts] = useState<GoalDraft[]>([]);
-  const [batch] = useState(() => crypto.randomUUID());
-  const [composerDirty, setComposerDirty] = useState(false);
-  useEffect(() => {
-    onDirty(!!name.trim() || drafts.length > 0 || composerDirty);
-    return () => onDirty(false);
-  }, [name, drafts, composerDirty, onDirty]);
+  const [profile, setProfile] = useState(initial.profile);
   const [tracking, setTracking] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const batch = useRef(crypto.randomUUID());
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus();
+  }, [step]);
+  useEffect(() => {
+    onDirty(
+      JSON.stringify(profile) !== JSON.stringify(initial.profile) || tracking,
+    );
+    return () => onDirty(false);
+  }, [profile, tracking, initial.profile, onDirty]);
   async function finish() {
     setBusy(true);
     setError("");
     try {
-      await coreApi.setup(name, drafts, tracking, batch);
+      await coreApi.setup(
+        profile.name,
+        [],
+        tracking,
+        batch.current,
+        profile.email,
+        profile.avatar,
+      );
       onDirty(false);
       await onChanged();
+      onComplete?.();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -42,150 +54,126 @@ export function CoreOnboarding({
   }
   return (
     <section className="core-onboarding core-workspace">
-      <p className="eyebrow">A SMALL START · {step + 1} OF 4</p>
-      <h1>
+      <p className="eyebrow">WELCOME · {step + 1} OF 3</p>
+      <h1 ref={heading} tabIndex={-1}>
         {
           [
             "What should Buddy call you?",
-            "What would you like a little help with?",
-            "Make room for your first goals",
-            "Your pace, your choice",
+            "Choose your Buddy",
+            "Activity tracking is your choice",
           ][step]
         }
       </h1>
-      {step === 0 && (
-        <>
-          <p>Just your name is enough to get started.</p>
-          <label>
-            Your name
-            <input
-              autoFocus
-              value={name}
-              maxLength={120}
-              onChange={(e) => {
-                setName(e.target.value);
-                onDirty(true);
-              }}
-            />
-          </label>
-        </>
-      )}
-      {step === 1 && (
-        <>
-          <p>
-            Choose what feels useful today. You can always change your mind.
-          </p>
-          <div className="intent-options">
-            {[
-              "A little more focus",
-              "Keeping several projects moving",
-              "A calmer daily plan",
-            ].map((option) => (
-              <button
-                className={`outline-button ${intent === option ? "selected" : ""}`}
-                aria-pressed={intent === option}
-                key={option}
-                onClick={() => setIntent(option)}
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-      {step === 2 && (
-        <>
-          <p>
-            {intent}. Type a goal, record a thought, or bring in some notes.
-          </p>
-          <Composer
-            disabled={busy}
-            onDirty={setComposerDirty}
-            onSave={async (items) => {
-              if (drafts.length + items.length > 20)
-                throw new Error(
-                  "Keep up to 20 first goals. Remove a goal before adding more.",
-                );
-              setDrafts((previous) => [...previous, ...items]);
-              onDirty(true);
-            }}
-          />
-          {drafts.length > 0 && (
-            <div className="setup-goals">
-              <h2>Your first goals</h2>
-              {drafts.map((draft, index) => (
-                <p key={index}>
-                  {draft.title}
-                  <button
-                    className="text-button"
-                    aria-label={`Remove ${draft.title}`}
-                    onClick={() =>
-                      setDrafts(drafts.filter((_, i) => i !== index))
-                    }
-                  >
-                    Remove
-                  </button>
-                </p>
-              ))}
-            </div>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (step < 2) setStep(step + 1);
+          else void finish();
+        }}
+      >
+        <fieldset disabled={busy}>
+          {step === 0 && (
+            <>
+              <p>Just your preferred name is enough to get started.</p>
+              <label>
+                Your name
+                <input
+                  autoComplete="name"
+                  required
+                  maxLength={120}
+                  value={profile.name}
+                  onChange={(e) =>
+                    setProfile({ ...profile, name: e.target.value })
+                  }
+                />
+              </label>
+              <label>
+                Email (optional)
+                <input
+                  type="email"
+                  autoComplete="email"
+                  maxLength={254}
+                  value={profile.email}
+                  onChange={(e) =>
+                    setProfile({ ...profile, email: e.target.value })
+                  }
+                  aria-describedby="setup-email-note"
+                />
+              </label>
+              <p id="setup-email-note" className="helper">
+                Saved in your local profile for future email features. Email
+                reports are not available yet. Adding an email does not
+                subscribe you or send it to AI.
+              </p>
+            </>
           )}
-        </>
-      )}
-      {step === 3 && (
-        <>
-          <p>Your goals and focus timer work without screen tracking.</p>
-          <label className="toggle-row">
-            <span>
-              Allow activity tracking
-              <small>
-                Optional: observe the active app and window title for the
-                selected goal. You can pause this in Settings.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={tracking}
-              onChange={(e) => setTracking(e.target.checked)}
-            />
-          </label>
-          <p className="helper">
-            Tracking stays off unless you choose it. Buddy keeps goals on this
-            PC. AI requests share only the content you explicitly confirm.
+          {step === 1 && (
+            <>
+              <p>
+                A quiet companion for your day. You can change your choice in
+                Settings.
+              </p>
+              <AvatarPicker
+                profile={profile}
+                onChange={setProfile}
+                disabled={busy}
+              />
+            </>
+          )}
+          {step === 2 && (
+            <>
+              <p>
+                Goals and chat work without activity tracking or a running
+                timer.
+              </p>
+              <label className="toggle-row">
+                <span>
+                  Allow activity tracking
+                  <small>
+                    Observe foreground apps, window or browser titles and active
+                    time. With a separate AI opt-in, Nebius can identify the
+                    goal you are working on. Pause tracking in Settings at any
+                    time.
+                  </small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={tracking}
+                  onChange={(e) => setTracking(e.target.checked)}
+                />
+              </label>
+              <p className="helper">
+                Tracking stays off unless you choose it. Activity history is
+                stored on this PC and is not encrypted. AI sharing has separate
+                controls in Integrations / AI; optional AI check-ins can share
+                goal and activity context with configured providers.
+              </p>
+            </>
+          )}
+        </fieldset>
+        {error && (
+          <p className="error" role="alert">
+            {error}
           </p>
-        </>
-      )}
-      {error && (
-        <p className="error" role="alert">
-          {error}
-        </p>
-      )}
-      <div className="settings-actions">
-        {step > 0 && (
-          <button
-            className="text-button"
-            disabled={busy}
-            onClick={() => setStep(step - 1)}
-          >
-            Back
-          </button>
         )}
-        {step < 3 ? (
+        <div className="settings-actions">
+          {step > 0 && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy}
+              onClick={() => setStep(step - 1)}
+            >
+              Back
+            </button>
+          )}
           <button
-            disabled={
-              busy ||
-              (step === 0 && !name.trim()) ||
-              (step === 2 && composerDirty)
-            }
-            onClick={() => setStep(step + 1)}
+            disabled={busy || !profile.name.trim() || (step === 2 && !desktop)}
           >
-            {step === 2 && !drafts.length ? "Add goals later" : "Continue"}
+            {busy ? "Opening…" : step === 2 ? "Open my workspace" : "Continue"}
           </button>
-        ) : (
-          <button disabled={busy || !desktop} onClick={() => void finish()}>
-            {busy ? "Opening…" : "Open my workspace"}
-          </button>
-        )}
-      </div>
+        </div>
+      </form>
     </section>
   );
 }

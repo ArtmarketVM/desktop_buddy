@@ -7,11 +7,13 @@ export function PrivacySettings({
   retentionDays,
   onChanged,
   onHistoryCleared,
+  showExclusions = true,
 }: {
   preferences: BuddyPreferences;
   retentionDays: number;
   onChanged: () => Promise<void>;
   onHistoryCleared: () => Promise<void>;
+  showExclusions?: boolean;
 }) {
   const [apps, setApps] = useState(preferences.excluded_apps.join(", "));
   const [days, setDays] = useState(retentionDays);
@@ -43,9 +45,10 @@ export function PrivacySettings({
     <section className="privacy-settings" aria-label="Privacy and local data">
       <h3>Privacy and local data</h3>
       <p>
-        No screenshots, keystrokes, or page contents are collected. Window
-        titles and goals can still contain sensitive information. Activity
-        history is local and is not encrypted.
+        Activity tracking observes foreground apps and window titles. Optional
+        visible-text suggestions and attachments have separate controls. Titles
+        and goals can contain sensitive information. Activity history is local
+        and is not encrypted.
       </p>
       <ul>
         <li>
@@ -96,42 +99,44 @@ export function PrivacySettings({
           </button>
         </details>
       )}
-      <form
-        className="provider-settings"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void run(async () => {
-            await api.buddyPreferences({
-              ...preferences,
-              excluded_apps: apps
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
+      {showExclusions && (
+        <form
+          className="provider-settings"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void run(async () => {
+              await api.buddyPreferences({
+                ...preferences,
+                excluded_apps: apps
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter(Boolean),
+              });
+              setPreview("");
+              setMessage("Application exclusions saved.");
             });
-            setPreview("");
-            setMessage("Application exclusions saved.");
-          });
-        }}
-      >
-        <label htmlFor="excluded-apps">
-          Excluded applications (process names, comma-separated)
-        </label>
-        <input
-          id="excluded-apps"
-          value={apps}
-          maxLength={5000}
-          placeholder="chrome.exe, passwordmanager.exe"
-          disabled={!desktop || busy}
-          onChange={(e) => setApps(e.target.value)}
-        />
-        <p className="helper">
-          Excluded apps are not recorded going forward and their existing
-          segments are filtered from future AI context. This does not erase past
-          records or cancel requests already sent. Goals and unrelated app
-          titles are not automatically redacted.
-        </p>
-        <button disabled={!desktop || busy}>Save exclusions</button>
-      </form>
+          }}
+        >
+          <label htmlFor="excluded-apps">
+            Excluded applications (process names, comma-separated)
+          </label>
+          <input
+            id="excluded-apps"
+            value={apps}
+            maxLength={5000}
+            placeholder="chrome.exe, passwordmanager.exe"
+            disabled={!desktop || busy}
+            onChange={(e) => setApps(e.target.value)}
+          />
+          <p className="helper">
+            Excluded apps are not recorded going forward and their existing
+            segments are filtered from future AI context. This does not erase
+            past records or cancel requests already sent. Goals and unrelated
+            app titles are not automatically redacted.
+          </p>
+          <button disabled={!desktop || busy}>Save exclusions</button>
+        </form>
+      )}
       <label htmlFor="retention-days">Keep local history</label>
       <select
         id="retention-days"

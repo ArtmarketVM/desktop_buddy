@@ -85,12 +85,14 @@ Both Russian and English speech packs are required to exercise local mixed-langu
 
 Run `npm test`, `npm run build`, `npm run test:release` and `cargo test --locked --manifest-path src-tauri/Cargo.toml`. Backend tests cover real HTTP request construction against isolated test servers, source/evidence filtering, revoked consent, persistent conversation, tracking attribution and stuck triggers. Browser QA uses mock IPC and an isolated history store, never the production database.
 
-The source version is 0.19.0. An explicitly run live smoke test uses one synthetic goal and no production database: it verifies a title, 3–5 steps, grounded Tavily sources and a persisted Buddy chat reply. Native installation/update and microphone quality remain separate checks. A local installer does not become a GitHub update until its signed release assets are published.
+The source version is 0.20.0. An explicitly run live smoke test uses one synthetic goal and no production database: it verifies a title, 3–5 steps, grounded Tavily sources and a persisted Buddy chat reply. Native installation/update and microphone quality remain separate checks. A local installer does not become a GitHub update until its signed release assets are published.
 
 References: [Tavily search API](https://docs.tavily.com/documentation/api-reference/endpoint/search), [Nebius API documentation](https://api.tokenfactory.nebius.com/docs), [Microsoft speech recognition](https://learn.microsoft.com/en-us/windows/apps/develop/input/speech-recognition).
 
 
 ## Developer 1 integration
+
+The 0.20.0 UX integration preserves automatic goal analysis and relevant progress. Separate cloud activity-matching consent enables Nebius attribution; otherwise the local matcher remains active. Cloud matches use bounded foreground titles and feed the same relevant-progress and activity-timeline storage. See [Daily UX and automatic matching](UX_ONBOARDING_GOALS_SETTINGS.md) for the sharing limits and controls.
 
 Import `analyzeGoal`, `getGoalProgress`, `sendBuddyMessage`, `GoalAIResult`, `GoalProgress`, `ActivityMatch`, `BrowserActivity` and `GoalCompletedEvent` from `src/ai/contracts.ts`. IDs are strings at this boundary and validated positive integers at IPC. `analyzeGoal` reuses ready cached suggestions; progress returns relevant minutes and retained app/browser/document aggregates. `sendBuddyMessage(message, { goalId })` can select saved goal context without changing tracking. Goal mutation still needs explicit acceptance through revision-checked Core APIs.
 

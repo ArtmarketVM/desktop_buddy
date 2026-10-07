@@ -27,6 +27,51 @@ fn interval(start: chrono::DateTime<Utc>, title: &str, state: ActivityState) -> 
     }
 }
 #[test]
+fn cloud_attribution_reaches_progress_without_local_keyword_evidence() {
+    let (mut store, id) = store();
+    let start = Utc::now();
+    let sample = interval(start, "Editor workspace", ActivityState::Focused);
+    assert!(store
+        .match_activity(&sample.activity)
+        .unwrap()
+        .goal_id
+        .is_none());
+    store
+        .record_interval_with_match(
+            id,
+            &sample,
+            Some(ActivityMatch {
+                goal_id: Some(id.to_string()),
+                confidence: 0.94,
+                reason: "Nebius identified the current goal".into(),
+            }),
+        )
+        .unwrap();
+    assert_eq!(store.relevant_seconds(id, None).unwrap(), 3);
+    let segments = store.activity_segments(Some(id)).unwrap();
+    assert_eq!(segments[0].activity_match.goal_id, Some(id.to_string()));
+    assert_eq!(segments[0].activity_match.confidence, 0.94);
+    assert_eq!(store.goal_progress(id).unwrap().activities.len(), 1);
+    for (index, confidence) in [0.1, f64::NAN].into_iter().enumerate() {
+        store
+            .record_interval_with_match(
+                id,
+                &interval(
+                    start + Duration::seconds(3 * (index as i64 + 1)),
+                    "Editor workspace",
+                    ActivityState::Focused,
+                ),
+                Some(ActivityMatch {
+                    goal_id: Some(id.to_string()),
+                    confidence,
+                    reason: "Uncertain".into(),
+                }),
+            )
+            .unwrap();
+    }
+    assert_eq!(store.relevant_seconds(id, None).unwrap(), 3);
+}
+#[test]
 fn relevant_totals_and_browser_sequence_exclude_idle_unrelated_and_completed_work() {
     let (mut store, id) = store();
     let start = Utc::now();

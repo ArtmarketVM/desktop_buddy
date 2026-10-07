@@ -7,9 +7,9 @@
   --line: #dcdfe5;
   --text: #22232a;
   --muted: #616574;
-  --accent: #2563eb;
-  --accent-text: #245ac7;
-  --accent-soft: #eaf1ff;
+  --accent: #52785a;
+  --accent-text: #42664b;
+  --accent-soft: #eaf3ed;
   --input: #fbfcfe;
   --inverse: #ffffff;
   --positive: #39714b;
@@ -28,9 +28,9 @@
   --line: #3c3c43;
   --text: #eeeef0;
   --muted: #aaaab5;
-  --accent: #3b82f6;
-  --accent-text: #a8caff;
-  --accent-soft: #1c2c43;
+  --accent: #668d6f;
+  --accent-text: #aad8b5;
+  --accent-soft: #263c2c;
   --input: #1b1b1b;
   --inverse: #ffffff;
   --positive: #99cfaa;
@@ -67,7 +67,7 @@ button {
 }
 button:hover:not(:disabled) {
   filter: none;
-  background: #4a8ef8;
+  background: #42674b;
 }
 button:disabled {
   opacity: 0.45;
@@ -350,6 +350,15 @@ a {
   justify-content: space-between;
   font-size: 12px;
   letter-spacing: 0;
+}
+.workspace-header > button {
+  width: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.workspace-header .version {
+  margin-left: auto;
+  margin-right: 16px;
 }
 .breadcrumb {
   display: flex;

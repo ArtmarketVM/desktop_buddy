@@ -2,7 +2,7 @@
 
 A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
-Version 0.15.0 combines the Today workspace, parallel goals, Progress and a manual focus timer with the desktop companion's mini chat and confirmed task suggestions. See [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; a blue **Update available** indicator appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
+Version 0.20.0 adds three-step onboarding, a shared Today/desktop conversation, saved goal ordering, multiple AI-step acceptance, structured settings and quick Do Not Disturb. Nebius Token Factory can identify the active goal without a running timer after a separate opt-in. See [Daily UX and automatic goal matching](docs/UX_ONBOARDING_GOALS_SETTINGS.md), [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; **Update available** appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
 
 ## Role selection and workspace — 0.12.0
 

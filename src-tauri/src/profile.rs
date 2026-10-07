@@ -149,8 +149,21 @@ pub fn validate_profile(profile: &mut UserProfile, require_identity: bool) -> Re
             return Err("Tell us your role".into());
         }
         profile.privacy_notice_version = Some("draft-v1".into());
-    } else if !profile.email.is_empty() && !profile.privacy_accepted {
-        return Err("Acknowledge the draft privacy notice before saving an email".into());
+    } else if !profile.email.is_empty() {
+        let parts: Vec<_> = profile.email.split('@').collect();
+        if profile.email.len() > 254
+            || parts.len() != 2
+            || parts[0].is_empty()
+            || !parts[1].contains('.')
+            || parts[1].starts_with('.')
+            || parts[1].ends_with('.')
+            || profile
+                .email
+                .chars()
+                .any(|c| c.is_whitespace() || c.is_control())
+        {
+            return Err("Enter a valid optional email address".into());
+        }
     }
     Ok(())
 }

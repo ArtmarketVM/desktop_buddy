@@ -104,6 +104,16 @@ pub fn remember_position(
                 inner.storage.write_setting("buddy_position", &position)?;
                 inner.buddy.position = Some(position);
             }
+            if inner.buddy.window_mode == 3 {
+                if let Ok(scale) = window.scale_factor() {
+                    let size = (s.width as f64 / scale, s.height as f64 / scale);
+                    let previous: Option<(f64, f64)> =
+                        inner.storage.read_setting("buddy_chat_size")?;
+                    if previous != Some(size) {
+                        inner.storage.write_setting("buddy_chat_size", &size)?;
+                    }
+                }
+            }
         }
     }
     Ok(())
@@ -262,9 +272,23 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     if mode == 0 {
         window.hide().map_err(|_| "Could not hide Buddy")?;
     } else {
+        window
+            .set_resizable(mode == 3)
+            .map_err(|_| "Could not configure Buddy resizing")?;
+        window
+            .set_min_size(if mode == 3 {
+                Some(LogicalSize::new(360.0, 400.0))
+            } else {
+                None
+            })
+            .map_err(|_| "Could not configure Buddy size")?;
         let (width, height) = match mode {
             1 => (120.0, 120.0),
-            3 => (380.0, 560.0),
+            3 => inner
+                .storage
+                .read_setting::<(f64, f64)>("buddy_chat_size")?
+                .map(|(width, height)| (width.clamp(360.0, 1200.0), height.clamp(400.0, 1200.0)))
+                .unwrap_or((520.0, 680.0)),
             _ => (380.0, 440.0),
         };
         window

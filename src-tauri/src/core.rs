@@ -222,6 +222,16 @@ pub fn validate_drafts(mut drafts: Vec<GoalDraft>) -> Result<Vec<GoalDraft>, Str
     Ok(drafts)
 }
 impl Storage {
+    pub fn core_reorder(&self, ids: Vec<i64>) -> Result<(), String> {
+        let current = self.core_snapshot(None)?;
+        let expected: std::collections::HashSet<_> =
+            current.goals.iter().map(|goal| goal.id).collect();
+        let received: std::collections::HashSet<_> = ids.iter().copied().collect();
+        if ids.len() != received.len() || expected != received {
+            return Err("Goals changed. Refresh before reordering.".into());
+        }
+        self.write_setting("core_goal_order", &ids)
+    }
     pub(crate) fn initialize_core(&self) -> Result<(), String> {
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_areas(id INTEGER PRIMARY KEY,title TEXT NOT NULL COLLATE NOCASE UNIQUE);
             CREATE TABLE IF NOT EXISTS core_goals(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,area_id INTEGER NOT NULL REFERENCES core_areas(id),state TEXT NOT NULL);
@@ -706,7 +716,7 @@ impl Storage {
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
-        let goals = rows
+        let mut goals = rows
             .into_iter()
             .map(
                 |(
@@ -740,6 +750,13 @@ impl Storage {
                 },
             )
             .collect::<Result<Vec<_>, String>>()?;
+        let order: Vec<i64> = self.read_setting("core_goal_order")?.unwrap_or_default();
+        goals.sort_by_key(|goal| {
+            order
+                .iter()
+                .position(|id| *id == goal.id)
+                .unwrap_or(usize::MAX)
+        });
         let mut q = self
             .connection
             .prepare("SELECT goal_id FROM core_day_items WHERE day=?1 ORDER BY rowid")
@@ -786,6 +803,8 @@ pub fn finish_core_setup(
     drafts: Vec<GoalDraft>,
     batch: String,
     allow_tracking: bool,
+    email: Option<String>,
+    avatar: Option<crate::profile::AvatarPreferences>,
 ) -> Result<(), String> {
     let name = name.trim();
     if name.is_empty() || name.chars().count() > 120 || name.chars().any(char::is_control) {
@@ -800,6 +819,12 @@ pub fn finish_core_setup(
         return Err("Setup is already complete".into());
     }
     settings.profile.name = name.into();
+    if let Some(email) = email {
+        settings.profile.email = email;
+    }
+    if let Some(avatar) = avatar {
+        settings.profile.avatar = avatar;
+    }
     crate::profile::validate_profile(&mut settings.profile, false)?;
     if !drafts.is_empty() {
         inner.storage.core_add_goals(drafts, &batch)?;
@@ -814,17 +839,12 @@ pub fn finish_core_setup(
     for id in open.iter().take(3) {
         inner.storage.core_today(*id, true, &snapshot.date)?;
     }
-    if allow_tracking && inner.storage.goal()?.is_none() {
-        if let Some(id) = open.first() {
-            inner.storage.transition_goal(*id, "resume")?;
-        }
-    }
     settings.onboarding.completed = true;
     settings.onboarding.step = 3;
     settings.onboarding.tracking_consent = allow_tracking;
     crate::autostart::sync(settings.autostart)?;
     inner.storage.write_setting("user_settings", &settings)?;
-    inner.status.tracking = allow_tracking && inner.storage.goal()?.is_some();
+    inner.status.tracking = allow_tracking;
     inner
         .storage
         .write_setting("tracking_requested", &allow_tracking)?;
@@ -841,6 +861,7 @@ pub fn save_core_identity(
     name: String,
     autostart: bool,
     avatar: Option<crate::profile::AvatarPreferences>,
+    email: Option<String>,
 ) -> Result<(), String> {
     let mut inner = state
         .inner
@@ -848,6 +869,9 @@ pub fn save_core_identity(
         .map_err(|_| "Application state unavailable")?;
     let mut settings = inner.storage.user_settings()?;
     settings.profile.name = name.trim().into();
+    if let Some(email) = email {
+        settings.profile.email = email;
+    }
     if let Some(avatar) = avatar {
         settings.profile.avatar = avatar;
     }
@@ -879,6 +903,7 @@ fn mutate(
         inner.activity_state.stop(false);
     }
     inner.privacy_revision += 1;
+    inner.goal_matching.clear();
     inner.companion.invalidate();
     inner.buddy.clear();
     inner.last_analysis = None;
@@ -984,6 +1009,14 @@ pub fn set_core_today(
     mutate(&state, &app, |s| {
         s.core_today(id, include, &Local::now().date_naive().to_string())
     })
+}
+#[tauri::command(async)]
+pub fn reorder_core_goals(
+    state: State<AppState>,
+    app: AppHandle,
+    ids: Vec<i64>,
+) -> Result<CoreSnapshot, String> {
+    mutate(&state, &app, |storage| storage.core_reorder(ids))
 }
 #[tauri::command(async)]
 pub fn plan_core_day(

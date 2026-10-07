@@ -12,7 +12,13 @@ import {
   emptyCore,
   type CoreGoal,
 } from "./types";
-import { AnalysisResult, analysisInput, safeSource } from "./analysis";
+import {
+  AnalysisResult,
+  analysisInput,
+  safeSource,
+  adaptGoalAIResult,
+} from "./analysis";
+import { moveGoal } from "./GoalOrder";
 import { GoalRow } from "./Goals";
 import { goalLink } from "../../browser-extension/link.mjs";
 
@@ -177,7 +183,41 @@ describe("core daily flow boundaries", () => {
       }),
     );
     expect(html).toContain("Your name");
-    expect(html).not.toContain('type="email"');
+    expect(html).toContain("Email (optional)");
+    expect(html).toContain('type="email"');
+    expect(html).not.toMatch(/type="email"[^>]*required/);
+    expect(html).toContain("1 OF 3");
     expect(html).not.toContain("professional role");
+  });
+  it("moves goals in both directions without losing hidden goals", () => {
+    expect(moveGoal([1, 2, 3, 4], 1, 3)).toEqual([2, 3, 1, 4]);
+    expect(moveGoal([1, 2, 3, 4], 4, 2)).toEqual([1, 4, 2, 3]);
+    expect(moveGoal([1, 2], 99, 1)).toEqual([1, 2]);
+    expect(moveGoal([1, 2], 1, 1)).toEqual([1, 2]);
+  });
+  it("adapts the agreed Developer 2 contract without discarding sources", () => {
+    expect(
+      adaptGoalAIResult({
+        suggestedTitle: "Ship safely",
+        suggestedSteps: [{ id: "a", title: "Review" }],
+        sources: [
+          {
+            title: "Official docs",
+            url: "https://example.com",
+            reason: "Release checklist",
+          },
+        ],
+      }),
+    ).toEqual({
+      improvedTitle: "Ship safely",
+      suggestedSteps: [{ title: "Review" }],
+      resources: [
+        {
+          title: "Official docs",
+          url: "https://example.com",
+          whyRelevant: "Release checklist",
+        },
+      ],
+    });
   });
 });

@@ -8,11 +8,13 @@ export interface AiPreferences {
   enabled: boolean;
   share_goal_context: boolean;
   web_research: boolean;
+  automatic_goal_matching: boolean;
 }
 export const defaultAiPreferences: AiPreferences = {
   enabled: true,
   share_goal_context: true,
   web_research: true,
+  automatic_goal_matching: false,
 };
 export interface ChatResource {
   title: string;

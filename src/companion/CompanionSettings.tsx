@@ -55,8 +55,8 @@ export function CompanionSettings({
         [
           [
             "paused",
-            "Pause companion suggestions",
-            "Keep manual chat available. Pause all new automatic companion prompts.",
+            "Disable automatic nudging",
+            "Keep manual chat available. Pause all new automatic prompts and suggestions until you turn this off.",
           ],
           [
             "daily_checkins",

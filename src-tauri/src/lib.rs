@@ -13,6 +13,7 @@ mod core_capture;
 mod core_import;
 mod credentials;
 mod goal_analysis;
+mod goal_matching;
 mod goals;
 mod history;
 mod http;
@@ -162,6 +163,16 @@ pub fn run() {
                             automatic_goals::run_pending(&app).await;
                         });
                     }
+                    if goal_matching::due(&state) {
+                        let matching_handle = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            goal_matching::identify(
+                                &matching_handle,
+                                &matching_handle.state::<commands::AppState>(),
+                            )
+                            .await;
+                        });
+                    }
                     if commands::should_analyze(&state) {
                         // HTTP must never block the collection interval.
                         let handle = handle.clone();
@@ -262,6 +273,7 @@ pub fn run() {
             core::save_core_goal,
             core::transition_core_goal,
             core::set_core_today,
+            core::reorder_core_goals,
             core::plan_core_day,
             core::dismiss_core_carryover,
             core::set_core_timer,

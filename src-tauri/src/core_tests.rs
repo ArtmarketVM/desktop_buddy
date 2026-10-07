@@ -10,6 +10,59 @@ fn draft(title: &str, area: &str) -> GoalDraft {
     }
 }
 #[test]
+fn goal_order_is_persistent_and_rejects_stale_or_duplicate_lists() {
+    let mut storage = store();
+    storage
+        .core_add_goals(
+            vec![
+                draft("First", "Work"),
+                draft("Second", "Work"),
+                draft("Third", "Personal"),
+            ],
+            "order",
+        )
+        .unwrap();
+    let ids: Vec<_> = storage
+        .core_snapshot(None)
+        .unwrap()
+        .goals
+        .iter()
+        .map(|goal| goal.id)
+        .collect();
+    let order = vec![ids[2], ids[0], ids[1]];
+    storage.core_reorder(order.clone()).unwrap();
+    assert_eq!(
+        storage.read_setting::<Vec<i64>>("core_goal_order").unwrap(),
+        Some(order.clone())
+    );
+    assert_eq!(
+        storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .iter()
+            .map(|goal| goal.id)
+            .collect::<Vec<_>>(),
+        order
+    );
+    assert!(storage.core_reorder(vec![ids[0], ids[0], ids[1]]).is_err());
+    assert!(storage.core_reorder(vec![ids[0], ids[1]]).is_err());
+    storage
+        .core_add_goals(vec![draft("New", "Work")], "new-order")
+        .unwrap();
+    assert!(storage.core_reorder(order.clone()).is_err());
+    let current = storage.core_snapshot(None).unwrap();
+    assert_eq!(
+        current
+            .goals
+            .iter()
+            .take(3)
+            .map(|goal| goal.id)
+            .collect::<Vec<_>>(),
+        order
+    );
+}
+#[test]
 fn deadlines_are_atomic_revisioned_and_survive_other_plan_updates() {
     let mut s = store();
     s.core_add_goals(vec![draft("Ship", "Work")], "deadline")

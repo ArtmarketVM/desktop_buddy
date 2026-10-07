@@ -4,23 +4,32 @@ import {
   defaultTrackingSettings,
   defaultUserSettings,
   type Dashboard,
-  type TrackingSettings,
 } from "../types";
 import { ProviderKey } from "../components/Settings";
 import { PrivacySettings } from "../components/PrivacySettings";
-import { FeedbackCard } from "../components/FeedbackCard";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { AiSettings } from "../ai/AiSettings";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
+const sections = [
+  "Profile",
+  "Buddy",
+  "Appearance",
+  "Activity & Privacy",
+  "Nudging",
+  "Startup",
+  "Integrations / AI",
+  "About",
+];
 const time = (value: number) =>
   `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 const minutes = (value: string) => {
   const [h, m] = value.split(":").map(Number);
   return h * 60 + m;
 };
+
 export function CoreSettings({
   data,
   onChanged,
@@ -31,23 +40,32 @@ export function CoreSettings({
   onDirty: (dirty: boolean) => void;
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
-  const [name, setName] = useState(settings.profile.name);
+  const [profile, setProfile] = useState(settings.profile);
   const [autostart, setAutostart] = useState(settings.autostart);
-  const [avatar, setAvatar] = useState(settings.profile.avatar);
   const [preferences, setPreferences] = useState(emptyCore().preferences);
-  const [hours, setHours] = useState<TrackingSettings>(defaultTrackingSettings);
+  const [hours, setHours] = useState(defaultTrackingSettings);
   const [busy, setBusy] = useState(false);
+  const [ready, setReady] = useState(!desktop);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   useEffect(() => {
+    let active = true;
     if (desktop)
       void Promise.all([coreApi.snapshot(), api.trackingSettings()])
         .then(([core, tracking]) => {
-          setPreferences(core.preferences);
-          setHours(tracking);
+          if (active) {
+            setPreferences(core.preferences);
+            setHours(tracking);
+            setReady(true);
+          }
         })
-        .catch((e) => setError(String(e)));
+        .catch((e) => {
+          if (active) setError(String(e));
+        });
+    return () => {
+      active = false;
+    };
   }, []);
   useEffect(() => {
     onDirty(dirty);
@@ -57,6 +75,7 @@ export function CoreSettings({
     setDirty(true);
     setSaved(false);
   };
+  const blocked = busy || !desktop || !ready;
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -74,7 +93,12 @@ export function CoreSettings({
   async function save() {
     if (
       await run(async () => {
-        await coreApi.identity(name, autostart, avatar);
+        await coreApi.identity(
+          profile.name,
+          autostart,
+          profile.avatar,
+          profile.email,
+        );
         await coreApi.preferences(preferences);
         await api.saveTrackingSettings(hours);
       })
@@ -83,102 +107,247 @@ export function CoreSettings({
       setSaved(true);
     }
   }
-  const visible =
-    settings.profile.avatar.visible && !data.buddy.preferences.suggestions_only;
   return (
     <div className="core-workspace core-settings">
-      <section className="core-section">
-        <h2>Your everyday preferences</h2>
-        <fieldset disabled={busy || !desktop}>
-          <label>
-            Your name
-            <input
-              maxLength={120}
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                change();
-              }}
-            />
-          </label>
+      <nav className="settings-sections" aria-label="Settings sections">
+        {sections.map((section, i) => (
+          <a
+            key={section}
+            href={`#settings-${i}`}
+            onClick={() => {
+              const target = document.getElementById(`settings-${i}`);
+              if (target instanceof HTMLDetailsElement) target.open = true;
+            }}
+          >
+            {section}
+          </a>
+        ))}
+      </nav>
+      <div className="settings-drafts">
+        <details className="core-section" id="settings-0" open>
+          <summary>Profile</summary>
+          <fieldset disabled={blocked}>
+            <label>
+              Preferred name
+              <input
+                required
+                maxLength={120}
+                value={profile.name}
+                onChange={(e) => {
+                  setProfile({ ...profile, name: e.target.value });
+                  change();
+                }}
+              />
+            </label>
+            <label>
+              Email (optional)
+              <input
+                type="email"
+                maxLength={254}
+                value={profile.email}
+                onChange={(e) => {
+                  setProfile({ ...profile, email: e.target.value });
+                  change();
+                }}
+              />
+            </label>
+            <p className="helper">
+              Stored in your local profile. Email reports are not available yet;
+              this does not subscribe you or share your email with AI.
+            </p>
+          </fieldset>
+        </details>
+        <details className="core-section" id="settings-1">
+          <summary>Buddy</summary>
+          <AvatarPicker
+            profile={profile}
+            disabled={blocked}
+            onChange={(next) => {
+              setProfile(next);
+              change();
+            }}
+          />
           <label className="toggle-row">
-            <span>Start Buddy with Windows</span>
+            <span>Show Buddy on desktop</span>
             <input
               type="checkbox"
-              checked={autostart}
+              checked={
+                settings.profile.avatar.visible &&
+                !data.buddy.preferences.suggestions_only
+              }
+              disabled={blocked}
               onChange={(e) => {
-                setAutostart(e.target.checked);
-                change();
+                const visible = e.target.checked;
+                void run(() => api.showBuddy(visible)).then((ok) => {
+                  if (ok)
+                    setProfile((previous) => ({
+                      ...previous,
+                      avatar: { ...previous.avatar, visible },
+                    }));
+                });
               }}
             />
           </label>
-          <div className="working-days">
-            <span>Working days</span>
-            <div>
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                (label, day) => (
-                  <label key={day}>
+        </details>
+        <details className="core-section" id="settings-2">
+          <summary>Appearance</summary>
+          <label className="toggle-row">
+            <span>Dark theme</span>
+            <input
+              type="checkbox"
+              checked={settings.theme === "dark"}
+              disabled={blocked}
+              onChange={(e) =>
+                void run(() => api.theme(e.target.checked ? "dark" : "light"))
+              }
+            />
+          </label>
+        </details>
+        <details className="core-section" id="settings-3">
+          <summary>Activity &amp; Privacy</summary>
+          <label className="toggle-row">
+            <span>
+              Activity tracking
+              <small>
+                Observe foreground apps, titles and active time. A running focus
+                timer is optional.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={data.status.tracking}
+              disabled={blocked}
+              onChange={(e) => {
+                const enabled = e.target.checked;
+                if (
+                  enabled &&
+                  !settings.onboarding.tracking_consent &&
+                  !window.confirm(
+                    "Enable local tracking of foreground apps, window/tab titles and active time? AI goal matching has a separate opt-in under Integrations / AI.",
+                  )
+                )
+                  return;
+                void run(() => api.tracking(enabled));
+              }}
+            />
+          </label>
+          <p className="helper" role="status">
+            {data.status.tracking_error ||
+              (data.status.tracking
+                ? "Tracking on. Nebius can identify the active goal when automatic matching is enabled."
+                : "Tracking paused · no activity is collected.")}
+          </p>
+          <fieldset disabled={blocked}>
+            <div className="working-days">
+              <span>Working days</span>
+              <div>
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+                  (label, day) => (
+                    <label key={day}>
+                      <input
+                        type="checkbox"
+                        checked={preferences.working_days.includes(day)}
+                        onChange={(e) => {
+                          setPreferences({
+                            ...preferences,
+                            working_days: e.target.checked
+                              ? [...preferences.working_days, day]
+                              : preferences.working_days.filter(
+                                  (d) => d !== day,
+                                ),
+                          });
+                          change();
+                        }}
+                      />
+                      {label}
+                    </label>
+                  ),
+                )}
+              </div>
+            </div>
+            <div className="working-hours">
+              {(["working_start_minute", "working_end_minute"] as const).map(
+                (key, index) => (
+                  <label key={key}>
+                    {index === 0 ? "Start time" : "End time"}
                     <input
-                      type="checkbox"
-                      checked={preferences.working_days.includes(day)}
+                      type="time"
+                      value={time(hours[key])}
                       onChange={(e) => {
-                        setPreferences({
-                          ...preferences,
-                          working_days: e.target.checked
-                            ? [...preferences.working_days, day]
-                            : preferences.working_days.filter((d) => d !== day),
-                        });
-                        change();
+                        if (e.target.value) {
+                          setHours({
+                            ...hours,
+                            [key]: minutes(e.target.value),
+                          });
+                          change();
+                        }
                       }}
                     />
-                    {label}
                   </label>
                 ),
               )}
             </div>
-          </div>
-          <div className="working-hours">
-            <label>
-              Start time
-              <input
-                type="time"
-                value={time(hours.working_start_minute)}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setHours({
-                      ...hours,
-                      working_start_minute: minutes(e.target.value),
-                    });
-                    change();
-                  }
-                }}
-              />
-            </label>
-            <label>
-              End time
-              <input
-                type="time"
-                value={time(hours.working_end_minute)}
-                onChange={(e) => {
-                  if (e.target.value) {
-                    setHours({
-                      ...hours,
-                      working_end_minute: minutes(e.target.value),
-                    });
-                    change();
-                  }
-                }}
-              />
-            </label>
-          </div>
+          </fieldset>
+          <details className="core-section">
+            <summary>Local data controls</summary>
+            <PrivacySettings
+              preferences={data.buddy.preferences}
+              retentionDays={data.retention_days}
+              onChanged={onChanged}
+              onHistoryCleared={onChanged}
+              showExclusions={false}
+            />
+          </details>
+        </details>
+        <details className="core-section" id="settings-4">
+          <summary>Nudging</summary>
+
+          <label className="toggle-row">
+            <span>
+              Do not disturb
+              <small>
+                Pause all automatic nudges until you turn this off. Chat remains
+                available.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={data.status.dnd}
+              disabled={blocked}
+              onChange={(e) => void run(() => api.dnd(e.target.checked))}
+            />
+          </label>
+          <button
+            className="outline-button"
+            disabled={blocked}
+            onClick={() => void run(() => api.snooze(true))}
+          >
+            Pause nudges for 1 hour
+          </button>
+          {data.buddy.snoozed_until && (
+            <button
+              className="text-button"
+              disabled={blocked}
+              onClick={() => void run(() => api.snooze(false))}
+            >
+              Resume nudges now
+            </button>
+          )}
+          <CompanionSettings
+            onChanged={onChanged}
+            currentPreferences={data.buddy.companion?.preferences}
+          />
           <label className="toggle-row">
             <span>
               Movement reminders
-              <small>A gentle workspace note after 45 minutes of focus.</small>
+              <small>
+                A workspace note after 45 minutes on the optional timer.
+              </small>
             </span>
             <input
               type="checkbox"
               checked={preferences.movement_reminders}
+              disabled={blocked}
               onChange={(e) => {
                 setPreferences({
                   ...preferences,
@@ -188,158 +357,91 @@ export function CoreSettings({
               }}
             />
           </label>
-        </fieldset>
-        <div className="settings-actions">
+        </details>
+        <details className="core-section" id="settings-5">
+          <summary>Startup</summary>
+          <label className="toggle-row">
+            <span>Start with Windows</span>
+            <input
+              type="checkbox"
+              checked={autostart}
+              disabled={blocked}
+              onChange={(e) => {
+                setAutostart(e.target.checked);
+                change();
+              }}
+            />
+          </label>
+        </details>
+        <details className="core-section" id="settings-6">
+          <summary>Integrations / AI</summary>
+          <p className="helper">
+            Goals work without AI. Provider keys are kept in the running app and
+            are not stored in your profile.
+          </p>
+          <label>
+            Vision model (optional)
+            <input
+              maxLength={160}
+              value={preferences.vision_model}
+              placeholder="Your provider's vision model ID"
+              disabled={blocked}
+              onChange={(e) => {
+                setPreferences({
+                  ...preferences,
+                  vision_model: e.target.value,
+                });
+                change();
+              }}
+            />
+          </label>
+          <ProviderKey
+            provider="nebius"
+            label="Nebius Token Factory"
+            onChanged={onChanged}
+          />
+          <p className="connection">
+            Nebius ·{" "}
+            {data.status.nebius_configured
+              ? "Key configured"
+              : "Not configured"}
+          </p>
+          <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
+          <p className="connection">
+            Tavily ·{" "}
+            {data.status.tavily_configured
+              ? "Key configured"
+              : "Not configured"}
+          </p>
+          <AiSettings onChanged={onChanged} />
+        </details>
+        <details className="core-section" id="settings-7">
+          <summary>About</summary>
+          <p>Desktop Buddy · v{data.version}</p>
+          <p className="helper">
+            Goals, profile, chat and activity history are stored on this PC. AI
+            requests use the providers you configure. Local history is not
+            encrypted; deleting it does not delete records held by providers.
+          </p>
+        </details>
+        <div className="settings-actions settings-save">
           <button
-            disabled={busy || !desktop || !name.trim()}
+            type="button"
             onClick={() => void save()}
+            disabled={blocked || !profile.name.trim() || !dirty}
           >
             {busy ? "Saving…" : "Save preferences"}
           </button>
           {saved && <span role="status">Saved</span>}
+          {dirty && <span className="helper">Unsaved preferences</span>}
         </div>
-        <label className="toggle-row">
-          <span>Allow check-ins</span>
-          <input
-            type="checkbox"
-            checked={!data.status.dnd}
-            disabled={busy || !desktop}
-            onChange={(e) => void run(() => api.dnd(!e.target.checked))}
-          />
-        </label>
-        <label className="toggle-row">
-          <span>Show companion on desktop</span>
-          <input
-            type="checkbox"
-            checked={visible}
-            disabled={busy || !desktop}
-            onChange={(e) => void run(() => api.showBuddy(e.target.checked))}
-          />
-        </label>
-        <label className="toggle-row">
-          <span>Dark theme</span>
-          <input
-            type="checkbox"
-            checked={settings.theme === "dark"}
-            disabled={busy || !desktop}
-            onChange={(e) =>
-              void run(() => api.theme(e.target.checked ? "dark" : "light"))
-            }
-          />
-        </label>
-        <label className="toggle-row">
-          <span>
-            Optional activity tracking
-            <small>
-              Observe the selected goal's active app and window title. Goals and
-              timers work with this off.
-            </small>
-          </span>
-          <input
-            type="checkbox"
-            checked={data.status.tracking}
-            disabled={busy || !desktop || (!data.goal && !data.status.tracking)}
-            onChange={(e) => {
-              const enabled = e.target.checked;
-              if (
-                enabled &&
-                !settings.onboarding.tracking_consent &&
-                !window.confirm(
-                  "Enable local tracking of foreground apps, window/tab titles and active time for your selected goal? You can pause it here. Tracking alone sends nothing to AI services.",
-                )
-              )
-                return;
-              void run(() => api.tracking(enabled));
-            }}
-          />
-        </label>
-        {!data.goal && (
-          <p className="helper">
-            Start a goal's focus timer to select it for optional tracking.
-          </p>
-        )}
-        <p className="helper" role="status">
-          {data.status.tracking_error ||
-            (data.status.tracking
-              ? "Tracking on · active time is attributed to the selected goal."
-              : "Tracking paused · no activity is collected.")}
+      </div>
+
+      {error && (
+        <p className="error" role="alert">
+          {error}
         </p>
-        {error && (
-          <p className="error" role="alert">
-            {error}
-          </p>
-        )}
-      </section>
-      <CompanionSettings
-        onChanged={onChanged}
-        currentPreferences={data.buddy.companion?.preferences}
-      />
-      <details className="core-section">
-        <summary>Companion appearance</summary>
-        <AvatarPicker
-          profile={{ ...settings.profile, avatar }}
-          disabled={busy || !desktop}
-          onChange={(profile) => {
-            setAvatar(profile.avatar);
-            change();
-          }}
-        />
-        <button
-          disabled={busy || !desktop || !name.trim()}
-          onClick={() => void save()}
-        >
-          Save preferences
-        </button>
-      </details>
-      <details className="core-section">
-        <summary>AI and web connections</summary>
-        <p className="helper">
-          Typing goals needs no provider. Enable AI assistance once below; Ask
-          Buddy then works directly.
-        </p>
-        <ProviderKey provider="nebius" label="Nebius" onChanged={onChanged} />
-        <p className="connection">
-          Nebius ·{" "}
-          {data.status.nebius_configured ? "Key configured" : "Not configured"}
-        </p>
-        <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
-        <p className="connection">
-          Tavily ·{" "}
-          {data.status.tavily_configured ? "Key configured" : "Not configured"}.
-          Use Test saved connection to verify access.
-        </p>
-        <AiSettings onChanged={onChanged} />
-        <label>
-          Vision model (optional)
-          <input
-            maxLength={160}
-            value={preferences.vision_model}
-            placeholder="Your provider's vision model ID"
-            disabled={busy || !desktop}
-            onChange={(e) => {
-              setPreferences({ ...preferences, vision_model: e.target.value });
-              change();
-            }}
-          />
-        </label>
-        <p className="helper">
-          Use an image-capable model for screenshots or scanned PDFs. Save
-          preferences after editing.
-        </p>
-      </details>
-      <details className="core-section">
-        <summary>Privacy and local data</summary>
-        <PrivacySettings
-          preferences={data.buddy.preferences}
-          retentionDays={data.retention_days}
-          onChanged={onChanged}
-          onHistoryCleared={onChanged}
-        />
-      </details>
-      <details className="core-section">
-        <summary>Send feedback</summary>
-        <FeedbackCard />
-      </details>
+      )}
     </div>
   );
 }

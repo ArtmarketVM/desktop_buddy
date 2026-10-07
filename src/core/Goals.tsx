@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
+import { GoalOrder } from "./GoalOrder";
 import {
   deadlineISO,
   localDeadline,
@@ -72,9 +73,11 @@ export function GoalRow({
   const request = useRef(0);
   useEffect(() => {
     request.current += 1;
-    setResult(null);
     setAnalysisError("");
     setAnalyzing(false);
+  }, [goal.id, goal.plan.revision]);
+  useEffect(() => {
+    setResult(null);
   }, [goal.id]);
   useEffect(
     () => () => {
@@ -91,7 +94,7 @@ export function GoalRow({
     snapshot.areas.find((item) => item.id === goal.area_id)?.title ?? "General";
   const addStep = async (text: string) => {
     if (goal.status !== "open" || !text.trim() || goal.plan.steps.length >= 20)
-      return;
+      return false;
     if (
       await run(() =>
         coreApi.save(goal.title, area, {
@@ -105,7 +108,19 @@ export function GoalRow({
     ) {
       setStepText("");
       setAdding(false);
+      setResult((previous) =>
+        previous
+          ? {
+              ...previous,
+              suggestedSteps: previous.suggestedSteps?.filter(
+                (step) => step.title !== text,
+              ),
+            }
+          : null,
+      );
+      return true;
     }
+    return false;
   };
   const analyze = async (
     handler: NonNullable<GoalEnhancement["onImprove"]>,
@@ -180,7 +195,12 @@ export function GoalRow({
                 })}
               </span>
             )}
-            {goal.priority && <span> · {goal.priority} priority</span>}
+            {goal.priority && (
+              <span className={`priority-badge priority-${goal.priority}`}>
+                {" "}
+                · {goal.priority} priority
+              </span>
+            )}
           </small>
         </span>
         {(goal.relevant_seconds ?? 0) > 0 && (
@@ -294,6 +314,39 @@ export function GoalRow({
                   />
                   <span className={step.done ? "done" : ""}>{step.text}</span>
                 </label>
+                {!readOnly && goal.status === "open" && (
+                  <button
+                    className="text-button"
+                    disabled={disabled}
+                    aria-label={`Edit step: ${step.text}`}
+                    onClick={() => edit(goal)}
+                  >
+                    Edit
+                  </button>
+                )}
+                {!readOnly && goal.status === "open" && (
+                  <button
+                    className="text-button"
+                    disabled={disabled}
+                    aria-label={`Delete step: ${step.text}`}
+                    onClick={() =>
+                      void run(() =>
+                        coreApi.save(goal.title, area, {
+                          ...goal.plan,
+                          steps: goal.plan.steps.filter(
+                            (item) => item.id !== step.id,
+                          ),
+                          current_step:
+                            goal.plan.current_step === step.id
+                              ? null
+                              : goal.plan.current_step,
+                        }),
+                      )
+                    }
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
@@ -428,7 +481,7 @@ export function GoalRow({
         {!readOnly && suggestions && (
           <AnalysisResult
             goalId={goal.id}
-            remainingSteps={20 - goal.plan.steps.length}
+            capacity={20 - goal.plan.steps.length}
             result={{
               ...suggestions,
               suggestedSteps: suggestions.suggestedSteps?.filter(
@@ -444,15 +497,27 @@ export function GoalRow({
             acceptTitle={(title) =>
               void run(() => coreApi.save(title, area, goal.plan))
             }
-            acceptStep={(text) => void addStep(text)}
-            acceptSteps={(titles) =>
-              void run(() =>
+            acceptStep={(text) => addStep(text)}
+            acceptSteps={async (titles) => {
+              const ok = await run(() =>
                 coreApi.save(goal.title, area, {
                   ...goal.plan,
                   steps: mergeSuggestedSteps(goal.plan.steps, titles),
                 }),
-              )
-            }
+              );
+              if (ok)
+                setResult((previous) =>
+                  previous
+                    ? {
+                        ...previous,
+                        suggestedSteps: previous.suggestedSteps?.filter(
+                          (step) => !titles.includes(step.title),
+                        ),
+                      }
+                    : null,
+                );
+              return ok;
+            }}
           />
         )}
         {confirmDelete && (
@@ -487,6 +552,7 @@ export function GoalEditor({
   close,
   save,
   remove,
+  error = "",
 }: {
   goal: CoreGoal;
   snapshot: CoreSnapshot;
@@ -498,8 +564,10 @@ export function GoalEditor({
     details: GoalDetails,
   ) => Promise<boolean>;
   remove: () => Promise<boolean>;
+  error?: string;
 }) {
   const [title, setTitle] = useState(goal.title);
+  const [saveError, setSaveError] = useState("");
   const [area, setArea] = useState(
     snapshot.areas.find((a) => a.id === goal.area_id)?.title ?? "General",
   );
@@ -539,6 +607,7 @@ export function GoalEditor({
   }, []);
   async function commit() {
     setBusy(true);
+    setSaveError("");
     try {
       if (
         await save(title, area, plan, {
@@ -548,6 +617,8 @@ export function GoalEditor({
         })
       )
         close();
+    } catch (e) {
+      setSaveError(String(e));
     } finally {
       setBusy(false);
     }
@@ -693,6 +764,11 @@ export function GoalEditor({
             Add a step
           </button>
         </fieldset>
+        {(error || saveError) && (
+          <p className="error" role="alert">
+            {saveError || error}
+          </p>
+        )}
         <div className="settings-actions">
           <button
             disabled={
@@ -793,9 +869,13 @@ export function GoalAreas({
                 </span>
               </summary>
               <div>
-                {visible
-                  .filter((g) => g.area_id === area.id)
-                  .map((goal) => (
+                <GoalOrder
+                  goals={visible.filter((g) => g.area_id === area.id)}
+                  allGoals={snapshot.goals}
+                  disabled={busy}
+                  reorder={(ids) => void run(() => coreApi.reorder(ids))}
+                >
+                  {(goal) => (
                     <GoalRow
                       key={goal.id}
                       goal={goal}
@@ -805,7 +885,8 @@ export function GoalAreas({
                       edit={edit}
                       enhancement={enhancement}
                     />
-                  ))}
+                  )}
+                </GoalOrder>
               </div>
             </details>
           ))

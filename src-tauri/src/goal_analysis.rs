@@ -9,6 +9,7 @@ pub struct AiPreferences {
     pub enabled: bool,
     pub share_goal_context: bool,
     pub web_research: bool,
+    pub automatic_goal_matching: bool,
 }
 impl Default for AiPreferences {
     fn default() -> Self {
@@ -16,6 +17,7 @@ impl Default for AiPreferences {
             enabled: true,
             share_goal_context: true,
             web_research: true,
+            automatic_goal_matching: false,
         }
     }
 }
@@ -48,6 +50,7 @@ pub fn set_ai_preferences(
         .storage
         .write_setting("ai_assistance_preferences", &preferences)?;
     inner.privacy_revision += 1;
+    inner.goal_matching.clear();
     Ok(())
 }
 

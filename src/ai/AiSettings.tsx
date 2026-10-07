@@ -77,6 +77,29 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
         />
       </label>
       <p className="helper">
+        Automatic goal matching does not need a running timer.
+      </p>
+      <label className="toggle-row">
+        <span>
+          Let Nebius identify the active goal
+          <small>
+            With tracking and AI assistance on, send up to 20 open goal titles
+            and their next steps, plus the foreground app and up to 160
+            characters of its window title, to Nebius Token Factory. A matching
+            attempt starts at most once per minute; transient errors may be
+            retried. Uncertain activity stays unassigned.
+          </small>
+        </span>
+        <input
+          type="checkbox"
+          checked={preferences.automatic_goal_matching}
+          disabled={!desktop || busy}
+          onChange={(e) =>
+            void save({ automatic_goal_matching: e.target.checked })
+          }
+        />
+      </label>
+      <p className="helper">
         AI assistance is {preferences.enabled ? "on" : "off"}. Activity tracking
         and automatic screen sampling have separate controls.
       </p>

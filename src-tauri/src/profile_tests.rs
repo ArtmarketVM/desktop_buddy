@@ -270,3 +270,18 @@ fn feedback_validates_goal_and_stays_local_with_retention_support() {
         0
     );
 }
+#[test]
+fn local_profile_accepts_optional_email_without_research_enrollment() {
+    let mut profile = UserProfile {
+        name: "Alex".into(),
+        email: "alex@example.com".into(),
+        ..Default::default()
+    };
+    validate_profile(&mut profile, false).unwrap();
+    assert!(!profile.privacy_accepted);
+    assert!(profile.privacy_notice_version.is_none());
+    profile.email = "invalid-email".into();
+    assert!(validate_profile(&mut profile, false).is_err());
+    profile.email.clear();
+    validate_profile(&mut profile, false).unwrap();
+}

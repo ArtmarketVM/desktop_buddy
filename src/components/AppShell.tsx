@@ -11,13 +11,20 @@ import {
   Moon,
   UserRound,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import type { UserProfile } from "../types";
 import type { UpdateSnapshot } from "../updates/controller";
 import { UpdateEntry } from "./Updates";
 
 export type WorkspacePage =
-  "focus" | "activity" | "resources" | "history" | "settings" | "profile";
+  | "focus"
+  | "activity"
+  | "resources"
+  | "history"
+  | "settings"
+  | "profile"
+  | "feedback";
 export const pages = [
   {
     id: "focus",
@@ -55,6 +62,12 @@ export const pages = [
     icon: UserRound,
     description: "Your name and companion. Stored on this device.",
   },
+  {
+    id: "feedback",
+    label: "Feedback",
+    icon: MessageSquare,
+    description: "Tell us what would make Buddy more useful.",
+  },
 ] as const;
 
 export function AppShell({
@@ -69,6 +82,7 @@ export function AppShell({
   theme = "light",
   onTheme,
   onReset,
+  onQuickGoal,
 }: {
   page: WorkspacePage;
   onNavigate: (page: WorkspacePage) => void;
@@ -81,6 +95,7 @@ export function AppShell({
   theme?: "light" | "dark";
   onTheme?: (theme: "light" | "dark") => void;
   onReset?: () => void;
+  onQuickGoal?: () => void;
 }) {
   const [menu, setMenu] = useState(false);
   const menuRoot = useRef<HTMLDivElement>(null);
@@ -158,6 +173,14 @@ export function AppShell({
           </button>
           <UpdateEntry snapshot={update} onClick={onUpdates} />
           <button
+            className={`nav-item ${page === "feedback" ? "selected" : ""}`}
+            disabled={onboarding}
+            onClick={() => onNavigate("feedback")}
+          >
+            <MessageSquare size={17} />
+            Feedback
+          </button>
+          <button
             className="nav-item theme-toggle"
             onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
             aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
@@ -219,6 +242,11 @@ export function AppShell({
             <strong>{onboarding ? "Welcome" : title.label}</strong>
           </div>
           <span className="version">v{version}</span>
+          {!onboarding && (
+            <button className="outline-button" onClick={onQuickGoal}>
+              Quick goal
+            </button>
+          )}
         </header>
         {children}
       </main>

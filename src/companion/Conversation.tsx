@@ -20,12 +20,18 @@ export function Conversation({
   plan,
   onChanged,
   onState,
+  embedded = false,
+  onMove,
+  onResize,
 }: {
   view: CompanionView;
   goal: Goal | null;
   plan: GoalPlan | null;
   onChanged: () => Promise<void>;
   onState: (state: AvatarState) => void;
+  embedded?: boolean;
+  onMove?: (event: React.PointerEvent<HTMLElement>) => void;
+  onResize?: () => void;
 }) {
   const [text, setText] = useState(view.seed.slice(0, 4000));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -44,38 +50,52 @@ export function Conversation({
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
+  const followLatest = useRef(true);
   useEffect(() => {
-    input.current?.focus();
-    if (desktop)
-      void Promise.all([aiApi.history(), aiApi.preferences()])
-        .then(([history, prefs]) => {
-          setMessages(history);
-          setPreferences(prefs);
-        })
-        .catch((e) => setError(String(e)));
-    let live = true;
+    if (!embedded) input.current?.focus();
+    let active = true;
+    const refresh = () => {
+      if (desktop)
+        void Promise.all([aiApi.history(), aiApi.preferences()])
+          .then(([history, prefs]) => {
+            if (active) {
+              setMessages((previous) =>
+                JSON.stringify(previous) === JSON.stringify(history)
+                  ? previous
+                  : history,
+              );
+              setPreferences(prefs);
+            }
+          })
+          .catch((e) => {
+            if (active) setError(String(e));
+          });
+    };
+    if (!busy) refresh();
+    const id = setInterval(() => {
+      if (!busy) refresh();
+    }, 5000);
     let stop: (() => void) | undefined;
     if (desktop)
       void listen("buddy://chat-updated", () => {
-        void aiApi
-          .history()
-          .then((rows) => {
-            if (live) setMessages(rows);
-          })
-          .catch(() => {});
-      }).then((unlisten) => {
-        if (live) stop = unlisten;
-        else unlisten();
-      });
+        if (!busy) refresh();
+      })
+        .then((unlisten) => {
+          if (active) stop = unlisten;
+          else unlisten();
+        })
+        .catch(() => {});
     return () => {
-      live = false;
+      active = false;
+      clearInterval(id);
       stop?.();
     };
-  }, []);
+  }, [busy, embedded]);
   useEffect(() => {
+    if (embedded) return;
     setText(view.seed.slice(0, 4000));
     setError("");
-  }, [view.seed, view.intent]);
+  }, [view.seed, view.intent, embedded]);
   useEffect(() => {
     let active = true;
     setCoaching(null);
@@ -97,11 +117,12 @@ export function Conversation({
     };
   }, [goal?.id]);
   useEffect(() => {
-    if (scroll.current) scroll.current.scrollTop = scroll.current.scrollHeight;
+    if (scroll.current && followLatest.current)
+      scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages, busy]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
+      if (!embedded && event.key === "Escape") {
         event.preventDefault();
         void api
           .closeChat()
@@ -111,7 +132,7 @@ export function Conversation({
     };
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
-  }, [onChanged]);
+  }, [onChanged, embedded]);
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -130,6 +151,7 @@ export function Conversation({
     onState("thinking");
     await run(async () => {
       await aiApi.send(prefix + text.trim(), attachment?.text ?? null);
+      followLatest.current = true;
       setMessages(await aiApi.history());
       setText("");
       setAttachment(null);
@@ -160,8 +182,11 @@ export function Conversation({
     });
   }
   return (
-    <section className="companion-chat" aria-label="Buddy mini chat">
-      <header>
+    <section
+      className={`companion-chat ${embedded ? "workspace-chat" : ""}`}
+      aria-label={embedded ? "Buddy chat" : "Buddy mini chat"}
+    >
+      <header onPointerDown={onMove}>
         <div>
           <strong>Buddy</strong>
         </div>
@@ -173,21 +198,25 @@ export function Conversation({
         >
           <Trash2 size={15} />
         </button>
-        <button
-          className="text-button"
-          title="Open full app"
-          onClick={() => void run(api.openWorkspace)}
-        >
-          <ArrowUpRight size={15} />
-          Open app
-        </button>
-        <button
-          className="companion-icon"
-          aria-label="Close mini chat"
-          onClick={() => void run(api.closeChat)}
-        >
-          <X size={16} />
-        </button>
+        {!embedded && (
+          <button
+            className="text-button"
+            title="Open full app"
+            onClick={() => void run(api.openWorkspace)}
+          >
+            <ArrowUpRight size={15} />
+            Open app
+          </button>
+        )}
+        {!embedded && (
+          <button
+            className="companion-icon"
+            aria-label="Close mini chat"
+            onClick={() => void run(api.closeChat)}
+          >
+            <X size={16} />
+          </button>
+        )}
       </header>
       {goal && (
         <details className="conversation-context">
@@ -237,6 +266,11 @@ export function Conversation({
       <div
         className="companion-chat-scroll conversation-history"
         ref={scroll}
+        onScroll={(event) => {
+          const node = event.currentTarget;
+          followLatest.current =
+            node.scrollHeight - node.scrollTop - node.clientHeight < 64;
+        }}
         role="log"
         aria-label="Conversation history"
         aria-live="polite"
@@ -498,6 +532,18 @@ export function Conversation({
           </p>
         )}
       </form>
+      {onResize && (
+        <button
+          className="chat-resize-handle text-button"
+          aria-label="Resize Buddy chat"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            onResize();
+          }}
+        >
+          ↘
+        </button>
+      )}
     </section>
   );
 }

@@ -14,6 +14,8 @@ import { Experience } from "./core/Experience";
 import { CoreSettings } from "./core/Settings";
 import { goalEnhancement } from "./ai/api";
 import { CoreOnboarding } from "./core/Onboarding";
+import { WorkspaceOverview } from "./core/WorkspaceOverview";
+import { FeedbackCard } from "./components/FeedbackCard";
 const empty: Dashboard = {
   app_rules: [],
   today: { date: "", apps: [], nudges: 0 },
@@ -56,6 +58,9 @@ export default function App() {
   const [loaded, setLoaded] = useState(!desktop);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [overview, setOverview] = useState(false);
+  const [quickRequest, setQuickRequest] = useState(0);
+  const closeOverview = useCallback(() => setOverview(false), []);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     localStorage.getItem("buddy-theme") === "dark" ? "dark" : "light",
   );
@@ -67,6 +72,10 @@ export default function App() {
     !desktop &&
     new URLSearchParams(location.search).get("preview") === "workspace";
   const onboarding = !settings.onboarding.completed && !preview;
+  useEffect(() => {
+    if (quickRequest && page === "focus" && !onboarding)
+      document.querySelector<HTMLInputElement>(".quick-goal input")?.focus();
+  }, [quickRequest, page, onboarding]);
   useEffect(() => {
     if (!desktop || popup) return;
     let disposed = false;
@@ -190,15 +199,24 @@ export default function App() {
             else setTheme(next);
           }}
           onReset={() => setResetOpen(true)}
+          onQuickGoal={() => {
+            setPage("focus");
+            setQuickRequest((previous) => previous + 1);
+          }}
         >
           {onboarding ? (
             <CoreOnboarding
               initial={settings}
               onChanged={refresh}
               onDirty={setSetupDirty}
+              onComplete={() => {
+                setPage("focus");
+                setOverview(true);
+              }}
             />
           ) : (
             <>
+              {overview && <WorkspaceOverview close={closeOverview} />}
               <div className="page-title">
                 <div>
                   <h1>{title.label}</h1>
@@ -230,8 +248,15 @@ export default function App() {
                   to use. Open Updates to retry.
                 </p>
               )}
-              <div hidden={page === "settings" || page === "profile"}>
+              <div
+                hidden={
+                  page === "settings" ||
+                  page === "profile" ||
+                  page === "feedback"
+                }
+              >
                 <Experience
+                  dashboard={data}
                   enhancement={desktop ? goalEnhancement : undefined}
                   page={page}
                   onDirty={setDraftDirty}
@@ -243,6 +268,7 @@ export default function App() {
                   }
                 />
               </div>
+              {page === "feedback" && <FeedbackCard />}
               <div hidden={page !== "settings" && page !== "profile"}>
                 <CoreSettings
                   data={data}
@@ -252,13 +278,6 @@ export default function App() {
               </div>
               <footer>
                 <span>Your space. Your pace.</span>
-                <button
-                  className="text-button"
-                  disabled={busy || !desktop}
-                  onClick={() => void run(api.quit)}
-                >
-                  Quit Buddy
-                </button>
               </footer>
             </>
           )}

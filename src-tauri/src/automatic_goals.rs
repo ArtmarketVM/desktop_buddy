@@ -85,6 +85,10 @@ impl Storage {
     }
 }
 pub fn sync_focus(inner: &mut Inner) -> Result<(), String> {
+    // Nebius chooses among all open goals. Do not replace its choice with Today ordering.
+    if inner.storage.ai_preferences()?.automatic_goal_matching {
+        return Ok(());
+    }
     let before = inner.storage.goal()?.map(|g| g.id);
     let after = inner.storage.ensure_today_focus()?;
     if before != after {

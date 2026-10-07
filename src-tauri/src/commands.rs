@@ -6,6 +6,7 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub goal_matching: crate::goal_matching::Runtime,
     pub companion: crate::companion::Runtime,
     pub tracking_settings: crate::tracking::TrackingSettings,
     pub activity_state: crate::tracking::StateTracker,
@@ -49,6 +50,7 @@ impl AppState {
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                goal_matching: Default::default(),
                 companion: crate::companion::Runtime::load(&storage)?,
                 tracking_settings: storage.tracking_settings()?,
                 activity_state: Default::default(),
@@ -139,6 +141,7 @@ pub fn get_dashboard(state: State<AppState>) -> Result<Dashboard, String> {
         None
     };
     Ok(Dashboard {
+        goal_matching: inner.goal_matching.view.clone(),
         user_settings: inner.storage.user_settings()?,
         app_rules: goal
             .as_ref()
@@ -210,9 +213,6 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    if enabled && inner.storage.goal()?.is_none() {
-        return Err("Set a goal first".into());
-    }
     if enabled {
         let mut settings = inner.storage.user_settings()?;
         if !settings.onboarding.completed {
@@ -225,6 +225,7 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         .storage
         .write_setting("tracking_requested", &enabled)?;
     inner.status.tracking = enabled;
+    inner.goal_matching.clear();
     inner.status.tracking_error = None;
     if !enabled {
         if let Some(goal) = inner.storage.goal()? {
@@ -331,7 +332,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
     if !inner.status.tracking {
         return Ok(());
     }
-    if let Some(mut goal) = inner.storage.goal()? {
+    {
         let settings = inner.tracking_settings.clone();
         let excluded = inner.buddy.view.preferences.excluded_apps.clone();
         inner.collector.configure(&settings, &excluded);
@@ -361,15 +362,18 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             snapshot.browser =
                 crate::browser::context(&snapshot.process_name, &snapshot.window_title, None);
         }
-        if allowed {
-            let matched = inner.storage.match_activity(&snapshot)?;
-            if let Some(id) = matched
+        let preferences = inner.storage.ai_preferences()?;
+        let matching = preferences.automatic_goal_matching;
+        // Preserve local matching when cloud attribution has not been enabled.
+        if !matching && allowed {
+            if let Some(id) = inner
+                .storage
+                .match_activity(&snapshot)?
                 .goal_id
                 .and_then(|value| value.parse::<i64>().ok())
-                .filter(|id| *id != goal.id)
+                .filter(|id| inner.storage.goal().ok().flatten().map(|goal| goal.id) != Some(*id))
             {
                 inner.storage.transition_goal(id, "resume")?;
-                goal = inner.storage.goal()?.ok_or("The active goal changed")?;
                 inner.usage = Default::default();
                 inner.activity_state.stop(false);
                 inner.privacy_revision += 1;
@@ -377,6 +381,28 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 inner.buddy.clear();
             }
         }
+        if matching && preferences.enabled {
+            inner.goal_matching.observe(
+                &snapshot,
+                allowed && snapshot.idle_seconds < settings.idle_seconds,
+            );
+        } else {
+            inner.goal_matching.clear();
+            if matching {
+                inner.goal_matching.view.enabled = true;
+                inner.goal_matching.view.reason =
+                    Some("Enable AI assistance to match goals. Activity stays unassigned.".into());
+            }
+        }
+        let goal = inner.storage.goal()?;
+        let Some(goal) =
+            goal.filter(|goal| !matching || inner.goal_matching.view.goal_id == Some(goal.id))
+        else {
+            inner.usage = Default::default();
+            inner.activity_state.stop(false);
+            inner.buddy.foreground = None;
+            return Ok(());
+        };
         let revision = inner.activity_state.revision;
         let activity_state = inner
             .activity_state
@@ -390,7 +416,19 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             .usage
             .observe(goal.id, &snapshot, allowed, activity_state)
         {
-            inner.storage.record_interval(goal.id, &interval)?;
+            if matching {
+                let view = &inner.goal_matching.view;
+                let attribution = crate::relevance::ActivityMatch {
+                    goal_id: view.goal_id.map(|id| id.to_string()),
+                    confidence: view.confidence.unwrap_or(0.0),
+                    reason: view.reason.clone().unwrap_or_else(|| "No AI match".into()),
+                };
+                inner
+                    .storage
+                    .record_interval_with_match(goal.id, &interval, Some(attribution))?;
+            } else {
+                inner.storage.record_interval(goal.id, &interval)?;
+            }
         }
         inner.buddy.foreground = Some(snapshot.clone());
         crate::companion::observe(&mut inner, &snapshot, allowed);

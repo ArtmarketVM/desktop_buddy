@@ -64,6 +64,12 @@ export interface Status {
   tavily_configured: boolean;
 }
 export interface Dashboard {
+  goal_matching?: {
+    goal_id: number | null;
+    confidence: number | null;
+    reason: string | null;
+    enabled: boolean;
+  };
   user_settings?: UserSettings;
   app_rules: AppRule[];
   today: Today;

@@ -33,6 +33,8 @@ export const coreApi = {
     invoke<CoreSnapshot>("transition_core_goal", { id, action, confirmed }),
   today: (id: number, include: boolean) =>
     invoke<CoreSnapshot>("set_core_today", { id, include }),
+  reorder: (ids: number[]) =>
+    invoke<CoreSnapshot>("reorder_core_goals", { ids }),
   planDay: (noPlan: boolean) =>
     invoke<CoreSnapshot>("plan_core_day", { noPlan }),
   timer: (id: number | null) => invoke<CoreSnapshot>("set_core_timer", { id }),
@@ -52,11 +54,21 @@ export const coreApi = {
     drafts: GoalDraft[],
     allowTracking: boolean,
     batch: string,
+    email: string | null = null,
+    avatar: AvatarPreferences | null = null,
   ) =>
-    invoke<void>("finish_core_setup", { name, drafts, allowTracking, batch }),
+    invoke<void>("finish_core_setup", {
+      name,
+      drafts,
+      allowTracking,
+      batch,
+      email,
+      avatar,
+    }),
   identity: (
     name: string,
     autostart: boolean,
     avatar: AvatarPreferences | null = null,
-  ) => invoke<void>("save_core_identity", { name, autostart, avatar }),
+    email: string | null = null,
+  ) => invoke<void>("save_core_identity", { name, autostart, avatar, email }),
 };
