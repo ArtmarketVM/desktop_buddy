@@ -112,6 +112,15 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Reject an existing release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            echo 'This version already has a release. Bump the version instead of replacing artifacts.' >&2
+            exit 1
+          fi
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*
@@ -126,6 +135,7 @@ jobs:
           files: release/*
           fail_on_unmatched_files: true
           generate_release_notes: true
+          body: ${{ inputs.publish_windows && 'Updated Windows and Apple Silicon macOS builds with signed in-app updates.' || 'Apple Silicon macOS update with unified goal tracking and AI completion proposals. The existing signed Windows installer and updater channels are retained unchanged in this release.' }}
       - name: Publish only after both signed platform bundles are uploaded
         env:
           GH_TOKEN: ${{ github.token }}
