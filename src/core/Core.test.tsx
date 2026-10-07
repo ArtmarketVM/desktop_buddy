@@ -150,7 +150,14 @@ describe("core daily flow boundaries", () => {
           day: "2026-10-02",
           completed: ["Ship release"],
           goals: [
-            { goal_id: 1, title: "Ship release", area: "Work", seconds: 1800 },
+            {
+              goal_id: 1,
+              title: "Ship release",
+              area: "Work",
+              seconds: 7200,
+              tracked_seconds: 5400,
+              relevant_seconds: 1800,
+            },
           ],
         },
         unfinished: 1,

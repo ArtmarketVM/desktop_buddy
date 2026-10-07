@@ -6,7 +6,7 @@ use crate::{
 use chrono::{DateTime, Duration, Local, NaiveDate, Utc};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
@@ -43,6 +43,8 @@ pub struct CoreGoal {
     pub plan: GoalPlan,
     pub focused_seconds: u64,
     pub tracked_seconds: u64,
+    pub relevant_seconds: u64,
+    pub analysis: crate::automatic_goals::AnalysisView,
     pub due_at: Option<String>,
     pub priority: Option<String>,
     pub description: String,
@@ -91,11 +93,13 @@ pub struct GoalTime {
     pub area: String,
     pub seconds: u64,
     pub tracked_seconds: u64,
+    pub relevant_seconds: u64,
 }
 #[derive(Serialize)]
 pub struct DayProgress {
     pub day: String,
     pub completed: Vec<String>,
+    pub completed_goals: Vec<String>,
     pub goals: Vec<GoalTime>,
 }
 #[derive(Serialize)]
@@ -232,6 +236,7 @@ impl Storage {
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_quick_batches(batch_id TEXT PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL);").map_err(db)?;
         // A manual timer resumes only after an explicit user action on a new app run.
         self.write_setting("core_timer", &Option::<Timer>::None)?;
+        self.initialize_goal_automation()?;
         self.adopt_core_goals()
     }
     fn adopt_core_goals(&self) -> Result<(), String> {
@@ -292,6 +297,8 @@ impl Storage {
             )
             .map_err(db)?;
             let id = tx.last_insert_rowid();
+            tx.execute("INSERT INTO core_goal_analyses(goal_id) VALUES(?1)", [id])
+                .map_err(db)?;
             tx.execute(
                 "INSERT INTO core_goals(goal_id,area_id,state) VALUES(?1,?2,'open')",
                 params![id, area],
@@ -537,6 +544,8 @@ impl Storage {
         )
         .map_err(db)?;
         let id = tx.last_insert_rowid();
+        tx.execute("INSERT INTO core_goal_analyses(goal_id) VALUES(?1)", [id])
+            .map_err(db)?;
         tx.execute("INSERT INTO core_goals(goal_id,area_id,state) VALUES(?1,(SELECT id FROM core_areas WHERE title='General'),'open')", [id]).map_err(db)?;
         tx.execute(
             "INSERT INTO core_quick_batches(batch_id,goal_id) VALUES(?1,?2)",
@@ -644,6 +653,9 @@ impl Storage {
                     area: r.get(2)?,
                     seconds: r.get(3)?,
                     tracked_seconds: r.get(4)?,
+                    relevant_seconds: self
+                        .relevant_seconds(r.get(0)?, Some(date))
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
                 })
             })
             .map_err(db)?
@@ -651,6 +663,7 @@ impl Storage {
             .map_err(db)?;
         Ok(DayProgress {
             day: date.into(),
+            completed_goals:self.connection.prepare("SELECT e.title FROM core_events e WHERE e.day=?1 AND e.step_id='goal' AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id='goal' AND x.day=e.day)").map_err(db)?.query_map([date],|r|r.get(0)).map_err(db)?.collect::<Result<Vec<_>,_>>().map_err(db)?,
             completed,
             goals,
         })
@@ -714,6 +727,8 @@ impl Storage {
                         status,
                         area_id,
                         plan: self.goal_plan(id)?,
+                        relevant_seconds: self.relevant_seconds(id,None)?,
+                        analysis: self.goal_analysis_view(id)?,
                         focused_seconds,
                         tracked_seconds: self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0)/1000 FROM usage_daily WHERE goal_id=?1", [id], |r| r.get(0)).map_err(db)?,
                         due_at,
@@ -856,6 +871,7 @@ fn mutate(
         .map_err(|_| "Application state unavailable")?;
     let focus = inner.storage.goal()?.map(|g| g.id);
     work(&mut inner.storage)?;
+    inner.storage.ensure_today_focus()?;
     if focus != inner.storage.goal()?.map(|g| g.id) {
         inner.status.tracking = crate::tracking::requested(&inner.storage)?;
         inner.collector = crate::collector::create(inner.status.demo);
@@ -935,7 +951,28 @@ pub fn transition_core_goal(
     if matches!(action.as_str(), "delete" | "complete") && !confirmed {
         return Err("Confirm this goal action first".into());
     }
-    mutate(&state, &app, |s| s.core_transition(id, &action))
+    let mut newly_completed = false;
+    let snapshot = mutate(&state, &app, |s| {
+        let completed: bool = s
+            .connection
+            .query_row(
+                "SELECT status='completed' FROM goals WHERE id=?1",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(|_| "Goal no longer exists")?;
+        s.core_transition(id, &action)?;
+        newly_completed = action == "complete" && !completed;
+        Ok(())
+    })?;
+    if newly_completed {
+        if let Some(goal) = snapshot.goals.iter().find(|g| g.id == id) {
+            let payload = serde_json::json!({"goalId":id.to_string(),"completedAt":goal.completed_at,"activeMinutes":goal.relevant_seconds as f64 / 60.});
+            let _ = app.emit("buddy://goal-completed", &payload);
+            crate::companion::emit(&app, "goal.completed", payload);
+        }
+    }
+    Ok(snapshot)
 }
 #[tauri::command(async)]
 pub fn set_core_today(

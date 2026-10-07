@@ -10,9 +10,9 @@ export interface AiPreferences {
   web_research: boolean;
 }
 export const defaultAiPreferences: AiPreferences = {
-  enabled: false,
-  share_goal_context: false,
-  web_research: false,
+  enabled: true,
+  share_goal_context: true,
+  web_research: true,
 };
 export interface ChatResource {
   title: string;
@@ -29,6 +29,7 @@ export interface ChatMessage {
 }
 export interface CoachingInsight {
   observed_active_minutes: number;
+  relevant_active_minutes: number;
   user_expected_minutes: number | null;
   over_expected: boolean;
   measurement_note: string;
@@ -43,6 +44,7 @@ export interface ActivitySegment {
   endedAt: string;
   durationSeconds: number;
   state: string;
+  activityMatch: { goalId: string | null; confidence: number; reason?: string };
 }
 export const aiApi = {
   preferences: () => invoke<AiPreferences>("get_ai_preferences"),
@@ -55,10 +57,14 @@ export const aiApi = {
     }),
   history: () => invoke<ChatMessage[]>("get_buddy_chat_history"),
   clearHistory: () => invoke<void>("clear_buddy_chat", { confirmed: true }),
-  send: (text: string, attachmentText: string | null) =>
+  send: (
+    text: string,
+    attachmentText: string | null,
+    goalId: number | null = null,
+  ) =>
     invoke<{ message: string; resources: ChatResource[] }>(
       "send_buddy_message",
-      { text, attachmentText },
+      { text, attachmentText, goalId },
     ),
   resourceOpened: (goalId: number | null, url: string) =>
     invoke<void>("record_resource_view", { goalId, url }),

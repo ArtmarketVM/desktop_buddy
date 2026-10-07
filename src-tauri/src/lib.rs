@@ -1,5 +1,6 @@
 mod ai_chat;
 mod attention;
+mod automatic_goals;
 mod autostart;
 mod browser;
 mod buddy;
@@ -23,6 +24,7 @@ mod privacy;
 mod product_feedback;
 mod profile;
 mod recommendations;
+mod relevance;
 mod signing_trust;
 mod startup;
 mod storage;
@@ -114,6 +116,9 @@ pub fn run() {
                     ticker.tick().await;
                     let state = handle.state::<commands::AppState>();
                     if let Ok(mut inner) = state.inner.lock() {
+                        if let Err(error) = automatic_goals::sync_focus(&mut inner) {
+                            inner.last_error = Some(error);
+                        }
                         if let Err(error) = inner.storage.core_tick_at(chrono::Utc::now()) {
                             inner.last_error = Some(error);
                         }
@@ -149,6 +154,12 @@ pub fn run() {
                                         Some(format!("Suggestion unavailable: {error}"));
                                 }
                             }
+                        });
+                    }
+                    {
+                        let app = handle.clone();
+                        tauri::async_runtime::spawn(async move {
+                            automatic_goals::run_pending(&app).await;
                         });
                     }
                     if commands::should_analyze(&state) {
@@ -230,6 +241,9 @@ pub fn run() {
             goal_analysis::get_ai_preferences,
             goal_analysis::set_ai_preferences,
             goal_analysis::analyze_core_goal,
+            automatic_goals::retry_core_goal_analysis,
+            automatic_goals::select_core_goal,
+            relevance::get_goal_progress,
             ai_chat::get_buddy_chat_history,
             ai_chat::clear_buddy_chat,
             ai_chat::send_buddy_message,

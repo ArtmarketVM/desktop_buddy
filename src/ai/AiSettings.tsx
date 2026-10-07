@@ -32,9 +32,9 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
         <span>
           Allow Buddy AI assistance
           <small>
-            Send requests, conversation history and attachments you choose to
-            Nebius. Goal suggestions stay separate until you accept them.
-            Provider charges may apply.
+            Automatically analyze new goals; send requests, conversation history
+            and attachments you choose to Nebius. Goal suggestions stay separate
+            until you accept them. Provider charges may apply.
           </small>
         </span>
         <input
@@ -46,10 +46,11 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
       </label>
       <label className="toggle-row">
         <span>
-          Include the selected goal in Buddy chat
+          Include Today goals in Buddy chat
           <small>
-            Share its title, steps, deadline and local activity totals. Your
-            profile, screen contents and window titles are excluded.
+            Share their titles, steps, deadlines and relevant activity totals
+            and app names. Your profile, screen contents and window titles are
+            excluded.
           </small>
         </span>
         <input

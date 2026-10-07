@@ -12,11 +12,17 @@ export interface CoreGoal {
   plan: GoalPlan;
   focused_seconds: number;
   tracked_seconds?: number;
+  relevant_seconds?: number;
   due_at?: string | null;
   priority?: "low" | "medium" | "high" | null;
   description?: string;
   created_at?: string;
   completed_at?: string | null;
+  analysis?: {
+    state: "" | "queued" | "working" | "ready" | "failed";
+    result: import("./analysis").GoalAnalysisResult | null;
+    message: string | null;
+  };
 }
 export interface GoalDetails {
   due_at: string | null;
@@ -34,10 +40,12 @@ export interface GoalTime {
   area: string;
   seconds: number;
   tracked_seconds?: number;
+  relevant_seconds?: number;
 }
 export interface DayProgress {
   day: string;
   completed: string[];
+  completed_goals?: string[];
   goals: GoalTime[];
 }
 export interface CoreSnapshot {

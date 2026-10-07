@@ -22,14 +22,26 @@ pub struct ActivitySegment {
     pub ended_at: String,
     pub duration_seconds: f64,
     pub state: String,
+    pub activity_match: crate::relevance::ActivityMatch,
 }
 impl Storage {
     pub fn activity_segments(&self, goal_id: Option<i64>) -> Result<Vec<ActivitySegment>, String> {
-        let mut query = self.connection.prepare("SELECT goal_id,process_name,COALESCE(page_title,window_title),domain,started_at,ended_at,milliseconds,state FROM usage_intervals WHERE (?1 IS NULL OR goal_id=?1) ORDER BY id DESC LIMIT 500").map_err(|e|e.to_string())?;
+        let mut query = self.connection.prepare("SELECT goal_id,process_name,COALESCE(page_title,window_title),domain,started_at,ended_at,milliseconds,state,match_confidence,match_reason FROM usage_intervals WHERE (?1 IS NULL OR goal_id=?1) ORDER BY id DESC LIMIT 500").map_err(|e|e.to_string())?;
         let rows = query
             .query_map([goal_id], |r| {
                 Ok(ActivitySegment {
                     goal_id: r.get::<_, i64>(0)?.to_string(),
+                    activity_match: crate::relevance::ActivityMatch {
+                        goal_id: if r.get::<_, f64>(8)? >= crate::relevance::THRESHOLD {
+                            Some(r.get::<_, i64>(0)?.to_string())
+                        } else {
+                            None
+                        },
+                        confidence: r.get(8)?,
+                        reason: r
+                            .get::<_, Option<String>>(9)?
+                            .unwrap_or_else(|| "No relevance evidence recorded".into()),
+                    },
                     app: r.get(1)?,
                     title: r.get(2)?,
                     domain: r.get(3)?,
@@ -150,6 +162,20 @@ impl Storage {
                 )
                 .map_err(|e| e.to_string())?;
         }
+        for (name, declaration) in [
+            ("match_confidence", "REAL NOT NULL DEFAULT 0"),
+            ("match_reason", "TEXT"),
+        ] {
+            if !columns.iter().any(|c| c == name) {
+                self.connection
+                    .execute(
+                        &format!("ALTER TABLE usage_intervals ADD COLUMN {name} {declaration}"),
+                        [],
+                    )
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+        self.connection.execute_batch("CREATE TABLE IF NOT EXISTS goal_relevant_daily(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,process_name TEXT NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id,process_name));").map_err(|e|e.to_string())?;
         Ok(())
     }
     pub fn tracking_event(
@@ -190,6 +216,9 @@ impl Storage {
             .browser
             .as_ref()
             .map(|b| b.page_title.chars().take(160).collect::<String>());
+        let matched = self.match_activity(&interval.activity)?;
+        let relevant = interval.state == ActivityState::Focused
+            && matched.goal_id.as_deref() == Some(goal.to_string().as_str());
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         // Intervals are strictly disjoint per goal. Reject retries and overlap
         // rather than inflating the daily or historical totals.
@@ -198,10 +227,10 @@ impl Storage {
         if overlaps {
             return Err("Overlapping usage interval rejected".into());
         }
-        tx.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,domain,page_title,state,category,media_playing,window_title) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)",
+        tx.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,domain,page_title,state,category,media_playing,window_title,match_confidence,match_reason) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
             params![goal, interval.start.to_rfc3339(), interval.end.to_rfc3339(), duration, process, domain, title,
                 serde_json::to_string(&interval.state).map_err(|e| e.to_string())?,
-                category.map(|c| serde_json::to_string(&c)).transpose().map_err(|e| e.to_string())?, interval.activity.media_playing, crate::browser::minimize_title(&interval.activity.window_title)]).map_err(|e| e.to_string())?;
+                category.map(|c| serde_json::to_string(&c)).transpose().map_err(|e| e.to_string())?, interval.activity.media_playing, crate::browser::minimize_title(&interval.activity.window_title),if relevant {matched.confidence} else {0.0},matched.reason]).map_err(|e| e.to_string())?;
         if interval.state != ActivityState::Paused {
             let mut cursor = interval.start.timestamp_millis();
             while cursor < interval.end.timestamp_millis() {
@@ -214,6 +243,9 @@ impl Storage {
                     .to_string();
                 tx.execute("INSERT INTO usage_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,process_name) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",
                     params![day,goal,process,next-cursor]).map_err(|e| e.to_string())?;
+                if relevant {
+                    tx.execute("INSERT INTO goal_relevant_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,process_name) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,process,next-cursor]).map_err(|e|e.to_string())?;
+                }
                 cursor = next;
             }
         }

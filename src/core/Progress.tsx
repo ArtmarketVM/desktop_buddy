@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ActivityTimeline } from "./Timeline";
 import { Check, ChevronLeft, ChevronRight, Clock3 } from "lucide-react";
 import {
   dateLabel,
@@ -14,10 +15,14 @@ export function DaySummary({
   day: DayProgress;
   unfinished?: number;
 }) {
-  const seconds = day.goals.reduce((sum, goal) => sum + goal.seconds, 0);
+  const completed = day.completed_goals ?? day.completed;
+  const seconds = day.goals.reduce(
+    (sum, goal) => sum + (goal.relevant_seconds ?? 0),
+    0,
+  );
   const areas = Object.entries(
     day.goals.reduce<Record<string, number>>((times, goal) => {
-      times[goal.area] = (times[goal.area] ?? 0) + goal.seconds;
+      times[goal.area] = (times[goal.area] ?? 0) + (goal.relevant_seconds ?? 0);
       return times;
     }, {}),
   );
@@ -29,31 +34,36 @@ export function DaySummary({
       <div>
         <h2>Here's what moved forward today</h2>
         <p>
-          {day.completed.length
-            ? `You wrapped up ${day.completed.length} ${day.completed.length === 1 ? "thing" : "things"}.`
+          {completed.length
+            ? `You wrapped up ${completed.length} ${completed.length === 1 ? "goal" : "goals"}.`
             : seconds
               ? "You made a little space for focused work."
               : "A quieter day counts, too."}
-          {seconds > 0 ? ` ${duration(seconds)} of focused time.` : ""}
+          {seconds > 0 ? ` ${duration(seconds)} of relevant activity.` : ""}
         </p>
-        {day.completed.length > 0 && (
+        {completed.length > 0 && (
           <ul>
-            {day.completed.map((item, i) => (
+            {completed.map((item, i) => (
               <li key={`${i}-${item}`}>{item}</li>
             ))}
           </ul>
         )}
         {areas.length > 0 && (
           <div className="summary-areas">
-            {areas.map(([area, time]) => (
-              <span key={area}>
-                {area} · {duration(time)}
-              </span>
-            ))}
+            {areas
+              .filter(([, time]) => time > 0)
+              .map(([area, time]) => (
+                <span key={area}>
+                  {area} · {duration(time)}
+                </span>
+              ))}
           </div>
         )}
         {unfinished > 0 && (
-          <p className="helper">Pick up the rest tomorrow if you want.</p>
+          <p className="helper">
+            {unfinished} {unfinished === 1 ? "goal is" : "goals are"} still
+            open. Pick up the rest tomorrow if you want.
+          </p>
         )}
       </div>
     </section>
@@ -75,6 +85,7 @@ export function Progress({
     snapshot.week.find((day) => day.day === selected) ??
     snapshot.week[0] ??
     snapshot.summary;
+  const completedGoals = day.completed_goals ?? day.completed;
   const newest = anchor ?? snapshot.date;
   return (
     <section
@@ -139,23 +150,37 @@ export function Progress({
           >
             <span>{dateLabel(item.day)}</span>
             <strong>
-              {duration(item.goals.reduce((sum, g) => sum + g.seconds, 0))}
+              {duration(
+                item.goals.reduce(
+                  (sum, g) => sum + (g.relevant_seconds ?? 0),
+                  0,
+                ),
+              )}
             </strong>
-            <small>{item.completed.length} completed</small>
+            <small>
+              {(item.completed_goals ?? item.completed).length} goals completed
+            </small>
           </button>
         ))}
       </div>
       <h3 className="progress-date">{dateLabel(day.day)}</h3>
       {day.day === snapshot.date ? (
-        <DaySummary day={day} />
+        <DaySummary
+          day={day}
+          unfinished={
+            snapshot.goals.filter(
+              (g) => g.status === "open" && snapshot.today.includes(g.id),
+            ).length
+          }
+        />
       ) : (
         <div className="past-summary">
           <h3>
-            {day.completed.length
-              ? `You wrapped up ${day.completed.length} things.`
+            {completedGoals.length
+              ? `You wrapped up ${completedGoals.length} goals.`
               : "Room for a fresh start."}
           </h3>
-          {day.completed.map((item, i) => (
+          {completedGoals.map((item, i) => (
             <p key={`${i}-${item}`}>
               <Check size={14} />
               {item}
@@ -173,7 +198,7 @@ export function Progress({
               </div>
               <span>
                 <Clock3 size={14} />
-                {duration(goal.seconds)}
+                {duration(goal.relevant_seconds ?? 0)}
                 {(goal.tracked_seconds ?? 0) > 0 && (
                   <small>
                     {duration(goal.tracked_seconds!)} observed activity
@@ -184,10 +209,12 @@ export function Progress({
           ))}
         </ul>
       )}
+      <ActivityTimeline day={day.day} />
       <p className="helper">
-        Focus time comes from the timer you start. App downtime and sleep are
-        skipped; screen tracking is not required. Observed activity is shown
-        separately and is not added to timer time.
+        Relevant time uses sufficiently matched window or page titles and apps
+        you explicitly mark as work for a goal. Idle periods, sleep and excluded
+        apps are skipped. Unclassified activity is shown separately; it does not
+        prove task completion.
       </p>
     </section>
   );

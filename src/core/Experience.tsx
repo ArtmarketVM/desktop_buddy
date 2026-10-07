@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pause } from "lucide-react";
+import { Plus } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { api, desktop } from "../api/tauri";
 import type { WorkspacePage } from "../components/AppShell";
@@ -85,19 +85,24 @@ export function Experience({
       }
     };
     void poll();
-    let stop: (() => void) | undefined;
+    const stops: Array<() => void> = [];
     if (desktop)
-      void listen("buddy://drafts-updated", () => void poll())
-        .then((unlisten) => {
-          if (live) stop = unlisten;
-          else unlisten();
-        })
-        .catch(() => {});
-    const id = setInterval(() => void poll(), 15000);
+      for (const name of [
+        "buddy://drafts-updated",
+        "buddy://goal-analysis",
+        "buddy://goal-completed",
+      ])
+        void listen(name, () => void poll())
+          .then((unlisten) => {
+            if (live) stops.push(unlisten);
+            else unlisten();
+          })
+          .catch(() => {});
+    const id = setInterval(() => void poll(), 5000);
     return () => {
       live = false;
       clearInterval(id);
-      stop?.();
+      stops.forEach((stop) => stop());
     };
   }, [snapshotAnchor, revision]);
   useEffect(() => {
@@ -123,12 +128,12 @@ export function Experience({
     snapshot.today.includes(goal.id),
   );
   const focusedSeconds = snapshot.summary.goals.reduce(
-    (sum, goal) => sum + goal.seconds,
+    (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
   );
   const movement =
     snapshot.preferences.movement_reminders &&
-    !!snapshot.timer &&
+    snapshot.focused_goal_id !== null &&
     Math.floor(focusedSeconds / 2700) > movementDismissed;
   return (
     <div className="core-workspace">
@@ -318,16 +323,11 @@ export function Experience({
                 </button>
               </div>
             )}
-            {snapshot.timer && (
-              <button
-                className="text-button"
-                disabled={busy || !desktop}
-                onClick={() => void run(() => coreApi.timer(null))}
-              >
-                <Pause size={14} />
-                Pause focus timer
-              </button>
-            )}
+            <p className="helper">
+              Activity tracking follows your Today goals automatically when
+              tracking consent is enabled. Only relevant activity counts toward
+              progress. Pause it in Settings whenever you want.
+            </p>
           </section>
           <button
             className="text-button"

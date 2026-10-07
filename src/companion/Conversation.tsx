@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import "./conversation.css";
 import { ArrowUpRight, Mic, Paperclip, Send, Trash2, X } from "lucide-react";
@@ -52,6 +53,24 @@ export function Conversation({
           setPreferences(prefs);
         })
         .catch((e) => setError(String(e)));
+    let live = true;
+    let stop: (() => void) | undefined;
+    if (desktop)
+      void listen("buddy://chat-updated", () => {
+        void aiApi
+          .history()
+          .then((rows) => {
+            if (live) setMessages(rows);
+          })
+          .catch(() => {});
+      }).then((unlisten) => {
+        if (live) stop = unlisten;
+        else unlisten();
+      });
+    return () => {
+      live = false;
+      stop?.();
+    };
   }, []);
   useEffect(() => {
     setText(view.seed.slice(0, 4000));
@@ -180,7 +199,7 @@ export function Conversation({
           </p>
           {coaching && (
             <p>
-              {coaching.observed_active_minutes}m observed activity
+              {coaching.relevant_active_minutes}m relevant activity
               {coaching.user_expected_minutes
                 ? ` · ${coaching.user_expected_minutes}m expected`
                 : ""}
@@ -319,6 +338,16 @@ export function Conversation({
       {(error || view.notice) && (
         <p className="companion-error" role="alert">
           {error || view.notice}
+          {error && text.trim() && (
+            <button
+              type="button"
+              className="text-button"
+              disabled={busy || !desktop}
+              onClick={() => void submit()}
+            >
+              Retry message
+            </button>
+          )}
         </p>
       )}
       <form

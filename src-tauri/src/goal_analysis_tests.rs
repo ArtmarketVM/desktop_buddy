@@ -25,12 +25,12 @@ fn sources() -> Vec<SearchResult> {
     }]
 }
 fn answer() -> Value {
-    json!({"result":{"improvedTitle":"Renew my passport after confirming jurisdiction","estimatedDuration":"six weeks","difficulty":"medium","suggestedSteps":[{"title":"Check required documents","sourceUrl":"https://example.gov/workflow"}],"warnings":[{"title":"Prepare documents","detail":"Check the official workflow before applying.","sourceUrl":"https://example.gov/workflow"}],"resources":[{"title":"Official workflow","url":"https://example.gov/workflow","whyRelevant":"Check the required documents and order of application steps."}]},"durationEvidence":"Allow at least six weeks","difficultyEvidence":null})
+    json!({"result":{"improvedTitle":"Renew my passport after confirming jurisdiction","estimatedDuration":"six weeks","difficulty":"medium","suggestedSteps":[{"title":"Check required documents","sourceUrl":"https://example.gov/workflow"},{"title":"Prepare the application","sourceUrl":null},{"title":"Review and submit the application","sourceUrl":null}],"warnings":[{"title":"Prepare documents","detail":"Check the official workflow before applying.","sourceUrl":"https://example.gov/workflow"}],"resources":[{"title":"Official workflow","url":"https://example.gov/workflow","whyRelevant":"Check the required documents and order of application steps."}]},"durationEvidence":"Allow at least six weeks","difficultyEvidence":null})
 }
 #[test]
 fn validates_context_and_does_not_invent_sources_or_precise_estimates() {
     let result = parse_analysis(&response(answer()), &input(), &sources(), "procedural").unwrap();
-    assert_eq!(result.estimated_duration.as_deref(), Some("six weeks"));
+    assert_eq!(result.estimated_duration.as_deref(), None);
     assert_eq!(result.difficulty.as_deref(), Some("unknown"));
     let mut invalid = answer();
     invalid["durationEvidence"] = json!("Based on similar tasks");
@@ -149,8 +149,109 @@ fn revoked_consent_or_context_change_discards_results() {
     let inner = state.inner.lock().unwrap();
     inner
         .storage
-        .write_setting("ai_assistance_preferences", &AiPreferences::default())
+        .write_setting(
+            "ai_assistance_preferences",
+            &AiPreferences {
+                enabled: false,
+                ..Default::default()
+            },
+        )
         .unwrap();
     drop(inner);
     assert!(ensure_revision(&state, 1).is_err());
+}
+
+#[test]
+fn new_ai_defaults_are_enabled_but_explicit_opt_out_survives() {
+    let storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    let defaults = storage.ai_preferences().unwrap();
+    assert!(defaults.enabled && defaults.share_goal_context && defaults.web_research);
+    storage
+        .write_setting(
+            "ai_assistance_preferences",
+            &AiPreferences {
+                enabled: false,
+                share_goal_context: false,
+                web_research: false,
+            },
+        )
+        .unwrap();
+    assert!(!storage.ai_preferences().unwrap().enabled);
+}
+#[test]
+fn duration_is_omitted_without_a_grounded_range() {
+    let mut context = input();
+    context.description = Some("Allow 2–4 hours for preparation.".into());
+    let mut value = answer();
+    value["result"]["estimatedDuration"] = json!("2–4 hours");
+    value["durationEvidence"] = json!("Allow 2–4 hours for preparation.");
+    assert_eq!(
+        parse_analysis(&response(value.clone()), &context, &sources(), "procedural")
+            .unwrap()
+            .estimated_duration
+            .as_deref(),
+        Some("2–4 hours")
+    );
+    value["durationEvidence"] = json!("Guessing 2–4 hours is enough.");
+    assert!(
+        parse_analysis(&response(value), &context, &sources(), "procedural")
+            .unwrap()
+            .estimated_duration
+            .is_none()
+    );
+}
+#[test]
+fn user_errors_never_echo_provider_diagnostics_or_credentials() {
+    for error in [
+        "HTTP 401: test-secret",
+        "Invalid chat fields: private message",
+        "HTTP 429: confidential",
+        "NEBIUS_API_KEY=test-secret",
+    ] {
+        let message = user_error("test", error);
+        assert!(
+            !message.contains("test-secret")
+                && !message.contains("HTTP")
+                && !message.contains("private message")
+                && !message.contains("Invalid chat fields")
+        );
+    }
+}
+
+#[tokio::test]
+async fn invalid_structured_answers_get_one_bounded_repair_without_changing_context() {
+    let server = MockServer::start().await;
+    let counter = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let captured = counter.clone();
+    Mock::given(method("POST")).respond_with(move |_: &wiremock::Request| {
+        let invalid=captured.fetch_add(1,std::sync::atomic::Ordering::SeqCst)==0;
+        ResponseTemplate::new(200).set_body_json(response(json!({"message":if invalid { "" } else { "Choose the next small step." },"resources":[]})))
+    }).expect(2).mount(&server).await;
+    let client = reqwest::Client::new();
+    let service = Service {
+        client: &client,
+        endpoint: server.uri(),
+        key: "test-key".into(),
+        model: "test-model".into(),
+    };
+    let result = service
+        .request_validated(
+            "Answer concisely",
+            json!({"request":"Help me"}),
+            "test_chat",
+            json!({"type":"object"}),
+            |value| crate::ai_chat::parse_chat(value, &[]),
+        )
+        .await
+        .unwrap();
+    assert_eq!(result.message, "Choose the next small step.");
+    let requests = server.received_requests().await.unwrap();
+    let before: Value = serde_json::from_slice(&requests[0].body).unwrap();
+    let after: Value = serde_json::from_slice(&requests[1].body).unwrap();
+    assert_eq!(before["messages"][1], after["messages"][1]);
+    assert!(!after.to_string().contains("test-key"));
+    assert!(after["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .contains("failed validation"));
 }

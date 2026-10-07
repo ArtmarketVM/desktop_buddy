@@ -98,17 +98,17 @@ pub fn scheduled_slot(
     if uptime_seconds < preferences.morning_delay_minutes as u64 * 60 {
         return None;
     }
-    if preferences.daily_checkins && !has_goal {
+    if preferences.daily_checkins && (17 * 60..19 * 60).contains(&minute) {
+        Some((
+            "evening",
+            Kind::EndOfDay,
+            "Ready for a quiet wrap-up? Leave unfinished work for tomorrow if you want.",
+        ))
+    } else if preferences.daily_checkins && !has_goal && minute < 12 * 60 {
         Some((
             "morning",
             Kind::NoGoals,
             "Want to make a small plan for today?",
-        ))
-    } else if preferences.daily_checkins && has_goal && (17 * 60..19 * 60).contains(&minute) {
-        Some((
-            "evening",
-            Kind::EndOfDay,
-            "Ready for a quick wrap-up? Confirm progress or leave unfinished work for tomorrow.",
         ))
     } else if preferences.daily_checkins
         && has_goal
@@ -143,6 +143,11 @@ pub struct Memory {
     pub slots: Vec<String>,
     pub last_progress: i64,
     pub progress_key: String,
+    pub accepted: u32,
+    pub rejected: u32,
+    pub completion_samples: u32,
+    pub completion_rate: f64,
+    pub average_completion_seconds: u64,
 }
 impl Memory {
     pub fn refresh(&mut self, day: &str) {
@@ -151,6 +156,20 @@ impl Memory {
             self.shown = 0;
             self.slots.clear();
         }
+    }
+    pub fn cooldown_seconds(&self, preferences: &Preferences) -> i64 {
+        let extra = self.rejected.saturating_sub(self.accepted).min(8) * 15
+            + if self.completion_samples >= 3 && self.completion_rate < 0.25 {
+                30
+            } else {
+                0
+            }
+            + if self.completion_samples >= 3 && self.average_completion_seconds > 3 * 3600 {
+                30
+            } else {
+                0
+            };
+        preferences.cooldown_minutes.saturating_add(extra).min(240) as i64 * 60
     }
     pub fn allowed(
         &self,
@@ -164,10 +183,9 @@ impl Memory {
             && !preferences.quiet(minute)
             && self.shown < 3
             && (self.last_prompt == 0
-                || now.saturating_sub(self.last_prompt) >= preferences.cooldown_minutes as i64 * 60)
+                || now.saturating_sub(self.last_prompt) >= self.cooldown_seconds(preferences))
             && (self.last_dismissed == 0
-                || now.saturating_sub(self.last_dismissed)
-                    >= preferences.cooldown_minutes as i64 * 60)
+                || now.saturating_sub(self.last_dismissed) >= self.cooldown_seconds(preferences))
     }
     pub fn reserve(&mut self, prompt: &Intervention, now: i64) -> bool {
         if self.seen.contains(&prompt.id) {
@@ -319,6 +337,25 @@ mod tests {
                 .unwrap()
                 .1,
             Kind::Movement
+        );
+    }
+    #[test]
+    fn feedback_and_completion_history_adjust_cooldown_without_exceeding_user_bounds() {
+        let p = Preferences::default();
+        let mut m = Memory::default();
+        assert_eq!(m.cooldown_seconds(&p), 3600);
+        m.rejected = 8;
+        m.completion_samples = 10;
+        m.completion_rate = 0.1;
+        m.average_completion_seconds = 4 * 3600;
+        assert_eq!(m.cooldown_seconds(&p), 240 * 60);
+        m.accepted = 8;
+        m.completion_rate = 0.9;
+        m.average_completion_seconds = 600;
+        assert_eq!(m.cooldown_seconds(&p), 3600);
+        assert_eq!(
+            scheduled_slot(&p, false, 18 * 60, 3600, 0, 0).unwrap().1,
+            Kind::EndOfDay
         );
     }
 }

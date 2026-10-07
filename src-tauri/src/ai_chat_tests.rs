@@ -137,6 +137,10 @@ fn observed_time_reaches_progress_without_double_counting_timer_and_drives_stuck
     assert_eq!(progress.seconds, 60);
     assert_eq!(progress.tracked_seconds, 180);
     assert_eq!(snapshot.goals[0].tracked_seconds, 180);
+    assert!(!storage.coaching_context(id).unwrap()["over_expected"]
+        .as_bool()
+        .unwrap());
+    storage.connection.execute("INSERT INTO goal_relevant_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,'editor.exe',180000)",params![day,id]).unwrap();
     assert!(storage.coaching_context(id).unwrap()["over_expected"]
         .as_bool()
         .unwrap());
@@ -152,7 +156,7 @@ fn tracking_requires_both_persistent_request_and_consent_and_keeps_pause_after_g
     settings.onboarding.completed = true;
     settings.onboarding.tracking_consent = true;
     storage.write_setting("user_settings", &settings).unwrap();
-    assert!(!crate::tracking::requested(&storage).unwrap());
+    assert!(crate::tracking::requested(&storage).unwrap());
     storage.write_setting("tracking_requested", &true).unwrap();
     assert!(crate::tracking::requested(&storage).unwrap());
     storage.transition_goal(second, "resume").unwrap();
@@ -164,4 +168,94 @@ fn tracking_requires_both_persistent_request_and_consent_and_keeps_pause_after_g
     settings.onboarding.tracking_consent = false;
     storage.write_setting("user_settings", &settings).unwrap();
     assert!(!crate::tracking::requested(&storage).unwrap());
+}
+
+#[tokio::test]
+#[ignore = "Uses configured Nebius/Tavily accounts with synthetic data; provider charges may apply"]
+async fn live_ai_goal_and_chat_smoke() {
+    std::env::set_var("BUDDY_LIVE_DIAGNOSTICS", "true");
+    let _ = dotenvy::from_path(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.env"));
+    let mut storage = store();
+    let id = goal(
+        &mut storage,
+        "Create a Tauri desktop onboarding flow",
+        "live-smoke",
+    );
+    storage.ensure_today_focus().unwrap();
+    let state = AppState::new(storage).unwrap();
+    {
+        let mut inner = state.inner.lock().unwrap();
+        inner.status.mock_ai = false;
+    }
+    let input = {
+        let inner = state.inner.lock().unwrap();
+        crate::automatic_goals::input(
+            inner
+                .storage
+                .core_snapshot(None)
+                .unwrap()
+                .goals
+                .iter()
+                .find(|g| g.id == id)
+                .unwrap(),
+        )
+    };
+    let result = crate::goal_analysis::analyze_goal(input, true, &state)
+        .await
+        .map_err(|e| {
+            eprintln!(
+                "Live goal failure category: {}",
+                if e.contains("incomplete") {
+                    "incomplete"
+                } else if e.contains("goal suggestions") {
+                    "suggestion_schema"
+                } else if e.contains("invalid goal suggestion fields") {
+                    "suggestion_bounds"
+                } else if e.contains("classification") {
+                    "classifier"
+                } else {
+                    "other"
+                }
+            );
+            crate::goal_analysis::user_error("live_analysis", &e)
+        })
+        .unwrap();
+    assert!(
+        (3..=5).contains(&result.suggested_steps.len()),
+        "Live goal suggestions did not contain 3–5 steps"
+    );
+    assert!(
+        result.improved_title.is_some(),
+        "Live title suggestion missing"
+    );
+    assert!(
+        !result.resources.is_empty(),
+        "No grounded web sources returned"
+    );
+    let reply = send_message(
+        "Help me start the first onboarding step".into(),
+        None,
+        None,
+        &state,
+    )
+    .await
+    .map_err(|e| crate::goal_analysis::user_error("live_chat", &e))
+    .unwrap();
+    assert!(!reply.message.trim().is_empty());
+    assert_eq!(
+        state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .chat_history()
+            .unwrap()
+            .len(),
+        2
+    );
+    println!(
+        "Live synthetic smoke passed: title, {} steps, {} grounded sources, persistent chat",
+        result.suggested_steps.len(),
+        result.resources.len()
+    );
 }

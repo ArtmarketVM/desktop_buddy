@@ -253,6 +253,14 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     {
         return Ok(());
     }
+    let (total, completed, average): (u32,u32,f64) = inner.storage.connection.query_row("SELECT COUNT(*),COALESCE(SUM(status='completed'),0),COALESCE(AVG(CASE WHEN status='completed' THEN MAX(0,(julianday(completed_at)-julianday(created_at))*86400) END),0) FROM (SELECT status,created_at,completed_at FROM goals ORDER BY id DESC LIMIT 30)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| "Nudge history unavailable")?;
+    inner.companion.memory.completion_samples = total;
+    inner.companion.memory.completion_rate = if total > 0 {
+        completed as f64 / total as f64
+    } else {
+        0.
+    };
+    inner.companion.memory.average_completion_seconds = average as u64;
     let preferences = &inner.companion.view.preferences;
     let goal_age = goal
         .as_ref()
@@ -288,8 +296,35 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
             let prompt = Intervention {
                 id: fingerprint(&format!("{day}:{slot}")),
                 kind: kind.clone(),
-                text: if kind == Kind::Midday {
-                    "What is getting in the way? Buddy can help choose a small next step.".into()
+                text: if kind == Kind::EndOfDay {
+                    let snapshot = inner.storage.core_snapshot(None)?;
+                    let completed = snapshot.summary.completed_goals.len();
+                    let unfinished = snapshot
+                        .goals
+                        .iter()
+                        .filter(|g| g.status == "open" && snapshot.today.contains(&g.id))
+                        .count();
+                    let minutes = snapshot
+                        .summary
+                        .goals
+                        .iter()
+                        .map(|g| g.relevant_seconds)
+                        .sum::<u64>()
+                        / 60;
+                    format!("Today: {completed} goals completed, {unfinished} left open, {minutes} minutes of relevant activity. You can leave the rest for tomorrow. Every small step counts.")
+                } else if kind == Kind::Midday {
+                    plan.as_ref()
+                        .and_then(|p| p.steps.iter().find(|s| !s.done))
+                        .map(|s| {
+                            format!(
+                                "A small next step, if useful: {}. Want help getting started?",
+                                s.text
+                            )
+                        })
+                        .unwrap_or_else(|| {
+                            "What is getting in the way? Buddy can help choose a small next step."
+                                .into()
+                        })
                 } else {
                     text.into()
                 },
@@ -314,8 +349,14 @@ pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, Stri
         .and_then(|g| g.due_at.as_deref())
         .and_then(|v| chrono::DateTime::parse_from_rfc3339(v).ok())
         .is_some_and(|d| d.timestamp() <= now);
+    let low_relevance = goal.is_some_and(|g| {
+        chrono::DateTime::parse_from_rfc3339(&g.created_at)
+            .is_ok_and(|date| now.saturating_sub(date.timestamp()) >= 3 * 3600)
+    }) && storage.relevant_seconds(goal_id, Some(&snapshot.date))? < 10 * 60;
+    let recent_progress: bool=storage.connection.query_row("SELECT EXISTS(SELECT 1 FROM core_events WHERE goal_id=?1 AND kind='completed' AND unixepoch(created_at)>?2)",rusqlite::params![goal_id,now-3*3600],|r|r.get(0)).map_err(|_| "Progress history unavailable")?;
     Ok(goal.is_some()
         && (overdue
+            || (low_relevance && !recent_progress)
             || storage.coaching_context(goal_id)?["over_expected"]
                 .as_bool()
                 .unwrap_or(false)))
@@ -849,7 +890,7 @@ pub async fn companion_submit(
         });
     }
     // Compatibility entry point shares the same consent, history and research policy.
-    let reply = crate::ai_chat::send_buddy_message(text, None, state).await?;
+    let reply = crate::ai_chat::send_buddy_message(text, None, None, app, state).await?;
     Ok(Reply {
         message: reply.message,
         resources: reply
@@ -928,6 +969,11 @@ pub fn respond_companion_intervention(
         let _ = app.emit("buddy://navigate", "activity");
     } else if action != "ignore" {
         return Err("Unknown confirmation action".into());
+    }
+    if action == "ignore" {
+        inner.companion.memory.rejected = inner.companion.memory.rejected.saturating_add(1);
+    } else {
+        inner.companion.memory.accepted = inner.companion.memory.accepted.saturating_add(1);
     }
     inner.companion.memory.last_dismissed = now;
     inner

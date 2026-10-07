@@ -9,6 +9,9 @@ import type {
   GoalDetails,
 } from "./types";
 export const coreApi = {
+  retryAnalysis: (id: number) =>
+    invoke<void>("retry_core_goal_analysis", { id }),
+  focus: (id: number) => invoke<void>("select_core_goal", { id }),
   drafts: () => invoke<Array<{ id: string; text: string }>>("get_core_drafts"),
   resolveDraft: (id: string, title: string | null) =>
     invoke<void>("resolve_core_draft", { id, title }),

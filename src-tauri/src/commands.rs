@@ -111,6 +111,10 @@ pub fn set_provider_key(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     crate::credentials::write(name, key)?;
+    inner.privacy_revision += 1;
+    if key.is_some() {
+        inner.storage.connection.execute("UPDATE core_goal_analyses SET state='queued',message=NULL,attempts=0 WHERE state='failed'",[]).map_err(|_| "Could not resume goal suggestions")?;
+    }
     inner.status.nebius_configured = http::configured("NEBIUS_API_KEY");
     inner.status.tavily_configured = http::configured("TAVILY_API_KEY");
     inner.last_error = None;
@@ -327,7 +331,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
     if !inner.status.tracking {
         return Ok(());
     }
-    if let Some(goal) = inner.storage.goal()? {
+    if let Some(mut goal) = inner.storage.goal()? {
         let settings = inner.tracking_settings.clone();
         let excluded = inner.buddy.view.preferences.excluded_apps.clone();
         inner.collector.configure(&settings, &excluded);
@@ -356,6 +360,22 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         if !inner.tracking_settings.browser_metadata {
             snapshot.browser =
                 crate::browser::context(&snapshot.process_name, &snapshot.window_title, None);
+        }
+        if allowed {
+            let matched = inner.storage.match_activity(&snapshot)?;
+            if let Some(id) = matched
+                .goal_id
+                .and_then(|value| value.parse::<i64>().ok())
+                .filter(|id| *id != goal.id)
+            {
+                inner.storage.transition_goal(id, "resume")?;
+                goal = inner.storage.goal()?.ok_or("The active goal changed")?;
+                inner.usage = Default::default();
+                inner.activity_state.stop(false);
+                inner.privacy_revision += 1;
+                inner.companion.invalidate();
+                inner.buddy.clear();
+            }
         }
         let revision = inner.activity_state.revision;
         let activity_state = inner
@@ -463,10 +483,9 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
     let mut decision = match result {
         Ok(d) => d,
         Err(error) => {
-            inner.last_error = Some(format!(
-                "Focus check unavailable: {error}. Tracking remains local."
-            ));
-            return Err(error);
+            let message = crate::goal_analysis::user_error("focus_check", &error);
+            inner.last_error = Some(message.clone());
+            return Err(message);
         }
     };
     inner.last_error = None;

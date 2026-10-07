@@ -5,7 +5,6 @@ import {
   Clock3,
   Plus,
   Play,
-  Pause,
   X,
   MoreHorizontal,
 } from "lucide-react";
@@ -26,6 +25,26 @@ import {
   type GoalAnalysisResult,
 } from "./analysis";
 
+export function mergeSuggestedSteps(
+  existing: CoreGoal["plan"]["steps"],
+  titles: string[],
+) {
+  const seen = new Set(existing.map((s) => s.text.trim().toLocaleLowerCase()));
+  const additions = titles
+    .filter((title) => {
+      const key = title.trim().toLocaleLowerCase();
+      if (!key || title.length > 500 || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Math.max(0, 20 - existing.length))
+    .map((text) => ({
+      id: crypto.randomUUID(),
+      text: text.trim(),
+      done: false,
+    }));
+  return [...existing, ...additions];
+}
 export function GoalRow({
   goal,
   snapshot,
@@ -56,16 +75,17 @@ export function GoalRow({
     setResult(null);
     setAnalysisError("");
     setAnalyzing(false);
-  }, [goal.id, goal.plan.revision]);
+  }, [goal.id]);
   useEffect(
     () => () => {
       request.current += 1;
     },
     [],
   );
+  const suggestions = result ?? goal.analysis?.result;
   const done = goal.plan.steps.filter((step) => step.done).length;
   const today = snapshot.today.includes(goal.id);
-  const active = snapshot.timer?.goal_id === goal.id;
+  const active = snapshot.focused_goal_id === goal.id;
   const disabled = busy || !desktop || readOnly;
   const area =
     snapshot.areas.find((item) => item.id === goal.area_id)?.title ?? "General";
@@ -142,7 +162,7 @@ export function GoalRow({
                 : goal.plan.steps.length
                   ? `${done} of ${goal.plan.steps.length} steps`
                   : "Open goal"}
-            {active ? " · Timer running" : ""}
+            {active ? " · Selected for activity tracking" : ""}
             {goal.due_at && (
               <span
                 className={
@@ -163,16 +183,16 @@ export function GoalRow({
             {goal.priority && <span> · {goal.priority} priority</span>}
           </small>
         </span>
-        {goal.focused_seconds > 0 && (
+        {(goal.relevant_seconds ?? 0) > 0 && (
           <span className="goal-time">
             <Clock3 size={12} />
-            {duration(goal.focused_seconds)}
+            {duration(goal.relevant_seconds!)} relevant
           </span>
         )}
         {(goal.tracked_seconds ?? 0) > 0 && (
           <span
             className="goal-time"
-            title="Observed foreground activity, separate from the focus timer"
+            title="Observed activity; only sufficiently relevant activity counts toward this goal"
           >
             {duration(goal.tracked_seconds!)} observed
           </span>
@@ -301,13 +321,11 @@ export function GoalRow({
                 </button>
                 <button
                   className="text-button"
-                  disabled={disabled}
-                  onClick={() =>
-                    void run(() => coreApi.timer(active ? null : goal.id))
-                  }
+                  disabled={disabled || !today || active}
+                  onClick={() => void run(() => coreApi.focus(goal.id))}
                 >
-                  {active ? <Pause size={14} /> : <Play size={14} />}{" "}
-                  {active ? "Pause timer" : "Focus timer"}
+                  <Play size={14} />{" "}
+                  {active ? "Selected for tracking" : "Work on this"}
                 </button>
               </>
             ) : (
@@ -381,22 +399,61 @@ export function GoalRow({
             )}
             {analyzing && <p role="status">Preparing suggestions…</p>}
             {analysisError && <p role="alert">{analysisError}</p>}
-            {result && (
-              <AnalysisResult
-                goalId={goal.id}
-                result={result}
-                disabled={
-                  disabled ||
-                  goal.status !== "open" ||
-                  goal.plan.steps.length >= 20
-                }
-                acceptStep={(text) => void addStep(text)}
-                acceptTitle={(title) =>
-                  void run(() => coreApi.save(title, area, goal.plan))
-                }
-              />
-            )}
           </details>
+        )}
+        {!readOnly &&
+          goal.status === "open" &&
+          (goal.analysis?.state === "queued" ||
+            goal.analysis?.state === "working") && (
+            <p role="status" className="helper">
+              {goal.analysis?.message ??
+                "Buddy is preparing your title, steps and useful sources…"}
+            </p>
+          )}
+        {!readOnly && goal.analysis?.state === "failed" && (
+          <p role="alert" className="helper">
+            {goal.analysis.message}{" "}
+            <button
+              className="text-button"
+              disabled={disabled}
+              onClick={() => {
+                setResult(null);
+                void run(() => coreApi.retryAnalysis(goal.id));
+              }}
+            >
+              Retry suggestions
+            </button>
+          </p>
+        )}
+        {!readOnly && suggestions && (
+          <AnalysisResult
+            goalId={goal.id}
+            remainingSteps={20 - goal.plan.steps.length}
+            result={{
+              ...suggestions,
+              suggestedSteps: suggestions.suggestedSteps?.filter(
+                (s) =>
+                  !goal.plan.steps.some(
+                    (existing) =>
+                      existing.text.trim().toLocaleLowerCase() ===
+                      s.title.trim().toLocaleLowerCase(),
+                  ),
+              ),
+            }}
+            disabled={disabled || goal.status !== "open"}
+            acceptTitle={(title) =>
+              void run(() => coreApi.save(title, area, goal.plan))
+            }
+            acceptStep={(text) => void addStep(text)}
+            acceptSteps={(titles) =>
+              void run(() =>
+                coreApi.save(goal.title, area, {
+                  ...goal.plan,
+                  steps: mergeSuggestedSteps(goal.plan.steps, titles),
+                }),
+              )
+            }
+          />
         )}
         {confirmDelete && (
           <div className="delete-confirm" role="alert">

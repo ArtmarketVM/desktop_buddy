@@ -10,7 +10,7 @@ pub fn requested(storage: &crate::storage::Storage) -> Result<bool, String> {
         && settings.onboarding.tracking_consent
         && storage
             .read_setting::<bool>("tracking_requested")?
-            .unwrap_or(false)
+            .unwrap_or(true)
         && storage.goal()?.is_some())
 }
 

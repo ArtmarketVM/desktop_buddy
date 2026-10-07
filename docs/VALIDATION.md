@@ -1,5 +1,14 @@
 # Validation record
 
+## Developer 2 automatic AI and relevant tracking — 0.19.0
+
+Verified on Windows on 2026-10-07: 63 frontend tests, 148 Rust tests and 6 update/signature tests passed. `npm run build` and the optimized Windows x64/NSIS build passed. Two backend tests are excluded from the standard suite: the isolated Windows credential-write check and the explicitly invoked live provider smoke. The live smoke was run separately and passed with a synthetic goal: a title, 5 steps, 3 grounded sources and a persisted Buddy chat reply. It never opened the production database or shared user tasks. The provider returned an invalid structured answer during an earlier probe; the final pipeline includes one bounded validation repair and an isolated HTTP regression test for that path.
+
+Coverage includes durable goal-analysis recovery and opt-outs, explicit step acceptance, ambiguous/distraction matching, another Today goal, idle exclusion, disjoint intervals, local midnight and retention, completion stopping attribution, source grounding, duration ranges and safe error guidance. UI checks here are component tests, not a native installed-app walkthrough. Microphone quality and the installed updater/restart remain unverified.
+
+Signed installer: `Desktop Buddy_0.19.0_x64-setup.exe`, 5,526,874 bytes; SHA-256 `3bc77498b481d0f8f09f923c3888ff97440847c8ffd84087aa370c409e705ccf`. Both Windows executable version fields report 0.19.0. The installer and signed version comment verify as `primary` under the unchanged epoch-2 trust. Local channel verification confirms legacy 0.13.0, epoch 1 bridge 0.17.1 and epoch 2 update 0.19.0. SHA256SUMS.txt contains the new installer, its signature and all three manifests. Publication uses the verified signed artifacts and retains both compatibility channels. Public verification checks the latest release, source tag, downloaded installer hash and signature; native installation and updater/restart remain separate checks.
+
+
 ## Buddy AI, Tavily and tracking — 0.18.0
 
 Validated on the second Windows computer on 2026-10-06: 66 frontend tests, 134 backend tests (one optional credential-vault test ignored), six update/signing tests and the TypeScript/Vite production build passed. Release versions are synchronized across all five files; trust epoch 2 and the published 0.17.1 bridge are unchanged.
