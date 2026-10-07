@@ -397,7 +397,7 @@ fn progress_suppressed(inner: &Inner) -> bool {
 fn progress_status(inner: &Inner, _minute: u32) -> String {
     let preferences = &inner.companion.view.preferences;
     if !preferences.screen_task_detection {
-        "Automatic progress checks are off. Enable them in Settings → Nudging → Desktop companion."
+        "Automatic progress checks are off. Enable Track goals and suggest completed work in Settings → Activity & Privacy."
             .into()
     } else if !inner.status.tracking || inner.status.tracking_error.is_some() {
         "Automatic progress checks are waiting for activity tracking.".into()

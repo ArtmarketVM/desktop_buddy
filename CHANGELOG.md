@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.22.1 — update indicator and permission guidance
+
+- Highlight an available update in blue, with readable text in both themes.
+- Point paused progress checks to the single Activity & Privacy switch.
+- Show macOS permission recovery instructions only when access is missing, including renewal after an ad-hoc signed update.
+
 ## 0.22.0 — goal monitoring and macOS updates
 
 - Enable local activity tracking and AI completion checks together through one explicit onboarding/settings choice.

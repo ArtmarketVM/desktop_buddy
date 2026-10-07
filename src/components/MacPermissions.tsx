@@ -29,10 +29,17 @@ export function MacPermissions() {
           : allowed
             ? "enabled"
             : "needed for active-window tracking and selected text"}
-        . Enable Desktop Buddy in System Settings → Privacy &amp; Security →
-        Accessibility (Device Control and Data Access on newer macOS), then
-        resume tracking. Goals and chat remain available without this
-        permission. No screenshots are taken.
+        .{" "}
+        {!allowed && (
+          <>
+            Enable Desktop Buddy in System Settings → Privacy &amp; Security →
+            Accessibility (Device Control and Data Access on newer macOS). After
+            an update, if Buddy is already enabled but access is blocked, remove
+            its old entry and add Desktop Buddy from Applications again. Goals
+            and chat remain available without this permission.{" "}
+          </>
+        )}
+        No screenshots are taken.
       </p>
       {!allowed && (
         <button
