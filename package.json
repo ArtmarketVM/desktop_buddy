@@ -1,7 +1,7 @@
 {
   "name": "desktop-buddy",
   "private": true,
-  "version": "0.20.0",
+  "version": "0.21.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:release": "node --test scripts/update-manifest.verify.mjs scripts/signing-trust.verify.mjs",
     "test:contact": "node --test server/contact.verify.mjs",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev:macos": "tauri dev",
+    "build:macos": "bash scripts/build-macos.sh"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",

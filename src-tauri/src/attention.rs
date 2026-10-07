@@ -13,6 +13,9 @@ pub fn meeting(activity: &ActivitySnapshot) -> bool {
     let title = activity.window_title.to_ascii_lowercase();
     [
         "zoom.exe",
+        "zoom.us",
+        "microsoft teams",
+        "webex",
         "teams.exe",
         "ms-teams.exe",
         "webex.exe",

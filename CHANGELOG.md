@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.21.0 — macOS support
+
+- Add a shared macOS application with an Apple Silicon build (with an optional universal build) targeting macOS 14.5 and later.
+- Add native foreground/idle tracking, bounded Accessibility context, Keychain credentials, app inventory, login startup and Command + Option selection shortcuts.
+- Adapt role app rules, permission controls, voice input and platform wording for macOS. On-device speech requires supported installed language assets.
+- Preserve the Windows installer/updater and add macOS CI artifacts in the same repository. Initial macOS installation is manual and locally ad-hoc signed; Developer ID notarization and exact 14.5 hardware validation remain separate requirements.
+
+
 ## 0.18.0
 
 - Connect Goal Analyzer to Nebius with conditional Tavily research, sourced prerequisites, relevant resources and conservative time/difficulty estimates.

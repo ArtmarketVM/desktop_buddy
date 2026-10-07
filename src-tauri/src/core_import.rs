@@ -160,7 +160,7 @@ pub fn transcribe_core_voice(
     audio: Vec<u8>,
     language: Option<String>,
 ) -> Result<String, String> {
-    if window.label() != "main" || !valid_voice_audio(&audio) {
+    if !["main", "buddy"].contains(&window.label()) || !valid_voice_audio(&audio) {
         return Err("Record up to 60 seconds of WAV audio".into());
     }
     let language = language.as_deref().unwrap_or("auto");
@@ -183,7 +183,11 @@ pub fn get_local_voice_languages() -> Result<Vec<String>, String> {
         serde_json::from_slice(&output.stdout)
             .map_err(|_| "Could not read installed Windows speech languages".into())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::voice_languages()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         Ok(vec![])
     }
@@ -296,7 +300,11 @@ fn select_transcript(json: &str) -> Result<String, String> {
     }
     Ok(text)
 }
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
+    crate::macos::transcribe(audio, language)
+}
+#[cfg(not(any(windows, target_os = "macos")))]
 fn transcribe(_audio: &[u8], _language: &str) -> Result<String, String> {
     Err(
         "Local voice recognition is available on Windows. Paste a transcript on this platform."

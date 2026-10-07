@@ -166,7 +166,7 @@ export function UpdateDialog({
         </p>
         {!desktop ? (
           <p className="helper">
-            Update checks are available in the Windows app.
+            Update checks are available in the desktop app.
           </p>
         ) : snapshot.phase === "checking" ? (
           <p role="status">Checking GitHub Releases…</p>
@@ -179,13 +179,15 @@ export function UpdateDialog({
             <Check size={16} /> You have the latest published version.
           </p>
         ) : !available && !snapshot.error ? (
-          <p className="helper">Check for the latest Windows release.</p>
+          <p className="helper">
+            Check for the latest release for this platform.
+          </p>
         ) : null}
         {available && !busy && (
           <>
             <p>
-              Download the signed Windows update and restart Buddy. Your saved
-              goals, profile and API keys stay on this device.
+              Download the signed update and restart Buddy. Your saved goals,
+              profile and API keys stay on this device.
             </p>
             {snapshot.info?.notes && (
               <details className="release-notes">

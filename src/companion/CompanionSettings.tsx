@@ -1,3 +1,4 @@
+import { selectionShortcut } from "../api/platform";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
@@ -154,9 +155,9 @@ export function CompanionSettings({
       <p className="helper">
         Up to three prompts daily. Recent dismissals, meetings, media, idle time
         and quiet hours are respected. Equal quiet-hour times disable quiet
-        hours. Select text and press Ctrl + Alt + B for manual task, research,
-        explain or save actions; paste text when an app does not expose its
-        selection.
+        hours. Select text and press {selectionShortcut} for manual task,
+        research, explain or save actions; paste text when an app does not
+        expose its selection.
       </p>
       {error && <p role="alert">{error}</p>}
     </details>

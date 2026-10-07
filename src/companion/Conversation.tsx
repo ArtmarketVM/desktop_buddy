@@ -1,3 +1,6 @@
+import { isMac } from "../api/platform";
+import { recordVoice } from "../core/media";
+import { coreApi } from "../core/api";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import "./conversation.css";
@@ -47,6 +50,49 @@ export function Conversation({
   const [coaching, setCoaching] = useState<CoachingInsight | null>(null);
   const [expected, setExpected] = useState("");
   const input = useRef<HTMLTextAreaElement>(null);
+  const recording = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(
+    null,
+  );
+  const voiceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      recording.current?.cancel();
+      if (voiceTimer.current) clearTimeout(voiceTimer.current);
+    },
+    [],
+  );
+  async function macVoice() {
+    try {
+      setError("");
+      if (recording.current) {
+        const active = recording.current;
+        recording.current = null;
+        if (voiceTimer.current) clearTimeout(voiceTimer.current);
+        setVoice(false);
+        setBusy(true);
+        onState("thinking");
+        const transcript = await coreApi.transcribe(
+          await active.stop(),
+          "auto",
+        );
+        setText((value) => `${value}${value ? "\n" : ""}${transcript}`);
+        setBusy(false);
+        onState("idle");
+      } else {
+        recording.current = await recordVoice();
+        setVoice(true);
+        onState("listening");
+        voiceTimer.current = setTimeout(() => void macVoice(), 60000);
+      }
+    } catch (e) {
+      recording.current?.cancel();
+      recording.current = null;
+      setVoice(false);
+      setBusy(false);
+      onState("idle");
+      setError(String(e));
+    }
+  }
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
@@ -448,12 +494,26 @@ export function Conversation({
             type="button"
             className="companion-icon"
             aria-label={
-              voice ? "Stop Windows voice typing" : "Start Windows voice typing"
+              isMac
+                ? voice
+                  ? "Stop voice recording"
+                  : "Start voice recording"
+                : voice
+                  ? "Stop Windows voice typing"
+                  : "Start Windows voice typing"
             }
-            title="Voice typing · Windows + H"
+            title={
+              isMac
+                ? "Record and transcribe on this Mac"
+                : "Voice typing · Windows + H"
+            }
             disabled={!desktop || busy}
             onClick={() => {
               input.current?.focus();
+              if (isMac) {
+                void macVoice();
+                return;
+              }
               setVoice(!voice);
               onState(voice ? "idle" : "listening");
               void api.voiceInput().catch((e) => {
@@ -465,7 +525,7 @@ export function Conversation({
           >
             <Mic size={16} />
           </button>
-          <span>Ctrl + Enter</span>
+          <span>{isMac ? "Command + Enter" : "Ctrl + Enter"}</span>
           <button
             type="submit"
             disabled={!desktop || busy || !text.trim()}
@@ -526,9 +586,9 @@ export function Conversation({
         )}
         {voice && (
           <p className="helper" role="status">
-            Windows voice typing uses your input language. Switch
-            Russian/English with Windows + Space. Review the transcript before
-            sending.
+            {isMac
+              ? "Recording up to 60 seconds. Click the microphone again to transcribe locally using your system language. Review before sending."
+              : "Windows voice typing uses your input language. Switch Russian/English with Windows + Space. Review the transcript before sending."}
           </p>
         )}
       </form>

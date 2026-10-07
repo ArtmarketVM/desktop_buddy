@@ -1,3 +1,4 @@
+import { isMac } from "../api/platform";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type {
@@ -193,10 +194,10 @@ export function AppRules({
       <h2>Your apps</h2>
       <p className="helper">
         {loaded
-          ? `${installed.length} installed apps detected from Windows registrations.`
+          ? `${installed.length} installed apps detected from ${isMac ? "macOS application folders" : "Windows registrations"}.`
           : desktop
             ? "Checking installed apps…"
-            : "Installed app discovery is available in the Windows app."}{" "}
+            : `Installed app discovery is available in the ${isMac ? "macOS" : "Windows"} app.`}{" "}
         Apps seen while tracking also appear here. Portable and some Store apps
         may appear only after you use them. Nothing is uploaded.
       </p>
@@ -224,7 +225,8 @@ export function AppRules({
       </p>
       <p className="helper">
         Rules match process names, not websites or window titles. Marking
-        chrome.exe affects every Chrome tab for this goal.
+        {isMac ? "Google Chrome" : "chrome.exe"} affects every Chrome tab for
+        this goal.
       </p>
       <div className="app-inventory">
         {names.map((name) => (
@@ -284,7 +286,7 @@ export function AppRules({
             <input
               value={process}
               maxLength={100}
-              placeholder="e.g. game.exe"
+              placeholder={isMac ? "e.g. Safari" : "e.g. game.exe"}
               disabled={!desktop || busy}
               onChange={(e) => setProcess(e.target.value)}
             />

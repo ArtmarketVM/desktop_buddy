@@ -15,7 +15,11 @@ pub fn foreground_fullscreen() -> bool {
     {
         windows::foreground_fullscreen()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::fullscreen()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         false
     }
@@ -25,7 +29,17 @@ pub fn foreground_meeting() -> bool {
     {
         windows::foreground_meeting()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::foreground(false).is_ok_and(|active| {
+            crate::attention::meeting(&ActivitySnapshot {
+                process_name: active.process,
+                window_title: active.title,
+                ..Default::default()
+            })
+        })
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         false
     }
@@ -35,7 +49,11 @@ pub fn foreground_idle_seconds() -> Option<u64> {
     {
         windows::foreground_idle_seconds()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::idle_seconds()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         None
     }
@@ -82,17 +100,21 @@ pub fn create(demo: bool) -> Box<dyn ActivityCollector> {
     {
         Box::new(windows::WindowsCollector::default())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        Box::new(crate::macos::MacCollector::default())
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         Box::new(UnsupportedCollector)
     }
 }
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 struct UnsupportedCollector;
-#[cfg(not(windows))]
+#[cfg(not(any(windows, target_os = "macos")))]
 impl ActivityCollector for UnsupportedCollector {
     fn collect(&mut self) -> Result<ActivitySnapshot, String> {
-        Err("Live activity collection requires Windows".into())
+        Err("Live activity collection requires Windows or macOS".into())
     }
 }
 struct DemoCollector {

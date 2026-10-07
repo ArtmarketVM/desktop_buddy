@@ -1,7 +1,7 @@
 use serde::Serialize;
 use std::{collections::BTreeMap, path::Path};
 
-#[derive(Serialize)]
+#[derive(Serialize, serde::Deserialize)]
 pub struct InstalledApp {
     pub process_name: String,
     pub name: String,
@@ -53,6 +53,13 @@ pub fn inventory() -> Vec<InstalledApp> {
     let mut apps = BTreeMap::new();
     #[cfg(windows)]
     windows_inventory(&mut apps);
+    #[cfg(target_os = "macos")]
+    if let Ok(inventory) = crate::macos::installed_apps() {
+        for app in inventory {
+            apps.entry(app.process_name.to_ascii_lowercase())
+                .or_insert(app.name);
+        }
+    }
     apps.into_iter()
         .map(|(process_name, name)| InstalledApp { process_name, name })
         .collect()
@@ -226,11 +233,16 @@ mod tests {
         ] {
             assert!(executable(value).is_none());
         }
-        let exe = std::env::current_exe().unwrap();
+        let exe = std::env::temp_dir().join(format!(
+            "buddy-inventory-{} Test App.exe",
+            std::process::id()
+        ));
+        std::fs::write(&exe, b"inventory fixture; never executed").unwrap();
         assert_eq!(
             executable(&format!("\"{}\",0", exe.display())),
             exe.file_name()
                 .map(|v| v.to_string_lossy().to_ascii_lowercase())
         );
+        std::fs::remove_file(exe).unwrap();
     }
 }

@@ -50,7 +50,13 @@ mod tests {
                 cmd: "get_dashboard".into(),
                 callback: tauri::ipc::CallbackFn(0),
                 error: tauri::ipc::CallbackFn(1),
-                url: "http://tauri.localhost".parse().unwrap(),
+                url: if cfg!(target_os = "macos") {
+                    "tauri://localhost"
+                } else {
+                    "http://tauri.localhost"
+                }
+                .parse()
+                .unwrap(),
                 body: tauri::ipc::InvokeBody::default(),
                 headers: Default::default(),
                 invoke_key: INVOKE_KEY.into(),

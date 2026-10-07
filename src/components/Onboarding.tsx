@@ -1,3 +1,5 @@
+import { isMac } from "../api/platform";
+import { MacPermissions } from "../components/MacPermissions";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { UserSettings, OnboardingState } from "../types";
@@ -146,6 +148,7 @@ export function Onboarding({
         {draft.step === 3 && (
           <>
             <Avatar appearance={profile.avatar} state="paused" />
+            <MacPermissions />
             <p>
               Activity tracking observes the foreground application, window/tab
               title, available browser domain and time since the last keyboard
@@ -153,10 +156,12 @@ export function Onboarding({
               what you type.
             </p>
             <p>
-              These Windows APIs do not need a separate system permission
-              dialog. Enable monitoring below when you are ready, or continue
-              with tracking paused. AI check-ins and proactive search stay off
-              until separately enabled.
+              {isMac
+                ? "macOS requires Accessibility permission for tracking."
+                : "These Windows APIs do not need a separate system permission dialog."}{" "}
+              Enable monitoring below when you are ready, or continue with
+              tracking paused. AI check-ins and proactive search stay off until
+              separately enabled.
             </p>
             <div className="settings-actions">
               <button

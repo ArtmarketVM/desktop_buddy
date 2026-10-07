@@ -1,7 +1,7 @@
 [package]
 name = "desktop-buddy"
-version = "0.20.0"
-description = "A local-first focus companion for Windows"
+version = "0.21.0"
+description = "A local-first focus companion for Windows and macOS"
 edition = "2021"
 
 [lib]
@@ -19,9 +19,10 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+cc = "1"
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 # Keep the capture plugins compatible with the existing Tauri 2.11 runtime.

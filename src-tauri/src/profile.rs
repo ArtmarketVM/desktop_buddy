@@ -78,9 +78,11 @@ pub struct PresetConfig {
     pub roles: Vec<RolePreset>,
 }
 pub fn presets() -> Result<PresetConfig, String> {
-    let config: PresetConfig =
-        serde_json::from_str(include_str!("../../src/data/rolePresets.json"))
-            .map_err(|_| "Invalid role presets")?;
+    #[cfg(target_os = "macos")]
+    let source = include_str!("../../src/data/rolePresets.macos.json");
+    #[cfg(not(target_os = "macos"))]
+    let source = include_str!("../../src/data/rolePresets.json");
+    let config: PresetConfig = serde_json::from_str(source).map_err(|_| "Invalid role presets")?;
     if config.version != 1
         || config.roles.iter().any(|r| r.name.is_empty())
         || config

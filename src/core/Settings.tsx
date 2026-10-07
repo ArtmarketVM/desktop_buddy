@@ -1,3 +1,4 @@
+import { MacPermissions } from "../components/MacPermissions";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
@@ -205,6 +206,7 @@ export function CoreSettings({
         </details>
         <details className="core-section" id="settings-3">
           <summary>Activity &amp; Privacy</summary>
+          <MacPermissions />
           <label className="toggle-row">
             <span>
               Activity tracking
@@ -361,7 +363,7 @@ export function CoreSettings({
         <details className="core-section" id="settings-5">
           <summary>Startup</summary>
           <label className="toggle-row">
-            <span>Start with Windows</span>
+            <span>Start when I sign in</span>
             <input
               type="checkbox"
               checked={autostart}

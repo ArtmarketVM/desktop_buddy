@@ -443,7 +443,13 @@ async fn sample(window: usize) -> Result<String, String> {
             .await
             .map_err(|_| "Screen context unavailable")?
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        tauri::async_runtime::spawn_blocking(move || crate::macos::context(window, false))
+            .await
+            .map_err(|_| "Screen context unavailable")?
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = window;
         Err("Screen context requires Windows".into())
@@ -745,9 +751,13 @@ pub fn companion_voice_input(window: tauri::WebviewWindow) -> Result<(), String>
     {
         windows::voice_typing()
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
     {
-        Err("Voice typing requires Windows".into())
+        Err("Use the Dictation shortcut configured in System Settings > Keyboard while the Buddy text field is focused.".into())
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        Err("Voice typing requires Windows or macOS".into())
     }
 }
 

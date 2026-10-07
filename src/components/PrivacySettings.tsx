@@ -1,3 +1,4 @@
+import { isMac } from "../api/platform";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
@@ -124,7 +125,11 @@ export function PrivacySettings({
             id="excluded-apps"
             value={apps}
             maxLength={5000}
-            placeholder="chrome.exe, passwordmanager.exe"
+            placeholder={
+              isMac
+                ? "Google Chrome, 1Password"
+                : "chrome.exe, passwordmanager.exe"
+            }
             disabled={!desktop || busy}
             onChange={(e) => setApps(e.target.value)}
           />

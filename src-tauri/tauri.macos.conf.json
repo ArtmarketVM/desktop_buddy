@@ -1,0 +1,21 @@
+{
+  "app": {
+    "macOSPrivateApi": true
+  },
+  "bundle": {
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "createUpdaterArtifacts": false,
+    "icon": [
+      "icons/icon.icns"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "14.5",
+      "infoPlist": "Info.macos.plist",
+      "entitlements": "Entitlements.macos.plist",
+      "signingIdentity": "-"
+    }
+  }
+}

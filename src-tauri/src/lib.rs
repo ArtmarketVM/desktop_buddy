@@ -19,6 +19,8 @@ mod history;
 mod http;
 mod insights;
 mod installed_apps;
+#[cfg(target_os = "macos")]
+mod macos;
 mod models;
 mod nebius;
 mod privacy;
@@ -83,6 +85,8 @@ pub fn run() {
             tray::install(app)?;
             #[cfg(windows)]
             companion::windows::install_selection_shortcut(app.handle().clone());
+            #[cfg(target_os = "macos")]
+            macos::install_shortcuts(app.handle());
             let settings = app
                 .state::<commands::AppState>()
                 .inner
@@ -242,6 +246,8 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_accessibility_permission,
+            commands::request_accessibility_permission,
             companion::get_companion_view,
             companion::get_companion_goal_context,
             companion::set_companion_preferences,

@@ -1,3 +1,4 @@
+import { MacPermissions } from "../components/MacPermissions";
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../api/tauri";
 import type { UserSettings } from "../types";
@@ -126,6 +127,7 @@ export function CoreOnboarding({
                 Goals and chat work without activity tracking or a running
                 timer.
               </p>
+              <MacPermissions />
               <label className="toggle-row">
                 <span>
                   Allow activity tracking
@@ -144,9 +146,9 @@ export function CoreOnboarding({
               </label>
               <p className="helper">
                 Tracking stays off unless you choose it. Activity history is
-                stored on this PC and is not encrypted. AI sharing has separate
-                controls in Integrations / AI; optional AI check-ins can share
-                goal and activity context with configured providers.
+                stored on this computer and is not encrypted. AI sharing has
+                separate controls in Integrations / AI; optional AI check-ins
+                can share goal and activity context with configured providers.
               </p>
             </>
           )}

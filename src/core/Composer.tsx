@@ -1,3 +1,4 @@
+import { isMac, systemName } from "../api/platform";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, FileUp, Mic, Square, X, Plus } from "lucide-react";
 import { desktop } from "../api/tauri";
@@ -112,7 +113,9 @@ export function Composer({
         )
       )
         throw new Error(
-          "Install the selected Windows speech language, or use Windows + H and paste the transcript.",
+          isMac
+            ? "Enable the selected Dictation language in System Settings → Keyboard, or paste the transcript."
+            : "Install the selected Windows speech language, or use Windows + H and paste the transcript.",
         );
       recorder.current = await recordVoice();
       setRecording(true);
@@ -265,17 +268,22 @@ export function Composer({
             disabled={busy || disabled || recording}
             onChange={(e) => setVoiceLanguage(e.target.value)}
           >
-            <option value="auto">Automatic / mixed</option>
+            <option value="auto">
+              {isMac ? "System language" : "Automatic / mixed"}
+            </option>
             <option value="ru">Russian</option>
             <option value="en">English</option>
           </select>
           <span>
-            Windows local recognizers:{" "}
+            {systemName} local recognizers:{" "}
             {voiceLanguages === null
               ? "checking…"
               : voiceLanguages.join(", ") || "none installed"}
-            . Mixed speech needs both Russian and English speech packs. Review
-            the transcript before asking Buddy.
+            .{" "}
+            {isMac
+              ? "Recognition stays on this Mac; language availability depends on installed Dictation support."
+              : "Mixed speech needs both Russian and English speech packs."}{" "}
+            Review the transcript before asking Buddy.
           </span>
         </label>
       )}

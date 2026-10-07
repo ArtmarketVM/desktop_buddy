@@ -19,7 +19,11 @@ pub fn sync(enabled: bool) -> Result<(), String> {
     {
         register(enabled)
     }
-    #[cfg(any(not(windows), debug_assertions))]
+    #[cfg(all(target_os = "macos", not(debug_assertions)))]
+    {
+        crate::macos::autostart(enabled)
+    }
+    #[cfg(any(not(any(windows, target_os = "macos")), debug_assertions))]
     {
         let _ = enabled;
         Ok(())
