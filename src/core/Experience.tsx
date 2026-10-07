@@ -21,6 +21,7 @@ import type { Dashboard } from "../types";
 import { CompanionChat } from "../companion/CompanionChat";
 import { defaultCompanionView } from "../companion/types";
 import { GoalOrder } from "./GoalOrder";
+import { TrackingStatus } from "./TrackingStatus";
 
 export function Experience({
   page,
@@ -29,6 +30,7 @@ export function Experience({
   revision,
   enhancement,
   dashboard,
+  onSettings,
 }: {
   page: WorkspacePage;
   onDirty: (dirty: boolean) => void;
@@ -36,6 +38,7 @@ export function Experience({
   revision: string;
   enhancement?: GoalEnhancement;
   dashboard: Dashboard;
+  onSettings: () => void;
 }) {
   const [snapshot, setSnapshot] = useState<CoreSnapshot>(emptyCore);
   const [anchor, setAnchor] = useState<string | null>(null);
@@ -153,6 +156,9 @@ export function Experience({
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
+      {(page === "focus" || page === "activity") && (
+        <TrackingStatus dashboard={dashboard} onSettings={onSettings} />
+      )}
       <div hidden={page !== "resources" && !(page === "focus" && showImport)}>
         <Composer
           importMode={page === "resources"}

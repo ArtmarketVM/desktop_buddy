@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.22.0 — goal monitoring and macOS updates
+
+- Enable local activity tracking and AI completion checks together through one explicit onboarding/settings choice.
+- Use persisted AI assistance consent for progress detection and offer confirmed goal completion with exact visible evidence.
+- Produce signed Apple Silicon update archives, verify manifests and publish both platform bundles through one GitHub release workflow. macOS uses an independent trusted signing channel; Windows bridges remain intact.
+- Show activity tracking status and a direct setup action on Today and Progress, including paused collection and permission errors.
+- Describe the selected goal without implying collection is running. Keep completion explicit through goal and step actions.
+- Show observed activity in daily summaries and distinguish unmatched work from days without records.
+
 ## 0.21.0 — macOS support
 
 - Add a shared macOS application with an Apple Silicon build (with an optional universal build) targeting macOS 14.5 and later.

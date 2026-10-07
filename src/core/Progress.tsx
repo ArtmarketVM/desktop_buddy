@@ -20,6 +20,10 @@ export function DaySummary({
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
   );
+  const observedSeconds = day.goals.reduce(
+    (sum, goal) => sum + (goal.tracked_seconds ?? 0),
+    0,
+  );
   const areas = Object.entries(
     day.goals.reduce<Record<string, number>>((times, goal) => {
       times[goal.area] = (times[goal.area] ?? 0) + (goal.relevant_seconds ?? 0);
@@ -38,8 +42,13 @@ export function DaySummary({
             ? `You wrapped up ${completed.length} ${completed.length === 1 ? "goal" : "goals"}.`
             : seconds
               ? "You made a little space for focused work."
-              : "A quieter day counts, too."}
+              : observedSeconds
+                ? "Activity was recorded, but no work could be confidently matched to a goal."
+                : "No recorded activity or completed goals for this day."}
           {seconds > 0 ? ` ${duration(seconds)} of relevant activity.` : ""}
+          {observedSeconds > 0
+            ? ` ${duration(observedSeconds)} of observed activity.`
+            : ""}
         </p>
         {completed.length > 0 && (
           <ul>

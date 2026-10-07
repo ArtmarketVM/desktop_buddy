@@ -48,4 +48,51 @@ describe("companion interaction boundary", () => {
     expect(html).toContain("Not yet");
     expect(html).toContain("Nothing changes until you confirm");
   });
+  it("shows completion reviews in the main chat without requiring the desktop popup", () => {
+    const html = renderToStaticMarkup(
+      <CompanionChat
+        view={{
+          ...defaultCompanionView,
+          intervention: {
+            id: "receipt",
+            kind: "goal_completion",
+            text: "Dashboard published",
+            confidence: 0.98,
+            goal_id: 1,
+            plan_revision: 1,
+            step_id: null,
+            expires_at: 99999999,
+          },
+        }}
+        goal={null}
+        plan={null}
+        onChanged={async () => {}}
+        onState={() => {}}
+        embedded
+      />,
+    );
+    expect(html).toContain("Yes, complete goal");
+    expect(html).toContain("Dashboard published");
+  });
+  it("offers a separate, explicit confirmation for completing an entire goal", () => {
+    const html = renderToStaticMarkup(
+      <InterventionCard
+        prompt={{
+          id: "goal-receipt",
+          kind: "goal_completion",
+          text: "Dashboard published",
+          confidence: 0.98,
+          goal_id: 1,
+          plan_revision: 2,
+          step_id: null,
+          expires_at: 99999999,
+        }}
+        busy={false}
+        respond={() => {}}
+      />,
+    );
+    expect(html).toContain("Yes, complete goal");
+    expect(html).toContain("Not yet");
+    expect(html).toContain("Nothing changes until you confirm");
+  });
 });

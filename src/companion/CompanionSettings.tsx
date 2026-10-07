@@ -66,8 +66,8 @@ export function CompanionSettings({
           ],
           [
             "screen_task_detection",
-            "Suggest tasks from visible text",
-            "Opt in to a bounded sample of accessible text in the active application. With tracking and AI check-ins enabled, sends up to 3,000 characters plus your goal and steps to Nebius. Password and edit controls are skipped; text is not saved locally. Every new task and completion needs confirmation.",
+            "Detect tasks and completed work",
+            "With tracking and AI assistance on, send up to 3,000 characters of accessible text plus your goal and steps to Nebius. Password and edit controls are skipped; text is not saved locally. Clear receipts can suggest completed steps or an entire goal. You confirm every change.",
           ],
           [
             "hide_fullscreen",

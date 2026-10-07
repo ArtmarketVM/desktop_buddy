@@ -447,3 +447,33 @@ fn local_drifting_reminder_requires_opt_in_and_suppresses_confirmed_media() {
         .reason
         .contains("no recent input"));
 }
+
+#[test]
+fn one_goal_monitoring_switch_persists_time_and_progress_consent() {
+    let state =
+        crate::commands::AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap())
+            .unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    assert!(configure_goal_monitoring(&mut inner, true).is_err());
+    let mut settings = inner.storage.user_settings().unwrap();
+    settings.onboarding.completed = true;
+    inner
+        .storage
+        .write_setting("user_settings", &settings)
+        .unwrap();
+    configure_goal_monitoring(&mut inner, true).unwrap();
+    assert!(requested(&inner.storage).unwrap());
+    assert!(inner.companion.view.preferences.screen_task_detection);
+    assert!(inner.storage.ai_preferences().unwrap().enabled);
+    assert!(
+        crate::companion::Runtime::load(&inner.storage)
+            .unwrap()
+            .view
+            .preferences
+            .screen_task_detection
+    );
+    configure_goal_monitoring(&mut inner, false).unwrap();
+    assert!(!requested(&inner.storage).unwrap());
+    assert!(!inner.companion.view.preferences.screen_task_detection);
+    assert!(inner.storage.ai_preferences().unwrap().enabled);
+}

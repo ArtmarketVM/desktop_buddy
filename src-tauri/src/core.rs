@@ -848,6 +848,7 @@ pub fn finish_core_setup(
     inner
         .storage
         .write_setting("tracking_requested", &allow_tracking)?;
+    crate::tracking::configure_goal_monitoring(&mut inner, allow_tracking)?;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();
     inner.activity_state.stop(false);

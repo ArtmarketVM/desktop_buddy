@@ -1,4 +1,6 @@
 import { MacPermissions } from "../components/MacPermissions";
+import { isMac } from "../api/platform";
+import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
@@ -50,6 +52,7 @@ export function CoreSettings({
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [trackingConsentPending, setTrackingConsentPending] = useState(false);
   useEffect(() => {
     let active = true;
     if (desktop)
@@ -209,10 +212,11 @@ export function CoreSettings({
           <MacPermissions />
           <label className="toggle-row">
             <span>
-              Activity tracking
+              Track goals and suggest completed work
               <small>
-                Observe foreground apps, titles and active time. A running focus
-                timer is optional.
+                Record app activity and time locally. Send a limited sample of
+                visible text with your goal and steps to Nebius to suggest
+                completed work. Every completion needs your confirmation.
               </small>
             </span>
             <input
@@ -221,18 +225,55 @@ export function CoreSettings({
               disabled={blocked}
               onChange={(e) => {
                 const enabled = e.target.checked;
-                if (
-                  enabled &&
-                  !settings.onboarding.tracking_consent &&
-                  !window.confirm(
-                    "Enable local tracking of foreground apps, window/tab titles and active time? AI goal matching has a separate opt-in under Integrations / AI.",
-                  )
-                )
+                if (enabled) {
+                  setTrackingConsentPending(true);
                   return;
-                void run(() => api.tracking(enabled));
+                }
+                void run(() => api.goalMonitoring(enabled));
               }}
             />
           </label>
+          {data.status.tracking &&
+            !data.buddy.companion?.preferences.screen_task_detection && (
+              <button
+                className="text-button"
+                disabled={blocked}
+                onClick={() => setTrackingConsentPending(true)}
+              >
+                Enable completion checks
+              </button>
+            )}
+          {trackingConsentPending && (
+            <div className="card" aria-label="Confirm local activity tracking">
+              <p>
+                Record foreground apps, window/tab titles and active time on
+                this computer, and send up to 3,000 characters of visible text
+                with your goal and steps to Nebius for progress checks? Password
+                and edit controls are skipped. Provider charges may apply.
+              </p>
+              <button
+                disabled={blocked}
+                onClick={() => {
+                  void run(() => api.goalMonitoring(true)).then(async (ok) => {
+                    if (ok) setTrackingConsentPending(false);
+                    if (ok && isMac)
+                      await invoke<boolean>(
+                        "request_accessibility_permission",
+                      ).catch((e) => setError(String(e)));
+                  });
+                }}
+              >
+                Enable goal tracking
+              </button>
+              <button
+                className="text-button"
+                disabled={blocked}
+                onClick={() => setTrackingConsentPending(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          )}
           <p className="helper" role="status">
             {data.status.tracking_error ||
               (data.status.tracking

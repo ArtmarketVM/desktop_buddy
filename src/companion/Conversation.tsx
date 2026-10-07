@@ -1,6 +1,7 @@
 import { isMac } from "../api/platform";
 import { recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
+import { InterventionCard } from "./InterventionCard";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import "./conversation.css";
@@ -264,6 +265,15 @@ export function Conversation({
           </button>
         )}
       </header>
+      {view.intervention && (
+        <InterventionCard
+          prompt={view.intervention}
+          busy={busy}
+          respond={(action) => {
+            void run(() => api.companionRespond(view.intervention!.id, action));
+          }}
+        />
+      )}
       {goal && (
         <details className="conversation-context">
           <summary>{goal.text}</summary>

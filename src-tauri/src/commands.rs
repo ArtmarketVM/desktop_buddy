@@ -428,7 +428,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 inner.storage.record_interval(goal.id, &interval)?;
             }
         }
-        inner.buddy.foreground = Some(snapshot.clone());
+        inner.buddy.foreground = allowed.then(|| snapshot.clone());
         crate::companion::observe(&mut inner, &snapshot, allowed);
         if allowed {
             inner.storage.activity(goal.id, &snapshot)?;

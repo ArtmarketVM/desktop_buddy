@@ -23,14 +23,31 @@ if [[ "$target" == universal-apple-darwin ]]; then
 else
   rustup target add "$target"
 fi
-npm run tauri -- build --config src-tauri/tauri.macos.conf.json --target "$target" -- --locked
+config=(--config src-tauri/tauri.macos.conf.json)
+if [[ "${BUDDY_MACOS_UNSIGNED:-false}" == true ]]; then
+  config+=(--config src-tauri/tauri.macos.ci.conf.json)
+else
+  if [[ -z "${TAURI_SIGNING_PRIVATE_KEY:-}" && -f "$PWD/.tools/signing/desktop-buddy-macos.key" ]]; then
+    export TAURI_SIGNING_PRIVATE_KEY="$PWD/.tools/signing/desktop-buddy-macos.key"
+  fi
+  [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]] || { echo "Configure the macOS updater signing key before building a release." >&2; exit 1; }
+  export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}"
+fi
+npm run tauri -- build "${config[@]}" --target "$target" --bundles app -- --locked
 version="$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")"
 bundle="src-tauri/target/$target/release/bundle"
 mkdir -p artifacts
 name="Desktop.Buddy_${version}_${target%%-apple-darwin}"
 ditto -c -k --sequesterRsrc --keepParent "$bundle/macos/Desktop Buddy.app" "artifacts/$name.zip"
-for disk in "$bundle"/dmg/*.dmg; do
-  [[ -f "$disk" ]] && cp "$disk" "artifacts/$name.dmg"
-done
+stage="$(mktemp -d "${TMPDIR:-/tmp}/buddy-dmg.XXXXXX")"
+trap 'rm -rf "$stage"' EXIT
+ditto "$bundle/macos/Desktop Buddy.app" "$stage/Desktop Buddy.app"
+ln -s /Applications "$stage/Applications"
+hdiutil create -volname "Desktop Buddy $version" -srcfolder "$stage" -format UDZO -ov "artifacts/$name.dmg" >/dev/null
+if [[ "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
+  cp "$bundle/macos/Desktop Buddy.app.tar.gz" "artifacts/$name.app.tar.gz"
+  cp "$bundle/macos/Desktop Buddy.app.tar.gz.sig" "artifacts/$name.app.tar.gz.sig"
+  node scripts/create-macos-update-manifest.mjs artifacts "v$version"
+fi
 shasum -a 256 "artifacts/$name.zip" "artifacts/$name.dmg" > "artifacts/$name.sha256"
 echo "Created artifacts/$name.zip and artifacts/$name.dmg (macOS 14.5+)."

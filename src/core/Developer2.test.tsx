@@ -99,6 +99,8 @@ describe("automatic AI and relevant progress", () => {
     expect(html).toContain("Add all steps");
     expect(html).not.toContain("Focus timer");
     expect(html).not.toContain("Timer running");
+    expect(html).toContain("Selected goal");
+    expect(html).not.toContain("Selected for activity tracking");
   });
   it("does not claim manual or unrelated observed time as relevant progress", () => {
     const html = renderToStaticMarkup(
@@ -123,7 +125,8 @@ describe("automatic AI and relevant progress", () => {
     );
     expect(html).not.toContain("wrapped up");
     expect(html).not.toContain("of relevant activity");
-    expect(html).toContain("A quieter day counts");
+    expect(html).toContain("2h 0m of observed activity");
+    expect(html).toContain("no work could be confidently matched");
     expect(html).toContain("tomorrow");
   });
   it("shows the local calendar date for activity timestamps", () => {

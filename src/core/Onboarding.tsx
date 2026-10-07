@@ -1,6 +1,9 @@
 import { MacPermissions } from "../components/MacPermissions";
 import { useEffect, useRef, useState } from "react";
 import { desktop } from "../api/tauri";
+import { isMac } from "../api/platform";
+import { invoke } from "@tauri-apps/api/core";
+import { ProviderKey } from "../components/Settings";
 import type { UserSettings } from "../types";
 import { AvatarPicker } from "../components/ProfileFields";
 import { coreApi } from "./api";
@@ -10,11 +13,13 @@ export function CoreOnboarding({
   onChanged,
   onDirty,
   onComplete,
+  nebiusConfigured = false,
 }: {
   initial: UserSettings;
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
   onComplete?: () => void;
+  nebiusConfigured?: boolean;
 }) {
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState(initial.profile);
@@ -44,6 +49,8 @@ export function CoreOnboarding({
         profile.email,
         profile.avatar,
       );
+      if (tracking && isMac)
+        await invoke<boolean>("request_accessibility_permission");
       onDirty(false);
       await onChanged();
       onComplete?.();
@@ -61,7 +68,7 @@ export function CoreOnboarding({
           [
             "What should Buddy call you?",
             "Choose your Buddy",
-            "Activity tracking is your choice",
+            "Let Buddy help you follow through",
           ][step]
         }
       </h1>
@@ -127,15 +134,14 @@ export function CoreOnboarding({
                 Goals and chat work without activity tracking or a running
                 timer.
               </p>
-              <MacPermissions />
               <label className="toggle-row">
                 <span>
-                  Allow activity tracking
+                  Track goals and suggest completed work
                   <small>
-                    Observe foreground apps, window or browser titles and active
-                    time. With a separate AI opt-in, Nebius can identify the
-                    goal you are working on. Pause tracking in Settings at any
-                    time.
+                    Record active apps, titles and work time locally. Let Nebius
+                    check up to 3,000 characters of visible text with your goal
+                    and steps for completed work. Password and edit controls are
+                    skipped. You confirm every completion.
                   </small>
                 </span>
                 <input
@@ -144,11 +150,27 @@ export function CoreOnboarding({
                   onChange={(e) => setTracking(e.target.checked)}
                 />
               </label>
+              {tracking && (
+                <>
+                  <MacPermissions />
+                  <p className="helper">
+                    {nebiusConfigured
+                      ? "Nebius key is configured."
+                      : "Connect Nebius to start automatic progress checks."}
+                  </p>
+                  <ProviderKey
+                    provider="nebius"
+                    label="Nebius API key"
+                    onChanged={onChanged}
+                  />
+                </>
+              )}
               <p className="helper">
-                Tracking stays off unless you choose it. Activity history is
-                stored on this computer and is not encrypted. AI sharing has
-                separate controls in Integrations / AI; optional AI check-ins
-                can share goal and activity context with configured providers.
+                This switch enables local tracking and AI progress checks. macOS
+                asks for Accessibility access. Connect your own Nebius key here
+                or later in Settings; provider charges may apply. Activity
+                history is stored on this computer. You can pause everything in
+                Settings.
               </p>
             </>
           )}

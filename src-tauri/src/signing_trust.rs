@@ -37,6 +37,9 @@ fn key_id(text: &str) -> Result<[u8; 8], String> {
 }
 impl Trust {
     pub fn load() -> Result<Self, String> {
+        #[cfg(target_os = "macos")]
+        return Self::parse(include_str!("../trusted-signers.macos.json"));
+        #[cfg(not(target_os = "macos"))]
         Self::parse(include_str!("../trusted-signers.json"))
     }
     fn parse(json: &str) -> Result<Self, String> {
@@ -68,7 +71,12 @@ impl Trust {
         Err("This update was signed by an unrecognized developer. Wait for a trusted transition release.".into())
     }
     pub fn endpoint(&self) -> String {
-        format!("https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/updates-epoch-{}.json", self.epoch)
+        let channel = if cfg!(target_os = "macos") {
+            "updates-macos-epoch"
+        } else {
+            "updates-epoch"
+        };
+        format!("https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/{channel}-{}.json", self.epoch)
     }
 }
 
@@ -136,7 +144,12 @@ mod tests {
         )
         .is_err());
         assert!(Trust::parse(r#"{"epoch":0,"signers":[]}"#).is_err());
-        assert!(trust().endpoint().ends_with("/updates-epoch-2.json"));
+        let name = if cfg!(target_os = "macos") {
+            "updates-macos-epoch-2.json"
+        } else {
+            "updates-epoch-2.json"
+        };
+        assert!(trust().endpoint().ends_with(name));
         assert!(Trust::load()
             .unwrap()
             .signers

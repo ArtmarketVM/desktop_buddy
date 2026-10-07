@@ -177,7 +177,7 @@ export function GoalRow({
                 : goal.plan.steps.length
                   ? `${done} of ${goal.plan.steps.length} steps`
                   : "Open goal"}
-            {active ? " · Selected for activity tracking" : ""}
+            {active ? " · Selected goal" : ""}
             {goal.due_at && (
               <span
                 className={
@@ -377,8 +377,7 @@ export function GoalRow({
                   disabled={disabled || !today || active}
                   onClick={() => void run(() => coreApi.focus(goal.id))}
                 >
-                  <Play size={14} />{" "}
-                  {active ? "Selected for tracking" : "Work on this"}
+                  <Play size={14} /> {active ? "Selected goal" : "Work on this"}
                 </button>
               </>
             ) : (
