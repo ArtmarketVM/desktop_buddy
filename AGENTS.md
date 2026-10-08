@@ -2,6 +2,7 @@
 
 - Keep all code, comments, UI text, documentation, and commit messages in English.
 - Bump the release version for every delivered installer update. Keep package.json, package-lock.json, Cargo.toml, Cargo.lock, and tauri.conf.json synchronized; never replace a delivered installer with different code under the same version. Use patch releases for fixes and minor releases for new features.
+- Deliver every product change for both macOS (Apple Silicon, macOS 14.5+) and Windows. Keep shared behavior consistent, implement each required platform adapter, and validate both builds before publishing one GitHub release with the same version for both systems. The user has authorized committing and publishing these completed updates. If a signing key or platform requirement blocks either system's update, report the blocker and do not describe the release as a complete update for both systems. Never weaken update signature verification or change trusted signing keys to bypass a blocker.
 - After a meaningful milestone, suggest a GitHub commit and an appropriate English commit title. Do not commit or push without user authorization.
 - When two developers are collaborating, suggest smaller and more frequent commits so changes can be shared promptly.
 - Keep provider keys runtime-only. Never commit `.env`, embed keys into frontend bundles, or log credentials.
