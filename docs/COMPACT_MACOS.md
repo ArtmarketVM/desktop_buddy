@@ -28,7 +28,9 @@ The full Chats page records and transcribes on Mac too. The compact voice bar su
 
 Windows checks cover shared frontend behavior, PCM normalization, transcript validation and backend regressions. Compilation against Apple frameworks, native permissions and window behavior must also pass on a Mac. The workflow runs the Apple compiler and a local language discovery test without requesting permissions or recording audio.
 
-Validated on Windows on 2026-10-09: 78 frontend tests, 159 backend tests (two optional live/vault tests ignored), six release/signing checks and the TypeScript/Vite production build passed. Rust formatting and property-list parsing passed. The Apple framework bridge and macOS workflow have not been executed on this host; no Mac installer has been built or delivered yet.
+Validated on 2026-10-09 for 0.23.0: the shared frontend suite passed all 79 tracked tests in both Mac CI jobs. Windows passed 163 backend tests, and each Mac architecture passed 166 backend tests; two optional live/vault tests were ignored on each platform. Eight release/signing checks, the TypeScript/Vite production build and Rust formatting passed. The signed release workflow compiled the Apple framework bridge and produced Apple Silicon and Intel DMG, ZIP and updater archives. Downloaded artifact digests, package checksums, app versions, native executable architectures and the macOS 14.5 deployment target were verified. The Windows installer and both Mac updater archives passed verification against the existing trusted signing keys.
+
+The release build source is `2aa0879cfca4b9eb67930d03b7fbceb9179fb159`; macOS workflow run [37979721334](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/37979721334) passed both jobs. Native microphone and desktop interaction still need the manual checks below.
 
 Manual checks on an installed Mac remain:
 

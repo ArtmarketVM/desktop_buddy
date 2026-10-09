@@ -1,4 +1,30 @@
-# macOS validation — 0.21.0
+# macOS validation
+
+## 0.23.0 coordinated release
+
+Checked on 2026-10-09 using GitHub macOS runners for Apple Silicon and Intel and a local Windows build host. Release source: `2aa0879cfca4b9eb67930d03b7fbceb9179fb159`. Both signed macOS jobs passed in [workflow run 37979721334](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/37979721334).
+
+| Check | Result |
+| --- | --- |
+| Shared frontend suite on each Mac architecture | 79 tests passed |
+| Rust suite on each Mac architecture | 166 passed; 2 opt-in tests ignored |
+| Windows Rust suite | 163 passed; 2 opt-in tests ignored |
+| Release/signing checks | 8 passed |
+| Production frontend and native release builds | Passed on Windows, Apple Silicon and Intel |
+| Apple speech and existing macOS bridge linkage | Passed on both Mac architectures |
+| Packaging | Windows NSIS installer; Apple Silicon and Intel DMG, ZIP and updater archives |
+| Downloaded CI artifact digests and DMG/ZIP checksums | Verified |
+| macOS app version and native architecture | 0.23.0; arm64 and x86_64 respectively |
+| Mach-O minimum OS and app minimum version | macOS 14.5 for both Mac builds |
+| Updater archive and ZIP executable consistency | Verified for both Mac builds |
+| Windows and Mac updater signatures | Verified against the existing platform trust sets |
+| Update channels | Windows epoch 2, preserved legacy Windows channels, combined Mac manifest for both architectures |
+| Apple signing | Ad hoc; Developer ID notarization is not configured |
+| Native interaction | Microphone permissions, speech, dragging and multi-monitor behavior still need manual checks on installed systems |
+
+See [the compact macOS guide](COMPACT_MACOS.md) for the remaining manual checks. The earlier local validation below remains historical evidence; it does not validate the new compact UI.
+
+## 0.21.0 local validation
 
 Checked locally on **2026-10-08**, on an **Apple Silicon Mac running macOS 27.0.1 (26A434)**, with the macOS 27 SDK, Node 24 and Rust stable. The user requested Apple Silicon only.
 
