@@ -2,6 +2,8 @@
 
 A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
+Version 0.22.0 extends the shared compact workspace to macOS: clean Today, local Chats, compact desktop Buddy, local Apple Speech transcription and Apple Silicon/Intel build jobs. See [compact workspace](docs/compact-workspace.md) and [macOS build and validation](docs/macos.md) for setup and the remaining native checks.
+
 Version 0.20.0 adds three-step onboarding, a shared Today/desktop conversation, saved goal ordering, multiple AI-step acceptance, structured settings and quick Do Not Disturb. Nebius Token Factory can identify the active goal without a running timer after a separate opt-in. See [Daily UX and automatic goal matching](docs/UX_ONBOARDING_GOALS_SETTINGS.md), [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; **Update available** appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
 
 ## Role selection and workspace — 0.12.0

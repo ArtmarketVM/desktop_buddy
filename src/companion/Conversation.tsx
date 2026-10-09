@@ -22,6 +22,7 @@ import {
 } from "../ai/api";
 import { readAttachment, recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
+import { isMac, submitShortcut } from "../api/platform";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
 
@@ -559,11 +560,19 @@ export function Conversation({
             aria-label={
               compact
                 ? "Start voice input"
-                : voice
-                  ? "Stop Windows voice typing"
-                  : "Start Windows voice typing"
+                : voice || (isMac() && recording)
+                  ? isMac()
+                    ? "Stop voice recording"
+                    : "Stop Windows voice typing"
+                  : isMac()
+                    ? "Start voice recording"
+                    : "Start Windows voice typing"
             }
-            title="Voice typing · Windows + H"
+            title={
+              isMac()
+                ? "Record and transcribe locally"
+                : "Voice typing · Windows + H"
+            }
             disabled={!desktop || busy}
             onClick={() => {
               if (compact) {
@@ -572,6 +581,11 @@ export function Conversation({
                   setMuted(!muted);
                   onState(muted ? "listening" : "idle");
                 } else onMode?.("voice");
+                return;
+              }
+              if (isMac()) {
+                if (recording) void finishRecording();
+                else void startRecording();
                 return;
               }
               input.current?.focus();
@@ -586,7 +600,7 @@ export function Conversation({
           >
             {compact && muted ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
-          {!compact && <span>Ctrl + Enter</span>}
+          {!compact && <span>{submitShortcut()}</span>}
           <button
             type="submit"
             disabled={!desktop || busy || !text.trim()}
@@ -645,11 +659,11 @@ export function Conversation({
             </button>
           </div>
         )}
-        {voice && (
+        {(voice || (!compact && recording)) && (
           <p className="helper" role="status">
-            Windows voice typing uses your input language. Switch
-            Russian/English with Windows + Space. Review the transcript before
-            sending.
+            {isMac()
+              ? "Recording for up to 60 seconds. Stop to transcribe locally, then review before sending."
+              : "Windows voice typing uses your input language. Switch Russian/English with Windows + Space. Review the transcript before sending."}
           </p>
         )}
       </form>

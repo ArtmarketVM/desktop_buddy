@@ -112,7 +112,7 @@ export function Composer({
         )
       )
         throw new Error(
-          "Install the selected Windows speech language, or use Windows + H and paste the transcript.",
+          "Enable the selected local speech language in your system settings, or paste a transcript.",
         );
       recorder.current = await recordVoice();
       setRecording(true);
@@ -270,7 +270,7 @@ export function Composer({
             <option value="en">English</option>
           </select>
           <span>
-            Windows local recognizers:{" "}
+            Local speech languages:{" "}
             {voiceLanguages === null
               ? "checking…"
               : voiceLanguages.join(", ") || "none installed"}

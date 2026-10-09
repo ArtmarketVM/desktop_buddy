@@ -19,6 +19,8 @@ mod history;
 mod http;
 mod insights;
 mod installed_apps;
+#[cfg(any(target_os = "macos", test))]
+mod macos_speech;
 mod models;
 mod nebius;
 mod privacy;

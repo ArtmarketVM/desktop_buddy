@@ -183,7 +183,11 @@ pub fn get_local_voice_languages() -> Result<Vec<String>, String> {
         serde_json::from_slice(&output.stdout)
             .map_err(|_| "Could not read installed Windows speech languages".into())
     }
-    #[cfg(not(windows))]
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos_speech::languages()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         Ok(vec![])
     }
@@ -257,11 +261,11 @@ struct SpeechCandidate {
     start: f64,
     end: f64,
 }
-fn select_transcript(json: &str) -> Result<String, String> {
-    let mut candidates: Vec<SpeechCandidate> =
-        serde_json::from_str(json).map_err(|_| "Windows returned an unreadable transcript")?;
+pub(crate) fn select_transcript(json: &str) -> Result<String, String> {
+    let mut candidates: Vec<SpeechCandidate> = serde_json::from_str(json)
+        .map_err(|_| "Local recognition returned an unreadable transcript")?;
     if candidates.len() > 1000 {
-        return Err("Windows returned too many speech segments".into());
+        return Err("Local recognition returned too many speech segments".into());
     }
     candidates.retain(|c| {
         c.confidence.is_finite()
@@ -292,11 +296,16 @@ fn select_transcript(json: &str) -> Result<String, String> {
         .collect::<Vec<_>>()
         .join(" ");
     if text.is_empty() || text.chars().count() > 16000 {
-        return Err("No clear speech was recognized. Try again, use Windows + H with the correct input language, or paste a transcript.".into());
+        return Err("No clear speech was recognized. Try again with the correct speech language, or paste a transcript.".into());
     }
     Ok(text)
 }
-#[cfg(not(windows))]
+#[cfg(target_os = "macos")]
+fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
+    crate::macos_speech::transcribe(audio, language)
+}
+
+#[cfg(not(any(windows, target_os = "macos")))]
 fn transcribe(_audio: &[u8], _language: &str) -> Result<String, String> {
     Err(
         "Local voice recognition is available on Windows. Paste a transcript on this platform."

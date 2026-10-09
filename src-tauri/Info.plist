@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Record a message for Buddy when you choose voice input.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>Transcribe your recorded message locally on this Mac for review before sending.</string>
+  </dict>
+</plist>

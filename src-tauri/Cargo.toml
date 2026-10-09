@@ -1,7 +1,7 @@
 [package]
 name = "desktop-buddy"
-version = "0.21.0"
-description = "A local-first focus companion for Windows"
+version = "0.22.0"
+description = "A local-first focus companion for Windows and macOS"
 edition = "2021"
 
 [lib]
@@ -39,6 +39,9 @@ dotenvy = "0.15"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Gdi", "Win32_Security_Credentials", "Win32_UI_WindowsAndMessaging", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Threading", "Win32_System_SystemInformation", "Win32_System_Com", "Win32_UI_Accessibility", "Media_Control", "Win32_System_Registry"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+tauri = { version = "2", features = ["macos-private-api"] }
 
 [dev-dependencies]
 tauri = { version = "2", features = ["test"] }

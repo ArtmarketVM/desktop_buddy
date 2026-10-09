@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createElement } from "react";
-import { textGoals, wav, readAttachment } from "./media";
+import { textGoals, wav, readAttachment, resampleVoice } from "./media";
 import { DaySummary } from "./Progress";
 import { CoreOnboarding } from "./Onboarding";
 import { defaultUserSettings } from "../types";
@@ -23,6 +23,24 @@ import { GoalRow } from "./Goals";
 import { goalLink } from "../../browser-extension/link.mjs";
 
 describe("core daily flow boundaries", () => {
+  it("normalizes native WebKit microphone rates to bounded 16 kHz PCM", () => {
+    for (const rate of [44100, 48000]) {
+      const samples = new Float32Array(rate).fill(0.25);
+      const normalized = resampleVoice(samples, rate);
+      expect(normalized.length).toBe(16000);
+      expect(
+        normalized.every((sample) => Math.abs(sample - 0.25) < 0.00001),
+      ).toBe(true);
+      const audio = wav(normalized, 16000);
+      expect(new DataView(audio.buffer).getUint32(24, true)).toBe(16000);
+      expect(audio.length).toBe(32044);
+    }
+    const native = new Float32Array([0.2, -0.2]);
+    expect(resampleVoice(native, 16000)).toBe(native);
+    expect(
+      Array.from(resampleVoice(new Float32Array([1, -1, 0, 1, -1, 0]), 48000)),
+    ).toEqual([0, 0]);
+  });
   it("uses minutes and hours while preserving local deadline round trips", () => {
     expect([0, 1, 59, 60, 3600, 3660].map(duration)).toEqual([
       "0m",

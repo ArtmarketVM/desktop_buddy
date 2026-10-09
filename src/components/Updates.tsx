@@ -167,13 +167,13 @@ export function UpdateDialog({
         </p>
         {!desktop ? (
           <p className="helper">
-            Update checks are available in the Windows app.
+            Update checks are available in the desktop app.
           </p>
         ) : snapshot.phase === "checking" ? (
           <p role="status">Checking GitHub Releases…</p>
         ) : snapshot.info?.status === "unpublished" ? (
           <p className="helper">
-            No published updates yet. Buddy will check again automatically.
+            No automatic updates are published for this platform yet.
           </p>
         ) : snapshot.info?.status === "current" ? (
           <p className="update-current">

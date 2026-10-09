@@ -130,6 +130,25 @@ export function wav(samples: Float32Array, sampleRate: number): Uint8Array {
   );
   return new Uint8Array(buffer);
 }
+export function resampleVoice(
+  samples: Float32Array,
+  sampleRate: number,
+): Float32Array {
+  if (sampleRate === 16000) return samples;
+  const ratio = sampleRate / 16000;
+  const output = new Float32Array(Math.floor(samples.length / ratio));
+  for (let i = 0; i < output.length; i++) {
+    const start = i * ratio;
+    const end = Math.min((i + 1) * ratio, samples.length);
+    let sum = 0;
+    for (let j = Math.floor(start); j < Math.ceil(end); j++) {
+      sum += samples[j] * (Math.min(j + 1, end) - Math.max(j, start));
+    }
+    output[i] = sum / (end - start);
+  }
+  return output;
+}
+
 export async function recordVoice(): Promise<{
   stop: () => Promise<Uint8Array>;
   cancel: () => void;
@@ -139,9 +158,20 @@ export async function recordVoice(): Promise<{
   let context: AudioContext;
   try {
     context = new AudioContext({ sampleRate: 16000 });
+  } catch {
+    // WebKit may require the microphone's native sample rate.
+    try {
+      context = new AudioContext();
+    } catch (error) {
+      stream.getTracks().forEach((track) => track.stop());
+      throw error;
+    }
+  }
+  try {
     await context.resume();
   } catch (error) {
     stream.getTracks().forEach((track) => track.stop());
+    void context.close();
     throw error;
   }
   const source = context.createMediaStreamSource(stream);
@@ -188,7 +218,7 @@ export async function recordVoice(): Promise<{
         samples.set(part, offset);
         offset += part.length;
       }
-      return wav(samples, context.sampleRate);
+      return wav(resampleVoice(samples, context.sampleRate), 16000);
     },
   };
 }

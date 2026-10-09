@@ -82,6 +82,12 @@ pub async fn check_app_update(
         version: None,
         notes: None,
     };
+    // The current signed updater channel contains Windows installers only.
+    // macOS CI builds are installed manually until a signed Mac channel exists.
+    if !cfg!(windows) {
+        info.status = "unpublished";
+        return Ok(info);
+    }
     // A new repository has no updater manifest yet. This is distinct from an
     // unreachable server, invalid manifest, or a signed newer release.
     let response = reqwest::Client::builder()
@@ -152,6 +158,9 @@ pub async fn install_app_update(
     state: State<'_, UpdateState>,
 ) -> Result<(), String> {
     workspace_only(&window)?;
+    if !cfg!(windows) {
+        return Err("Automatic updates are not published for this platform yet".into());
+    }
     if cfg!(debug_assertions) {
         return Err("Install updates from the installed Windows app".into());
     }
