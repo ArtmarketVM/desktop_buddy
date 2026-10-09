@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.23.1 — third-developer Windows signing transition
+
+- Enroll `windows-ci` as an additional Windows updater signer in trust epoch 3, keeping `primary` and `developer2` trusted.
+- Publish an epoch-2 bridge signed by an existing signer so installed Windows clients can safely trust future CI updates.
+- Preserve the separate macOS signing key, trust epoch and update endpoint.
+- Include the shared compact Buddy, local voice and workspace changes from 0.23.0.
+
 ## 0.22.1 — update indicator and permission guidance
 
 - Highlight an available update in blue, with readable text in both themes.

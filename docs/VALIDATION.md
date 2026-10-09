@@ -1,5 +1,23 @@
 # Validation record
 
+## Third-developer Windows trust transition — 0.23.1
+
+Validated on the original Windows computer on 2026-10-09: 79 frontend tests,
+163 Rust tests (two optional tests ignored), nine release/signing tests and the
+TypeScript/Vite production build passed. Optimized Windows compilation and NSIS
+packaging passed. The new regression covers an epoch-3 third signer, rejecting
+self-authorization and retaining both older bridges. Initial sandbox runs hit
+filesystem permission errors; the authorized runs outside the sandbox passed.
+
+Installer: 5,572,747 bytes, SHA-256
+`1d02086f9033f20bb1f9c00f7d1cec9840cb3a80b349cacdf2b8ec8809afd1b7`.
+Both executable version fields report 0.23.1. Its actual signature verifies as
+`primary` against both historical epoch-2 and new epoch-3 trust. The epoch-2
+bridge is archived with the release source. The supplied public key's key ID is
+`9a341755291f6af4`; `primary` and `developer2` are retained. macOS trust/config
+files are unchanged. Native Windows installation/update/restart remains untested;
+signed macOS CI must complete before publishing the shared release.
+
 ## Developer 2 automatic AI and relevant tracking — 0.19.0
 
 Verified on Windows on 2026-10-07: 63 frontend tests, 148 Rust tests and 6 update/signature tests passed. `npm run build` and the optimized Windows x64/NSIS build passed. Two backend tests are excluded from the standard suite: the isolated Windows credential-write check and the explicitly invoked live provider smoke. The live smoke was run separately and passed with a synthetic goal: a title, 5 steps, 3 grounded sources and a persisted Buddy chat reply. It never opened the production database or shared user tasks. The provider returned an invalid structured answer during an earlier probe; the final pipeline includes one bounded validation repair and an isolated HTTP regression test for that path.

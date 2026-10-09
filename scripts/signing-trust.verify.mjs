@@ -109,6 +109,27 @@ test("older installations receive their bridge even when they skip releases", ()
   assert.equal(later.files["updates-epoch-2.json"].version, "0.14.0");
 });
 
+test("a third signer needs an epoch-2 bridge signed by an existing developer", () => {
+  const initial = prepareChannels({
+    manifest: manifest(a, "0.13.0"), bytes, trust: oldTrust,
+    history: {}, compatibility: {},
+  });
+  const second = prepareChannels({
+    manifest: manifest(a, "0.13.1"), bytes, trust: team,
+    history: { 1: oldTrust }, compatibility: initial.archive,
+  });
+  const third = addSigner(team, unknown.id, unknown.pubkey);
+  const options = { bytes, trust: third, history: { 1: oldTrust, 2: team }, compatibility: second.archive };
+  assert.throws(() => prepareChannels({ ...options, manifest: manifest(unknown, "0.14.0") }), /not trusted/);
+  const transition = prepareChannels({ ...options, manifest: manifest(a, "0.14.0") });
+  assert.equal(third.epoch, 3);
+  assert.equal(transition.files["updates-epoch-1.json"].version, "0.13.1");
+  assert.equal(transition.files["updates-epoch-2.json"].version, "0.14.0");
+  assert.deepEqual(transition.files["updates-epoch-3.json"], transition.files["updates-epoch-2.json"]);
+  for (const key of [a, b, unknown])
+    assert.equal(verifyArtifact(bytes, key.versions["0.14.0"], third, "0.14.0"), key.id);
+});
+
 test("a new developer cannot authorize their own transition or skip a required bridge", () => {
   const initial = prepareChannels({
     manifest: manifest(a, "0.13.0"),
