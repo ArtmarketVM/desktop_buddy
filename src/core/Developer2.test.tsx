@@ -95,8 +95,12 @@ describe("automatic AI and relevant progress", () => {
         edit: () => {},
       }),
     );
-    expect(html).toContain("Ship Buddy onboarding");
-    expect(html).toContain("Add all steps");
+    expect(html).toContain("Outline");
+    expect(html).toContain("Draft");
+    expect(html).toContain("Add all");
+    expect(html).toContain("Ignore suggestion: Outline");
+    expect(html).not.toContain("Ship Buddy onboarding");
+    expect(html).not.toContain("Improve / Research");
     expect(html).not.toContain("Focus timer");
     expect(html).not.toContain("Timer running");
   });

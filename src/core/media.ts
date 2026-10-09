@@ -133,6 +133,7 @@ export function wav(samples: Float32Array, sampleRate: number): Uint8Array {
 export async function recordVoice(): Promise<{
   stop: () => Promise<Uint8Array>;
   cancel: () => void;
+  setMuted: (muted: boolean) => void;
 }> {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   let context: AudioContext;
@@ -150,8 +151,9 @@ export async function recordVoice(): Promise<{
   const chunks: Float32Array[] = [];
   let size = 0;
   let closed = false;
+  let muted = false;
   processor.onaudioprocess = (event) => {
-    if (size < context.sampleRate * 60) {
+    if (!muted && size < context.sampleRate * 60) {
       const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
       chunks.push(chunk);
       size += chunk.length;
@@ -170,6 +172,12 @@ export async function recordVoice(): Promise<{
     void context.close();
   };
   return {
+    setMuted: (value) => {
+      muted = value;
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = !value;
+      });
+    },
     cancel: close,
     stop: async () => {
       close();

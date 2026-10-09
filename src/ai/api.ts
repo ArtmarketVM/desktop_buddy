@@ -29,6 +29,12 @@ export interface ChatMessage {
   goal_id: number | null;
   resources: ChatResource[];
 }
+export interface ChatConversation {
+  id: number;
+  title: string;
+  updated_at: string;
+  active: boolean;
+}
 export interface CoachingInsight {
   observed_active_minutes: number;
   relevant_active_minutes: number;
@@ -58,6 +64,12 @@ export const aiApi = {
       researchRequested,
     }),
   history: () => invoke<ChatMessage[]>("get_buddy_chat_history"),
+  conversations: () => invoke<ChatConversation[]>("get_buddy_conversations"),
+  newConversation: () => invoke<number>("create_buddy_conversation"),
+  selectConversation: (id: number) =>
+    invoke<void>("select_buddy_conversation", { id }),
+  deleteConversation: (id: number) =>
+    invoke<void>("delete_buddy_conversation", { id, confirmed: true }),
   clearHistory: () => invoke<void>("clear_buddy_chat", { confirmed: true }),
   send: (
     text: string,

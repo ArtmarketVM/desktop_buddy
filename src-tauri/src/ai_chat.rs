@@ -22,11 +22,98 @@ pub struct ChatReply {
     pub message: String,
     pub resources: Vec<Resource>,
 }
+#[derive(Serialize)]
+pub struct Conversation {
+    pub id: i64,
+    pub title: String,
+    pub updated_at: String,
+    pub active: bool,
+}
 impl Storage {
-    pub fn chat_history(&self) -> Result<Vec<ChatMessage>, String> {
-        let mut query = self.connection.prepare("SELECT id,role,text,created_at,goal_id,resources FROM (SELECT * FROM buddy_messages ORDER BY id DESC LIMIT 100) ORDER BY id").map_err(|e| e.to_string())?;
+    pub fn current_conversation(&self) -> Result<i64, String> {
+        let saved: Option<i64> = self.read_setting("active_buddy_conversation")?;
+        if let Some(id) = saved {
+            if self
+                .connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM buddy_conversations WHERE id=?1)",
+                    [id],
+                    |r| r.get::<_, bool>(0),
+                )
+                .map_err(|e| e.to_string())?
+            {
+                return Ok(id);
+            }
+        }
+        let id: Option<i64> = self
+            .connection
+            .query_row(
+                "SELECT id FROM buddy_conversations ORDER BY updated_at DESC,id DESC LIMIT 1",
+                [],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        if let Some(id) = id {
+            return Ok(id);
+        }
+        self.create_conversation()
+    }
+    pub fn create_conversation(&self) -> Result<i64, String> {
+        self.connection
+            .execute(
+                "INSERT INTO buddy_conversations(title,updated_at) VALUES('New chat',?1)",
+                [chrono::Utc::now().to_rfc3339()],
+            )
+            .map_err(|e| e.to_string())?;
+        let id = self.connection.last_insert_rowid();
+        self.write_setting("active_buddy_conversation", &id)?;
+        Ok(id)
+    }
+    pub fn select_conversation(&self, id: i64) -> Result<(), String> {
+        let exists: bool = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM buddy_conversations WHERE id=?1)",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if !exists {
+            return Err("Conversation no longer exists".into());
+        }
+        self.write_setting("active_buddy_conversation", &id)
+    }
+    pub fn conversations(&self) -> Result<Vec<Conversation>, String> {
+        let active = self.current_conversation()?;
+        let mut query = self.connection.prepare("SELECT id,title,updated_at FROM buddy_conversations ORDER BY updated_at DESC,id DESC").map_err(|e| e.to_string())?;
         let rows = query
             .query_map([], |r| {
+                let id = r.get(0)?;
+                Ok(Conversation {
+                    id,
+                    title: r.get(1)?,
+                    updated_at: r.get(2)?,
+                    active: id == active,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+    pub fn delete_conversation(&mut self, id: i64) -> Result<(), String> {
+        let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM buddy_messages WHERE id IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1)", [id]).map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM buddy_conversations WHERE id=?1", [id])
+            .map_err(|e| e.to_string())?;
+        tx.commit().map_err(|e| e.to_string())?;
+        self.current_conversation()?;
+        Ok(())
+    }
+    pub fn chat_history(&self) -> Result<Vec<ChatMessage>, String> {
+        let conversation = self.current_conversation()?;
+        let mut query = self.connection.prepare("SELECT id,role,text,created_at,goal_id,resources FROM (SELECT m.* FROM buddy_messages m JOIN buddy_conversation_messages c ON c.message_id=m.id WHERE c.conversation_id=?1 ORDER BY m.id DESC LIMIT 100) ORDER BY id").map_err(|e| e.to_string())?;
+        let rows = query
+            .query_map([conversation], |r| {
                 Ok((
                     r.get::<_, i64>(0)?,
                     r.get::<_, String>(1)?,
@@ -57,12 +144,25 @@ impl Storage {
         reply: &ChatReply,
         goal_id: Option<i64>,
     ) -> Result<(), String> {
+        let conversation = self.current_conversation()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         let now = chrono::Utc::now().to_rfc3339();
         tx.execute("INSERT INTO buddy_messages(role,text,created_at,goal_id,resources) VALUES('user',?1,?2,?3,'[]')",params![text,now,goal_id]).map_err(|e| e.to_string())?;
+        let user = tx.last_insert_rowid();
+        tx.execute(
+            "INSERT INTO buddy_conversation_messages(message_id,conversation_id) VALUES(?1,?2)",
+            params![user, conversation],
+        )
+        .map_err(|e| e.to_string())?;
         tx.execute("INSERT INTO buddy_messages(role,text,created_at,goal_id,resources) VALUES('assistant',?1,?2,?3,?4)",params![reply.message,now,goal_id,serde_json::to_string(&reply.resources).map_err(|e|e.to_string())?]).map_err(|e| e.to_string())?;
+        tx.execute(
+            "INSERT INTO buddy_conversation_messages(message_id,conversation_id) VALUES(?1,?2)",
+            params![tx.last_insert_rowid(), conversation],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.execute("UPDATE buddy_conversations SET title=CASE WHEN title='New chat' THEN ?1 ELSE title END,updated_at=?2 WHERE id=?3", params![text.chars().take(80).collect::<String>(),now,conversation]).map_err(|e| e.to_string())?;
         // Bound retained history; the newest complete turns remain together.
-        tx.execute("DELETE FROM buddy_messages WHERE id NOT IN (SELECT id FROM buddy_messages ORDER BY id DESC LIMIT 100)", []).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM buddy_messages WHERE id IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1) AND id NOT IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1 ORDER BY message_id DESC LIMIT 100)", [conversation]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn viewed_resource_urls(&self, goal: i64) -> Result<Vec<String>, String> {
@@ -100,6 +200,60 @@ impl Storage {
     }
 }
 #[tauri::command(async)]
+pub fn get_buddy_conversations(state: State<AppState>) -> Result<Vec<Conversation>, String> {
+    state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?
+        .storage
+        .conversations()
+}
+#[tauri::command(async)]
+pub fn create_buddy_conversation(app: AppHandle, state: State<AppState>) -> Result<i64, String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    let id = inner.storage.create_conversation()?;
+    inner.privacy_revision += 1;
+    let _ = app.emit("buddy://chat-updated", ());
+    Ok(id)
+}
+#[tauri::command(async)]
+pub fn select_buddy_conversation(
+    id: i64,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    inner.storage.select_conversation(id)?;
+    inner.privacy_revision += 1;
+    let _ = app.emit("buddy://chat-updated", ());
+    Ok(())
+}
+#[tauri::command(async)]
+pub fn delete_buddy_conversation(
+    id: i64,
+    confirmed: bool,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    if !confirmed {
+        return Err("Confirm deleting this conversation".into());
+    }
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    inner.storage.delete_conversation(id)?;
+    inner.privacy_revision += 1;
+    let _ = app.emit("buddy://chat-updated", ());
+    Ok(())
+}
+#[tauri::command(async)]
 pub fn get_buddy_chat_history(state: State<AppState>) -> Result<Vec<ChatMessage>, String> {
     state
         .inner
@@ -130,10 +284,19 @@ pub fn clear_buddy_chat(
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
+    let conversation = inner.storage.current_conversation()?;
     inner
         .storage
         .connection
-        .execute("DELETE FROM buddy_messages", [])
+        .execute("DELETE FROM buddy_messages WHERE id IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1)", [conversation])
+        .map_err(|e| e.to_string())?;
+    inner
+        .storage
+        .connection
+        .execute(
+            "UPDATE buddy_conversations SET title='New chat' WHERE id=?1",
+            [conversation],
+        )
         .map_err(|e| e.to_string())?;
     inner.privacy_revision += 1;
     let _ = app.emit("buddy://chat-updated", ());

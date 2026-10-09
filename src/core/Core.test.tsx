@@ -63,10 +63,11 @@ describe("core daily flow boundaries", () => {
         edit: () => {},
       }),
     );
-    expect(html).toContain("Add step");
+    expect(html).toContain("Add your own step");
     expect(html).toContain("More actions for Ship");
-    expect(html).toContain("high priority");
-    expect(html).toContain("Improve goal");
+    expect(html).not.toContain("high priority");
+    expect(html).not.toContain("Improve goal");
+    expect(html).not.toContain("No steps yet");
     expect(html).not.toContain("5s");
     const input = analysisInput(goal);
     expect(input.goalId).toBe("4");

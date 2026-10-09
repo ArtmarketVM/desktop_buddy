@@ -419,6 +419,9 @@ export function CoreSettings({
           <summary>About</summary>
           <p>Desktop Buddy · v{data.version}</p>
           <p className="helper">
+            Local profile · {settings.profile.name || "Your workspace"}
+          </p>
+          <p className="helper">
             Goals, profile, chat and activity history are stored on this PC. AI
             requests use the providers you configure. Local history is not
             encrypted; deleting it does not delete records held by providers.

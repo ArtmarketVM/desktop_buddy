@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pause, Plus } from "lucide-react";
+import { Pause, Plus, Moon } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { api, desktop } from "../api/tauri";
 import type { WorkspacePage } from "../components/AppShell";
@@ -18,8 +18,8 @@ import { QuickGoal } from "./QuickGoal";
 import { CapturedGoal } from "./CapturedGoal";
 import type { GoalEnhancement } from "./analysis";
 import type { Dashboard } from "../types";
-import { CompanionChat } from "../companion/CompanionChat";
-import { defaultCompanionView } from "../companion/types";
+import { WorkspaceBuddy } from "../companion/WorkspaceBuddy";
+import { Chats } from "../companion/Chats";
 import { GoalOrder } from "./GoalOrder";
 
 export function Experience({
@@ -195,30 +195,12 @@ export function Experience({
                   <Plus size={15} />
                   Choose goals
                 </button>
-                <button
-                  className={`outline-button ${dashboard.status.dnd ? "selected" : ""}`}
-                  aria-pressed={dashboard.status.dnd}
-                  disabled={busy || !desktop}
-                  onClick={() => void run(() => api.dnd(!dashboard.status.dnd))}
-                >
-                  Do not disturb{dashboard.status.dnd ? " · On" : ""}
-                </button>
               </div>
               <QuickGoal
                 disabled={busy || !desktop}
                 onDirty={setQuickDirty}
                 save={(title, batch) => run(() => coreApi.create(title, batch))}
               />
-              {dashboard.goal_matching?.enabled && (
-                <p className="helper" role="status">
-                  {dashboard.goal_matching.goal_id
-                    ? `AI matched: ${snapshot.goals.find((goal) => goal.id === dashboard.goal_matching?.goal_id)?.title ?? dashboard.goal?.text ?? "Saved goal"}`
-                    : "Activity unassigned"}
-                  {dashboard.goal_matching.reason
-                    ? ` · ${dashboard.goal_matching.reason}`
-                    : " · Waiting for a clear goal match"}
-                </p>
-              )}
               {drafts.length > 0 && (
                 <section aria-label="Selected text drafts">
                   <h3>Drafts to review</h3>
@@ -389,15 +371,17 @@ export function Experience({
                 </button>
               </details>
             </section>
-            <CompanionChat
-              view={dashboard.buddy.companion ?? defaultCompanionView}
-              goal={dashboard.goal}
-              plan={dashboard.goal_plan}
-              onChanged={onChanged}
-              onState={() => {}}
-              embedded
-            />
           </div>
+          <button
+            className="text-button today-dnd"
+            aria-label="Do not disturb"
+            title="Do not disturb"
+            aria-pressed={dashboard.status.dnd}
+            disabled={busy || !desktop}
+            onClick={() => void run(() => api.dnd(!dashboard.status.dnd))}
+          >
+            <Moon size={18} />
+          </button>
           {(snapshot.summary.completed.length > 0 || focusedSeconds > 0) && (
             <DaySummary
               day={snapshot.summary}
@@ -405,6 +389,12 @@ export function Experience({
             />
           )}
         </>
+      )}
+      {page !== "chats" && (
+        <WorkspaceBuddy dashboard={dashboard} onChanged={onChanged} />
+      )}
+      {page === "chats" && (
+        <Chats dashboard={dashboard} onChanged={onChanged} />
       )}
       {page === "history" && (
         <>

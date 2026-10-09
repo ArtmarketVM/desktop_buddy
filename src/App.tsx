@@ -220,7 +220,7 @@ export default function App() {
               <div className="page-title">
                 <div>
                   <h1>{title.label}</h1>
-                  <p>{title.description}</p>
+                  {page !== "focus" && <p>{title.description}</p>}
                 </div>
               </div>
               {!desktop && (

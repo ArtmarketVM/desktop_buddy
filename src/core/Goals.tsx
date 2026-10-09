@@ -1,30 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Check,
-  ChevronRight,
-  Clock3,
-  Plus,
-  Play,
-  X,
-  MoreHorizontal,
-} from "lucide-react";
+import { Check, ChevronRight, Plus, X, MoreHorizontal } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { GoalOrder } from "./GoalOrder";
 import {
   deadlineISO,
   localDeadline,
-  duration,
   type GoalDetails,
   type CoreGoal,
   type CoreSnapshot,
 } from "./types";
-import {
-  AnalysisResult,
-  analysisInput,
-  type GoalEnhancement,
-  type GoalAnalysisResult,
-} from "./analysis";
+import { AnalysisResult, type GoalEnhancement } from "./analysis";
 
 export function mergeSuggestedSteps(
   existing: CoreGoal["plan"]["steps"],
@@ -52,7 +38,6 @@ export function GoalRow({
   busy,
   run,
   edit,
-  enhancement,
   readOnly = false,
 }: {
   goal: CoreGoal;
@@ -63,89 +48,29 @@ export function GoalRow({
   enhancement?: GoalEnhancement;
   readOnly?: boolean;
 }) {
-  const [adding, setAdding] = useState(false);
-  const [stepText, setStepText] = useState("");
+  const [expanded, setExpanded] = useState(true);
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [result, setResult] = useState<GoalAnalysisResult | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
-  const [analysisError, setAnalysisError] = useState("");
-  const request = useRef(0);
-  useEffect(() => {
-    request.current += 1;
-    setAnalysisError("");
-    setAnalyzing(false);
-  }, [goal.id, goal.plan.revision]);
-  useEffect(() => {
-    setResult(null);
-  }, [goal.id]);
-  useEffect(
-    () => () => {
-      request.current += 1;
-    },
-    [],
-  );
-  const suggestions = result ?? goal.analysis?.result;
-  const done = goal.plan.steps.filter((step) => step.done).length;
+  const [stepText, setStepText] = useState("");
+  const disabled = busy || !desktop || readOnly;
   const today = snapshot.today.includes(goal.id);
   const active = snapshot.focused_goal_id === goal.id;
-  const disabled = busy || !desktop || readOnly;
   const area =
     snapshot.areas.find((item) => item.id === goal.area_id)?.title ?? "General";
-  const addStep = async (text: string) => {
-    if (goal.status !== "open" || !text.trim() || goal.plan.steps.length >= 20)
-      return false;
-    if (
-      await run(() =>
-        coreApi.save(goal.title, area, {
-          ...goal.plan,
-          steps: [
-            ...goal.plan.steps,
-            { id: crypto.randomUUID(), text: text.trim(), done: false },
-          ],
-        }),
-      )
-    ) {
-      setStepText("");
-      setAdding(false);
-      setResult((previous) =>
-        previous
-          ? {
-              ...previous,
-              suggestedSteps: previous.suggestedSteps?.filter(
-                (step) => step.title !== text,
-              ),
-            }
-          : null,
-      );
-      return true;
-    }
-    return false;
-  };
-  const analyze = async (
-    handler: NonNullable<GoalEnhancement["onImprove"]>,
-  ) => {
-    const current = ++request.current;
-    setAnalyzing(true);
-    setAnalysisError("");
-    try {
-      const next = await handler(analysisInput(goal));
-      if (request.current === current) setResult(next);
-    } catch (error) {
-      if (request.current === current) setAnalysisError(String(error));
-    } finally {
-      if (request.current === current) setAnalyzing(false);
-    }
-  };
+  async function addSteps(titles: string[]) {
+    const ok = await run(() =>
+      coreApi.save(goal.title, area, {
+        ...goal.plan,
+        steps: mergeSuggestedSteps(goal.plan.steps, titles),
+      }),
+    );
+    if (ok) setStepText("");
+    return ok;
+  }
+  const suggestions = goal.analysis?.result;
   return (
     <article
       className={`core-goal ${goal.status}`}
-      onContextMenu={(event) => {
-        if (!readOnly) {
-          event.preventDefault();
-          setMenu(true);
-        }
-      }}
       onKeyDown={(event) => {
         if (event.key === "Escape") setMenu(false);
       }}
@@ -167,56 +92,18 @@ export function GoalRow({
         >
           {goal.status === "completed" ? <Check size={15} /> : <span />}
         </button>
-        <span className="core-goal-title">
+        <button
+          className="text-button core-goal-title goal-expand-toggle"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded(!expanded);
+            if (today && !active && !disabled)
+              void run(() => coreApi.focus(goal.id));
+          }}
+        >
+          <ChevronRight size={14} className={expanded ? "rotated" : ""} />
           {goal.title}
-          <small>
-            {goal.status === "deferred"
-              ? "Set aside for later"
-              : goal.status === "completed"
-                ? "Completed"
-                : goal.plan.steps.length
-                  ? `${done} of ${goal.plan.steps.length} steps`
-                  : "Open goal"}
-            {active ? " · Selected for activity tracking" : ""}
-            {goal.due_at && (
-              <span
-                className={
-                  goal.status !== "completed" &&
-                  new Date(goal.due_at).getTime() < Date.now()
-                    ? "deadline overdue"
-                    : "deadline"
-                }
-              >
-                {" "}
-                · Due{" "}
-                {new Date(goal.due_at).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-              </span>
-            )}
-            {goal.priority && (
-              <span className={`priority-badge priority-${goal.priority}`}>
-                {" "}
-                · {goal.priority} priority
-              </span>
-            )}
-          </small>
-        </span>
-        {(goal.relevant_seconds ?? 0) > 0 && (
-          <span className="goal-time">
-            <Clock3 size={12} />
-            {duration(goal.relevant_seconds!)} relevant
-          </span>
-        )}
-        {(goal.tracked_seconds ?? 0) > 0 && (
-          <span
-            className="goal-time"
-            title="Observed activity; only sufficiently relevant activity counts toward this goal"
-          >
-            {duration(goal.tracked_seconds!)} observed
-          </span>
-        )}
+        </button>
         {!readOnly && (
           <div
             className="goal-overflow"
@@ -249,6 +136,37 @@ export function GoalRow({
                   disabled={disabled}
                   onClick={() => {
                     setMenu(false);
+                    window.dispatchEvent(
+                      new CustomEvent("buddy:ask-goal", { detail: goal }),
+                    );
+                  }}
+                >
+                  Ask Buddy about this
+                </button>
+                <button
+                  disabled={disabled || (!today && snapshot.today.length >= 3)}
+                  onClick={() => {
+                    setMenu(false);
+                    void run(() => coreApi.today(goal.id, !today));
+                  }}
+                >
+                  {today ? "Remove from Today" : "Add to Today"}
+                </button>
+                {today && (
+                  <button
+                    disabled={disabled || active}
+                    onClick={() => {
+                      setMenu(false);
+                      void run(() => coreApi.focus(goal.id));
+                    }}
+                  >
+                    {active ? "Current goal" : "Focus on this goal"}
+                  </button>
+                )}
+                <button
+                  disabled={disabled}
+                  onClick={() => {
+                    setMenu(false);
                     void run(() =>
                       coreApi.transition(
                         goal.id,
@@ -274,274 +192,152 @@ export function GoalRow({
           </div>
         )}
       </div>
-      <div className="goal-expanded">
-        {goal.description && <p className="helper">{goal.description}</p>}
-        {goal.plan.done_when && (
-          <p className="helper">Done when: {goal.plan.done_when}</p>
-        )}
-        {goal.plan.steps.length > 0 ? (
-          <ul className="core-steps">
-            {goal.plan.steps.map((step) => (
-              <li key={step.id}>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={step.done}
-                    disabled={disabled || goal.status !== "open"}
-                    onChange={(event) =>
-                      void run(() =>
-                        coreApi.save(
-                          goal.title,
-                          snapshot.areas.find(
-                            (area) => area.id === goal.area_id,
-                          )?.title ?? "General",
-                          {
+      <div className="goal-expanded" hidden={!expanded}>
+        <ul className="core-steps">
+          {goal.plan.steps.map((step) => (
+            <li key={step.id}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={step.done}
+                  disabled={disabled || goal.status !== "open"}
+                  onChange={(event) =>
+                    void run(() =>
+                      coreApi.save(goal.title, area, {
+                        ...goal.plan,
+                        steps: goal.plan.steps.map((item) =>
+                          item.id === step.id
+                            ? { ...item, done: event.target.checked }
+                            : item,
+                        ),
+                        current_step:
+                          goal.plan.current_step === step.id &&
+                          event.target.checked
+                            ? null
+                            : goal.plan.current_step,
+                      }),
+                    )
+                  }
+                />
+                <span className={step.done ? "done" : ""}>{step.text}</span>
+              </label>
+              {!readOnly && goal.status === "open" && (
+                <details className="step-menu">
+                  <summary aria-label={`Actions for step: ${step.text}`}>
+                    <MoreHorizontal size={15} />
+                  </summary>
+                  <div className="goal-menu">
+                    <button disabled={disabled} onClick={() => edit(goal)}>
+                      Edit step
+                    </button>
+                    <button
+                      disabled={disabled}
+                      onClick={() =>
+                        void run(() =>
+                          coreApi.save(goal.title, area, {
                             ...goal.plan,
-                            steps: goal.plan.steps.map((item) =>
-                              item.id === step.id
-                                ? { ...item, done: event.target.checked }
-                                : item,
+                            steps: goal.plan.steps.filter(
+                              (item) => item.id !== step.id,
                             ),
                             current_step:
-                              goal.plan.current_step === step.id &&
-                              event.target.checked
+                              goal.plan.current_step === step.id
                                 ? null
                                 : goal.plan.current_step,
-                          },
-                        ),
-                      )
-                    }
-                  />
-                  <span className={step.done ? "done" : ""}>{step.text}</span>
-                </label>
-                {!readOnly && goal.status === "open" && (
-                  <button
-                    className="text-button"
-                    disabled={disabled}
-                    aria-label={`Edit step: ${step.text}`}
-                    onClick={() => edit(goal)}
-                  >
-                    Edit
-                  </button>
-                )}
-                {!readOnly && goal.status === "open" && (
-                  <button
-                    className="text-button"
-                    disabled={disabled}
-                    aria-label={`Delete step: ${step.text}`}
-                    onClick={() =>
-                      void run(() =>
-                        coreApi.save(goal.title, area, {
-                          ...goal.plan,
-                          steps: goal.plan.steps.filter(
-                            (item) => item.id !== step.id,
-                          ),
-                          current_step:
-                            goal.plan.current_step === step.id
-                              ? null
-                              : goal.plan.current_step,
-                        }),
-                      )
-                    }
-                  >
-                    <X size={13} />
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="helper">No steps yet.</p>
+                          }),
+                        )
+                      }
+                    >
+                      Delete step
+                    </button>
+                  </div>
+                </details>
+              )}
+            </li>
+          ))}
+        </ul>
+        {!readOnly && suggestions && goal.status === "open" && (
+          <AnalysisResult
+            goalId={goal.id}
+            capacity={20 - goal.plan.steps.length}
+            compact
+            result={{
+              ...suggestions,
+              suggestedSteps: suggestions.suggestedSteps?.filter(
+                (step) =>
+                  !goal.plan.steps.some(
+                    (existing) =>
+                      existing.text.trim().toLocaleLowerCase() ===
+                      step.title.trim().toLocaleLowerCase(),
+                  ),
+              ),
+            }}
+            disabled={disabled}
+            acceptTitle={() => {}}
+            acceptStep={(text) => addSteps([text])}
+            acceptSteps={addSteps}
+          />
         )}
-        {!readOnly && (
-          <div className="goal-actions">
-            {goal.status === "open" ? (
-              <>
-                <button
-                  className="text-button"
-                  disabled={disabled || goal.plan.steps.length >= 20}
-                  onClick={() => setAdding(!adding)}
-                >
-                  <Plus size={13} />
-                  Add step
-                </button>
-                <button
-                  className="text-button"
-                  disabled={disabled || (!today && snapshot.today.length >= 3)}
-                  onClick={() => void run(() => coreApi.today(goal.id, !today))}
-                >
-                  {today ? "Remove from Today" : "Add to Today"}
-                </button>
-                <button
-                  className="text-button"
-                  disabled={disabled || !today || active}
-                  onClick={() => void run(() => coreApi.focus(goal.id))}
-                >
-                  <Play size={14} />{" "}
-                  {active ? "Selected for tracking" : "Work on this"}
-                </button>
-              </>
-            ) : (
-              <button
-                className="text-button"
-                disabled={disabled}
-                onClick={() =>
-                  void run(() => coreApi.transition(goal.id, "resume"))
-                }
-              >
-                Reopen goal
-              </button>
-            )}
-          </div>
-        )}
-        {adding && (
+        {!readOnly && goal.status === "open" && (
           <form
             className="inline-step"
             onSubmit={(event) => {
               event.preventDefault();
-              void addStep(stepText);
+              if (stepText.trim()) void addSteps([stepText]);
             }}
           >
             <input
-              autoFocus
               aria-label={`New step for ${goal.title}`}
+              placeholder="Add your own step…"
               maxLength={500}
               value={stepText}
-              disabled={disabled}
+              disabled={disabled || goal.plan.steps.length >= 20}
               onChange={(event) => setStepText(event.target.value)}
             />
-            <button disabled={disabled || !stepText.trim()}>Add</button>
             <button
-              type="button"
               className="text-button"
-              onClick={() => {
-                setAdding(false);
-                setStepText("");
-              }}
+              disabled={
+                disabled || !stepText.trim() || goal.plan.steps.length >= 20
+              }
             >
-              Cancel
+              <Plus size={14} />
+              Add
             </button>
           </form>
         )}
-        {!readOnly && (
-          <details className="goal-enhancement">
-            <summary>Improve / Research</summary>
-            <div className="goal-actions">
-              <button
-                className="text-button"
-                disabled={disabled || analyzing || !enhancement?.onImprove}
-                onClick={() =>
-                  enhancement?.onImprove && void analyze(enhancement.onImprove)
-                }
-              >
-                Improve goal
-              </button>
-              <button
-                className="text-button"
-                disabled={disabled || analyzing || !enhancement?.onResearch}
-                onClick={() =>
-                  enhancement?.onResearch &&
-                  void analyze(enhancement.onResearch)
-                }
-              >
-                Research / Check
-              </button>
-            </div>
-            {!enhancement?.onImprove && !enhancement?.onResearch && (
-              <p className="helper">AI analysis is not connected yet.</p>
-            )}
-            {analyzing && <p role="status">Preparing suggestions…</p>}
-            {analysisError && <p role="alert">{analysisError}</p>}
-          </details>
-        )}
-        {!readOnly &&
-          goal.status === "open" &&
-          (goal.analysis?.state === "queued" ||
-            goal.analysis?.state === "working") && (
-            <p role="status" className="helper">
-              {goal.analysis?.message ??
-                "Buddy is preparing your title, steps and useful sources…"}
-            </p>
-          )}
         {!readOnly && goal.analysis?.state === "failed" && (
-          <p role="alert" className="helper">
-            {goal.analysis.message}{" "}
+          <p className="helper" role="alert">
+            {goal.analysis.message}
             <button
               className="text-button"
               disabled={disabled}
-              onClick={() => {
-                setResult(null);
-                void run(() => coreApi.retryAnalysis(goal.id));
-              }}
+              onClick={() => void run(() => coreApi.retryAnalysis(goal.id))}
             >
               Retry suggestions
             </button>
           </p>
         )}
-        {!readOnly && suggestions && (
-          <AnalysisResult
-            goalId={goal.id}
-            capacity={20 - goal.plan.steps.length}
-            result={{
-              ...suggestions,
-              suggestedSteps: suggestions.suggestedSteps?.filter(
-                (s) =>
-                  !goal.plan.steps.some(
-                    (existing) =>
-                      existing.text.trim().toLocaleLowerCase() ===
-                      s.title.trim().toLocaleLowerCase(),
-                  ),
-              ),
-            }}
-            disabled={disabled || goal.status !== "open"}
-            acceptTitle={(title) =>
-              void run(() => coreApi.save(title, area, goal.plan))
-            }
-            acceptStep={(text) => addStep(text)}
-            acceptSteps={async (titles) => {
-              const ok = await run(() =>
-                coreApi.save(goal.title, area, {
-                  ...goal.plan,
-                  steps: mergeSuggestedSteps(goal.plan.steps, titles),
-                }),
-              );
-              if (ok)
-                setResult((previous) =>
-                  previous
-                    ? {
-                        ...previous,
-                        suggestedSteps: previous.suggestedSteps?.filter(
-                          (step) => !titles.includes(step.title),
-                        ),
-                      }
-                    : null,
-                );
-              return ok;
-            }}
-          />
-        )}
-        {confirmDelete && (
-          <div className="delete-confirm" role="alert">
-            <p>Delete this goal, its steps and its local progress history?</p>
-            <button
-              className="danger-button"
-              disabled={disabled}
-              onClick={() =>
-                void run(() => coreApi.transition(goal.id, "delete", true))
-              }
-            >
-              Delete permanently
-            </button>
-            <button
-              className="text-button"
-              disabled={disabled}
-              onClick={() => setConfirmDelete(false)}
-            >
-              Keep goal
-            </button>
-          </div>
-        )}
       </div>
+      {confirmDelete && (
+        <div className="delete-confirm" role="alert">
+          <p>Delete this goal, its steps and its local progress history?</p>
+          <button
+            className="danger-button"
+            disabled={disabled}
+            onClick={() =>
+              void run(() => coreApi.transition(goal.id, "delete", true))
+            }
+          >
+            Delete permanently
+          </button>
+          <button
+            className="text-button"
+            disabled={disabled}
+            onClick={() => setConfirmDelete(false)}
+          >
+            Keep goal
+          </button>
+        </div>
+      )}
     </article>
   );
 }

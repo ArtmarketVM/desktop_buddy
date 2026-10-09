@@ -160,7 +160,7 @@ pub fn transcribe_core_voice(
     audio: Vec<u8>,
     language: Option<String>,
 ) -> Result<String, String> {
-    if window.label() != "main" || !valid_voice_audio(&audio) {
+    if !["main", "buddy"].contains(&window.label()) || !valid_voice_audio(&audio) {
         return Err("Record up to 60 seconds of WAV audio".into());
     }
     let language = language.as_deref().unwrap_or("auto");

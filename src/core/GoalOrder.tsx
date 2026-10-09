@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
+import { GripVertical } from "lucide-react";
 import { desktop } from "../api/tauri";
 import type { CoreGoal } from "./types";
 
@@ -40,7 +40,7 @@ export function GoalOrder({
     );
   return (
     <div className="ordered-goals">
-      {goals.map((goal, index) => (
+      {goals.map((goal) => (
         <div
           key={goal.id}
           className={`ordered-goal ${over === goal.id ? "drop-target" : ""}`}
@@ -66,6 +66,19 @@ export function GoalOrder({
               draggable={!blocked}
               disabled={blocked}
               aria-label={`Drag ${goal.title} to reorder`}
+              onKeyDown={(event) => {
+                const index = goals.findIndex((item) => item.id === goal.id);
+                const target =
+                  event.key === "ArrowUp"
+                    ? goals[index - 1]
+                    : event.key === "ArrowDown"
+                      ? goals[index + 1]
+                      : undefined;
+                if (target && !blocked) {
+                  event.preventDefault();
+                  move(goal.id, target.id);
+                }
+              }}
               onDragStart={(event) => {
                 setDragged(goal.id);
                 event.dataTransfer.setData("text/plain", String(goal.id));
@@ -77,22 +90,6 @@ export function GoalOrder({
               }}
             >
               <GripVertical size={16} />
-            </button>
-            <button
-              className="text-button"
-              disabled={blocked || index === 0}
-              aria-label={`Move ${goal.title} up`}
-              onClick={() => move(goal.id, goals[index - 1].id)}
-            >
-              <ArrowUp size={13} />
-            </button>
-            <button
-              className="text-button"
-              disabled={blocked || index === goals.length - 1}
-              aria-label={`Move ${goal.title} down`}
-              onClick={() => move(goal.id, goals[index + 1].id)}
-            >
-              <ArrowDown size={13} />
             </button>
           </div>
           {children(goal)}

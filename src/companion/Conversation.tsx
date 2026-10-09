@@ -1,7 +1,17 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import "./conversation.css";
-import { ArrowUpRight, Mic, Paperclip, Send, Trash2, X } from "lucide-react";
+import {
+  ArrowUpRight,
+  Mic,
+  MicOff,
+  Paperclip,
+  Send,
+  Square,
+  SquarePen,
+  Trash2,
+  X,
+} from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
 import {
@@ -10,7 +20,8 @@ import {
   type ChatMessage,
   type CoachingInsight,
 } from "../ai/api";
-import { readAttachment } from "../core/media";
+import { readAttachment, recordVoice } from "../core/media";
+import { coreApi } from "../core/api";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
 
@@ -23,6 +34,10 @@ export function Conversation({
   embedded = false,
   onMove,
   onResize,
+  compact = false,
+  mode = "text",
+  onMode,
+  onClose,
 }: {
   view: CompanionView;
   goal: Goal | null;
@@ -32,7 +47,12 @@ export function Conversation({
   embedded?: boolean;
   onMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onResize?: () => void;
+  compact?: boolean;
+  mode?: "text" | "voice";
+  onMode?: (mode: "text" | "voice") => void;
+  onClose?: () => void;
 }) {
+  const inputId = useId();
   const [text, setText] = useState(view.seed.slice(0, 4000));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [preferences, setPreferences] = useState(defaultAiPreferences);
@@ -43,6 +63,12 @@ export function Conversation({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [voice, setVoice] = useState(false);
+  const [muted, setMuted] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [latestReply, setLatestReply] = useState<number | null>(null);
+  const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
+  const voiceGeneration = useRef(0);
+  const voiceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const [coaching, setCoaching] = useState<CoachingInsight | null>(null);
   const [expected, setExpected] = useState("");
@@ -51,6 +77,73 @@ export function Conversation({
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
   const followLatest = useRef(true);
+  const cancelRecording = () => {
+    voiceGeneration.current += 1;
+    recorder.current?.cancel();
+    recorder.current = null;
+    if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
+    setRecording(false);
+    setMuted(false);
+    onState("idle");
+  };
+  async function finishRecording() {
+    voiceGeneration.current += 1;
+    if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
+    const active = recorder.current;
+    recorder.current = null;
+    setRecording(false);
+    setMuted(false);
+    if (!active) return;
+    onState("thinking");
+    await run(async () => {
+      const transcript = await coreApi.transcribe(await active.stop());
+      if (transcript.length + text.length > 4000)
+        throw new Error(
+          "The transcript is too long. Record a shorter message.",
+        );
+      setText((previous) =>
+        [previous, transcript].filter(Boolean).join(" ").slice(0, 4000),
+      );
+      onMode?.("text");
+    });
+    onState("idle");
+  }
+  async function startRecording() {
+    if (!desktop || recorder.current || busy) return;
+    const generation = ++voiceGeneration.current;
+    setError("");
+    try {
+      const active = await recordVoice();
+      if (generation !== voiceGeneration.current) {
+        active.cancel();
+        return;
+      }
+      recorder.current = active;
+      setRecording(true);
+      onState("listening");
+      voiceTimeout.current = setTimeout(() => void finishRecording(), 60000);
+    } catch (e) {
+      if (generation === voiceGeneration.current) {
+        setError(String(e));
+        onState("idle");
+      }
+    }
+  }
+  useEffect(() => {
+    if (compact && mode === "voice") void startRecording();
+    return () => {
+      voiceGeneration.current += 1;
+      recorder.current?.cancel();
+      recorder.current = null;
+      if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
+      setRecording(false);
+      setMuted(false);
+      onState("idle");
+    };
+  }, [compact, mode]);
+  useEffect(() => {
+    if (compact && mode === "text") input.current?.focus();
+  }, [compact, mode]);
   useEffect(() => {
     if (!embedded) input.current?.focus();
     let active = true;
@@ -100,7 +193,7 @@ export function Conversation({
     let active = true;
     setCoaching(null);
     setExpected("");
-    if (desktop && goal)
+    if (desktop && goal && !compact)
       void aiApi
         .coaching(goal.id)
         .then((result) => {
@@ -115,14 +208,14 @@ export function Conversation({
     return () => {
       active = false;
     };
-  }, [goal?.id]);
+  }, [goal?.id, compact]);
   useEffect(() => {
     if (scroll.current && followLatest.current)
       scroll.current.scrollTop = scroll.current.scrollHeight;
   }, [messages, busy]);
   useEffect(() => {
     const escape = (event: KeyboardEvent) => {
-      if (!embedded && event.key === "Escape") {
+      if (!embedded && !compact && event.key === "Escape") {
         event.preventDefault();
         void api
           .closeChat()
@@ -132,7 +225,7 @@ export function Conversation({
     };
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
-  }, [onChanged, embedded]);
+  }, [onChanged, embedded, compact]);
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -150,9 +243,15 @@ export function Conversation({
     sending.current = true;
     onState("thinking");
     await run(async () => {
-      await aiApi.send(prefix + text.trim(), attachment?.text ?? null);
+      await aiApi.send(
+        prefix + text.trim(),
+        attachment?.text ?? null,
+        goal?.id ?? null,
+      );
       followLatest.current = true;
-      setMessages(await aiApi.history());
+      const history = await aiApi.history();
+      setMessages(history);
+      setLatestReply(history.at(-1)?.id ?? null);
       setText("");
       setAttachment(null);
       setVoice(false);
@@ -183,42 +282,44 @@ export function Conversation({
   }
   return (
     <section
-      className={`companion-chat ${embedded ? "workspace-chat" : ""}`}
+      className={`companion-chat ${embedded ? "workspace-chat" : ""} ${compact ? "compact-conversation" : ""} ${compact && mode === "voice" ? "voice-mode" : ""}`}
       aria-label={embedded ? "Buddy chat" : "Buddy mini chat"}
     >
-      <header onPointerDown={onMove}>
-        <div>
-          <strong>Buddy</strong>
-        </div>
-        <button
-          className="companion-icon"
-          aria-label="Clear conversation"
-          disabled={!desktop || busy || !messages.length}
-          onClick={() => setConfirmClear(true)}
-        >
-          <Trash2 size={15} />
-        </button>
-        {!embedded && (
-          <button
-            className="text-button"
-            title="Open full app"
-            onClick={() => void run(api.openWorkspace)}
-          >
-            <ArrowUpRight size={15} />
-            Open app
-          </button>
-        )}
-        {!embedded && (
+      {!compact && (
+        <header onPointerDown={onMove}>
+          <div>
+            <strong>Buddy</strong>
+          </div>
           <button
             className="companion-icon"
-            aria-label="Close mini chat"
-            onClick={() => void run(api.closeChat)}
+            aria-label="Clear conversation"
+            disabled={!desktop || busy || !messages.length}
+            onClick={() => setConfirmClear(true)}
           >
-            <X size={16} />
+            <Trash2 size={15} />
           </button>
-        )}
-      </header>
-      {goal && (
+          {!embedded && (
+            <button
+              className="text-button"
+              title="Open full app"
+              onClick={() => void run(api.openWorkspace)}
+            >
+              <ArrowUpRight size={15} />
+              Open app
+            </button>
+          )}
+          {!embedded && (
+            <button
+              className="companion-icon"
+              aria-label="Close mini chat"
+              onClick={() => void run(api.closeChat)}
+            >
+              <X size={16} />
+            </button>
+          )}
+        </header>
+      )}
+      {!compact && goal && (
         <details className="conversation-context">
           <summary>{goal.text}</summary>
           <p className="helper">
@@ -263,55 +364,61 @@ export function Conversation({
           </form>
         </details>
       )}
-      <div
-        className="companion-chat-scroll conversation-history"
-        ref={scroll}
-        onScroll={(event) => {
-          const node = event.currentTarget;
-          followLatest.current =
-            node.scrollHeight - node.scrollTop - node.clientHeight < 64;
-        }}
-        role="log"
-        aria-label="Conversation history"
-        aria-live="polite"
-      >
-        {!messages.length && (
-          <p className="conversation-empty">
-            What is getting in the way? Tell Buddy what you need.
-          </p>
-        )}
-        {messages.map((message) => (
-          <article
-            className={`conversation-message ${message.role}`}
-            key={message.id}
-          >
-            <span className="sr-only">
-              {message.role === "user" ? "You" : "Buddy"}
-            </span>
-            <p>{message.text}</p>
-            {message.resources.map((resource) => (
-              <button
-                className="companion-resource"
-                key={resource.url}
-                disabled={!safeUrl(resource.url) || busy}
-                onClick={() => void openResource(resource.url, message.goal_id)}
+      {(!compact || latestReply !== null || busy) && (
+        <div
+          className="companion-chat-scroll conversation-history"
+          ref={scroll}
+          onScroll={(event) => {
+            const node = event.currentTarget;
+            followLatest.current =
+              node.scrollHeight - node.scrollTop - node.clientHeight < 64;
+          }}
+          role="log"
+          aria-label="Conversation history"
+          aria-live="polite"
+        >
+          {!compact && !messages.length && (
+            <p className="conversation-empty">
+              What is getting in the way? Tell Buddy what you need.
+            </p>
+          )}
+          {messages
+            .filter((message) => !compact || message.id === latestReply)
+            .map((message) => (
+              <article
+                className={`conversation-message ${message.role}`}
+                key={message.id}
               >
-                <span>
-                  {resource.title}
-                  <small>{resource.whyRelevant}</small>
+                <span className="sr-only">
+                  {message.role === "user" ? "You" : "Buddy"}
                 </span>
-                <ArrowUpRight size={14} />
-              </button>
+                <p>{message.text}</p>
+                {message.resources.map((resource) => (
+                  <button
+                    className="companion-resource"
+                    key={resource.url}
+                    disabled={!safeUrl(resource.url) || busy}
+                    onClick={() =>
+                      void openResource(resource.url, message.goal_id)
+                    }
+                  >
+                    <span>
+                      {resource.title}
+                      <small>{resource.whyRelevant}</small>
+                    </span>
+                    <ArrowUpRight size={14} />
+                  </button>
+                ))}
+              </article>
             ))}
-          </article>
-        ))}
-        {busy && (
-          <p role="status">
-            {sending.current ? "Buddy is thinking…" : "Working…"}
-          </p>
-        )}
-      </div>
-      {view.inbox.length > 0 && (
+          {busy && (
+            <p role="status">
+              {sending.current ? "Buddy is thinking…" : "Working…"}
+            </p>
+          )}
+        </div>
+      )}
+      {!compact && view.inbox.length > 0 && (
         <details className="conversation-context" aria-label="Saved for later">
           <summary>
             Saved for later ({view.inbox.filter((item) => !item.done).length})
@@ -404,15 +511,15 @@ export function Conversation({
             </button>
           </div>
         )}
-        <label htmlFor="companion-input" className="sr-only">
+        <label htmlFor={inputId} className="sr-only">
           Your message or task
         </label>
         <textarea
-          id="companion-input"
+          id={inputId}
           ref={input}
           value={text}
           maxLength={4000}
-          rows={3}
+          rows={compact ? 1 : 3}
           disabled={busy}
           placeholder="Message Buddy…"
           onChange={(e) => setText(e.target.value)}
@@ -420,7 +527,7 @@ export function Conversation({
             if (
               !e.nativeEvent.isComposing &&
               e.key === "Enter" &&
-              (e.ctrlKey || e.metaKey)
+              (e.ctrlKey || e.metaKey || (compact && !e.shiftKey))
             ) {
               e.preventDefault();
               void submit();
@@ -435,24 +542,38 @@ export function Conversation({
             hidden
             onChange={(e) => void attach(e.target.files?.[0])}
           />
-          <button
-            type="button"
-            className="companion-icon"
-            aria-label="Attach text or PDF"
-            disabled={!desktop || busy}
-            onClick={() => fileInput.current?.click()}
-          >
-            <Paperclip size={16} />
-          </button>
+          {(!compact || mode === "text") && (
+            <button
+              type="button"
+              className="companion-icon"
+              aria-label="Attach text or PDF"
+              disabled={!desktop || busy}
+              onClick={() => fileInput.current?.click()}
+            >
+              <Paperclip size={16} />
+            </button>
+          )}
           <button
             type="button"
             className="companion-icon"
             aria-label={
-              voice ? "Stop Windows voice typing" : "Start Windows voice typing"
+              compact
+                ? "Start voice input"
+                : voice
+                  ? "Stop Windows voice typing"
+                  : "Start Windows voice typing"
             }
             title="Voice typing · Windows + H"
             disabled={!desktop || busy}
             onClick={() => {
+              if (compact) {
+                if (mode === "voice") {
+                  recorder.current?.setMuted(!muted);
+                  setMuted(!muted);
+                  onState(muted ? "listening" : "idle");
+                } else onMode?.("voice");
+                return;
+              }
               input.current?.focus();
               setVoice(!voice);
               onState(voice ? "idle" : "listening");
@@ -463,9 +584,9 @@ export function Conversation({
               });
             }}
           >
-            <Mic size={16} />
+            {compact && muted ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
-          <span>Ctrl + Enter</span>
+          {!compact && <span>Ctrl + Enter</span>}
           <button
             type="submit"
             disabled={!desktop || busy || !text.trim()}
@@ -532,6 +653,81 @@ export function Conversation({
           </p>
         )}
       </form>
+      {compact && mode === "voice" && (
+        <div className="compact-voice-bar" aria-label="Voice controls">
+          <button
+            type="button"
+            aria-label="Switch to text"
+            onClick={() => {
+              cancelRecording();
+              onMode?.("text");
+            }}
+          >
+            <SquarePen size={17} />
+          </button>
+          <button
+            type="button"
+            disabled={!desktop || busy}
+            aria-label={
+              recording
+                ? muted
+                  ? "Unmute microphone"
+                  : "Mute microphone"
+                : "Start recording"
+            }
+            onClick={() => {
+              if (!recording) void startRecording();
+              else {
+                recorder.current?.setMuted(!muted);
+                setMuted(!muted);
+                onState(muted ? "listening" : "idle");
+              }
+            }}
+          >
+            {muted ? <MicOff size={18} /> : <Mic size={18} />}
+          </button>
+          <span
+            className={`voice-indicator ${recording && !muted ? "listening" : ""}`}
+            role="status"
+            aria-label={
+              busy
+                ? "Transcribing"
+                : recording
+                  ? muted
+                    ? "Microphone muted"
+                    : "Listening"
+                  : "Microphone ready"
+            }
+          />
+          <button
+            type="button"
+            disabled={!recording || busy}
+            aria-label="Stop and transcribe"
+            onClick={() => void finishRecording()}
+          >
+            <Square size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label="Close voice"
+            onClick={() => {
+              cancelRecording();
+              onClose?.();
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
+      {compact && mode === "text" && (
+        <button
+          className="compact-close"
+          aria-label="Close Buddy input"
+          onClick={onClose}
+        >
+          <X size={14} />
+        </button>
+      )}
       {onResize && (
         <button
           className="chat-resize-handle text-button"

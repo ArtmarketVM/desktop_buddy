@@ -26,6 +26,12 @@ impl Storage {
         CREATE INDEX IF NOT EXISTS activity_goal ON activity(goal_id, id);
         CREATE TABLE IF NOT EXISTS preferences(name TEXT PRIMARY KEY, value TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS buddy_messages(id INTEGER PRIMARY KEY,role TEXT NOT NULL CHECK(role IN ('user','assistant')),text TEXT NOT NULL,created_at TEXT NOT NULL,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL,resources TEXT NOT NULL DEFAULT '[]');
+        CREATE TABLE IF NOT EXISTS buddy_conversations(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,updated_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS buddy_conversation_messages(message_id INTEGER PRIMARY KEY REFERENCES buddy_messages(id) ON DELETE CASCADE,conversation_id INTEGER NOT NULL REFERENCES buddy_conversations(id) ON DELETE CASCADE);
+        CREATE INDEX IF NOT EXISTS buddy_conversation_index ON buddy_conversation_messages(conversation_id,message_id);
+        INSERT INTO buddy_conversations(title,updated_at) SELECT 'New chat',strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE NOT EXISTS(SELECT 1 FROM buddy_conversations);
+        INSERT OR IGNORE INTO buddy_conversation_messages(message_id,conversation_id) SELECT id,(SELECT MIN(id) FROM buddy_conversations) FROM buddy_messages;
+        UPDATE buddy_conversations SET title=COALESCE((SELECT substr(m.text,1,80) FROM buddy_messages m JOIN buddy_conversation_messages c ON c.message_id=m.id WHERE c.conversation_id=buddy_conversations.id AND m.role='user' ORDER BY m.id LIMIT 1),'New chat'),updated_at=COALESCE((SELECT MAX(m.created_at) FROM buddy_messages m JOIN buddy_conversation_messages c ON c.message_id=m.id WHERE c.conversation_id=buddy_conversations.id),updated_at) WHERE title='New chat';
         CREATE TABLE IF NOT EXISTS resource_views(id INTEGER PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE CASCADE,url TEXT NOT NULL,created_at TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS ai_goal_estimates(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,minutes INTEGER NOT NULL CHECK(minutes BETWEEN 1 AND 10080));
         CREATE TABLE IF NOT EXISTS suggestions(goal_id INTEGER NOT NULL REFERENCES goals(id), url TEXT NOT NULL, timestamp TEXT NOT NULL, PRIMARY KEY(goal_id,url));
@@ -73,6 +79,7 @@ impl Storage {
             })
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR julianday(updated_at)<julianday(?1)", [cutoff]).map_err(|e| e.to_string())?;
         tx.execute(
             "DELETE FROM goal_relevant_daily WHERE ?1 IS NULL OR day<?1",
             [cutoff_day.as_deref()],

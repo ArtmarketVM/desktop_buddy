@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import type { GoalStep } from "../types";
 import type { CoreGoal } from "./types";
 import { aiApi } from "../ai/api";
@@ -102,6 +103,7 @@ export function AnalysisResult({
   acceptStep,
   acceptSteps,
   capacity = 20,
+  compact = false,
 }: {
   result: GoalAnalysisResult;
   goalId?: number;
@@ -110,10 +112,34 @@ export function AnalysisResult({
   acceptStep: (title: string) => void | Promise<boolean>;
   acceptSteps?: (titles: string[]) => void | Promise<boolean>;
   capacity?: number;
+  compact?: boolean;
 }) {
   const [selected, setSelected] = useState<string[]>([]);
   const [accepting, setAccepting] = useState(false);
-  const candidates = result.suggestedSteps?.slice(0, 5) ?? [];
+  const storageKey = `buddy-dismissed-suggestions-${goalId}`;
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) ?? "[]");
+    } catch {
+      return [];
+    }
+  });
+  useEffect(() => {
+    const sync = (event: StorageEvent) => {
+      if (event.key === storageKey) {
+        try {
+          setDismissed(JSON.parse(event.newValue ?? "[]"));
+        } catch {
+          setDismissed([]);
+        }
+      }
+    };
+    window.addEventListener("storage", sync);
+    return () => window.removeEventListener("storage", sync);
+  }, [storageKey]);
+  const candidates = (result.suggestedSteps ?? [])
+    .filter((step) => !dismissed.includes(step.title))
+    .slice(0, 5);
   const chosen = candidates
     .filter((step) => selected.includes(step.title))
     .map((step) => step.title);
@@ -129,6 +155,67 @@ export function AnalysisResult({
       setAccepting(false);
     }
   }
+  if (compact)
+    return (
+      <section
+        className="goal-analysis compact-suggestions"
+        aria-label="Suggested steps"
+      >
+        {candidates.map((step) => (
+          <div className="suggested-step" key={step.title}>
+            <span>{step.title}</span>
+            <button
+              className="text-button"
+              disabled={
+                disabled ||
+                accepting ||
+                capacity <= 0 ||
+                !step.title.trim() ||
+                step.title.length > 500
+              }
+              onClick={() => {
+                setAccepting(true);
+                void Promise.resolve(acceptStep(step.title)).finally(() =>
+                  setAccepting(false),
+                );
+              }}
+            >
+              Add
+            </button>
+            <button
+              className="text-button"
+              aria-label={`Ignore suggestion: ${step.title}`}
+              disabled={disabled || accepting}
+              onClick={() => {
+                const next = [...dismissed, step.title];
+                setDismissed(next);
+                localStorage.setItem(storageKey, JSON.stringify(next));
+              }}
+            >
+              <X size={13} />
+            </button>
+          </div>
+        ))}
+        {acceptSteps && candidates.length > 0 && (
+          <button
+            className="text-button"
+            disabled={
+              disabled ||
+              accepting ||
+              candidates.length > capacity ||
+              candidates.some(
+                (step) => !step.title.trim() || step.title.length > 500,
+              )
+            }
+            onClick={() =>
+              void addSuggestions(candidates.map((step) => step.title))
+            }
+          >
+            {accepting ? "Adding…" : "Add all"}
+          </button>
+        )}
+      </section>
+    );
   return (
     <section className="goal-analysis" aria-label="Goal suggestions">
       <p className="helper">Suggestions stay separate until you accept them.</p>

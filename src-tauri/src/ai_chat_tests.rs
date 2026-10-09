@@ -3,6 +3,65 @@ fn store() -> Storage {
     Storage::open(std::path::Path::new(":memory:")).unwrap()
 }
 #[test]
+fn conversations_isolate_messages_and_delete_only_the_selected_history() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    let reply = ChatReply {
+        message: "Answer".into(),
+        resources: vec![],
+    };
+    storage
+        .save_chat_turn("First question", &reply, None)
+        .unwrap();
+    let second = storage.create_conversation().unwrap();
+    assert_ne!(first, second);
+    assert!(storage.chat_history().unwrap().is_empty());
+    for _ in 0..60 {
+        storage
+            .save_chat_turn("Second question", &reply, None)
+            .unwrap();
+    }
+    assert_eq!(storage.chat_history().unwrap().len(), 100);
+    storage.select_conversation(first).unwrap();
+    assert_eq!(storage.chat_history().unwrap()[0].text, "First question");
+    assert_eq!(storage.chat_history().unwrap().len(), 2);
+    storage.delete_conversation(first).unwrap();
+    assert_eq!(storage.current_conversation().unwrap(), second);
+    assert_eq!(storage.chat_history().unwrap().len(), 100);
+    assert!(storage.select_conversation(first).is_err());
+    storage.purge_history(None).unwrap();
+    assert!(storage.chat_history().unwrap().is_empty());
+    assert!(storage
+        .conversations()
+        .unwrap()
+        .iter()
+        .all(|item| item.title == "New chat"));
+}
+#[test]
+fn legacy_chat_migration_preserves_turns_and_is_idempotent() {
+    let mut storage = store();
+    let reply = ChatReply {
+        message: "Earlier answer".into(),
+        resources: vec![],
+    };
+    storage
+        .save_chat_turn("Earlier question", &reply, None)
+        .unwrap();
+    storage
+        .connection
+        .execute("DELETE FROM buddy_conversation_messages", [])
+        .unwrap();
+    storage
+        .connection
+        .execute("DELETE FROM buddy_conversations", [])
+        .unwrap();
+    storage.initialize().unwrap();
+    storage.initialize().unwrap();
+    assert_eq!(storage.conversations().unwrap().len(), 1);
+    assert_eq!(storage.chat_history().unwrap().len(), 2);
+    assert_eq!(storage.chat_history().unwrap()[0].text, "Earlier question");
+}
+#[test]
 fn conversation_survives_reopening_the_database_without_an_active_goal() {
     let path = std::env::temp_dir().join(format!(
         "buddy-chat-{}-{}.sqlite",
