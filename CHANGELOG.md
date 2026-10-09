@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.23.2 — coordinated Windows and macOS updates
+
+- Publish Windows and both macOS architectures together after signed artifact and channel verification.
+- Use the enrolled Windows CI signer while retaining the primary-signed 0.23.1 transition and older compatibility bridges.
+- Reject replacement of published releases and remove the separate Windows-only publication path.
+
 ## 0.23.1 — third-developer Windows signing transition
 
 - Enroll `windows-ci` as an additional Windows updater signer in trust epoch 3, keeping `primary` and `developer2` trusted.

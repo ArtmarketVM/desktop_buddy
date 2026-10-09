@@ -4,15 +4,6 @@ on:
     branches: [main, codex/macos-support]
   pull_request:
   workflow_dispatch:
-    inputs:
-      publish_release:
-        description: Publish a signed release (requires a separately configured signing secret)
-        type: boolean
-        default: false
-      release_tag:
-        description: Version tag, for example v0.10.0
-        type: string
-        default: ''
 permissions:
   contents: read
 jobs:
@@ -37,22 +28,7 @@ jobs:
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Build a CI installer without release signing
-        if: ${{ !inputs.publish_release }}
         run: npm run tauri -- build --config src-tauri/tauri.ci.conf.json -- --locked
-      - name: Build a signed Windows release
-        if: github.event_name == 'workflow_dispatch' && inputs.publish_release
-        env:
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Configure the updater signing secret before publishing a release.' }
-          if ('${{ github.ref }}' -ne 'refs/heads/main') { throw 'Signed releases must build the reviewed main branch.' }
-          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-          if ($env:RELEASE_TAG -ne "v$version") { throw 'Release tag must match the app version.' }
-          npm run tauri -- build --ci -- --locked
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          node scripts/create-update-manifest.mjs $env:RELEASE_TAG
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-buddy-windows
@@ -64,31 +40,3 @@ jobs:
             src-tauri/target/release/bundle/nsis/updates-epoch-*.json
             updates/compatibility.json
           if-no-files-found: error
-  release:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_release
-    needs: build
-    runs-on: windows-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: desktop-buddy-windows
-          path: release
-      - uses: softprops/action-gh-release@v2
-        id: release
-        with:
-          draft: true
-          tag_name: ${{ inputs.release_tag }}
-          target_commitish: ${{ github.sha }}
-          fail_on_unmatched_files: true
-          files: |
-            release/**/*.exe
-            release/**/*.exe.sig
-            release/**/latest.json
-            release/**/updates-epoch-*.json
-          generate_release_notes: true
-      - name: Publish after all update assets are uploaded
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh api --method PATCH 'repos/${{ github.repository }}/releases/${{ steps.release.outputs.id }}' -F draft=false --silent

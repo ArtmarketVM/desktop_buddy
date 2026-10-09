@@ -1,13 +1,13 @@
 {
   "name": "desktop-buddy",
   "private": true,
-  "version": "0.23.1",
+  "version": "0.23.2",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/check-version.mjs && tsc -b && vite build",
     "test": "vitest run",
-    "test:release": "node --test scripts/update-manifest.verify.mjs scripts/signing-trust.verify.mjs scripts/macos-update.verify.mjs scripts/retained-windows.verify.mjs",
+    "test:release": "node --test scripts/update-manifest.verify.mjs scripts/signing-trust.verify.mjs scripts/macos-update.verify.mjs scripts/retained-windows.verify.mjs scripts/release.verify.mjs",
     "test:contact": "node --test server/contact.verify.mjs",
     "tauri": "tauri",
     "dev:macos": "tauri dev",

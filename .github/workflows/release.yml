@@ -1,15 +1,77 @@
-name: Build signed macOS release
+name: Publish Windows and macOS release
 on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: Version tag matching the reviewed source
+        description: New synchronized version tag, for example v0.23.2
         required: true
         type: string
+concurrency:
+  group: desktop-buddy-release
+  cancel-in-progress: false
 permissions:
   contents: read
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Require reviewed main and a new version
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RELEASE_TAG" = "v$(node -p "require('./package.json').version")"
+          node scripts/check-version.mjs
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo 'This version already exists. Bump the version; never replace release assets.' >&2
+            exit 1
+          fi
+  windows:
+    needs: prepare
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:release
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build and verify signed Windows update
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Configure the Windows CI signing key.' }
+          npm run tauri -- build --ci -- --locked
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/create-update-manifest.mjs $env:RELEASE_TAG
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            src-tauri/target/release/bundle/nsis/*.exe
+            src-tauri/target/release/bundle/nsis/*.exe.sig
+            src-tauri/target/release/bundle/nsis/*.json
+          if-no-files-found: error
   macos:
+    needs: prepare
     strategy:
       fail-fast: false
       matrix:
@@ -58,3 +120,37 @@ jobs:
           name: release-macos-${{ matrix.name }}
           path: artifacts/*
           if-no-files-found: error
+  publish:
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Combine channels and verify every platform before publication
+        run: |
+          node --input-type=module - <<'JS'
+          import { readdirSync, renameSync } from 'node:fs';
+          for (const name of readdirSync('release')) {
+            if (name.includes(' ')) renameSync(`release/${name}`, `release/${name.replaceAll(' ', '.')}`);
+          }
+          JS
+          node scripts/create-macos-update-manifest.mjs release "$RELEASE_TAG"
+          node scripts/verify-release.mjs release "$RELEASE_TAG"
+          (cd release && sha256sum * > SHA256SUMS.txt)
+      - name: Publish one complete release without replacing existing assets
+        run: |
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "Desktop Buddy ${RELEASE_TAG#v}" --notes-file "docs/RELEASE_${RELEASE_TAG#v}.md"
+          gh release upload "$RELEASE_TAG" release/* --repo "$GITHUB_REPOSITORY"
+          gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
