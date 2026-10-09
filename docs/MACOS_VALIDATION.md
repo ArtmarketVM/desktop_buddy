@@ -1,5 +1,37 @@
 # macOS validation
 
+## 0.23.2 coordinated release and installed Mac update
+
+Checked on 2026-10-09. Release source: `7d8caf76839072d7cff465439a60789955ac59b9`.
+The complete [release workflow](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/37985717570)
+passed and published [0.23.2](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.23.2)
+for Windows x64, Apple Silicon and Intel macOS.
+
+| Check | Result |
+| --- | --- |
+| Frontend suite on all three build hosts | 79 passed per host |
+| Release and signing suite | 13 passed per host |
+| Rust suite | Windows: 163 passed; each Mac architecture: 166 passed; 2 opt-in tests ignored per host |
+| Native production builds and signed updater packages | Passed on all three hosts |
+| Downloaded public release | All SHA-256 checks passed; actual Windows and both Mac updater signatures verified |
+| Published release completeness | Both Mac architectures and Windows have matching 0.23.2 channels and required installer assets |
+| Windows compatibility | Legacy channels unchanged: latest.json -> 0.13.0, epoch 1 -> 0.17.1, epoch 2 -> primary-signed 0.23.1; epoch 3 -> windows-ci-signed 0.23.2 |
+| Mac channel | Existing macOS epoch 1 and signer retained; both architectures point to 0.23.2 |
+| Public latest/download endpoints | All five channel URLs fetched and their versions/platforms checked |
+| Mac packaging | Both DMG image checks passed; ZIP and updater executables match; native architectures and minimum OS 14.5 verified |
+| Installed Apple Silicon update | Existing 0.22.1 app automatically installed 0.23.2 after relaunch; installed executable matches the public updater archive |
+| Installed app code signature | codesign --verify --deep --strict passed |
+| User data | All three goal records exactly match the preinstallation SQLite backup |
+| Post-update launch | User confirmed Keychain access and that the 0.23.2 workspace opens; automation could not inspect the new window |
+| Release ordering | Shared workflow concurrency and same/newer-version publication guards enabled; published assets are not replaced |
+
+The Windows install/restart cycle and runtime on exact macOS 14.5 hardware were
+not exercised in this Mac session. Renewed Accessibility and live AI behavior
+after this update were not verified. macOS remains ad-hoc signed without
+Developer ID notarization, so system permission renewal can still be required.
+The prior provider connection checks are historical evidence, not a new
+post-update provider test.
+
 ## 0.23.0 coordinated release
 
 Checked on 2026-10-09 using GitHub macOS runners for Apple Silicon and Intel and a local Windows build host. Release source: `2aa0879cfca4b9eb67930d03b7fbceb9179fb159`. Both signed macOS jobs passed in [workflow run 37979721334](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/37979721334).
