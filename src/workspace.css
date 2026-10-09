@@ -961,13 +961,19 @@ footer > span {
   flex-shrink: 0;
 }
 .update-available .update-icon {
-  background: var(--accent);
+  background: #2563eb;
   color: white;
 }
 .update-available {
-  color: #cbdcff;
+  color: #1d4ed8;
 }
 .update-available small {
+  color: #31588b;
+}
+:root[data-theme="dark"] .update-available {
+  color: #cbdcff;
+}
+:root[data-theme="dark"] .update-available small {
   color: #8dabd9;
 }
 .dialog-backdrop {

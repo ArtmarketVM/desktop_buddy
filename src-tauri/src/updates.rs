@@ -30,6 +30,16 @@ fn workspace_only(window: &WebviewWindow) -> Result<(), String> {
 }
 
 fn validate_download(url: &reqwest::Url) -> Result<(), String> {
+    validate_platform_download(
+        url,
+        if cfg!(target_os = "macos") {
+            ".app.tar.gz"
+        } else {
+            ".exe"
+        },
+    )
+}
+fn validate_platform_download(url: &reqwest::Url, extension: &str) -> Result<(), String> {
     if url.scheme() != "https"
         || url.host_str() != Some("github.com")
         || !url.username().is_empty()
@@ -38,9 +48,9 @@ fn validate_download(url: &reqwest::Url) -> Result<(), String> {
         || !url
             .path()
             .starts_with("/ArtmarketVM/desktop_buddy/releases/download/")
-        || !url.path().ends_with(".exe")
+        || !url.path().ends_with(extension)
     {
-        return Err("The update is not a Windows release from Desktop Buddy's repository".into());
+        return Err("The update does not match this platform or Desktop Buddy's repository".into());
     }
     Ok(())
 }
@@ -82,12 +92,6 @@ pub async fn check_app_update(
         version: None,
         notes: None,
     };
-    // The current signed updater channel contains Windows installers only.
-    // macOS CI builds are installed manually until a signed Mac channel exists.
-    if !cfg!(windows) {
-        info.status = "unpublished";
-        return Ok(info);
-    }
     // A new repository has no updater manifest yet. This is distinct from an
     // unreachable server, invalid manifest, or a signed newer release.
     let response = reqwest::Client::builder()
@@ -110,10 +114,20 @@ pub async fn check_app_update(
         .json()
         .await
         .map_err(|_| "Invalid update manifest")?;
+    let platform = if cfg!(target_os = "macos") {
+        format!("darwin-{}", std::env::consts::ARCH)
+    } else {
+        "windows-x86_64".into()
+    };
+    let signature_pointer = format!("/platforms/{platform}/signature");
+    if cfg!(target_os = "macos") && manifest.pointer(&signature_pointer).is_none() {
+        info.status = "unpublished";
+        return Ok(info);
+    }
     let signature = manifest
-        .pointer("/platforms/windows-x86_64/signature")
+        .pointer(&signature_pointer)
         .and_then(|s| s.as_str())
-        .ok_or("The update has no Windows signature")?;
+        .ok_or("The update has no signature for this platform")?;
     let pubkey = trust.public_key_for(signature)?;
     let builder = app
         .updater_builder()
@@ -158,11 +172,8 @@ pub async fn install_app_update(
     state: State<'_, UpdateState>,
 ) -> Result<(), String> {
     workspace_only(&window)?;
-    if !cfg!(windows) {
-        return Err("Automatic updates are not published for this platform yet".into());
-    }
     if cfg!(debug_assertions) {
-        return Err("Install updates from the installed Windows app".into());
+        return Err("Install updates from the installed desktop app".into());
     }
     let mut pending = state
         .0
@@ -208,8 +219,11 @@ pub async fn install_app_update(
     });
     update
         .install(bytes)
-        .map_err(|_| "Could not start the Windows installer. Please try again.")?;
+        .map_err(|_| "Could not install the update. Please try again.")?;
     *pending = None;
+    #[cfg(target_os = "macos")]
+    window.app_handle().restart();
+    #[cfg(not(target_os = "macos"))]
     Ok(())
 }
 
@@ -232,7 +246,11 @@ mod tests {
     #[test]
     fn accepts_only_https_installers_from_the_pinned_repository() {
         let valid = "https://github.com/ArtmarketVM/desktop_buddy/releases/download/v0.11.0/Desktop.Buddy_0.11.0_x64-setup.exe";
-        assert!(validate_download(&valid.parse().unwrap()).is_ok());
+        assert!(validate_platform_download(&valid.parse().unwrap(), ".exe").is_ok());
+        let mac = valid.replace("_x64-setup.exe", "_aarch64.app.tar.gz");
+        assert!(validate_platform_download(&mac.parse().unwrap(), ".app.tar.gz").is_ok());
+        assert!(validate_platform_download(&mac.parse().unwrap(), ".exe").is_err());
+        assert!(validate_platform_download(&valid.parse().unwrap(), ".app.tar.gz").is_err());
         for invalid in [
             valid.replace("https:", "http:"),
             valid.replace("ArtmarketVM", "other"),
@@ -240,7 +258,7 @@ mod tests {
             valid.replace(".exe", ".zip"),
             valid.replace("github.com", "user:password@github.com"),
         ] {
-            assert!(validate_download(&invalid.parse().unwrap()).is_err());
+            assert!(validate_platform_download(&invalid.parse().unwrap(), ".exe").is_err());
         }
     }
 }

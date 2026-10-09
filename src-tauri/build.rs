@@ -1,6 +1,23 @@
 fn main() {
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         build_macos_speech();
+        cc::Build::new()
+            .file("native/macos.m")
+            .flag("-fobjc-arc")
+            .flag("-fblocks")
+            .flag("-mmacosx-version-min=14.5")
+            .compile("buddy_macos");
+        for framework in [
+            "AppKit",
+            "ApplicationServices",
+            "Security",
+            "Carbon",
+            "Speech",
+            "CoreAudio",
+        ] {
+            println!("cargo:rustc-link-lib=framework={framework}");
+        }
+        println!("cargo:rerun-if-changed=native/macos.m");
     }
     tauri_build::build();
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows")

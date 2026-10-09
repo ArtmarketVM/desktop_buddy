@@ -10,9 +10,10 @@ pub struct BrowserContext {
 
 pub fn browser_name(process: &str) -> Option<&'static str> {
     match process.to_ascii_lowercase().as_str() {
-        "chrome.exe" => Some("chrome"),
-        "msedge.exe" => Some("edge"),
-        "firefox.exe" => Some("firefox"),
+        "chrome.exe" | "google chrome" | "brave browser" | "arc" => Some("chrome"),
+        "msedge.exe" | "microsoft edge" => Some("edge"),
+        "firefox.exe" | "firefox" => Some("firefox"),
+        "safari" => Some("safari"),
         _ => None,
     }
 }

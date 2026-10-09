@@ -1,0 +1,60 @@
+name: Build signed macOS release
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Version tag matching the reviewed source
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            target: aarch64-apple-darwin
+            name: apple-silicon
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            name: intel
+    runs-on: ${{ matrix.runner }}
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "14.5"
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+          key: ${{ matrix.target }}
+      - name: Validate release version
+        run: |
+          test "$RELEASE_TAG" = "v$(node -p "require('./package.json').version")"
+      - run: npm ci
+      - run: npm test
+      - run: npm run test:release
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build and verify signed macOS installer and updater
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_MACOS }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD_MACOS }}
+        run: |
+          test -n "$TAURI_SIGNING_PRIVATE_KEY" || { echo 'Configure the existing macOS updater signing secret.' >&2; exit 1; }
+          npm run build:macos -- ${{ matrix.target }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-${{ matrix.name }}
+          path: artifacts/*
+          if-no-files-found: error

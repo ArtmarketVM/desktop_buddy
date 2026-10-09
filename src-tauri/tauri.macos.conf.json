@@ -3,12 +3,28 @@
     "macOSPrivateApi": true
   },
   "bundle": {
-    "targets": ["app", "dmg"],
-    "createUpdaterArtifacts": false,
-    "icon": ["icons/icon.png"],
+    "targets": [
+      "app",
+      "dmg"
+    ],
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/icon.icns"
+    ],
     "macOS": {
-      "minimumSystemVersion": "12.0",
-      "entitlements": "Entitlements.plist"
+      "minimumSystemVersion": "14.5",
+      "infoPlist": "Info.macos.plist",
+      "entitlements": "Entitlements.macos.plist",
+      "signingIdentity": "-"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFQ0NDRjkxQzA0QzhGMkQKUldRdGowekFrYy9NYmdGRnV4RCtzd3hwQnJxc21BN25BM2kwcy9XMVZCVzBEQzJUOFpIVkZJMHoK",
+      "endpoints": [
+        "https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/updates-macos-epoch-1.json"
+      ],
+      "requireSignedVersion": true
     }
   }
 }

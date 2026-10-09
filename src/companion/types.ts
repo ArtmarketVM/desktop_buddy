@@ -26,6 +26,7 @@ export interface Intervention {
   kind:
     | "new_task"
     | "completion"
+    | "goal_completion"
     | "no_goals"
     | "midday"
     | "end_of_day"
@@ -43,6 +44,7 @@ export interface InboxTask {
   done: boolean;
 }
 export interface CompanionView {
+  progress_status?: string;
   preferences: CompanionPreferences;
   chat_open: boolean;
   intent: "ask" | "task" | "research" | "selection";

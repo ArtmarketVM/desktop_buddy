@@ -1,7 +1,7 @@
 name: Windows build
 on:
   push:
-    branches: [main]
+    branches: [main, codex/macos-support]
   pull_request:
   workflow_dispatch:
     inputs:

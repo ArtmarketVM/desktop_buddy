@@ -19,6 +19,8 @@ mod history;
 mod http;
 mod insights;
 mod installed_apps;
+#[cfg(target_os = "macos")]
+mod macos;
 #[cfg(any(target_os = "macos", test))]
 mod macos_speech;
 mod models;
@@ -85,6 +87,8 @@ pub fn run() {
             tray::install(app)?;
             #[cfg(windows)]
             companion::windows::install_selection_shortcut(app.handle().clone());
+            #[cfg(target_os = "macos")]
+            macos::install_shortcuts(app.handle());
             let settings = app
                 .state::<commands::AppState>()
                 .inner
@@ -194,8 +198,11 @@ pub fn run() {
                         let handle = handle.clone();
                         tauri::async_runtime::spawn(async move {
                             let state = handle.state::<commands::AppState>();
-                            // Missing accessibility support is normal; do not spam the workspace.
-                            let _ = companion::detect(&handle, &state).await;
+                            if let Err(error) = companion::detect(&handle, &state).await {
+                                if let Ok(mut inner) = state.inner.lock() {
+                                    inner.companion.progress_error = Some(error);
+                                }
+                            }
                         });
                     }
                 }
@@ -244,6 +251,9 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_accessibility_permission,
+            tracking::set_goal_monitoring,
+            commands::request_accessibility_permission,
             companion::get_companion_view,
             companion::get_companion_goal_context,
             companion::set_companion_preferences,

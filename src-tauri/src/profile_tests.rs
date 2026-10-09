@@ -1,3 +1,16 @@
+fn platform_process(windows: &str) -> &str {
+    if cfg!(target_os = "macos") {
+        match windows {
+            "figma.exe" => "figma",
+            "code.exe" => "code",
+            "chrome.exe" => "google chrome",
+            "photoshop.exe" => "adobe photoshop",
+            other => other,
+        }
+    } else {
+        windows
+    }
+}
 use super::*;
 use crate::product_feedback::{FeedbackRepository, ProductFeedback};
 
@@ -55,7 +68,7 @@ fn all_presets_resolve_unique_apps_and_figma_is_design() {
     let figma = config
         .applications
         .iter()
-        .find(|a| a.process == "figma.exe")
+        .find(|a| a.process == platform_process("figma.exe"))
         .unwrap();
     assert_eq!(figma.name, "Figma");
     assert_eq!(figma.group, "Design");
@@ -147,7 +160,10 @@ fn onboarding_cannot_skip_profile_or_create_duplicate_goals_and_restores_progres
     assert_eq!(state.onboarding.step, 3);
     assert!(!state.onboarding.completed);
     assert!(!state.onboarding.tracking_consent);
-    assert_eq!(s.category(g.id, "figma.exe").unwrap(), Some(Category::Work));
+    assert_eq!(
+        s.category(g.id, platform_process("figma.exe")).unwrap(),
+        Some(Category::Work)
+    );
     assert_eq!(
         s.connection
             .query_row("SELECT COUNT(*) FROM goals", [], |r| r.get::<_, u64>(0))
@@ -165,31 +181,45 @@ fn role_defaults_apply_to_new_goals_without_overwriting_manual_rules() {
     s.write_setting("user_settings", &settings).unwrap();
     let first = s.set_goal("Design").unwrap();
     assert_eq!(
-        s.category(first.id, "figma.exe").unwrap(),
+        s.category(first.id, platform_process("figma.exe")).unwrap(),
         Some(Category::Work)
     );
-    s.save_app_rule(first.id, "figma.exe", Some(Category::Neutral))
+    s.save_app_rule(
+        first.id,
+        platform_process("figma.exe"),
+        Some(Category::Neutral),
+    )
+    .unwrap();
+    s.save_app_rule(first.id, platform_process("chrome.exe"), None)
         .unwrap();
-    s.save_app_rule(first.id, "chrome.exe", None).unwrap();
     settings.profile.role = "software_engineer".into();
     s.write_setting("user_settings", &settings).unwrap();
     s.apply_role(first.id).unwrap();
     assert_eq!(
-        s.category(first.id, "figma.exe").unwrap(),
+        s.category(first.id, platform_process("figma.exe")).unwrap(),
         Some(Category::Neutral)
     );
     assert_eq!(
-        s.category(first.id, "code.exe").unwrap(),
+        s.category(first.id, platform_process("code.exe")).unwrap(),
         Some(Category::Work)
     );
-    assert!(s.category(first.id, "photoshop.exe").unwrap().is_none());
-    assert!(s.category(first.id, "chrome.exe").unwrap().is_none());
+    assert!(s
+        .category(first.id, platform_process("photoshop.exe"))
+        .unwrap()
+        .is_none());
+    assert!(s
+        .category(first.id, platform_process("chrome.exe"))
+        .unwrap()
+        .is_none());
     let second = s.set_goal("Code").unwrap();
     assert_eq!(
-        s.category(second.id, "code.exe").unwrap(),
+        s.category(second.id, platform_process("code.exe")).unwrap(),
         Some(Category::Work)
     );
-    assert!(s.category(second.id, "figma.exe").unwrap().is_none());
+    assert!(s
+        .category(second.id, platform_process("figma.exe"))
+        .unwrap()
+        .is_none());
 }
 #[test]
 fn settings_and_onboarding_survive_database_reopening_without_affecting_goals() {

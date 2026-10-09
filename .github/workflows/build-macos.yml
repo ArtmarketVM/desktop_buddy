@@ -20,7 +20,7 @@ jobs:
             name: intel
     runs-on: ${{ matrix.runner }}
     env:
-      MACOSX_DEPLOYMENT_TARGET: "12.0"
+      MACOSX_DEPLOYMENT_TARGET: "14.5"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -41,12 +41,12 @@ jobs:
       - run: npm run build
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
-      - name: Build an ad hoc signed macOS app and disk image
+      - name: Build a macOS app and disk image for validation
         env:
-          APPLE_SIGNING_IDENTITY: "-"
-        run: npm run tauri -- build --target ${{ matrix.target }} -- --locked
+          BUDDY_MACOS_UNSIGNED: "true"
+        run: npm run build:macos -- ${{ matrix.target }}
       - uses: actions/upload-artifact@v4
         with:
           name: desktop-buddy-macos-${{ matrix.name }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+          path: artifacts/*
           if-no-files-found: error

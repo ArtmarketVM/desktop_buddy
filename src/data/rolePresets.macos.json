@@ -1,0 +1,229 @@
+{
+  "version": 1,
+  "applications": [
+    {
+      "process": "code",
+      "name": "Visual Studio Code",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "xcode",
+      "name": "Xcode",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "idea",
+      "name": "IntelliJ IDEA",
+      "group": "Engineering",
+      "category": "work"
+    },
+    {
+      "process": "figma",
+      "name": "Figma",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "adobe photoshop",
+      "name": "Photoshop",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "adobe illustrator",
+      "name": "Illustrator",
+      "group": "Design",
+      "category": "work"
+    },
+    {
+      "process": "notion",
+      "name": "Notion",
+      "group": "Planning",
+      "category": "work"
+    },
+    {
+      "process": "microsoft excel",
+      "name": "Excel",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "microsoft word",
+      "name": "Word",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "microsoft powerpoint",
+      "name": "PowerPoint",
+      "group": "Office",
+      "category": "work"
+    },
+    {
+      "process": "microsoft outlook",
+      "name": "Outlook",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "slack",
+      "name": "Slack",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "microsoft teams",
+      "name": "Microsoft Teams",
+      "group": "Communication",
+      "category": "work"
+    },
+    {
+      "process": "google chrome",
+      "name": "Chrome",
+      "group": "Browser",
+      "category": "neutral"
+    },
+    {
+      "process": "microsoft edge",
+      "name": "Edge",
+      "group": "Browser",
+      "category": "neutral"
+    },
+    {
+      "process": "firefox",
+      "name": "Firefox",
+      "group": "Browser",
+      "category": "neutral"
+    },
+    {
+      "process": "safari",
+      "name": "Safari",
+      "group": "Browser",
+      "category": "neutral"
+    }
+  ],
+  "roles": [
+    {
+      "id": "software_engineer",
+      "name": "Software Engineer",
+      "applications": [
+        "code",
+        "xcode",
+        "idea",
+        "slack",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "founder",
+      "name": "Founder / CEO",
+      "applications": [
+        "notion",
+        "microsoft excel",
+        "microsoft powerpoint",
+        "microsoft outlook",
+        "slack",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "product_manager",
+      "name": "Product Manager",
+      "applications": [
+        "notion",
+        "figma",
+        "microsoft excel",
+        "microsoft powerpoint",
+        "slack",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "designer",
+      "name": "Designer",
+      "applications": [
+        "figma",
+        "adobe photoshop",
+        "adobe illustrator",
+        "slack",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "marketing",
+      "name": "Marketing",
+      "applications": [
+        "figma",
+        "adobe photoshop",
+        "microsoft excel",
+        "microsoft powerpoint",
+        "microsoft outlook",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "sales",
+      "name": "Sales",
+      "applications": [
+        "microsoft outlook",
+        "microsoft excel",
+        "microsoft powerpoint",
+        "microsoft teams",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "business_development",
+      "name": "Business Development",
+      "applications": [
+        "microsoft outlook",
+        "microsoft excel",
+        "microsoft powerpoint",
+        "notion",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "operations",
+      "name": "Operations",
+      "applications": [
+        "microsoft excel",
+        "microsoft word",
+        "notion",
+        "microsoft teams",
+        "google chrome",
+        "microsoft edge",
+        "firefox",
+        "safari"
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "applications": []
+    }
+  ]
+}

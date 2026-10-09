@@ -1,8 +1,8 @@
 # Desktop Buddy
 
-A Windows-first, local-first focus companion. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
+A local-first focus companion for Windows and macOS. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
-Version 0.22.0 extends the shared compact workspace to macOS: clean Today, local Chats, compact desktop Buddy, local Apple Speech transcription and Apple Silicon/Intel build jobs. See [compact workspace](docs/compact-workspace.md) and [macOS build and validation](docs/macos.md) for setup and the remaining native checks.
+Version 0.23.0 extends the shared compact workspace to macOS: clean Today, local Chats, compact desktop Buddy, local Apple Speech transcription and Apple Silicon/Intel build jobs. See [compact workspace](docs/compact-workspace.md) and [macOS build and validation](docs/COMPACT_MACOS.md) for setup and the remaining native checks.
 
 Version 0.20.0 adds three-step onboarding, a shared Today/desktop conversation, saved goal ordering, multiple AI-step acceptance, structured settings and quick Do Not Disturb. Nebius Token Factory can identify the active goal without a running timer after a separate opt-in. See [Daily UX and automatic goal matching](docs/UX_ONBOARDING_GOALS_SETTINGS.md), [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; **Update available** appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
 
@@ -13,6 +13,15 @@ Nine illustrated role cards scroll continuously in either direction using arrows
 The workspace includes Light/Dark themes, a separate profile menu, an automatically saved checklist, a desktop-companion visibility switch that preserves its workspace preview, and expanded **Share an idea** feedback. The companion stays available when tracking is paused and the workspace closes; its body stays still.
 
 Optional role research shares only the entered email, role and declared apps with a configured private contact service after explicit consent and email confirmation. It does not subscribe the address to marketing. The backend template is prepared but **not deployed**; data stays local until a service is connected and sharing is requested. See [private service setup](docs/CONTACT_SERVICE.md), [developer handoff](docs/DEVELOPER_HANDOFF.md) and the [Russian update guide](docs/DEVELOPER_HANDOFF_RU.txt).
+
+## macOS — 0.21.0
+
+The shared app now includes macOS adapters and an Apple Silicon build with a minimum system version of 14.5. See [macOS installation, permissions and build instructions](docs/MACOS.md) and [validation results](docs/MACOS_VALIDATION.md). Windows remains in the same repository with its existing installer workflow.
+
+```bash
+npm ci
+npm run build:macos
+```
 
 ## Quick start
 
@@ -132,14 +141,14 @@ The existing focus model sees window titles. Separately opting in to **Suggest t
 
 ```text
 React UI -> Tauri commands -> Rust application state
-                              |-- Windows collector -> SQLite
+                              |-- Windows/macOS collector -> SQLite
                               |-- Nebius -> validated focus decision -> Buddy window
                               |-- Tavily -> normalized search results
 ```
 
 `src/components` contains GoalInput, ActivityTimeline, and DesktopBuddy. `src/api/tauri.ts` is the typed bridge. `src-tauri/src` contains commands, the Buddy scheduler/window controller, collector adapters, storage, models, and HTTP integrations. SQLite lives in the per-user application data directory under `com.artmarketvm.desktopbuddy/buddy.db` (on Windows, normally `%APPDATA%`). Goals, activity segments, decisions, feedback, Buddy preferences, and offered URLs persist across restarts. AI check-in consent, tracking, and DND reset on restart.
 
-Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. Use the privacy controls above for retention and history deletion. No screenshots are captured. Browser metadata uses a bounded Windows UI Automation adapter; no macOS/Linux collector is implemented.
+Simulated activity uses a separate `buddy-demo.db` database so rehearsal data cannot mix with live activity. SQLite is local but not encrypted. Use the privacy controls above for retention and history deletion. No screenshots are captured. Browser metadata uses a bounded Windows UI Automation adapter; macOS uses a bounded Accessibility collector; no Linux collector is implemented.
 
 ## Tests and builds
 

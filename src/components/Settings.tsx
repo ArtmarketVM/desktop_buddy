@@ -1,3 +1,5 @@
+import { MacPermissions } from "../components/MacPermissions";
+import { credentialStore, systemName } from "../api/platform";
 import { useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
@@ -267,17 +269,17 @@ export function Settings({
           Web discovery · {tavilyConfigured ? "Connected" : "Not connected"}
         </p>
         <p className="helper">
-          Provider credentials are protected by Windows. Bundled credentials are
-          never included in an installer. A shared AI service needs a server
-          connection.
+          Provider credentials are protected by {systemName}. Bundled
+          credentials are never included in an installer. A shared AI service
+          needs a server connection.
         </p>
         <details className="inline-details">
           <summary>Advanced · developer connection setup</summary>
+          <MacPermissions />
           <ContactSettings />
           <p className="helper">
-            Use your own provider API keys. They are stored in Windows
-            Credential Manager for your Windows account, not in the app
-            database.
+            Use your own provider API keys. They are stored in {credentialStore}{" "}
+            for your account, not in the app database.
           </p>
           <p className="connection">
             Nebius {nebiusConfigured ? "configured" : "not configured"}

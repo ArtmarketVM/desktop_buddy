@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Desktop Buddy records audio only when you choose voice input.</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>Desktop Buddy transcribes your recordings on this Mac when a local speech recognizer is available.</string>
+  <key>NSHighResolutionCapable</key><true/>
+</dict></plist>

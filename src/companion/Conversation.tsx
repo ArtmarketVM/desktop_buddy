@@ -1,3 +1,4 @@
+import { InterventionCard } from "./InterventionCard";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useId, useRef, useState } from "react";
 import "./conversation.css";
@@ -320,6 +321,15 @@ export function Conversation({
           )}
         </header>
       )}
+      {view.intervention && (
+        <InterventionCard
+          prompt={view.intervention}
+          busy={busy}
+          respond={(action) => {
+            void run(() => api.companionRespond(view.intervention!.id, action));
+          }}
+        />
+      )}
       {!compact && goal && (
         <details className="conversation-context">
           <summary>{goal.text}</summary>
@@ -560,16 +570,16 @@ export function Conversation({
             aria-label={
               compact
                 ? "Start voice input"
-                : voice || (isMac() && recording)
-                  ? isMac()
+                : voice || (isMac && recording)
+                  ? isMac
                     ? "Stop voice recording"
                     : "Stop Windows voice typing"
-                  : isMac()
+                  : isMac
                     ? "Start voice recording"
                     : "Start Windows voice typing"
             }
             title={
-              isMac()
+              isMac
                 ? "Record and transcribe locally"
                 : "Voice typing · Windows + H"
             }
@@ -583,7 +593,7 @@ export function Conversation({
                 } else onMode?.("voice");
                 return;
               }
-              if (isMac()) {
+              if (isMac) {
                 if (recording) void finishRecording();
                 else void startRecording();
                 return;
@@ -661,7 +671,7 @@ export function Conversation({
         )}
         {(voice || (!compact && recording)) && (
           <p className="helper" role="status">
-            {isMac()
+            {isMac
               ? "Recording for up to 60 seconds. Stop to transcribe locally, then review before sending."
               : "Windows voice typing uses your input language. Switch Russian/English with Windows + Space. Review the transcript before sending."}
           </p>

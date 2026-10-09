@@ -206,6 +206,7 @@ export default function App() {
         >
           {onboarding ? (
             <CoreOnboarding
+              nebiusConfigured={data.status.nebius_configured}
               initial={settings}
               onChanged={refresh}
               onDirty={setSetupDirty}
@@ -257,6 +258,7 @@ export default function App() {
               >
                 <Experience
                   dashboard={data}
+                  onSettings={() => setPage("settings")}
                   enhancement={desktop ? goalEnhancement : undefined}
                   page={page}
                   onDirty={setDraftDirty}

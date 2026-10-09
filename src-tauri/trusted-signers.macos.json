@@ -1,0 +1,9 @@
+{
+  "epoch": 1,
+  "signers": [
+    {
+      "id": "macos",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDZFQ0NDRjkxQzA0QzhGMkQKUldRdGowekFrYy9NYmdGRnV4RCtzd3hwQnJxc21BN25BM2kwcy9XMVZCVzBEQzJUOFpIVkZJMHoK"
+    }
+  ]
+}

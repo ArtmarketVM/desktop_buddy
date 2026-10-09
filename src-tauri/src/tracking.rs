@@ -4,6 +4,60 @@ use serde::{Deserialize, Serialize};
 use std::time::{Duration, Instant};
 use tauri::State;
 pub const DEFAULT_IDLE_SECONDS: u64 = 300;
+pub fn configure_goal_monitoring(
+    inner: &mut crate::commands::Inner,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = inner.storage.user_settings()?;
+    if !settings.onboarding.completed {
+        return Err("Finish setup before enabling goal tracking".into());
+    }
+    if enabled {
+        settings.onboarding.tracking_consent = true;
+        let mut ai = inner.storage.ai_preferences()?;
+        ai.enabled = true;
+        inner
+            .storage
+            .write_setting("ai_assistance_preferences", &ai)?;
+    }
+    inner.storage.write_setting("user_settings", &settings)?;
+    inner
+        .storage
+        .write_setting("tracking_requested", &enabled)?;
+    let mut companion = inner.companion.view.preferences.clone();
+    companion.screen_task_detection = enabled;
+    if enabled {
+        companion.paused = false;
+    }
+    inner
+        .storage
+        .write_setting("companion_preferences", &companion)?;
+    inner.companion.view.preferences = companion;
+    inner.status.tracking = enabled;
+    inner.status.tracking_error = None;
+    inner.collector = crate::collector::create(inner.status.demo);
+    inner.usage = Default::default();
+    inner.activity_state.stop(false);
+    inner.goal_matching.clear();
+    inner.companion.invalidate();
+    inner.buddy.foreground = None;
+    inner.buddy.clear();
+    inner.privacy_revision += 1;
+    Ok(())
+}
+#[tauri::command(async)]
+pub fn set_goal_monitoring(
+    enabled: bool,
+    app: tauri::AppHandle,
+    state: tauri::State<crate::commands::AppState>,
+) -> Result<(), String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    configure_goal_monitoring(&mut inner, enabled)?;
+    crate::buddy::sync(&app, &mut inner)
+}
 pub fn requested(storage: &crate::storage::Storage) -> Result<bool, String> {
     let settings = storage.user_settings()?;
     Ok(settings.onboarding.completed

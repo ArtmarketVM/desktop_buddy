@@ -89,8 +89,8 @@ export function ProfileSettings({
         <span>
           Start Buddy when I sign in
           <small>
-            Enabled by default for installed Windows builds. Development
-            launches do not register in Windows startup.
+            Enabled by default for installed desktop builds. Development
+            launches do not register for login startup.
           </small>
         </span>
         <input

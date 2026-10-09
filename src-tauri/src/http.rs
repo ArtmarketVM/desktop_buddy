@@ -56,6 +56,8 @@ pub fn endpoint(name: &str) -> Result<String, String> {
     Ok(value)
 }
 pub fn secret(name: &str) -> Result<String, String> {
+    // Test providers use synthetic environment keys, never the user's vault.
+    #[cfg(not(test))]
     if matches!(name, "NEBIUS_API_KEY" | "TAVILY_API_KEY") {
         if let Some(key) = crate::credentials::read(name)? {
             return Ok(key);

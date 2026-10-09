@@ -346,17 +346,15 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 if error == collector::CONTEXT_CHANGED {
                     return Ok(());
                 }
-                inner.status.tracking_error = Some(
-                    "Active-window tracking is unavailable. Pause and resume tracking to retry."
-                        .into(),
-                );
-                return Err("Active-window tracking is unavailable".into());
+                inner.status.tracking_error = Some(error.clone());
+                return Err(error);
             }
         };
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
         let allowed = !snapshot
             .process_name
             .eq_ignore_ascii_case("desktop-buddy.exe")
+            && !snapshot.process_name.eq_ignore_ascii_case("desktop-buddy")
             && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name);
         if !inner.tracking_settings.browser_metadata {
             snapshot.browser =
@@ -430,7 +428,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 inner.storage.record_interval(goal.id, &interval)?;
             }
         }
-        inner.buddy.foreground = Some(snapshot.clone());
+        inner.buddy.foreground = allowed.then(|| snapshot.clone());
         crate::companion::observe(&mut inner, &snapshot, allowed);
         if allowed {
             inner.storage.activity(goal.id, &snapshot)?;
@@ -722,5 +720,29 @@ mod tests {
             )
             .unwrap();
         assert_eq!(feedback_count, 1);
+    }
+}
+
+#[tauri::command(async)]
+pub fn get_accessibility_permission() -> bool {
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::get_accessibility_permission()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        true
+    }
+}
+#[tauri::command(async)]
+pub fn request_accessibility_permission(window: tauri::WebviewWindow) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::request_accessibility_permission(window)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = window;
+        Ok(true)
     }
 }

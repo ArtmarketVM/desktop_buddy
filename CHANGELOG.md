@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.22.1 — update indicator and permission guidance
+
+- Highlight an available update in blue, with readable text in both themes.
+- Point paused progress checks to the single Activity & Privacy switch.
+- Show macOS permission recovery instructions only when access is missing, including renewal after an ad-hoc signed update.
+
+## 0.22.0 — goal monitoring and macOS updates
+
+- Enable local activity tracking and AI completion checks together through one explicit onboarding/settings choice.
+- Use persisted AI assistance consent for progress detection and offer confirmed goal completion with exact visible evidence.
+- Produce signed Apple Silicon update archives, verify manifests and publish both platform bundles through one GitHub release workflow. macOS uses an independent trusted signing channel; Windows bridges remain intact.
+- Show activity tracking status and a direct setup action on Today and Progress, including paused collection and permission errors.
+- Describe the selected goal without implying collection is running. Keep completion explicit through goal and step actions.
+- Show observed activity in daily summaries and distinguish unmatched work from days without records.
+
+## 0.21.0 — macOS support
+
+- Add a shared macOS application with an Apple Silicon build (with an optional universal build) targeting macOS 14.5 and later.
+- Add native foreground/idle tracking, bounded Accessibility context, Keychain credentials, app inventory, login startup and Command + Option selection shortcuts.
+- Adapt role app rules, permission controls, voice input and platform wording for macOS. On-device speech requires supported installed language assets.
+- Preserve the Windows installer/updater and add macOS CI artifacts in the same repository. Initial macOS installation is manual and locally ad-hoc signed; Developer ID notarization and exact 14.5 hardware validation remain separate requirements.
+
+
 ## 0.18.0
 
 - Connect Goal Analyzer to Nebius with conditional Tavily research, sourced prerequisites, relevant resources and conservative time/difficulty estimates.

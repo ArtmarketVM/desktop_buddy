@@ -1,3 +1,4 @@
+import { isMac, systemName } from "../api/platform";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, FileUp, Mic, Square, X, Plus } from "lucide-react";
 import { desktop } from "../api/tauri";
@@ -265,7 +266,9 @@ export function Composer({
             disabled={busy || disabled || recording}
             onChange={(e) => setVoiceLanguage(e.target.value)}
           >
-            <option value="auto">Automatic / mixed</option>
+            <option value="auto">
+              {isMac ? "System language" : "Automatic / mixed"}
+            </option>
             <option value="ru">Russian</option>
             <option value="en">English</option>
           </select>
@@ -274,8 +277,11 @@ export function Composer({
             {voiceLanguages === null
               ? "checking…"
               : voiceLanguages.join(", ") || "none installed"}
-            . Mixed speech needs both Russian and English speech packs. Review
-            the transcript before asking Buddy.
+            .{" "}
+            {isMac
+              ? "Recognition stays on this Mac; language availability depends on installed Dictation support."
+              : "Mixed speech needs both Russian and English speech packs."}{" "}
+            Review the transcript before asking Buddy.
           </span>
         </label>
       )}

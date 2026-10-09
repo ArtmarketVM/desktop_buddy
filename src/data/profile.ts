@@ -1,4 +1,7 @@
-import config from "./rolePresets.json";
+import windowsConfig from "./rolePresets.json";
+import macConfig from "./rolePresets.macos.json";
+import { isMac } from "../api/platform";
+const config = isMac ? macConfig : windowsConfig;
 import type { AvatarState, BuddyView, UserProfile } from "../types";
 export const roles = config.roles;
 export const applications = config.applications;

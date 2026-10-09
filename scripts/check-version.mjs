@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { readTrust } from "./signing-trust.mjs";
+import { readTrust, validateTrust } from "./signing-trust.mjs";
 const read = (path) =>
   readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const version = JSON.parse(read("package.json")).version;
@@ -30,3 +30,19 @@ if (
   throw new Error(
     "Updater configuration must match the trusted signing epoch and require signed versions.",
   );
+
+const mac = JSON.parse(read("src-tauri/tauri.macos.conf.json"));
+const macTrust = validateTrust(
+  JSON.parse(read("src-tauri/trusted-signers.macos.json")),
+  mac.plugins.updater.pubkey,
+);
+if (
+  mac.plugins.updater.endpoints[0] !==
+    `https://github.com/ArtmarketVM/desktop_buddy/releases/latest/download/updates-macos-epoch-${macTrust.epoch}.json` ||
+  mac.plugins.updater.requireSignedVersion !== true ||
+  mac.bundle.createUpdaterArtifacts !== true
+) {
+  throw new Error(
+    "macOS updater must produce signed artifacts for its trusted channel.",
+  );
+}

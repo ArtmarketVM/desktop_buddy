@@ -55,11 +55,12 @@ impl Preferences {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
     NewTask,
     Completion,
+    GoalCompletion,
     NoGoals,
     Midday,
     EndOfDay,
@@ -137,6 +138,7 @@ pub fn scheduled_slot(
 pub struct Memory {
     pub day: String,
     pub shown: u32,
+    pub progress_shown: u32,
     pub last_prompt: i64,
     pub last_dismissed: i64,
     pub seen: Vec<String>,
@@ -154,6 +156,7 @@ impl Memory {
         if self.day != day {
             self.day = day.into();
             self.shown = 0;
+            self.progress_shown = 0;
             self.slots.clear();
         }
     }
@@ -199,6 +202,17 @@ impl Memory {
         self.last_prompt = now;
         true
     }
+    pub fn reserve_progress(&mut self, prompt: &Intervention) -> bool {
+        if self.progress_shown >= 64 || self.seen.contains(&prompt.id) {
+            return false;
+        }
+        self.seen.push(prompt.id.clone());
+        if self.seen.len() > 200 {
+            self.seen.remove(0);
+        }
+        self.progress_shown += 1;
+        true
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -208,6 +222,8 @@ pub struct Detection {
     pub text: Option<String>,
     pub step_id: Option<String>,
     pub confidence: f64,
+    #[serde(default)]
+    pub evidence: Option<String>,
 }
 impl Detection {
     pub fn validate(self, plan: &crate::goals::GoalPlan) -> Result<Self, String> {
@@ -229,7 +245,29 @@ impl Detection {
                         .step_id
                         .as_ref()
                         .is_some_and(|id| plan.steps.iter().any(|s| &s.id == id && !s.done)) => {}
+            "goal_completion"
+                if self.text.is_none()
+                    && self.step_id.is_none()
+                    && plan.steps.iter().all(|s| s.done) => {}
             _ => return Err("Invalid task detection fields".into()),
+        }
+        Ok(self)
+    }
+    pub fn validate_evidence(self, visible: &str) -> Result<Self, String> {
+        if matches!(self.kind.as_str(), "completion" | "goal_completion") {
+            let evidence = self
+                .evidence
+                .as_deref()
+                .map(str::trim)
+                .filter(|text| {
+                    text.chars().count() >= 10
+                        && text.chars().count() <= 500
+                        && !text.chars().any(char::is_control)
+                })
+                .ok_or("Completion needs an explicit visible receipt")?;
+            if !visible.contains(evidence) {
+                return Err("Completion evidence was not present in the sampled text".into());
+            }
         }
         Ok(self)
     }
@@ -302,9 +340,79 @@ mod tests {
             text: None,
             step_id: Some(id.into()),
             confidence: 0.95,
+            evidence: Some("Your deck was sent successfully".into()),
         };
         assert!(detection("one").validate(&plan).is_ok());
         assert!(detection("invented").validate(&plan).is_err());
+    }
+    #[test]
+    fn completion_receipts_must_be_visible_and_goals_cannot_skip_unfinished_steps() {
+        let mut plan = crate::goals::GoalPlan {
+            goal_id: 1,
+            revision: 0,
+            done_when: "Dashboard published".into(),
+            steps: vec![],
+            current_step: None,
+        };
+        let detection = |evidence: Option<&str>| Detection {
+            kind: "goal_completion".into(),
+            text: None,
+            step_id: None,
+            confidence: 0.98,
+            evidence: evidence.map(str::to_string),
+        };
+        assert!(detection(Some("Your dashboard was published successfully"))
+            .validate(&plan)
+            .unwrap()
+            .validate_evidence("Receipt: Your dashboard was published successfully")
+            .is_ok());
+        assert!(detection(Some("Your dashboard was published successfully"))
+            .validate(&plan)
+            .unwrap()
+            .validate_evidence("Editing draft dashboard")
+            .is_err());
+        assert!(detection(None)
+            .validate(&plan)
+            .unwrap()
+            .validate_evidence("Done")
+            .is_err());
+        plan.steps.push(crate::goals::Step {
+            id: "one".into(),
+            text: "Publish".into(),
+            done: false,
+        });
+        assert!(detection(Some("Your dashboard was published successfully"))
+            .validate(&plan)
+            .is_err());
+        plan.steps[0].done = true;
+        assert!(detection(Some("Your dashboard was published successfully"))
+            .validate(&plan)
+            .is_ok());
+    }
+    #[test]
+    fn completion_reviews_have_their_own_bounded_budget_and_deduplicate() {
+        let mut memory = Memory::default();
+        memory.shown = 3;
+        let prompt = Intervention {
+            id: "receipt".into(),
+            kind: Kind::Completion,
+            text: "Deck sent".into(),
+            confidence: 0.98,
+            goal_id: Some(1),
+            plan_revision: Some(1),
+            step_id: Some("one".into()),
+            expires_at: 99999999,
+        };
+        assert!(memory.reserve_progress(&prompt));
+        assert!(!memory.reserve_progress(&prompt));
+        assert_eq!(memory.shown, 3);
+        assert_eq!(memory.progress_shown, 1);
+        memory.progress_shown = 64;
+        let mut other = prompt;
+        other.id = "other".into();
+        assert!(!memory.reserve_progress(&other));
+        memory.refresh("2026-10-09");
+        assert_eq!(memory.progress_shown, 0);
     }
     #[test]
     fn scheduled_checkins_wait_and_do_not_mistake_a_new_goal_for_no_progress() {
