@@ -9,8 +9,22 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { verifyRelease } from "./verify-release.mjs";
+import { assertNewerRelease, verifyRelease } from "./verify-release.mjs";
 import { createMacManifest } from "./create-macos-update-manifest.mjs";
+
+test("release publication refuses equal, older and malformed version tags", () => {
+  assert.doesNotThrow(() => assertNewerRelease("v0.23.2", "v0.23.1"));
+  assert.doesNotThrow(() => assertNewerRelease("v0.24.0", "v0.23.9"));
+  assert.doesNotThrow(() => assertNewerRelease("v1.0.0", "v0.99.99"));
+  for (const [candidate, latest] of [
+    ["v0.23.2", "v0.23.2"],
+    ["v0.23.2", "v0.23.3"],
+    ["v0.23.2", "v0.24.0"],
+    ["v0.23.2", "v1.0.0"],
+    ["invalid", "v0.23.1"],
+  ])
+    assert.throws(() => assertNewerRelease(candidate, latest));
+});
 
 function fixture() {
   const data = JSON.parse(

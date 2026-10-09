@@ -4,6 +4,26 @@ import { pathToFileURL } from "node:url";
 import { createMacManifest } from "./create-macos-update-manifest.mjs";
 import { verifyRetainedWindows } from "./verify-retained-windows.mjs";
 
+export function assertNewerRelease(tag, latestTag) {
+  const parse = (value) => {
+    if (!/^v\d+\.\d+\.\d+$/.test(value))
+      throw new Error("Expected a stable version tag.");
+    const parts = value.slice(1).split(".").map(Number);
+    if (!parts.every(Number.isSafeInteger))
+      throw new Error("Invalid release version.");
+    return parts;
+  };
+  const candidate = parse(tag);
+  const latest = parse(latestTag);
+  for (let index = 0; index < 3; index++) {
+    if (candidate[index] > latest[index]) return;
+    if (candidate[index] < latest[index]) break;
+  }
+  throw new Error(
+    "A same or newer release already exists; do not move update channels backward.",
+  );
+}
+
 export function verifyRelease(
   directory,
   tag,

@@ -27,6 +27,7 @@ jobs:
           test "$GITHUB_REF" = refs/heads/main
           test "$RELEASE_TAG" = "v$(node -p "require('./package.json').version")"
           node scripts/check-version.mjs
+          LATEST_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" node --input-type=module -e 'import {assertNewerRelease} from "./scripts/verify-release.mjs"; assertNewerRelease(process.env.RELEASE_TAG, process.env.LATEST_TAG);'
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo 'This version already exists. Bump the version; never replace release assets.' >&2
             exit 1
@@ -151,6 +152,8 @@ jobs:
           (cd release && sha256sum * > SHA256SUMS.txt)
       - name: Publish one complete release without replacing existing assets
         run: |
+          LATEST_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" node --input-type=module -e 'import {assertNewerRelease} from "./scripts/verify-release.mjs"; assertNewerRelease(process.env.RELEASE_TAG, process.env.LATEST_TAG);'
           gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "Desktop Buddy ${RELEASE_TAG#v}" --notes-file "docs/RELEASE_${RELEASE_TAG#v}.md"
           gh release upload "$RELEASE_TAG" release/* --repo "$GITHUB_REPOSITORY"
+          LATEST_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" node --input-type=module -e 'import {assertNewerRelease} from "./scripts/verify-release.mjs"; assertNewerRelease(process.env.RELEASE_TAG, process.env.LATEST_TAG);'
           gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

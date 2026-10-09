@@ -4,6 +4,8 @@ Windows and macOS now ship together through one release workflow. A release is
 published only after Windows x64, Apple Silicon and Intel macOS pass their checks,
 updater signatures are verified, and all platform assets and channels are uploaded
 to a draft. Published versions cannot be replaced.
+Publication also stops if a same or newer release appears while the builds run,
+so concurrent development cannot move the update channels backward.
 
 Windows updates use the enrolled `windows-ci` signer. Existing Windows clients
 receive the primary-signed 0.23.1 transition through retained compatibility
