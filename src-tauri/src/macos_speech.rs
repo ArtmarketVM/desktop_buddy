@@ -2,6 +2,10 @@
 use std::ffi::{c_char, CStr, CString};
 
 #[cfg(target_os = "macos")]
+#[link(name = "buddy_speech", kind = "static")]
+#[link(name = "Foundation", kind = "framework")]
+#[link(name = "AVFoundation", kind = "framework")]
+#[link(name = "Speech", kind = "framework")]
 extern "C" {
     fn buddy_speech_languages() -> *mut c_char;
     fn buddy_speech_transcribe(
