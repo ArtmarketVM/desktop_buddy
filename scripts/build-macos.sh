@@ -33,9 +33,26 @@ else
   [[ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]] || { echo "Configure the macOS updater signing key before building a release." >&2; exit 1; }
   export TAURI_SIGNING_PRIVATE_KEY_PASSWORD="${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}"
 fi
+# Optional Developer ID signing and notarization. Without APPLE_SIGNING_IDENTITY the
+# app keeps its ad-hoc signature. Tauri notarizes when APPLE_ID, APPLE_PASSWORD and
+# APPLE_TEAM_ID (or an App Store Connect API key) are also present.
+identity_config=""
+if [[ -n "${APPLE_SIGNING_IDENTITY:-}" && "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
+  identity_config="$(mktemp "${TMPDIR:-/tmp}/buddy-identity.XXXXXX")"
+  node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({bundle:{macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY}}}))' "$identity_config"
+  config+=(--config "$identity_config")
+fi
 npm run tauri -- build "${config[@]}" --target "$target" --bundles app -- --locked
+[[ -z "$identity_config" ]] || rm -f "$identity_config"
 version="$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")"
 bundle="src-tauri/target/$target/release/bundle"
+if [[ -n "${APPLE_SIGNING_IDENTITY:-}" && "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
+  # A Developer ID build must pass the checks Gatekeeper performs.
+  app="$bundle/macos/Desktop Buddy.app"
+  codesign --verify --deep --strict --verbose=2 "$app"
+  spctl --assess --type execute --verbose=2 "$app"
+  if [[ -n "${APPLE_ID:-}" || -n "${APPLE_API_KEY:-}" ]]; then xcrun stapler validate "$app"; fi
+fi
 mkdir -p artifacts
 name="Desktop.Buddy_${version}_${target%%-apple-darwin}"
 ditto -c -k --sequesterRsrc --keepParent "$bundle/macos/Desktop Buddy.app" "artifacts/$name.zip"

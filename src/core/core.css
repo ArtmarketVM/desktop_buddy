@@ -1448,3 +1448,13 @@
 .goal-expanded .core-steps li:has(> .step-menu[open]) {
   z-index: 20;
 }
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  border-color: var(--field-line);
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+}

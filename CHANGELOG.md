@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.24.1 — dark theme, feedback and macOS signing path
+
+- Improve dark theme contrast for buttons and form controls.
+- Use a single email-draft feedback flow with clear success and error states.
+- Prepare optional Developer ID signing and verification in the macOS build script.
+
 ## 0.24.0 — goals, steps and daily summary redesign
 
 - Redesign goals and steps in one shared Notion-style layout, with press-and-hold reordering, hover actions and a completion circle.
