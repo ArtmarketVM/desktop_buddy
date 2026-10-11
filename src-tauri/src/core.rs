@@ -1036,7 +1036,9 @@ pub fn get_core_snapshot(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.core_settle_goals()?;
-    inner.storage.core_snapshot_period(anchor.as_deref(), period.as_deref())
+    inner
+        .storage
+        .core_snapshot_period(anchor.as_deref(), period.as_deref())
 }
 #[tauri::command(async)]
 pub fn add_core_goals(

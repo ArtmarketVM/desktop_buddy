@@ -41,9 +41,7 @@ pub fn text(value: &str, required: bool) -> Result<String, String> {
     // Goals and steps always start like a sentence.
     let mut chars = value.chars();
     Ok(match chars.next() {
-        Some(first) if first.is_lowercase() => {
-            first.to_uppercase().chain(chars).collect()
-        }
+        Some(first) if first.is_lowercase() => first.to_uppercase().chain(chars).collect(),
         _ => value.into(),
     })
 }

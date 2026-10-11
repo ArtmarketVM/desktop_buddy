@@ -197,8 +197,14 @@ async fn refinement_sends_only_explicit_goal_plan_and_does_not_save() {
 
 #[test]
 fn goal_and_step_text_start_with_a_capital_letter() {
-    assert_eq!(crate::goals::text("  update the app ", true).unwrap(), "Update the app");
+    assert_eq!(
+        crate::goals::text("  update the app ", true).unwrap(),
+        "Update the app"
+    );
     assert_eq!(crate::goals::text("привет", true).unwrap(), "Привет");
     assert_eq!(crate::goals::text("3 things", true).unwrap(), "3 things");
-    assert_eq!(crate::goals::text("done when shipped", false).unwrap(), "done when shipped");
+    assert_eq!(
+        crate::goals::text("done when shipped", false).unwrap(),
+        "done when shipped"
+    );
 }
