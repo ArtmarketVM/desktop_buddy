@@ -87,6 +87,11 @@ pub fn snoozed(view: &BuddyView) -> bool {
         .is_some_and(|t| t > chrono::Utc::now().timestamp())
 }
 
+pub(crate) fn workspace_visible(app: &AppHandle) -> bool {
+    app.get_webview_window("main")
+        .is_some_and(|window| window.is_visible().unwrap_or(false))
+}
+
 pub fn remember_position(
     app: &AppHandle,
     inner: &mut crate::commands::Inner,
@@ -200,6 +205,9 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     }
     let mut mode = mode(&inner.status, &inner.buddy.view);
     if inner.buddy.fullscreen && inner.companion.view.preferences.hide_fullscreen {
+        mode = 0;
+    }
+    if workspace_visible(app) {
         mode = 0;
     }
     if mode != 2 && inner.buddy.shown.is_some() {
@@ -444,6 +452,9 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
     window
         .unminimize()
         .map_err(|_| "Could not restore workspace")?;
+    if let Some(buddy) = app.get_webview_window("buddy") {
+        let _ = buddy.hide();
+    }
     window
         .set_focus()
         .map_err(|_| "Could not focus workspace".to_string())

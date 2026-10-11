@@ -3,6 +3,7 @@ import type { GoalPlan, AvatarPreferences } from "../types";
 import type {
   CoreSnapshot,
   CorePreferences,
+  ProgressPeriod,
   GoalDraft,
   ImageInput,
   ImportProposal,
@@ -17,8 +18,8 @@ export const coreApi = {
     invoke<void>("resolve_core_draft", { id, title }),
   create: (title: string, batch: string = crypto.randomUUID()) =>
     invoke<CoreSnapshot>("create_core_goal", { title, batch }),
-  snapshot: (anchor: string | null = null) =>
-    invoke<CoreSnapshot>("get_core_snapshot", { anchor }),
+  snapshot: (anchor: string | null = null, period: ProgressPeriod = "week") =>
+    invoke<CoreSnapshot>("get_core_snapshot", { anchor, period }),
   add: (drafts: GoalDraft[], batch: string = crypto.randomUUID()) =>
     invoke<CoreSnapshot>("add_core_goals", { drafts, batch }),
   save: (

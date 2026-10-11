@@ -4,6 +4,8 @@ use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
+const CLASSIFICATION_WINDOW: Duration = Duration::from_secs(10 * 60);
+
 #[derive(Clone, Default, Serialize)]
 pub struct MatchView {
     pub goal_id: Option<i64>,
@@ -87,10 +89,10 @@ pub fn due(state: &AppState) -> bool {
         && matching.sample.is_some()
         && matching
             .stable_since
-            .is_some_and(|time| time.elapsed() >= Duration::from_secs(15))
+            .is_some_and(|time| time.elapsed() >= CLASSIFICATION_WINDOW)
         && matching
             .last_attempt
-            .is_none_or(|time| time.elapsed() >= Duration::from_secs(60))
+            .is_none_or(|time| time.elapsed() >= CLASSIFICATION_WINDOW)
         && inner
             .storage
             .ai_preferences()

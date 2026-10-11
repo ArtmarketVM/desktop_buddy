@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.24.0 — goals, steps and daily summary redesign
+
+- Redesign goals and steps in one shared Notion-style layout, with press-and-hold reordering, hover actions and a completion circle.
+- Add a typing-first step composer with an Ideas menu and AI completions.
+- Complete goals and steps together, and capitalize new goals and steps.
+- Replace the daily summary with a single concise line and add Quiet mode to Today.
+
 ## 0.23.2 — coordinated Windows and macOS updates
 
 - Publish Windows and both macOS architectures together after signed artifact and channel verification.

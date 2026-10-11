@@ -73,6 +73,10 @@ pub fn read_key(name: &str) -> Result<Option<String>, String> {
     let name = string(name)?;
     decode(unsafe { buddy_keychain(name.as_ptr(), std::ptr::null(), 0) })
 }
+pub fn has_key(name: &str) -> Result<bool, String> {
+    let name = string(name)?;
+    decode(unsafe { buddy_keychain(name.as_ptr(), std::ptr::null(), 3) })
+}
 pub fn write_key(name: &str, key: Option<&str>) -> Result<(), String> {
     let name = string(name)?;
     let key = key.map(string).transpose()?;
