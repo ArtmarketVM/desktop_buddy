@@ -380,13 +380,17 @@ fn completing_a_goal_completes_its_steps_and_reopening_starts_them_over() {
 #[test]
 fn settling_completes_open_goals_whose_steps_are_all_done() {
     let mut s = store();
-    s.core_add_goals(vec![draft("Late", "Work")], "settle").unwrap();
+    s.core_add_goals(vec![draft("Late", "Work")], "settle")
+        .unwrap();
     let snap = s.core_snapshot(None).unwrap();
     let (gid, mut plan) = (snap.goals[0].id, snap.goals[0].plan.clone());
     plan.steps[0].done = true;
     // Simulate older data: steps done while the goal stayed open.
     s.connection
-        .execute("UPDATE goal_plans SET payload=?1 WHERE goal_id=?2", params![serde_json::to_string(&plan).unwrap(), gid])
+        .execute(
+            "UPDATE goal_plans SET payload=?1 WHERE goal_id=?2",
+            params![serde_json::to_string(&plan).unwrap(), gid],
+        )
         .unwrap();
     assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "open");
     s.core_settle_goals().unwrap();

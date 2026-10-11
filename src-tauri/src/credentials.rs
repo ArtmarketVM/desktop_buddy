@@ -91,8 +91,8 @@ mod vault {
 }
 #[cfg(target_os = "macos")]
 mod vault {
-    pub use crate::macos::{read_key as read, write_key as write};
     pub use crate::macos::has_key as exists;
+    pub use crate::macos::{read_key as read, write_key as write};
 }
 #[cfg(not(any(windows, target_os = "macos")))]
 mod vault {
