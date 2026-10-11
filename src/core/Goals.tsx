@@ -1,16 +1,18 @@
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronRight, Plus, X, MoreHorizontal } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
+import { aiApi } from "../ai/api";
 import { GoalOrder } from "./GoalOrder";
 import {
   deadlineISO,
   localDeadline,
+  sentenceCase,
   type GoalDetails,
   type CoreGoal,
   type CoreSnapshot,
 } from "./types";
-import { AnalysisResult, type GoalEnhancement } from "./analysis";
+import { type GoalEnhancement } from "./analysis";
 
 export function mergeSuggestedSteps(
   existing: CoreGoal["plan"]["steps"],
@@ -32,6 +34,52 @@ export function mergeSuggestedSteps(
     }));
   return [...existing, ...additions];
 }
+function stepCount(count: number) {
+  return `${count} ${count === 1 ? "step" : "steps"}`;
+}
+/** Same goal title line as GoalRow, for lists that only need to show or pick a goal. */
+export function GoalLine({
+  goal,
+  children,
+}: {
+  goal: CoreGoal;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="core-goal">
+      <div className="goal-heading">
+        <span className="core-goal-title">
+          {sentenceCase(goal.title)}
+          <small>{stepCount(goal.plan.steps.length)}</small>
+        </span>
+        {children}
+      </div>
+    </div>
+  );
+}
+/** Read-only steps, drawn exactly like the steps inside GoalRow. */
+export function StepsPreview({ steps }: { steps: CoreGoal["plan"]["steps"] }) {
+  return (
+    <ul className="core-steps">
+      {steps.map((step) => (
+        <li key={step.id}>
+          <div className="step-line">
+            <input
+              type="checkbox"
+              aria-label={step.text}
+              checked={step.done}
+              disabled
+              readOnly
+            />
+            <span className={step.done ? "done" : ""}>
+              {sentenceCase(step.text)}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 export function GoalRow({
   goal,
   snapshot,
@@ -39,6 +87,9 @@ export function GoalRow({
   run,
   edit,
   readOnly = false,
+  showStatus = true,
+  initialExpanded = false,
+  initialAdding = false,
 }: {
   goal: CoreGoal;
   snapshot: CoreSnapshot;
@@ -47,11 +98,21 @@ export function GoalRow({
   edit: (goal: CoreGoal) => void;
   enhancement?: GoalEnhancement;
   readOnly?: boolean;
+  showStatus?: boolean;
+  initialExpanded?: boolean;
+  initialAdding?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(true);
+  const [expanded, setExpanded] = useState(initialExpanded);
   const [menu, setMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepText, setStepText] = useState("");
+  const [adding, setAdding] = useState(initialAdding);
+  const [highlight, setHighlight] = useState(-1);
+  const [finding, setFinding] = useState(false);
+  const [completions, setCompletions] = useState<{
+    prefix: string;
+    items: string[];
+  }>({ prefix: "", items: [] });
   const disabled = busy || !desktop || readOnly;
   const today = snapshot.today.includes(goal.id);
   const active = snapshot.focused_goal_id === goal.id;
@@ -67,7 +128,61 @@ export function GoalRow({
     if (ok) setStepText("");
     return ok;
   }
+  const completeGoal = () =>
+    run(() => coreApi.transition(goal.id, "complete", true));
   const suggestions = goal.analysis?.result;
+  const typed = stepText.trim().toLocaleLowerCase();
+  const taken = new Set(
+    goal.plan.steps.map((step) => step.text.trim().toLocaleLowerCase()),
+  );
+  const aiIdeas = [
+    ...(typed && completions.prefix && typed.startsWith(completions.prefix)
+      ? completions.items
+      : []),
+    ...(suggestions?.suggestedSteps ?? []).map((step) => step.title),
+  ];
+  const earlierSteps = typed
+    ? snapshot.goals.flatMap((item) => item.plan.steps.map((step) => step.text))
+    : [];
+  const ideas = [
+    ...new Set([...aiIdeas, ...earlierSteps].map((title) => title.trim())),
+  ]
+    .filter((title) => {
+      const lower = title.toLocaleLowerCase();
+      return (
+        title.length > 0 &&
+        title.length <= 500 &&
+        !taken.has(lower) &&
+        lower !== typed &&
+        (!typed || lower.startsWith(typed))
+      );
+    })
+    .slice(0, typed ? 4 : 3)
+    .map((title) => ({ title }));
+  useEffect(() => {
+    const prefix = stepText.trim().toLocaleLowerCase();
+    if (!adding || !desktop || !prefix) {
+      setFinding(false);
+      return;
+    }
+    let current = true;
+    setFinding(true);
+    const timer = setTimeout(() => {
+      void aiApi
+        .completeStep(goal.id, stepText.trim())
+        .then((items) => {
+          if (current) setCompletions({ prefix, items });
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (current) setFinding(false);
+        });
+    }, 200);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [stepText, adding, goal.id]);
   return (
     <article
       className={`core-goal ${goal.status}`}
@@ -76,34 +191,6 @@ export function GoalRow({
       }}
     >
       <div className="goal-heading">
-        <button
-          className="text-button goal-status-icon"
-          aria-label={`${goal.status === "completed" ? "Reopen" : "Complete"} ${goal.title}`}
-          disabled={disabled}
-          onClick={() =>
-            void run(() =>
-              coreApi.transition(
-                goal.id,
-                goal.status === "completed" ? "resume" : "complete",
-                true,
-              ),
-            )
-          }
-        >
-          {goal.status === "completed" ? <Check size={15} /> : <span />}
-        </button>
-        <button
-          className="text-button core-goal-title goal-expand-toggle"
-          aria-expanded={expanded}
-          onClick={() => {
-            setExpanded(!expanded);
-            if (today && !active && !disabled)
-              void run(() => coreApi.focus(goal.id));
-          }}
-        >
-          <ChevronRight size={14} className={expanded ? "rotated" : ""} />
-          {goal.title}
-        </button>
         {!readOnly && (
           <div
             className="goal-overflow"
@@ -163,6 +250,17 @@ export function GoalRow({
                     {active ? "Current goal" : "Focus on this goal"}
                   </button>
                 )}
+                {goal.status === "open" && (
+                  <button
+                    disabled={disabled}
+                    onClick={() => {
+                      setMenu(false);
+                      void completeGoal();
+                    }}
+                  >
+                    Mark complete
+                  </button>
+                )}
                 <button
                   disabled={disabled}
                   onClick={() => {
@@ -191,36 +289,45 @@ export function GoalRow({
             )}
           </div>
         )}
+        {readOnly && <span className="goal-overflow" aria-hidden="true" />}
+        {showStatus && (
+          <button
+            className="text-button goal-status-icon"
+            aria-label={`${goal.status === "completed" ? "Reopen" : "Complete"} ${goal.title}`}
+            disabled={busy || !desktop}
+            onClick={() =>
+              void (goal.status === "completed"
+                ? run(() => coreApi.transition(goal.id, "resume", true))
+                : completeGoal())
+            }
+          >
+            {goal.status === "completed" ? <Check size={12} /> : <span />}
+          </button>
+        )}
+        <button
+          className="text-button core-goal-title goal-expand-toggle"
+          aria-expanded={expanded}
+          onClick={() => {
+            setExpanded(!expanded);
+            if (today && goal.status === "open" && !active && !disabled)
+              void run(() => coreApi.focus(goal.id));
+          }}
+        >
+          {sentenceCase(goal.title)}
+          <small>
+            {goal.plan.steps.length}{" "}
+            {goal.plan.steps.length === 1 ? "step" : "steps"}
+          </small>
+          <ChevronDown
+            size={16}
+            className={`goal-chevron ${expanded ? "rotated" : ""}`}
+          />
+        </button>
       </div>
       <div className="goal-expanded" hidden={!expanded}>
         <ul className="core-steps">
           {goal.plan.steps.map((step) => (
             <li key={step.id}>
-              <label>
-                <input
-                  type="checkbox"
-                  checked={step.done}
-                  disabled={disabled || goal.status !== "open"}
-                  onChange={(event) =>
-                    void run(() =>
-                      coreApi.save(goal.title, area, {
-                        ...goal.plan,
-                        steps: goal.plan.steps.map((item) =>
-                          item.id === step.id
-                            ? { ...item, done: event.target.checked }
-                            : item,
-                        ),
-                        current_step:
-                          goal.plan.current_step === step.id &&
-                          event.target.checked
-                            ? null
-                            : goal.plan.current_step,
-                      }),
-                    )
-                  }
-                />
-                <span className={step.done ? "done" : ""}>{step.text}</span>
-              </label>
               {!readOnly && goal.status === "open" && (
                 <details className="step-menu">
                   <summary aria-label={`Actions for step: ${step.text}`}>
@@ -252,69 +359,162 @@ export function GoalRow({
                   </div>
                 </details>
               )}
+              <div className="step-line">
+                <input
+                  type="checkbox"
+                  aria-label={step.text}
+                  checked={step.done || goal.status === "completed"}
+                  disabled={
+                    disabled ||
+                    (goal.status !== "open" && goal.status !== "completed")
+                  }
+                  onChange={(event) =>
+                    void run(() =>
+                      coreApi.save(goal.title, area, {
+                        ...goal.plan,
+                        steps: goal.plan.steps.map((item) =>
+                          item.id === step.id
+                            ? { ...item, done: event.target.checked }
+                            : item,
+                        ),
+                        current_step:
+                          goal.plan.current_step === step.id &&
+                          event.target.checked
+                            ? null
+                            : goal.plan.current_step,
+                      }),
+                    )
+                  }
+                />
+                <span
+                  className={
+                    step.done || goal.status === "completed" ? "done" : ""
+                  }
+                >
+                  {sentenceCase(step.text)}
+                </span>
+              </div>
             </li>
           ))}
         </ul>
-        {!readOnly && suggestions && goal.status === "open" && (
-          <AnalysisResult
-            goalId={goal.id}
-            capacity={20 - goal.plan.steps.length}
-            compact
-            result={{
-              ...suggestions,
-              suggestedSteps: suggestions.suggestedSteps?.filter(
-                (step) =>
-                  !goal.plan.steps.some(
-                    (existing) =>
-                      existing.text.trim().toLocaleLowerCase() ===
-                      step.title.trim().toLocaleLowerCase(),
-                  ),
-              ),
-            }}
-            disabled={disabled}
-            acceptTitle={() => {}}
-            acceptStep={(text) => addSteps([text])}
-            acceptSteps={addSteps}
-          />
-        )}
-        {!readOnly && goal.status === "open" && (
-          <form
-            className="inline-step"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (stepText.trim()) void addSteps([stepText]);
-            }}
+        {!readOnly && goal.status === "open" && !adding && (
+          <button
+            className="text-button add-step"
+            disabled={disabled || goal.plan.steps.length >= 20}
+            onClick={() => setAdding(true)}
           >
-            <input
-              aria-label={`New step for ${goal.title}`}
-              placeholder="Add your own step…"
-              maxLength={500}
-              value={stepText}
-              disabled={disabled || goal.plan.steps.length >= 20}
-              onChange={(event) => setStepText(event.target.value)}
-            />
-            <button
-              className="text-button"
-              disabled={
-                disabled || !stepText.trim() || goal.plan.steps.length >= 20
-              }
-            >
-              <Plus size={14} />
-              Add
-            </button>
-          </form>
+            <Plus size={14} />
+            Add a step
+          </button>
         )}
-        {!readOnly && goal.analysis?.state === "failed" && (
-          <p className="helper" role="alert">
-            {goal.analysis.message}
-            <button
-              className="text-button"
-              disabled={disabled}
-              onClick={() => void run(() => coreApi.retryAnalysis(goal.id))}
+        {!readOnly && goal.status === "open" && adding && (
+          <div className="add-step-panel">
+            <form
+              className="add-step-row"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const pick = ideas[highlight];
+                const text = pick ? pick.title : stepText;
+                if (text.trim()) void addSteps([text]);
+              }}
             >
-              Retry suggestions
-            </button>
-          </p>
+              <span className="add-step-box" aria-hidden="true" />
+              <input
+                autoFocus
+                aria-label={`New step for ${goal.title}`}
+                placeholder="Type a step…"
+                maxLength={500}
+                value={stepText}
+                disabled={disabled || goal.plan.steps.length >= 20}
+                onChange={(event) => {
+                  setStepText(event.target.value);
+                  setHighlight(-1);
+                }}
+                onBlur={() => {
+                  if (!stepText.trim()) setAdding(false);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") {
+                    setStepText("");
+                    setAdding(false);
+                  } else if (
+                    (event.key === "Backspace" || event.key === "Delete") &&
+                    !stepText
+                  ) {
+                    event.preventDefault();
+                    setAdding(false);
+                  } else if (event.key === "Tab" && ideas.length && typed) {
+                    event.preventDefault();
+                    setStepText(ideas[Math.max(highlight, 0)].title);
+                    setHighlight(-1);
+                  } else if (event.key === "ArrowDown" && ideas.length) {
+                    event.preventDefault();
+                    setHighlight((highlight + 1) % ideas.length);
+                  } else if (event.key === "ArrowUp" && ideas.length) {
+                    event.preventDefault();
+                    setHighlight((highlight - 1 + ideas.length) % ideas.length);
+                  }
+                }}
+              />
+            </form>
+            {(ideas.length > 0 ||
+              finding ||
+              (!suggestions &&
+                ["queued", "working", "failed"].includes(
+                  goal.analysis?.state ?? "",
+                ))) && (
+              <div
+                className="ideas-menu"
+                role="listbox"
+                aria-label="Step ideas"
+                onMouseDown={(event) => event.preventDefault()}
+              >
+                <p className="ideas-label">Ideas</p>
+                {ideas.map((idea, index) => (
+                  <button
+                    key={idea.title}
+                    role="option"
+                    aria-selected={index === highlight}
+                    className={index === highlight ? "highlighted" : ""}
+                    disabled={disabled}
+                    onMouseEnter={() => setHighlight(index)}
+                    onClick={() => void addSteps([idea.title])}
+                  >
+                    {typed && (
+                      <span className="idea-typed">
+                        {idea.title.slice(0, typed.length)}
+                      </span>
+                    )}
+                    {idea.title.slice(typed.length)}
+                  </button>
+                ))}
+                {finding ? (
+                  <p className="ideas-note ideas-loading" role="status">
+                    Finding ideas<span aria-hidden="true">...</span>
+                  </p>
+                ) : (
+                  !suggestions &&
+                  goal.analysis?.state !== "failed" && (
+                    <p className="ideas-note">Looking for ideas…</p>
+                  )
+                )}
+                {goal.analysis?.state === "failed" && (
+                  <p className="ideas-note" role="alert">
+                    Couldn't load ideas.{" "}
+                    <button
+                      className="text-button"
+                      disabled={disabled}
+                      onClick={() =>
+                        void run(() => coreApi.retryAnalysis(goal.id))
+                      }
+                    >
+                      Retry
+                    </button>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
         )}
       </div>
       {confirmDelete && (
@@ -631,62 +831,85 @@ export function GoalAreas({
   edit: (goal: CoreGoal) => void;
   enhancement?: GoalEnhancement;
 }) {
-  const [showFinished, setShowFinished] = useState(false);
-  const visible = snapshot.goals.filter(
-    (goal) => showFinished || goal.status !== "completed",
+  const [query, setQuery] = useState("");
+  const normalized = query.trim().toLocaleLowerCase();
+  const matches = (goal: CoreGoal) =>
+    !normalized ||
+    goal.title.toLocaleLowerCase().includes(normalized) ||
+    goal.plan.steps.some((step) =>
+      step.text.toLocaleLowerCase().includes(normalized),
+    );
+  const active = snapshot.goals.filter(
+    (goal) => goal.status === "open" && matches(goal),
+  );
+  const archive = snapshot.goals.filter(
+    (goal) => goal.status !== "open" && matches(goal),
   );
   return (
-    <section className="core-section" aria-label="Goals and areas">
-      <div className="section-heading">
-        <h2>All goals</h2>
-        <label className="small-check">
-          <input
-            type="checkbox"
-            checked={showFinished}
-            onChange={(e) => setShowFinished(e.target.checked)}
-          />
-          Include completed
-        </label>
+    <section className="core-section goal-log" aria-label="Goals">
+      <label className="goal-search">
+        <span className="sr-only">Search goals</span>
+        <input
+          type="search"
+          placeholder="Search..."
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      <div className="goal-log-part">
+        <h2>Active</h2>
+        {active.length === 0 ? (
+          <p className="empty-copy">
+            {query
+              ? "No matches for that search."
+              : "A little space for what matters. Add your first item above."}
+          </p>
+        ) : (
+          <GoalOrder
+            goals={active}
+            allGoals={snapshot.goals}
+            disabled={busy || !!query}
+            reorder={(ids) => void run(() => coreApi.reorder(ids))}
+          >
+            {(goal) => (
+              <GoalRow
+                key={goal.id}
+                goal={goal}
+                snapshot={snapshot}
+                busy={busy}
+                run={run}
+                edit={edit}
+                enhancement={enhancement}
+                initialExpanded={false}
+              />
+            )}
+          </GoalOrder>
+        )}
       </div>
-      {visible.length === 0 ? (
-        <p className="empty-copy">
-          A little space for what matters. Add your first goal above.
-        </p>
-      ) : (
-        snapshot.areas
-          .filter((area) => visible.some((g) => g.area_id === area.id))
-          .map((area) => (
-            <details className="core-area" key={area.id} open>
-              <summary>
-                <ChevronRight size={15} />
-                {area.title}
-                <span>
-                  {visible.filter((g) => g.area_id === area.id).length}
-                </span>
-              </summary>
-              <div>
-                <GoalOrder
-                  goals={visible.filter((g) => g.area_id === area.id)}
-                  allGoals={snapshot.goals}
-                  disabled={busy}
-                  reorder={(ids) => void run(() => coreApi.reorder(ids))}
-                >
-                  {(goal) => (
-                    <GoalRow
-                      key={goal.id}
-                      goal={goal}
-                      snapshot={snapshot}
-                      busy={busy}
-                      run={run}
-                      edit={edit}
-                      enhancement={enhancement}
-                    />
-                  )}
-                </GoalOrder>
-              </div>
-            </details>
+      <div className="goal-log-part">
+        <h2>Archive</h2>
+        {archive.length === 0 ? (
+          <p className="empty-copy">
+            {query
+              ? "No matches for that search."
+              : "Completed and set-aside items will appear here."}
+          </p>
+        ) : (
+          archive.map((goal) => (
+            <GoalRow
+              key={goal.id}
+              goal={goal}
+              snapshot={snapshot}
+              busy={busy}
+              run={run}
+              edit={edit}
+              enhancement={enhancement}
+              readOnly={goal.status === "completed"}
+              initialExpanded={false}
+            />
           ))
-      )}
+        )}
+      </div>
     </section>
   );
 }

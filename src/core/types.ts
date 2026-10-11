@@ -71,6 +71,7 @@ export interface ImportProposal {
   reply: string;
   drafts: GoalDraft[];
 }
+export type ProgressPeriod = "day" | "week" | "month" | "year";
 export const emptyCore = (): CoreSnapshot => {
   const date = new Date().toLocaleDateString("en-CA");
   const summary: DayProgress = { day: date, completed: [], goals: [] };
@@ -132,4 +133,12 @@ export function shiftDate(day: string, days: number): string {
   const date = new Date(`${day}T12:00:00`);
   date.setDate(date.getDate() + days);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+/** Goals and steps read like sentences, including ones saved before capitalising became automatic. */
+export function sentenceCase(text: string) {
+  const first = text.charAt(0);
+  return first && first !== first.toLocaleUpperCase()
+    ? first.toLocaleUpperCase() + text.slice(1)
+    : text;
 }

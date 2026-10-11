@@ -232,7 +232,7 @@ fn parallel_goals_and_today_are_persisted_without_replacing_the_legacy_focus() {
     assert!(s.core_snapshot(Some("2025-02-30")).is_err());
 }
 #[test]
-fn steps_use_revisions_and_do_not_complete_goals_automatically() {
+fn steps_use_revisions_and_finishing_every_step_completes_the_goal() {
     let mut s = store();
     s.core_add_goals(vec![draft("Plan", "Work")], "one")
         .unwrap();
@@ -243,12 +243,15 @@ fn steps_use_revisions_and_do_not_complete_goals_automatically() {
     s.core_save_goal(&g.title, "Work", plan.clone()).unwrap();
     assert!(s.core_save_goal("Stale", "Work", plan).is_err());
     let snap = s.core_snapshot(None).unwrap();
-    assert_eq!(snap.goals[0].status, "open");
-    assert_eq!(snap.summary.completed, vec!["Review result"]);
-    let mut plan = snap.goals[0].plan.clone();
+    // The only step is done, so the goal completes by itself.
+    assert_eq!(snap.goals[0].status, "completed");
+    assert_eq!(snap.summary.completed_goals, vec!["Plan"]);
+    s.core_transition(g.id, "resume").unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "open");
+    let mut plan = s.core_snapshot(None).unwrap().goals[0].plan.clone();
     plan.steps[0].done = false;
     s.core_save_goal("Plan", "Work", plan).unwrap();
-    assert!(s.core_snapshot(None).unwrap().summary.completed.is_empty());
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "open");
     s.core_transition(g.id, "complete").unwrap();
     assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "completed");
     s.core_transition(g.id, "resume").unwrap();
@@ -355,4 +358,60 @@ fn clear_history_keeps_parallel_goals_and_clears_progress_and_timer() {
     assert_eq!(snapshot.goals[0].focused_seconds, 0);
     assert!(snapshot.timer.is_none());
     assert!(snapshot.summary.completed.is_empty());
+}
+#[test]
+fn completing_a_goal_completes_its_steps_and_reopening_starts_them_over() {
+    let mut storage = store();
+    storage
+        .core_add_goals(vec![draft("Ship", "Work")], "complete-steps")
+        .unwrap();
+    let id = storage.core_snapshot(None).unwrap().goals[0].id;
+    assert!(!storage.goal_plan(id).unwrap().steps[0].done);
+    storage.core_transition(id, "complete").unwrap();
+    assert!(storage.goal_plan(id).unwrap().steps.iter().all(|s| s.done));
+    let summary = storage.core_snapshot(None).unwrap().summary;
+    assert!(summary.completed.contains(&"Review result".to_string()));
+    assert_eq!(summary.completed_goals, vec!["Ship".to_string()]);
+    storage.core_transition(id, "resume").unwrap();
+    assert!(storage.goal_plan(id).unwrap().steps.iter().all(|s| !s.done));
+    let summary = storage.core_snapshot(None).unwrap().summary;
+    assert!(summary.completed_goals.is_empty());
+}
+#[test]
+fn settling_completes_open_goals_whose_steps_are_all_done() {
+    let mut s = store();
+    s.core_add_goals(vec![draft("Late", "Work")], "settle").unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    let (gid, mut plan) = (snap.goals[0].id, snap.goals[0].plan.clone());
+    plan.steps[0].done = true;
+    // Simulate older data: steps done while the goal stayed open.
+    s.connection
+        .execute("UPDATE goal_plans SET payload=?1 WHERE goal_id=?2", params![serde_json::to_string(&plan).unwrap(), gid])
+        .unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "open");
+    s.core_settle_goals().unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "completed");
+}
+#[test]
+fn unticking_a_step_reopens_a_completed_goal_without_resetting_other_steps() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![GoalDraft {
+            title: "Two".into(),
+            area: "Work".into(),
+            steps: vec!["One".into(), "Two".into()],
+        }],
+        "untick",
+    )
+    .unwrap();
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    s.core_transition(id, "complete").unwrap();
+    assert_eq!(s.core_snapshot(None).unwrap().goals[0].status, "completed");
+    let mut plan = s.core_snapshot(None).unwrap().goals[0].plan.clone();
+    plan.steps[1].done = false;
+    s.core_save_goal("Two", "Work", plan).unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    assert_eq!(snap.goals[0].status, "open");
+    assert!(snap.goals[0].plan.steps[0].done);
+    assert!(!snap.goals[0].plan.steps[1].done);
 }

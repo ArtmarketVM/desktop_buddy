@@ -190,30 +190,64 @@ char *buddy_apps(void) {
         return json(apps);
     }
 }
+static NSMutableDictionary *buddyKeychainQuery(NSString *account, BOOL dataProtection) {
+    NSMutableDictionary *query = [@{(__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrService: @"com.artmarketvm.desktopbuddy.providers", (__bridge id)kSecAttrAccount: account} mutableCopy];
+    if (@available(macOS 10.15, *)) {
+        if (dataProtection) query[(__bridge id)kSecUseDataProtectionKeychain] = @YES;
+    }
+    return query;
+}
+static OSStatus buddyKeychainRead(NSMutableDictionary *query, NSString **value) {
+    query[(__bridge id)kSecReturnData] = @YES;
+    query[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
+    CFTypeRef data = NULL;
+    OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &data);
+    if (status != errSecSuccess) return status;
+    NSData *bytes = CFBridgingRelease(data);
+    *value = [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding];
+    return *value ? errSecSuccess : errSecDecode;
+}
+static OSStatus buddyKeychainWrite(NSMutableDictionary *query, NSString *secret) {
+    NSDictionary *attributes = @{(__bridge id)kSecValueData: [secret dataUsingEncoding:NSUTF8StringEncoding]};
+    OSStatus status = SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)attributes);
+    if (status == errSecItemNotFound) {
+        [query addEntriesFromDictionary:attributes];
+        query[(__bridge id)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly;
+        status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
+    }
+    return status;
+}
 char *buddy_keychain(const char *account, const char *secret, int operation) {
     @autoreleasepool {
-        NSMutableDictionary *query = [@{(__bridge id)kSecClass: (__bridge id)kSecClassGenericPassword, (__bridge id)kSecAttrService: @"com.artmarketvm.desktopbuddy.providers", (__bridge id)kSecAttrAccount: @(account)} mutableCopy];
+        NSString *accountName = @(account);
+        NSMutableDictionary *query = buddyKeychainQuery(accountName, YES);
         OSStatus status;
-        if (operation == 0) {
-            query[(__bridge id)kSecReturnData] = @YES;
+        if (operation == 3) {
             query[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
-            CFTypeRef data = NULL; status = SecItemCopyMatching((__bridge CFDictionaryRef)query, &data);
+            status = SecItemCopyMatching((__bridge CFDictionaryRef)query, NULL);
+            if (status == errSecItemNotFound) {
+                NSMutableDictionary *legacy = buddyKeychainQuery(accountName, NO);
+                legacy[(__bridge id)kSecMatchLimit] = (__bridge id)kSecMatchLimitOne;
+                status = SecItemCopyMatching((__bridge CFDictionaryRef)legacy, NULL);
+            }
+            return status == errSecSuccess ? json(@YES) : json(@NO);
+        }
+        if (operation == 0) {
+            NSString *value = nil;
+            status = buddyKeychainRead(query, &value);
+            if (status == errSecItemNotFound) {
+                status = buddyKeychainRead(buddyKeychainQuery(accountName, NO), &value);
+                if (status == errSecSuccess) buddyKeychainWrite(buddyKeychainQuery(accountName, YES), value);
+            }
             if (status == errSecItemNotFound) return json(NSNull.null);
-            if (status != errSecSuccess) return failure(@"macOS Keychain could not read the API key");
-            NSData *bytes = CFBridgingRelease(data);
-            NSString *value = [[NSString alloc] initWithData:bytes encoding:NSUTF8StringEncoding];
-            return value ? json(value) : failure(@"Saved credential is invalid; replace it in Settings");
+            if (status != errSecSuccess) return failure(status == errSecDecode ? @"Saved credential is invalid; replace it in Settings" : @"macOS Keychain could not read the API key");
+            return json(value);
         }
         if (operation == 2) {
             status = SecItemDelete((__bridge CFDictionaryRef)query);
+            SecItemDelete((__bridge CFDictionaryRef)buddyKeychainQuery(accountName, NO));
         } else {
-            NSDictionary *attributes = @{(__bridge id)kSecValueData: [@(secret) dataUsingEncoding:NSUTF8StringEncoding]};
-            status = SecItemUpdate((__bridge CFDictionaryRef)query, (__bridge CFDictionaryRef)attributes);
-            if (status == errSecItemNotFound) {
-                [query addEntriesFromDictionary:attributes];
-                query[(__bridge id)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly;
-                status = SecItemAdd((__bridge CFDictionaryRef)query, NULL);
-            }
+            status = buddyKeychainWrite(query, @(secret));
         }
         return status == errSecSuccess || (operation == 2 && status == errSecItemNotFound) ? json(NSNull.null) : failure(@"macOS Keychain could not save or remove the API key");
     }

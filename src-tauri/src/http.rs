@@ -77,6 +77,13 @@ pub fn secret(name: &str) -> Result<String, String> {
         .ok_or_else(|| format!("Configure {name} in Settings"))
 }
 pub fn configured(name: &str) -> bool {
+    #[cfg(not(test))]
+    if matches!(name, "NEBIUS_API_KEY" | "TAVILY_API_KEY") {
+        return std::env::var(name)
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+            || crate::credentials::exists(name).unwrap_or(false);
+    }
     secret(name).is_ok()
 }
 pub fn enabled(name: &str) -> bool {

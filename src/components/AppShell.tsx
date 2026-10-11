@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Compass,
   BarChart3,
-  BookOpen,
   History,
   Settings,
   ChevronDown,
@@ -41,16 +40,10 @@ export const pages = [
     description: "Your goals, completed steps and focused time.",
   },
   {
-    id: "resources",
-    label: "Import",
-    icon: BookOpen,
-    description: "Turn notes and thoughts into a plan you can review.",
-  },
-  {
     id: "history",
     label: "Goals",
     icon: History,
-    description: "Keep several directions moving at your pace.",
+    description: "",
   },
   {
     id: "chats",
@@ -169,7 +162,7 @@ export function AppShell({
         </button>
         <span className="eyebrow nav-heading">WORKSPACE</span>
         <nav>
-          {pages.slice(0, 5).map((item) => (
+          {pages.slice(0, 4).map((item) => (
             <button
               key={item.id}
               className={`nav-item ${page === item.id && !onboarding ? "selected" : ""}`}

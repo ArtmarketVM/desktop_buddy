@@ -17,15 +17,14 @@ import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
 const sections = [
+  "General",
   "Profile",
-  "Buddy",
+  "Privacy",
   "Appearance",
-  "Activity & Privacy",
-  "Nudging",
-  "Startup",
+  "Updates",
   "Integrations / AI",
   "About",
-];
+] as const;
 const time = (value: number) =>
   `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 const minutes = (value: string) => {
@@ -37,10 +36,12 @@ export function CoreSettings({
   data,
   onChanged,
   onDirty,
+  onUpdates,
 }: {
   data: Dashboard;
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
+  onUpdates: () => void;
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
   const [profile, setProfile] = useState(settings.profile);
@@ -53,6 +54,7 @@ export function CoreSettings({
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
+  const [section, setSection] = useState<(typeof sections)[number]>("General");
   useEffect(() => {
     let active = true;
     if (desktop)
@@ -114,21 +116,20 @@ export function CoreSettings({
   return (
     <div className="core-workspace core-settings">
       <nav className="settings-sections" aria-label="Settings sections">
-        {sections.map((section, i) => (
-          <a
-            key={section}
-            href={`#settings-${i}`}
-            onClick={() => {
-              const target = document.getElementById(`settings-${i}`);
-              if (target instanceof HTMLDetailsElement) target.open = true;
-            }}
+        {sections.map((item) => (
+          <button
+            key={item}
+            type="button"
+            className={section === item ? "selected" : ""}
+            aria-current={section === item ? "page" : undefined}
+            onClick={() => setSection(item)}
           >
-            {section}
-          </a>
+            {item}
+          </button>
         ))}
       </nav>
       <div className="settings-drafts">
-        <details className="core-section" id="settings-0" open>
+        <details className="core-section" hidden={section !== "Profile"} open>
           <summary>Profile</summary>
           <fieldset disabled={blocked}>
             <label>
@@ -161,8 +162,8 @@ export function CoreSettings({
             </p>
           </fieldset>
         </details>
-        <details className="core-section" id="settings-1">
-          <summary>Buddy</summary>
+        <details className="core-section" hidden={section !== "General"} open>
+          <summary>General</summary>
           <AvatarPicker
             profile={profile}
             disabled={blocked}
@@ -192,8 +193,79 @@ export function CoreSettings({
               }}
             />
           </label>
+          <label className="toggle-row">
+            <span>Start when I sign in</span>
+            <input
+              type="checkbox"
+              checked={autostart}
+              disabled={blocked}
+              onChange={(e) => {
+                setAutostart(e.target.checked);
+                change();
+              }}
+            />
+          </label>
+          <label className="toggle-row">
+            <span>
+              Do not disturb
+              <small>
+                Pause all automatic nudges until you turn this off. Chat remains
+                available.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={data.status.dnd}
+              disabled={blocked}
+              onChange={(e) => void run(() => api.dnd(e.target.checked))}
+            />
+          </label>
+          <button
+            className="outline-button"
+            disabled={blocked}
+            onClick={() => void run(() => api.snooze(true))}
+          >
+            Pause nudges for 1 hour
+          </button>
+          {data.buddy.snoozed_until && (
+            <button
+              className="text-button"
+              disabled={blocked}
+              onClick={() => void run(() => api.snooze(false))}
+            >
+              Resume nudges now
+            </button>
+          )}
+          <CompanionSettings
+            onChanged={onChanged}
+            currentPreferences={data.buddy.companion?.preferences}
+          />
+          <label className="toggle-row">
+            <span>
+              Movement reminders
+              <small>
+                A workspace note after 45 minutes on the optional timer.
+              </small>
+            </span>
+            <input
+              type="checkbox"
+              checked={preferences.movement_reminders}
+              disabled={blocked}
+              onChange={(e) => {
+                setPreferences({
+                  ...preferences,
+                  movement_reminders: e.target.checked,
+                });
+                change();
+              }}
+            />
+          </label>
         </details>
-        <details className="core-section" id="settings-2">
+        <details
+          className="core-section"
+          hidden={section !== "Appearance"}
+          open
+        >
           <summary>Appearance</summary>
           <label className="toggle-row">
             <span>Dark theme</span>
@@ -207,8 +279,8 @@ export function CoreSettings({
             />
           </label>
         </details>
-        <details className="core-section" id="settings-3">
-          <summary>Activity &amp; Privacy</summary>
+        <details className="core-section" hidden={section !== "Privacy"} open>
+          <summary>Privacy</summary>
           <MacPermissions />
           <label className="toggle-row">
             <span>
@@ -342,81 +414,18 @@ export function CoreSettings({
             />
           </details>
         </details>
-        <details className="core-section" id="settings-4">
-          <summary>Nudging</summary>
-
-          <label className="toggle-row">
-            <span>
-              Do not disturb
-              <small>
-                Pause all automatic nudges until you turn this off. Chat remains
-                available.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={data.status.dnd}
-              disabled={blocked}
-              onChange={(e) => void run(() => api.dnd(e.target.checked))}
-            />
-          </label>
-          <button
-            className="outline-button"
-            disabled={blocked}
-            onClick={() => void run(() => api.snooze(true))}
-          >
-            Pause nudges for 1 hour
+        <details className="core-section" hidden={section !== "Updates"} open>
+          <summary>Updates</summary>
+          <p>Installed version {data.version}</p>
+          <button className="outline-button" type="button" onClick={onUpdates}>
+            Check for updates
           </button>
-          {data.buddy.snoozed_until && (
-            <button
-              className="text-button"
-              disabled={blocked}
-              onClick={() => void run(() => api.snooze(false))}
-            >
-              Resume nudges now
-            </button>
-          )}
-          <CompanionSettings
-            onChanged={onChanged}
-            currentPreferences={data.buddy.companion?.preferences}
-          />
-          <label className="toggle-row">
-            <span>
-              Movement reminders
-              <small>
-                A workspace note after 45 minutes on the optional timer.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={preferences.movement_reminders}
-              disabled={blocked}
-              onChange={(e) => {
-                setPreferences({
-                  ...preferences,
-                  movement_reminders: e.target.checked,
-                });
-                change();
-              }}
-            />
-          </label>
         </details>
-        <details className="core-section" id="settings-5">
-          <summary>Startup</summary>
-          <label className="toggle-row">
-            <span>Start when I sign in</span>
-            <input
-              type="checkbox"
-              checked={autostart}
-              disabled={blocked}
-              onChange={(e) => {
-                setAutostart(e.target.checked);
-                change();
-              }}
-            />
-          </label>
-        </details>
-        <details className="core-section" id="settings-6">
+        <details
+          className="core-section"
+          hidden={section !== "Integrations / AI"}
+          open
+        >
           <summary>Integrations / AI</summary>
           <p className="helper">
             Goals work without AI. Provider keys are kept in the running app and
@@ -458,7 +467,7 @@ export function CoreSettings({
           </p>
           <AiSettings onChanged={onChanged} />
         </details>
-        <details className="core-section" id="settings-7">
+        <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>
           <p>Desktop Buddy · v{data.version}</p>
           <p className="helper">

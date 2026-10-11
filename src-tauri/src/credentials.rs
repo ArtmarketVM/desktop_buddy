@@ -85,10 +85,14 @@ mod vault {
             }
         }
     }
+    pub fn exists(name: &str) -> Result<bool, String> {
+        read(name).map(|key| key.is_some())
+    }
 }
 #[cfg(target_os = "macos")]
 mod vault {
     pub use crate::macos::{read_key as read, write_key as write};
+    pub use crate::macos::has_key as exists;
 }
 #[cfg(not(any(windows, target_os = "macos")))]
 mod vault {
@@ -98,8 +102,11 @@ mod vault {
     pub fn write(_: &str, _: Option<&str>) -> Result<(), String> {
         Err("Saving API keys is supported on Windows only".into())
     }
+    pub fn exists(_: &str) -> Result<bool, String> {
+        Ok(false)
+    }
 }
-pub use vault::{read, write};
+pub use vault::{exists, read, write};
 
 #[cfg(test)]
 mod tests {

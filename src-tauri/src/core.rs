@@ -194,6 +194,15 @@ fn day(value: &str) -> Result<NaiveDate, String> {
     }
     Ok(date)
 }
+fn period_days(value: Option<&str>) -> Result<i64, String> {
+    match value.unwrap_or("week") {
+        "day" => Ok(1),
+        "week" => Ok(7),
+        "month" => Ok(31),
+        "year" => Ok(366),
+        _ => Err("Choose a valid progress period".into()),
+    }
+}
 fn area_title(value: &str) -> Result<String, String> {
     let title = value.trim();
     if title.chars().count() > 80 || title.chars().any(char::is_control) {
@@ -396,9 +405,89 @@ impl Storage {
             .checked_add(1)
             .ok_or("Goal revision limit reached")?;
         tx.execute("INSERT INTO goal_plans(goal_id,revision,payload) VALUES(?1,?2,?3) ON CONFLICT(goal_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload", params![plan.goal_id,plan.revision,serde_json::to_string(&plan).map_err(|_| "Could not save steps")?]).map_err(db)?;
+        tx.commit().map_err(db)?;
+        // Unticking a step of a completed goal reopens it.
+        if plan.steps.iter().any(|step| !step.done) {
+            let state: Option<String> = self
+                .connection
+                .query_row(
+                    "SELECT state FROM core_goals WHERE goal_id=?1",
+                    [plan.goal_id],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(db)?;
+            if state.as_deref() == Some("completed") {
+                self.core_transition_with(plan.goal_id, "resume", false)?;
+            }
+        }
+        // When every step is done the goal is done too.
+        if !plan.steps.is_empty() && plan.steps.iter().all(|step| step.done) {
+            let state: Option<String> = self
+                .connection
+                .query_row(
+                    "SELECT state FROM core_goals WHERE goal_id=?1",
+                    [plan.goal_id],
+                    |r| r.get(0),
+                )
+                .optional()
+                .map_err(db)?;
+            if state.as_deref() == Some("open") {
+                self.core_transition(plan.goal_id, "complete")?;
+            }
+        }
+        Ok(())
+    }
+    fn core_set_all_steps(&mut self, id: i64, done: bool) -> Result<(), String> {
+        let old = self.goal_plan(id)?;
+        if old.steps.iter().all(|step| step.done == done) {
+            return Ok(());
+        }
+        let mut plan = old.clone();
+        for step in &mut plan.steps {
+            step.done = done;
+        }
+        plan.current_step = None;
+        let tx = self.connection.transaction().map_err(db)?;
+        record_step_changes(&tx, &old, &plan)?;
+        plan.revision = plan
+            .revision
+            .checked_add(1)
+            .ok_or("Goal revision limit reached")?;
+        tx.execute("INSERT INTO goal_plans(goal_id,revision,payload) VALUES(?1,?2,?3) ON CONFLICT(goal_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload", params![plan.goal_id,plan.revision,serde_json::to_string(&plan).map_err(|_| "Could not save steps")?]).map_err(db)?;
         tx.commit().map_err(db)
     }
+    /// Open goals whose steps are all done are completed.
+    pub fn core_settle_goals(&mut self) -> Result<(), String> {
+        let ids: Vec<i64> = {
+            let mut q = self
+                .connection
+                .prepare("SELECT goal_id FROM core_goals WHERE state='open'")
+                .map_err(db)?;
+            let rows = q
+                .query_map([], |r| r.get::<_, i64>(0))
+                .map_err(db)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(db)?;
+            rows
+        };
+        for id in ids {
+            let plan = self.goal_plan(id)?;
+            if !plan.steps.is_empty() && plan.steps.iter().all(|step| step.done) {
+                self.core_transition(id, "complete")?;
+            }
+        }
+        Ok(())
+    }
     pub fn core_transition(&mut self, id: i64, action: &str) -> Result<(), String> {
+        self.core_transition_with(id, action, true)
+    }
+    fn core_transition_with(
+        &mut self,
+        id: i64,
+        action: &str,
+        reset_steps_on_reopen: bool,
+    ) -> Result<(), String> {
         let new_state = match action {
             "complete" => "completed",
             "defer" => "deferred",
@@ -406,6 +495,23 @@ impl Storage {
             "delete" => "deleted",
             _ => return Err("Unknown goal action".into()),
         };
+        if action == "complete" {
+            // Completing a goal completes every step inside it.
+            self.core_set_all_steps(id, true)?;
+        } else if action == "resume" {
+            // Reopening a completed goal starts its steps over.
+            let completed: bool = self
+                .connection
+                .query_row(
+                    "SELECT g.status='completed' OR c.state='completed' FROM core_goals c JOIN goals g ON g.id=c.goal_id WHERE c.goal_id=?1",
+                    [id],
+                    |r| r.get(0),
+                )
+                .unwrap_or(false);
+            if completed && reset_steps_on_reopen {
+                self.core_set_all_steps(id, false)?;
+            }
+        }
         let tx = self.connection.transaction().map_err(db)?;
         let previous: String = tx.query_row("SELECT CASE WHEN g.status='completed' THEN 'completed' ELSE c.state END FROM core_goals c JOIN goals g ON g.id=c.goal_id WHERE c.goal_id=?1", [id], |r| r.get(0)).map_err(|_| "Goal no longer exists")?;
         if action == "delete" {
@@ -679,10 +785,18 @@ impl Storage {
         })
     }
     pub fn core_snapshot(&self, anchor: Option<&str>) -> Result<CoreSnapshot, String> {
+        self.core_snapshot_period(anchor, None)
+    }
+    pub fn core_snapshot_period(
+        &self,
+        anchor: Option<&str>,
+        period: Option<&str>,
+    ) -> Result<CoreSnapshot, String> {
         self.adopt_core_goals()?;
         let today = Local::now().date_naive();
         let date = today.to_string();
         let anchor = anchor.map(day).transpose()?.unwrap_or(today);
+        let days = period_days(period)?;
         let mut q = self
             .connection
             .prepare("SELECT id,title FROM core_areas ORDER BY title COLLATE NOCASE")
@@ -774,7 +888,7 @@ impl Storage {
             .optional()
             .map_err(db)?
             .unwrap_or_else(|| "unset".into());
-        let week = (0..7)
+        let week = (0..days)
             .map(|offset| self.core_progress(&(anchor - Duration::days(offset)).to_string()))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(CoreSnapshot {
@@ -915,13 +1029,14 @@ fn mutate(
 pub fn get_core_snapshot(
     state: State<AppState>,
     anchor: Option<String>,
+    period: Option<String>,
 ) -> Result<CoreSnapshot, String> {
-    state
+    let mut inner = state
         .inner
         .lock()
-        .map_err(|_| "Application state unavailable")?
-        .storage
-        .core_snapshot(anchor.as_deref())
+        .map_err(|_| "Application state unavailable")?;
+    inner.storage.core_settle_goals()?;
+    inner.storage.core_snapshot_period(anchor.as_deref(), period.as_deref())
 }
 #[tauri::command(async)]
 pub fn add_core_goals(

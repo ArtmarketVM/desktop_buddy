@@ -63,6 +63,8 @@ export const aiApi = {
       input,
       researchRequested,
     }),
+  completeStep: (goalId: number, prefix: string) =>
+    invoke<string[]>("complete_goal_step", { goalId, prefix }),
   history: () => invoke<ChatMessage[]>("get_buddy_chat_history"),
   conversations: () => invoke<ChatConversation[]>("get_buddy_conversations"),
   newConversation: () => invoke<number>("create_buddy_conversation"),

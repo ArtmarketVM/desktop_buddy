@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
+import { Moon } from "lucide-react";
 import { defaultCompanionView } from "./companion/types";
 import { api, desktop } from "./api/tauri";
 import type { Dashboard } from "./types";
@@ -221,8 +222,26 @@ export default function App() {
               <div className="page-title">
                 <div>
                   <h1>{title.label}</h1>
-                  {page !== "focus" && <p>{title.description}</p>}
+                  {page !== "focus" && title.description && (
+                    <p>{title.description}</p>
+                  )}
                 </div>
+                {page === "focus" && (
+                  <button
+                    className="text-button today-dnd"
+                    aria-describedby="quiet-tip"
+                    aria-pressed={data.status.dnd}
+                    disabled={busy || !desktop}
+                    onClick={() => void run(() => api.dnd(!data.status.dnd))}
+                  >
+                    <Moon size={16} />
+                    Quiet mode{data.status.dnd ? ": on" : ""}
+                    <span id="quiet-tip" role="tooltip" className="quiet-tip">
+                      Pauses all Buddy nudges and pop-ups until you turn it off.
+                      Chat stays available.
+                    </span>
+                  </button>
+                )}
               </div>
               {!desktop && (
                 <p className="notice preview-notice">
@@ -276,11 +295,9 @@ export default function App() {
                   data={data}
                   onChanged={refresh}
                   onDirty={setSettingsDirty}
+                  onUpdates={() => setUpdatesOpen(true)}
                 />
               </div>
-              <footer>
-                <span>Your space. Your pace.</span>
-              </footer>
             </>
           )}
         </AppShell>

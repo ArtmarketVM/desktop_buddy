@@ -79,9 +79,10 @@ describe("core daily flow boundaries", () => {
         busy: false,
         run: async () => true,
         edit: () => {},
+        initialAdding: true,
       }),
     );
-    expect(html).toContain("Add your own step");
+    expect(html).toContain("Type a step");
     expect(html).toContain("More actions for Ship");
     expect(html).not.toContain("high priority");
     expect(html).not.toContain("Improve goal");
@@ -188,9 +189,9 @@ describe("core daily flow boundaries", () => {
         unfinished: 1,
       }),
     );
-    expect(html).toContain("Ship release");
-    expect(html).toContain("Work · 30m");
-    expect(html).toContain("tomorrow");
+    expect(html).toContain("1 step done");
+    expect(html).toContain("30m focused");
+    expect(html).not.toContain("Ship release");
     expect(html).not.toContain("process_name");
   });
   it("starts onboarding with a name and no required role or email", () => {

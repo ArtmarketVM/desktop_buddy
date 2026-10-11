@@ -93,12 +93,12 @@ describe("automatic AI and relevant progress", () => {
         busy: false,
         run: async () => true,
         edit: () => {},
+        initialAdding: true,
       }),
     );
     expect(html).toContain("Outline");
     expect(html).toContain("Draft");
-    expect(html).toContain("Add all");
-    expect(html).toContain("Ignore suggestion: Outline");
+    expect(html).toContain("Ideas");
     expect(html).not.toContain("Ship Buddy onboarding");
     expect(html).not.toContain("Improve / Research");
     expect(html).not.toContain("Focus timer");
@@ -127,15 +127,31 @@ describe("automatic AI and relevant progress", () => {
         unfinished: 2,
       }),
     );
-    expect(html).not.toContain("wrapped up");
-    expect(html).not.toContain("of relevant activity");
-    expect(html).toContain("2h 0m of observed activity");
-    expect(html).toContain("no work could be confidently matched");
-    expect(html).toContain("tomorrow");
+    expect(html).toContain("1 step done");
+    expect(html).not.toContain("completed");
+    expect(html).not.toContain("focused");
+    expect(html).not.toContain("observed");
   });
   it("shows the local calendar date for activity timestamps", () => {
     expect(activityDay(new Date(2026, 9, 7, 12, 0).toISOString())).toBe(
       "2026-10-07",
     );
+  });
+  it("reports a goal as completed only while it is closed", () => {
+    const day = (completed_goals: string[]) => ({
+      day: "2026-10-11",
+      completed: ["A", "B", ...completed_goals],
+      completed_goals,
+      goals: [],
+    });
+    const closed = renderToStaticMarkup(
+      createElement(DaySummary, { day: day(["Goal"]) }),
+    );
+    expect(closed).toContain("2 steps done");
+    expect(closed).toContain("1 goal completed");
+    const reopened = renderToStaticMarkup(
+      createElement(DaySummary, { day: day([]) }),
+    );
+    expect(reopened).not.toContain("completed");
   });
 });

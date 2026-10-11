@@ -35,7 +35,17 @@ pub fn text(value: &str, required: bool) -> Result<String, String> {
     if (required && value.is_empty()) || value.chars().count() > 500 {
         return Err("Use up to 500 characters; goal and step text cannot be empty".into());
     }
-    Ok(value.into())
+    if !required {
+        return Ok(value.into());
+    }
+    // Goals and steps always start like a sentence.
+    let mut chars = value.chars();
+    Ok(match chars.next() {
+        Some(first) if first.is_lowercase() => {
+            first.to_uppercase().chain(chars).collect()
+        }
+        _ => value.into(),
+    })
 }
 pub fn validate(mut plan: GoalPlan) -> Result<GoalPlan, String> {
     plan.done_when = text(&plan.done_when, false)?;
