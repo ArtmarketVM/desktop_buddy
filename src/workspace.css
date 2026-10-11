@@ -14,6 +14,9 @@
   --inverse: #ffffff;
   --positive: #39714b;
   --positive-soft: #eaf3ed;
+  --accent-fill: var(--accent);
+  --accent-fill-hover: #42674b;
+  --field-line: var(--line);
   font-family: "DM Sans Variable", "Segoe UI", sans-serif;
   font-size: 14px;
   color: var(--text);
@@ -21,20 +24,23 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #191919;
-  --sidebar: #151515;
-  --surface: #202020;
-  --raised: #292929;
-  --line: #3c3c43;
+  --canvas: #181818;
+  --sidebar: #131313;
+  --surface: #202022;
+  --raised: #2a2a2e;
+  --line: #45454d;
   --text: #eeeef0;
-  --muted: #aaaab5;
+  --muted: #a6a6b2;
   --accent: #668d6f;
   --accent-text: #aad8b5;
   --accent-soft: #263c2c;
-  --input: #1b1b1b;
+  --input: #1b1b1d;
   --inverse: #ffffff;
   --positive: #99cfaa;
   --positive-soft: #23372a;
+  --accent-fill: #4f7858;
+  --accent-fill-hover: #5a8363;
+  --field-line: #74747e;
 }
 
 * {
@@ -54,7 +60,7 @@ textarea {
   font: inherit;
 }
 button {
-  background: var(--accent);
+  background: var(--accent-fill);
   border: 1px solid transparent;
   border-radius: 7px;
   font-size: 13px;
@@ -67,7 +73,7 @@ button {
 }
 button:hover:not(:disabled) {
   filter: none;
-  background: #42674b;
+  background: var(--accent-fill-hover);
 }
 button:disabled {
   opacity: 0.45;

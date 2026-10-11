@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MessageSquare, ArrowUpRight } from "lucide-react";
 import { api, desktop } from "../api/tauri";
+
+const FEEDBACK_ADDRESS = "artmarket.vm@gmail.com";
 
 export function FeedbackCard() {
   const [message, setMessage] = useState("");
@@ -8,32 +10,12 @@ export function FeedbackCard() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
-  const [connected, setConnected] = useState(false);
-  useEffect(() => {
-    let active = true;
-    if (desktop)
-      void api
-        .contactEndpoint()
-        .then((url) => {
-          if (active) setConnected(!!url);
-        })
-        .catch(() => {});
-    return () => {
-      active = false;
-    };
-  }, []);
+  const [copied, setCopied] = useState(false);
+  const body = email.trim()
+    ? `${message}\n\nReply email: ${email.trim()}`
+    : message;
   return (
-    <details
-      open
-      className="card feedback-card"
-      onToggle={(event) => {
-        if (desktop && event.currentTarget.open)
-          void api
-            .contactEndpoint()
-            .then((url) => setConnected(!!url))
-            .catch(() => setConnected(false));
-      }}
-    >
+    <details open className="card feedback-card">
       <summary>
         <MessageSquare size={16} />
         Share an idea
@@ -45,19 +27,19 @@ export function FeedbackCard() {
           setBusy(true);
           setStatus("");
           setError("");
-          void (
-            connected
-              ? api.sendContactFeedback(message, email)
-              : api.feedbackDraft(message, email)
-          )
+          setCopied(false);
+          void api
+            .feedbackDraft(message, email)
             .then(() =>
               setStatus(
-                connected
-                  ? "Your feedback was accepted by the contact service. Thank you."
-                  : "Email draft opened. Review and send it in your email app.",
+                "Email draft opened. Press Send in your email app to deliver it.",
               ),
             )
-            .catch((e) => setError(String(e)))
+            .catch((e) =>
+              setError(
+                `${String(e)} You can copy the message and send it to ${FEEDBACK_ADDRESS}.`,
+              ),
+            )
             .finally(() => setBusy(false));
         }}
       >
@@ -82,23 +64,39 @@ export function FeedbackCard() {
           />
         </label>
         <button className="outline-button" disabled={!desktop || busy}>
-          {connected ? "Send feedback" : "Open email draft"}{" "}
-          <ArrowUpRight size={14} />
+          Open email draft <ArrowUpRight size={14} />
         </button>
       </form>
       <p className="helper">
-        To artmarket.vm@gmail.com.{" "}
-        {connected
-          ? "Only these fields are sent when you choose Send feedback."
-          : "Nothing is sent automatically."}{" "}
-        No activity logs are attached.
+        Opens a draft to {FEEDBACK_ADDRESS} in your email app. Nothing is sent
+        automatically and no activity logs are attached.
       </p>
       {status && (
         <p className="helper" role="status">
           {status}
         </p>
       )}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <>
+          <p role="alert">{error}</p>
+          <button
+            type="button"
+            className="text-button"
+            onClick={() =>
+              void navigator.clipboard
+                ?.writeText(body)
+                .then(() => setCopied(true))
+                .catch(() =>
+                  setError(
+                    "Could not copy. Select the text and copy it manually.",
+                  ),
+                )
+            }
+          >
+            {copied ? "Copied" : "Copy message"}
+          </button>
+        </>
+      )}
     </details>
   );
 }
