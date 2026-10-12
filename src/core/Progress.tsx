@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { PeriodPicker, endOfMonth } from "./PeriodPicker";
 import {
   sentenceCase,
   dateLabel,
@@ -197,12 +198,29 @@ export function Progress({
   );
   const other = Math.max(0, total - listed);
   const step = periodDays(period);
+  const shiftPeriod = (direction: -1 | 1) => {
+    const base = new Date(`${newest}T12:00:00`);
+    const target =
+      period === "month"
+        ? endOfMonth(base.getFullYear(), base.getMonth() + direction)
+        : period === "year"
+          ? `${base.getFullYear() + direction}-12-31`
+          : shiftDate(newest, direction * step);
+    return target >= snapshot.date ? null : target;
+  };
+  const shortDate = (value: string) =>
+    dateLabel(value).replace(/^[A-Za-z]+, /, "");
   const rangeLabel =
     period === "day"
       ? dateLabel(newest)
-      : period === "year"
-        ? newest.slice(0, 4)
-        : `${dateLabel(oldest).replace(/^[A-Za-z]+, /, "")} – ${dateLabel(newest).replace(/^[A-Za-z]+, /, "")}`;
+      : period === "month"
+        ? new Date(`${newest}T12:00:00`).toLocaleDateString("en", {
+            month: "long",
+            year: "numeric",
+          })
+        : period === "year"
+          ? newest.slice(0, 4)
+          : `${shortDate(oldest)} – ${shortDate(newest)}`;
   return (
     <section
       className="core-section progress-history progress-screen"
@@ -246,19 +264,23 @@ export function Progress({
           className="text-button"
           aria-label={`Previous ${period}`}
           disabled={busy}
-          onClick={() => onWeek(shiftDate(newest, -step))}
+          onClick={() => onWeek(shiftPeriod(-1))}
         >
           <ChevronLeft size={16} />
         </button>
-        <strong>{rangeLabel}</strong>
+        <PeriodPicker
+          period={period}
+          newest={newest}
+          today={snapshot.date}
+          label={rangeLabel}
+          disabled={busy}
+          onPick={onWeek}
+        />
         <button
           className="text-button"
           aria-label={`Next ${period}`}
           disabled={busy || newest >= snapshot.date}
-          onClick={() => {
-            const next = shiftDate(newest, step);
-            onWeek(next >= snapshot.date ? null : next);
-          }}
+          onClick={() => onWeek(shiftPeriod(1))}
         >
           <ChevronRight size={16} />
         </button>

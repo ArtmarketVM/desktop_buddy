@@ -456,3 +456,18 @@ fn relevant_time_is_attributed_to_the_current_open_step() {
     assert_eq!(times.len(), 1);
     assert_eq!(times[0].seconds, 90);
 }
+#[test]
+fn periods_cover_whole_calendar_months_and_years_ending_at_the_anchor() {
+    let s = store();
+    let length = |anchor: &str, period: &str| {
+        s.core_snapshot_period(Some(anchor), Some(period))
+            .unwrap()
+            .week
+            .len()
+    };
+    assert_eq!(length("2026-02-28", "month"), 28);
+    assert_eq!(length("2026-09-30", "month"), 30);
+    assert_eq!(length("2025-12-31", "year"), 365);
+    assert_eq!(length("2026-10-07", "week"), 7);
+    assert_eq!(length("2026-10-07", "day"), 1);
+}

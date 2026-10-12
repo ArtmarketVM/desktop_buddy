@@ -209,12 +209,15 @@ fn day(value: &str) -> Result<NaiveDate, String> {
     }
     Ok(date)
 }
-fn period_days(value: Option<&str>) -> Result<i64, String> {
+/// Number of days a period covers when it ends on `anchor`: a week is seven days, a month runs
+/// from the 1st and a year from 1 January, so a finished month or year is shown whole.
+fn period_days(value: Option<&str>, anchor: NaiveDate) -> Result<i64, String> {
+    use chrono::Datelike;
     match value.unwrap_or("week") {
         "day" => Ok(1),
         "week" => Ok(7),
-        "month" => Ok(31),
-        "year" => Ok(366),
+        "month" => Ok(anchor.day() as i64),
+        "year" => Ok(anchor.ordinal() as i64),
         _ => Err("Choose a valid progress period".into()),
     }
 }
@@ -894,7 +897,7 @@ impl Storage {
         let today = Local::now().date_naive();
         let date = today.to_string();
         let anchor = anchor.map(day).transpose()?.unwrap_or(today);
-        let days = period_days(period)?;
+        let days = period_days(period, anchor)?;
         let mut q = self
             .connection
             .prepare("SELECT id,title FROM core_areas ORDER BY title COLLATE NOCASE")

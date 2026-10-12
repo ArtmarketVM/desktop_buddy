@@ -10,6 +10,10 @@ A simpler Progress screen, with minutes per step. Shared by Windows and macOS.
   current step if still open, otherwise the first unfinished step) in `goal_relevant_step_daily`. It
   follows the same privacy retention as other activity history. Time recorded before this release
   cannot be split by step and appears as "Other work on this goal".
+- **Calendar picker:** clicking the period label opens a small calendar like a date field: pick a day,
+  any day of a week to choose that Monday–Sunday week, a month, or a year. Future periods are disabled.
+  Month and year now cover the whole calendar month or year ending at the chosen date, so a finished
+  month or year is shown complete. **Day** shows an hourly chart.
 - Tracking problems show as one short line with a link to Settings instead of a long block.
 
 No signing, update trust or permission changes. Windows install and restart were not verified from
