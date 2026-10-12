@@ -271,6 +271,11 @@ impl Storage {
         // Structured event relevance breaks otherwise equal candidates without looking at activity history.
         rows.sort_by_key(|(m, step)| {
             (
+                // Explicit preferences precede every inferred preference, including across eligible scopes.
+                matches!(
+                    m.memory_type,
+                    MemoryType::InferredPreference | MemoryType::BehavioralPattern
+                ),
                 if exact == Some(&m.scope) {
                     0
                 } else if m.scope.goal_id() == goal_id && goal_id.is_some() {
@@ -316,7 +321,14 @@ impl Storage {
                     > if item.memory_type == MemoryType::Episodic {
                         budget.episodic_days
                     } else {
-                        budget.personal_days
+                        if matches!(
+                            item.memory_type,
+                            MemoryType::InferredPreference | MemoryType::BehavioralPattern
+                        ) {
+                            budget.personal_days.min(90)
+                        } else {
+                            budget.personal_days
+                        }
                     }
             {
                 continue;

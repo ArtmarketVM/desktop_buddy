@@ -58,6 +58,9 @@ pub(super) fn observe(inner: &mut Inner, now: i64) -> Result<(), String> {
         .transpose()?
         .unwrap_or(false);
     let mut observed = std::mem::take(&mut inner.agent.observation);
+    if !observed.initialized || observed.day != snapshot.date {
+        inner.storage.maintain_personal_memory(Utc::now())?;
+    }
     if !observed.initialized {
         events.push(Event::new(EventKind::SessionStarted, goal, now));
         events.push(Event::new(EventKind::DayStarted, goal, now));

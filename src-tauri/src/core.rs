@@ -151,7 +151,7 @@ pub(crate) fn record_step_changes(
             .find(|previous| previous.id == step.id)
             .is_some_and(|previous| previous.done);
         if was_done != step.done {
-            tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,?2,?3,?4,?5,?6)", params![plan.goal_id,step.id,step.text,if step.done {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+            tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,?2,?3,?4,?5,?6,'manual')", params![plan.goal_id,step.id,step.text,if step.done {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
         }
     }
     Ok(())
@@ -176,7 +176,7 @@ pub(crate) fn record_legacy_transition(
             .query_row("SELECT text FROM goals WHERE id=?1", [id], |row| row.get(0))
             .map_err(db)?;
         let now = Utc::now();
-        tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'goal',?2,'completed',?3,?4)", params![id,title,now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+        tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,'completed',?3,?4,'manual')", params![id,title,now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
     }
     if action != "resume" {
         let timer: Option<String> = tx
@@ -576,7 +576,7 @@ impl Storage {
                 let title: String = tx
                     .query_row("SELECT text FROM goals WHERE id=?1", [id], |r| r.get(0))
                     .map_err(db)?;
-                tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'goal',?2,?3,?4,?5)", params![id,title,if action=="complete" {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+                tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,?3,?4,?5,'manual')", params![id,title,if action=="complete" {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
             }
         }
         tx.commit().map_err(db)?;

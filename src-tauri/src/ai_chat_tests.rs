@@ -8,7 +8,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),23);
+            assert_eq!(context["registry"].as_array().unwrap().len(),24);
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
@@ -1880,4 +1880,51 @@ mod voice_agent {
         assert!(!receipt.contains("YESTERDAY ONLY"));
         assert!(!result.committed_changes());
     }
+}
+
+#[tokio::test]
+async fn continuity_chat_uses_grounded_backend_summary_without_freeform_regeneration() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let mut storage = store();
+    let id = goal(&mut storage, "Hackathon fixture", "continuity-chat");
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |request:&Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        assert_eq!(body["response_format"]["json_schema"]["name"],"buddy_skill_plan");
+        let ctx:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let plan=json!({"kind":"actions","state_version":ctx["state"]["state_version"],"actions":[{"name":"inspect_continuity","input":{"view":"remaining","goal":{"goal_id":id,"reference":null}},"instruction":null}],"clarification":null});
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(plan).to_string()}}]}))
+    }).expect(1).mount(&server).await;
+    let conversation = storage.current_conversation().unwrap();
+    let state = AppState::new(storage).unwrap();
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = structured_chat_actions_with_service(
+        &json!({"latest_request":"Что осталось по хакатону?","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(reply.0.contains("Hackathon fixture"));
+    assert!(reply.0.contains("No confirmed completion recorded"));
+    assert!(!reply.2);
+    assert!(state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .goal_plan(id)
+        .unwrap()
+        .steps
+        .iter()
+        .all(|s| !s.done));
 }

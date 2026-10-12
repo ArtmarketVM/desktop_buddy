@@ -198,7 +198,7 @@ pub enum ContextStatus {
     Completed,
 }
 impl ContextStatus {
-    fn name(&self) -> &'static str {
+    pub(crate) fn name(&self) -> &'static str {
         match self {
             Self::Active => "active",
             Self::Paused => "paused",

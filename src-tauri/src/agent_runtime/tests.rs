@@ -628,3 +628,53 @@ async fn mock_provider_is_separate_from_simulated_collection_and_sends_no_http()
         Some(Decision::StaySilent)
     );
 }
+
+#[test]
+fn day_start_offer_discards_fabricated_model_accomplishments() {
+    let (state, id) = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.agent.enqueue(event(EventKind::DayStarted, id));
+    let job = prepare(&mut inner, Utc::now().timestamp())
+        .unwrap()
+        .unwrap();
+    assert!(job.source["daily_continuity"]
+        .as_str()
+        .unwrap()
+        .contains("Hackathon"));
+    assert!(!job.source.to_string().contains("PRIVATE RAW WINDOW"));
+    let mut result = Reasoning::silent(job.snapshot.version.clone());
+    result.decision = Decision::OfferHelp;
+    result.situation = "You finished the invented deployment yesterday".into();
+    let message = apply(&mut inner, &job, &result).unwrap().unwrap();
+    assert!(!message.contains("invented deployment"));
+    assert!(message.contains("recorded facts"));
+    assert!(inner
+        .storage
+        .goal_plan(id)
+        .unwrap()
+        .steps
+        .iter()
+        .all(|s| !s.done));
+}
+#[test]
+fn explicit_no_help_preference_suppresses_reasoning_before_provider_call() {
+    let (state, id) = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner
+        .storage
+        .create_memory(MemoryInput {
+            memory_type: MemoryType::ExplicitPreference,
+            scope: Scope::global(),
+            content: "Do not offer proactive help".into(),
+        })
+        .unwrap();
+    inner.agent.enqueue(event(EventKind::PossibleDrift, id));
+    assert!(prepare(&mut inner, Utc::now().timestamp())
+        .unwrap()
+        .is_none());
+    assert_eq!(inner.agent.diagnostics.ai_calls, 0);
+    assert_eq!(
+        inner.agent.diagnostics.suppression_reason,
+        Some("adaptive_policy")
+    );
+}

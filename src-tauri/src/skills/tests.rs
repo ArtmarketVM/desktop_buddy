@@ -711,3 +711,49 @@ async fn malformed_provider_output_retries_then_rejects_without_changes() {
         .await
         .is_err());
 }
+
+#[test]
+fn continuity_read_skill_validates_goal_view_and_result_contract() {
+    let mut s = store();
+    let id = create(&mut s, "Continuity fixture", vec!["Review proposal"]);
+    let e = run(
+        &mut s,
+        vec![action(
+            "inspect_continuity",
+            json!({"view":"remaining","goal":goal(id)}),
+        )],
+    );
+    assert_eq!(e.results[0].goal_id, Some(id));
+    assert!(e.fallback_message().contains("Review proposal"));
+    assert!(!e.committed_changes());
+    assert!(
+        fail(
+            &mut s,
+            vec![action(
+                "inspect_continuity",
+                json!({"view":"remaining","goal":goal(999999)})
+            )]
+        )
+        .len()
+            > 0
+    );
+    assert!(
+        fail(
+            &mut s,
+            vec![action(
+                "inspect_continuity",
+                json!({"view":"fabricate","goal":null})
+            )]
+        )
+        .len()
+            > 0
+    );
+    assert!(fail(
+        &mut s,
+        vec![action(
+            "inspect_continuity",
+            json!({"view":"remaining","goal":null})
+        )]
+    )
+    .contains("Which goal"));
+}

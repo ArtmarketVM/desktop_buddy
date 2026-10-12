@@ -262,6 +262,18 @@ fn prepare(inner: &mut Inner, now: i64) -> Result<Option<Job>, String> {
     let Some(event) = inner.agent.ready(now, allowed) else {
         return Ok(None);
     };
+    if matches!(
+        event.kind,
+        EventKind::PossibleStuck | EventKind::PossibleDrift
+    ) && !inner.storage.adaptive_offer_allowed(
+        event.goal_id,
+        event.kind == EventKind::PossibleStuck,
+        now,
+        inner.companion.memory.last_prompt,
+    ) {
+        inner.agent.suppress("adaptive_policy");
+        return Ok(None);
+    }
     let conversation = inner.storage.current_conversation()?;
     let snapshot = skills::snapshot(&inner.storage, conversation)?;
     if event.goal_id.is_some_and(|id| {
@@ -306,7 +318,29 @@ fn prepare(inner: &mut Inner, now: i64) -> Result<Option<Job>, String> {
     let work_state = crate::work_state::compute(inner)?;
     // Checkpoint text remains exclusively in the scoped, budgeted memory envelope.
     let understanding = json!({"personal_work_state":{"active_goal_id":work_state.active_goal_id,"active_step_id":work_state.active_step_id,"state":work_state.state,"confidence":work_state.confidence,"relevant_evidence":work_state.relevant_evidence},"activity_state":inner.activity_state.state,"possible_stuck":inner.agent.observation.stuck,"possible_drift":inner.agent.observation.drift});
-    let source = json!({"observation":understanding,"event":event,"state_version":snapshot.version,"goal":goal,"current_app":app,"personal_memory":memory,"registry":skills::catalog()});
+    let continuity = match event.kind {
+        EventKind::DayStarted => inner
+            .storage
+            .continuity_report(
+                crate::continuity::View::Priorities,
+                None,
+                Local::now().date_naive(),
+            )
+            .ok()
+            .map(|r| r.render()),
+        EventKind::DayEnded => inner
+            .storage
+            .continuity_report(
+                crate::continuity::View::Yesterday,
+                None,
+                Local::now().date_naive(),
+            )
+            .ok()
+            .map(|r| r.render()),
+        _ => None,
+    };
+    let policy = inner.storage.adaptive_policy(event.goal_id, Utc::now())?;
+    let source = json!({"daily_continuity":continuity,"adaptive_policy":policy,"observation":understanding,"event":event,"state_version":snapshot.version,"goal":goal,"current_app":app,"personal_memory":memory,"registry":skills::catalog()});
     let (cancel, receiver) = watch::channel(false);
     inner.agent.saved.last_attempt = now;
     inner
@@ -361,7 +395,7 @@ fn apply(inner: &mut Inner, job: &Job, result: &Reasoning) -> Result<Option<Stri
     for action in &result.proposed_actions {
         skills::validate_offer(&inner.storage, &job.snapshot, action, job.event.goal_id)?;
     }
-    let message = match result.decision {
+    let mut message = match result.decision {
         Decision::StaySilent | Decision::UpdateMemoryOnly => None,
         Decision::OfferHelp | Decision::OfferSkill => Some(result.situation.clone()),
         Decision::RequestClarification => result.clarification.clone(),
@@ -369,6 +403,10 @@ fn apply(inner: &mut Inner, job: &Job, result: &Reasoning) -> Result<Option<Stri
             return Err("Background events cannot authorize skill execution".into())
         }
     };
+    if message.is_some() && matches!(job.event.kind, EventKind::DayStarted | EventKind::DayEnded) {
+        // Day summaries bypass model prose just like explicit continuity read skills.
+        message = job.source["daily_continuity"].as_str().map(str::to_owned);
+    }
     // Verified domain events, not model prose, own episodic memory identities and content.
     reasoning::remember_verified(&inner.storage, &job.event, &result.memory_updates)?;
     inner.agent.diagnostics.last_decision = Some(result.decision);

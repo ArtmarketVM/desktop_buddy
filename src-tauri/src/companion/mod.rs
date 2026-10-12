@@ -165,6 +165,28 @@ fn offer(app: &AppHandle, inner: &mut Inner, prompt: Intervention, now: i64) -> 
     }
     Ok(())
 }
+fn can_offer(inner: &Inner, goal_id: Option<i64>, research: bool, now: i64, minute: u32) -> bool {
+    if !inner.storage.adaptive_offer_allowed(
+        goal_id,
+        research,
+        now,
+        inner.companion.memory.last_prompt,
+    ) {
+        return false;
+    }
+    // Legacy lifetime counters are retained for compatibility, not layered over scoped memory policy.
+    // This also makes Memory OFF / Learn from feedback OFF revoke learned frequency immediately.
+    let mut memory = inner.companion.memory.clone();
+    memory.accepted = 0;
+    memory.rejected = 0;
+    memory.completion_samples = 0;
+    memory.allowed(
+        now,
+        &inner.companion.view.preferences,
+        minute,
+        suppressed(inner),
+    )
+}
 /// Runtime offers open the existing help conversation; they never execute proposed mutations.
 pub(crate) fn offer_agent(
     app: &AppHandle,
@@ -177,11 +199,12 @@ pub(crate) fn offer_agent(
     let now = chrono::Utc::now().timestamp();
     let local = chrono::Local::now();
     if inner.companion.view.intervention.is_some()
-        || !inner.companion.memory.allowed(
+        || !can_offer(
+            inner,
+            goal_id,
+            stuck,
             now,
-            &inner.companion.view.preferences,
             local.hour() * 60 + local.minute(),
-            suppressed(inner),
         )
     {
         return Ok(());
@@ -312,12 +335,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     }
     if !inner.storage.user_settings()?.onboarding.completed
         || inner.companion.view.intervention.is_some()
-        || !inner.companion.memory.allowed(
-            now,
-            &inner.companion.view.preferences,
-            minute,
-            suppressed(inner),
-        )
+        || !can_offer(inner, goal_id, false, now, minute)
     {
         return Ok(());
     }
@@ -365,21 +383,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
                 id: fingerprint(&format!("{day}:{slot}")),
                 kind: kind.clone(),
                 text: if kind == Kind::EndOfDay {
-                    let snapshot = inner.storage.core_snapshot(None)?;
-                    let completed = snapshot.summary.completed_goals.len();
-                    let unfinished = snapshot
-                        .goals
-                        .iter()
-                        .filter(|g| g.status == "open" && snapshot.today.contains(&g.id))
-                        .count();
-                    let minutes = snapshot
-                        .summary
-                        .goals
-                        .iter()
-                        .map(|g| g.relevant_seconds)
-                        .sum::<u64>()
-                        / 60;
-                    format!("Today: {completed} goals completed, {unfinished} left open, {minutes} minutes of relevant activity. You can leave the rest for tomorrow. Every small step counts.")
+                    inner.storage.continuity_report(crate::continuity::View::EndOfDay,None,chrono::Local::now().date_naive()).map(|r|r.compact()).unwrap_or_else(|_|"Daily continuity is disabled. Enable Memory and Remember work context in Settings > Memory to see saved context.".into())
                 } else if kind == Kind::Midday {
                     plan.as_ref()
                         .and_then(|p| p.steps.iter().find(|s| !s.done))
@@ -956,6 +960,36 @@ pub struct Reply {
     pub resources: Vec<SearchResult>,
 }
 fn confirm_completion(storage: &mut Storage, prompt: &Intervention) -> Result<(), String> {
+    // Stamp only the events created by this explicitly confirmed AI suggestion.
+    storage
+        .connection
+        .execute_batch("SAVEPOINT confirmed_ai_completion")
+        .map_err(|e| e.to_string())?;
+    let result = (|| {
+        let before: i64 = storage
+            .connection
+            .query_row("SELECT COALESCE(MAX(id),0) FROM core_events", [], |r| {
+                r.get(0)
+            })
+            .map_err(|e| e.to_string())?;
+        apply_confirmed_completion(storage, prompt)?;
+        storage.connection.execute("UPDATE core_events SET completion_source='ai_suggested_user_confirmed' WHERE id>?1 AND goal_id=?2 AND kind='completed'",rusqlite::params![before,prompt.goal_id]).map_err(|e|e.to_string())?;
+        Ok(())
+    })();
+    if result.is_ok() {
+        storage
+            .connection
+            .execute_batch("RELEASE confirmed_ai_completion")
+            .map_err(|e| e.to_string())?;
+    } else {
+        storage
+            .connection
+            .execute_batch("ROLLBACK TO confirmed_ai_completion; RELEASE confirmed_ai_completion")
+            .map_err(|e| e.to_string())?;
+    }
+    result
+}
+fn apply_confirmed_completion(storage: &mut Storage, prompt: &Intervention) -> Result<(), String> {
     let goal = storage
         .goal()?
         .filter(|g| Some(g.id) == prompt.goal_id)
@@ -1147,16 +1181,19 @@ pub fn respond_companion_intervention(
         .goal_id
         .map(crate::memory::Scope::goal)
         .unwrap_or_else(crate::memory::Scope::global);
-    inner.storage.record_memory_event(
-        scope,
-        if action == "ignore" {
-            crate::memory::EventKind::InterventionRejected
-        } else {
-            crate::memory::EventKind::InterventionAccepted
-        },
-        "intervention_feedback",
-        Some(&format!("intervention-{}-{action}", prompt.id)),
-    )?;
+    // Declining a research offer is already recorded by respond_offer.
+    if prompt.kind != Kind::Research || action != "ignore" {
+        inner.storage.record_memory_event(
+            scope,
+            if action == "ignore" {
+                crate::memory::EventKind::InterventionRejected
+            } else {
+                crate::memory::EventKind::InterventionAccepted
+            },
+            "intervention_feedback",
+            Some(&format!("intervention-{}-{action}", prompt.id)),
+        )?;
+    }
     if action == "ignore" {
         inner.companion.memory.rejected = inner.companion.memory.rejected.saturating_add(1);
     } else {
@@ -1352,6 +1389,7 @@ mod tests {
         prompt.plan_revision = Some(1);
         confirm_completion(&mut storage, &prompt).unwrap();
         assert!(storage.goal_plan(goal.id).unwrap().steps[0].done);
+        assert_eq!(storage.connection.query_row("SELECT completion_source FROM core_events WHERE goal_id=?1 AND kind='completed' ORDER BY id DESC LIMIT 1",[goal.id],|r|r.get::<_,String>(0)).unwrap(),"ai_suggested_user_confirmed");
         assert_eq!(storage.goal().unwrap().unwrap().id, goal.id);
         assert!(confirm_completion(&mut storage, &prompt).is_err());
     }

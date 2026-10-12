@@ -15,6 +15,7 @@ impl Storage {
         store.initialize_skills()?;
         store.initialize_personal_memory()?;
         store.initialize_research()?;
+        store.initialize_continuity()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -125,6 +126,7 @@ impl Storage {
             [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM continuity_checkpoints WHERE (?1 IS NULL OR day<?1) AND NOT EXISTS(SELECT 1 FROM work_contexts w WHERE w.id=continuity_checkpoints.context_id AND w.pinned=1)",[cutoff_day.as_deref()]).map_err(|e|e.to_string())?;
         for table in [
             "core_time",
             "core_events",

@@ -62,6 +62,7 @@ pub struct Input {
     pub set_focus: Option<bool>,
     pub research_id: Option<i64>,
     pub helpful: Option<bool>,
+    pub view: Option<crate::continuity::View>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -136,6 +137,7 @@ impl Execution {
                 })
                 .unwrap_or("step");
             let line=match r.skill.as_str() {
+                "inspect_continuity" => r.data["report"].as_str().unwrap_or_default().to_string(),
                 "search_web" => format!("Search the web for \"{}\"{} after confirmation.",r.data["title"].as_str().unwrap_or("this goal"),r.data["step_text"].as_str().map(|s|format!(" — step: {s}")).unwrap_or_default()),
                 "attach_research_to_context" => "Attached the validated research to this work context.".into(),
                 "record_research_feedback" => "Recorded your research feedback.".into(),
@@ -205,6 +207,9 @@ fn result_schema(name: &str) -> Value {
     let step =
         shape(json!({"id":{"type":"string"},"text":{"type":"string"},"done":{"type":"boolean"}}));
     let data = match name {
+        "inspect_continuity" => shape(
+            json!({"day":{"type":"string"},"report":{"type":"string"},"omitted_lanes":{"type":"integer"}}),
+        ),
         "search_web" | "attach_research_to_context" | "record_research_feedback" => shape(
             json!({"research_id":{"type":"integer"},"status":{"type":"string"},"title":{"type":"string"},"created_at":{"type":"string"},"step_text":{"type":["string","null"]}}),
         ),
@@ -298,6 +303,7 @@ pub fn registry() -> Vec<Skill> {
         ("search_web", "Search for information for this goal and optional step; requires explicit web-search confirmation before any provider call", Safety::Confirmation, json!({"goal":goal,"step":{"anyOf":[step,{"type":"null"}]},"text":text})),
         ("attach_research_to_context", "Attach an existing validated research receipt to its original goal checkpoint; never invent research content", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1}})),
         ("record_research_feedback", "Record whether this exact goal research helped; no completion is implied", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1},"helpful":{"type":"boolean"}})),
+        ("inspect_continuity", "Read grounded daily continuity: priorities, yesterday results/checkpoints, waiting items, remaining goal steps or end-of-day summary; optional exact goal target", Safety::ReadOnly, json!({"view":{"type":"string","enum":["priorities","yesterday","waiting","remaining","end_of_day"]},"goal":{"anyOf":[goal,{"type":"null"}]}})),
         ("inspect_today", "Read today's confirmed results and separate timer, observed and relevant time; time alone is not completion", Safety::ReadOnly, json!({})),
         ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
         ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
@@ -455,6 +461,7 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
                 && !(skill.name == "park_context"
                     && ["checkpoint", "current_app"].contains(&key.as_str()))
                 && !(skill.name == "search_web" && key == "step")
+                && !(skill.name == "inspect_continuity" && key == "goal")
         })
     {
         return Err("Skill input does not match its schema".into());
@@ -745,6 +752,22 @@ fn execute_one(
         step_id: None,
         data: json!({}),
     };
+    if skill.name == "inspect_continuity" {
+        let goal_id = input
+            .goal
+            .as_ref()
+            .map(|g| resolve_goal(storage, g, refs))
+            .transpose()?;
+        let report = storage.continuity_report(
+            input.view.ok_or("Choose a continuity view")?,
+            goal_id,
+            chrono::Local::now().date_naive(),
+        )?;
+        result.goal_id = goal_id;
+        result.data =
+            json!({"day":report.day,"report":report.render(),"omitted_lanes":report.omitted_lanes});
+        return Ok(result);
+    }
     if skill.name == "inspect_today" {
         let summary = storage.core_snapshot(None)?.summary;
         result.data = json!({"day":summary.day,"confirmed_results":summary.completed,"completed_goals":summary.completed_goals,

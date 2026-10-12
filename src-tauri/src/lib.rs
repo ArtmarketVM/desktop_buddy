@@ -9,6 +9,7 @@ mod collector;
 mod commands;
 mod companion;
 mod contact;
+mod continuity;
 mod core;
 mod core_capture;
 mod core_import;

@@ -526,6 +526,14 @@ pub(crate) fn stuck_offer(
     step: Option<&str>,
 ) -> Result<crate::companion::engine::Intervention, String> {
     inner.storage.research_allowed()?;
+    if !inner.storage.adaptive_offer_allowed(
+        goal,
+        true,
+        Utc::now().timestamp(),
+        inner.companion.memory.last_prompt,
+    ) {
+        return Err("Research offers are paused by your feedback preferences".into());
+    }
     let goal = goal.ok_or("Choose a goal before researching")?;
     if inner.storage.goal()?.map(|g| g.id) != Some(goal) {
         return Err("The focused goal changed".into());
