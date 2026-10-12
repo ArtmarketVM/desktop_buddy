@@ -71,6 +71,13 @@ export function PrivacySettings({
         </li>
         <li>Manual search: Tavily receives only the query you submit.</li>
         <li>
+          Personal memory has separate controls in Settings → Memory. During
+          chat, a bounded selection of relevant memories and the current goal
+          checkpoint may be sent to Nebius only with AI goal-context sharing.
+          Memory does not automatically store screen text. Turning Memory off
+          stops saving and recalling personal memory without clearing history.
+        </li>
+        <li>
           API keys are sent only as authentication to the configured provider
           endpoint. Provider-side retention is controlled by that provider;
           deleting local history does not delete remote records.

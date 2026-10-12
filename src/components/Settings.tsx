@@ -3,6 +3,7 @@ import { credentialStore, systemName } from "../api/platform";
 import { useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
+import { MemorySettings } from "./MemorySettings";
 import { PrivacySettings } from "./PrivacySettings";
 import { TrackingSettings } from "./TrackingSettings";
 import { FeedbackCard } from "./FeedbackCard";
@@ -92,6 +93,10 @@ export function Settings({
         </label>
       )}
       {children}
+      <details className="settings-group">
+        <summary>Memory</summary>
+        <MemorySettings onChanged={onChanged} />
+      </details>
       <TrackingSettings onChanged={onChanged} />
       <CompanionSettings
         onChanged={onChanged}

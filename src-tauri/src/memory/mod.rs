@@ -1,4 +1,6 @@
-//! Local personal memory. Provider output and activity ticks cannot write this layer.
+//! Local personal memory with deterministic retrieval and explicit user controls.
+pub mod controls;
+pub mod retriever;
 use crate::{
     commands::{AppState, Inner},
     storage::Storage,
@@ -220,6 +222,7 @@ pub struct WorkContextInput {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkContext {
     pub id: i64,
+    pub pinned: bool,
     #[serde(flatten)]
     pub context: WorkContextInput,
     pub created_at: String,
@@ -285,6 +288,7 @@ fn memory_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Memory> {
 fn context_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<WorkContext> {
     Ok(WorkContext {
         id: r.get(0)?,
+        pinned: r.get(11)?,
         context: WorkContextInput {
             goal_id: r.get(1)?,
             step_id: r.get(2)?,
@@ -357,7 +361,7 @@ impl Storage {
                 |r| r.get(0),
             )
             .map_err(db_error)?;
-        if version > 1 {
+        if version > 2 {
             return Err("This database needs a newer personal memory implementation".into());
         }
         if version == 0 {
@@ -365,6 +369,15 @@ impl Storage {
                 .map_err(db_error)?;
             tx.execute(
                 "INSERT INTO personal_memory_migrations(version,applied_at) VALUES(1,?1)",
+                [Utc::now().to_rfc3339()],
+            )
+            .map_err(db_error)?;
+        }
+        if version < 2 {
+            tx.execute_batch(include_str!("migrations/002_memory_controls.sql"))
+                .map_err(db_error)?;
+            tx.execute(
+                "INSERT INTO personal_memory_migrations(version,applied_at) VALUES(2,?1)",
                 [Utc::now().to_rfc3339()],
             )
             .map_err(db_error)?;
@@ -377,6 +390,12 @@ impl Storage {
             MemoryType::ExplicitFact | MemoryType::ExplicitPreference
         ) {
             return Err("Only explicit user facts and preferences can be created directly".into());
+        }
+        if !self
+            .memory_controls()?
+            .allows(input.memory_type, &input.scope)
+        {
+            return Err("Enable the matching Memory control before saving new memories".into());
         }
         let content = safe_text(&input.content, 500)?;
         input.scope.validate(&self.connection)?;
@@ -520,6 +539,22 @@ impl Storage {
         key: Option<&str>,
     ) -> Result<i64, String> {
         scope.validate(&self.connection)?;
+        let controls = self.memory_controls()?;
+        let feedback = matches!(
+            kind,
+            EventKind::InterventionAccepted
+                | EventKind::InterventionRejected
+                | EventKind::ResearchAccepted
+                | EventKind::ResearchRejected
+        );
+        if !controls.enabled
+            || (feedback && !controls.learn_from_feedback)
+            || (!feedback && !controls.remember_work_context)
+            || (scope.scope_type == ScopeType::Conversation
+                && !controls.remember_conversation_context)
+        {
+            return Ok(0);
+        }
         if ![
             "user",
             "confirmed_event",
@@ -567,6 +602,12 @@ impl Storage {
         episode_id: i64,
         confidence: f64,
     ) -> Result<Option<Memory>, String> {
+        if !self
+            .memory_controls()?
+            .allows(input.memory_type, &input.scope)
+        {
+            return Err("Learning from feedback is disabled".into());
+        }
         if !input.memory_type.inferred()
             || !confidence.is_finite()
             || !(0.85..=1.0).contains(&confidence)
@@ -638,13 +679,16 @@ impl Storage {
     }
     pub fn work_context(&self, goal_id: i64) -> Result<Option<WorkContext>, String> {
         Scope::goal(goal_id).validate(&self.connection)?;
-        self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)
+        self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)
     }
     pub fn save_work_context(
         &mut self,
         mut input: WorkContextInput,
         expected_updated_at: Option<String>,
     ) -> Result<WorkContext, String> {
+        if !self.memory_controls()?.remember_work_context || !self.memory_controls()?.enabled {
+            return Err("Remember work context is disabled".into());
+        }
         let scope = Scope::goal(input.goal_id);
         scope.validate(&self.connection)?;
         input.summary = safe_text(&input.summary, 500)?;
@@ -716,12 +760,16 @@ impl Storage {
         let exists: bool = self
             .connection
             .query_row(
-                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='memories')",
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='memory_controls')",
                 [],
                 |r| r.get(0),
             )
             .map_err(db_error)?;
         if !exists {
+            return Ok(());
+        }
+        let controls = self.memory_controls()?;
+        if !controls.enabled || !controls.remember_preferences {
             return Ok(());
         }
         let value = serde_json::to_value(value).map_err(|_| "Invalid preference value")?;
@@ -996,3 +1044,6 @@ pub fn get_working_memory(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod retrieval_tests;

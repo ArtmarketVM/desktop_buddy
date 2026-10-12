@@ -20,6 +20,8 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("updates", include_str!("updates.rs")),
         ("ai_chat", include_str!("ai_chat.rs")),
         ("memory", include_str!("memory/mod.rs")),
+        ("memory", include_str!("memory/controls.rs")),
+        ("memory", include_str!("memory/retriever.rs")),
         ("goal_analysis", include_str!("goal_analysis.rs")),
         ("automatic_goals", include_str!("automatic_goals.rs")),
         ("relevance", include_str!("relevance.rs")),

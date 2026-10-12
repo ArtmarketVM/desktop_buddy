@@ -1,3 +1,4 @@
+import { MemorySettings } from "../components/MemorySettings";
 import { TrackingStatus } from "./TrackingStatus";
 import { MacPermissions } from "../components/MacPermissions";
 import { isMac } from "../api/platform";
@@ -21,6 +22,7 @@ const sections = [
   "General",
   "Profile",
   "Privacy",
+  "Memory",
   "Appearance",
   "Updates",
   "Integrations / AI",
@@ -427,6 +429,10 @@ export function CoreSettings({
               showExclusions={false}
             />
           </details>
+        </details>
+        <details className="core-section" hidden={section !== "Memory"} open>
+          <summary>Memory</summary>
+          {section === "Memory" && <MemorySettings onChanged={onChanged} />}
         </details>
         <details className="core-section" hidden={section !== "Updates"} open>
           <summary>Updates</summary>

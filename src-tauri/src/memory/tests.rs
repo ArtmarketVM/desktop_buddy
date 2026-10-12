@@ -316,7 +316,7 @@ fn migration_preserves_existing_goals_chats_and_activity_and_is_idempotent() {
                 .execute_batch(&format!("DROP TRIGGER {trigger}"))
                 .unwrap();
         }
-        s.connection.execute_batch("DROP TABLE memory_evidence; DROP TABLE work_contexts; DROP TABLE memories; DROP TABLE personal_memory_migrations;").unwrap();
+        s.connection.execute_batch("DROP TABLE memory_proposals; DROP TABLE memory_retrieval_debug; DROP TABLE memory_controls; DROP TABLE memory_evidence; DROP TABLE work_contexts; DROP TABLE memories; DROP TABLE personal_memory_migrations;").unwrap();
     }
     {
         let s = Storage::open(&path).unwrap();
@@ -332,7 +332,7 @@ fn migration_preserves_existing_goals_chats_and_activity_and_is_idempotent() {
                 .query_row("SELECT COUNT(*) FROM personal_memory_migrations", [], |r| r
                     .get::<_, i64>(0))
                 .unwrap(),
-            1
+            2
         );
         assert!(s.list_memories(Default::default()).unwrap().is_empty());
     }
@@ -565,7 +565,7 @@ fn explicit_correction_of_inference_becomes_user_fact_and_records_correction() {
         .any(|m| m.event_kind == Some(EventKind::MeaningfulCorrection)));
 }
 #[test]
-fn history_retention_clears_episodes_but_keeps_pinned_and_explicit_memories_until_full_clear() {
+fn history_retention_preserves_explicit_and_pinned_memory_until_memory_clear() {
     let mut s = store();
     let fact = s
         .create_memory(input(Scope::global(), "I prefer morning work"))
@@ -578,6 +578,9 @@ fn history_retention_clears_episodes_but_keeps_pinned_and_explicit_memories_unti
     assert!(s.memory(fact.id, false).is_ok());
     assert!(s.memory(pinned, false).is_ok());
     s.purge_history(None).unwrap();
+    assert!(s.memory(fact.id, false).is_ok());
+    assert!(s.memory(pinned, false).is_ok());
+    s.clear_personal_memory().unwrap();
     assert!(s
         .list_memories(MemoryQuery {
             include_archived: true,
@@ -666,14 +669,19 @@ fn working_memory_is_transient_and_does_not_store_window_text() {
 fn migration_failure_rolls_back_without_replacing_existing_data() {
     let s = store();
     s.connection
-        .execute("UPDATE personal_memory_migrations SET version=99", [])
+        .execute(
+            "UPDATE personal_memory_migrations SET version=99 WHERE version=2",
+            [],
+        )
         .unwrap();
     assert!(s.initialize_personal_memory().is_err());
     assert_eq!(
         s.connection
-            .query_row("SELECT version FROM personal_memory_migrations", [], |r| {
-                r.get::<_, i64>(0)
-            })
+            .query_row(
+                "SELECT MAX(version) FROM personal_memory_migrations",
+                [],
+                |r| { r.get::<_, i64>(0) }
+            )
             .unwrap(),
         99
     );

@@ -1089,3 +1089,152 @@ fn empty_chats_disappear_when_the_user_moves_on() {
     storage.delete_conversation(first).unwrap();
     assert_eq!(storage.conversations().unwrap().len(), 1);
 }
+#[tokio::test]
+async fn chat_uses_contextual_memory_and_memory_off_disables_recall_without_deleting_history() {
+    let mut storage = store();
+    let id = goal(&mut storage, "Hackathon", "memory-chat");
+    let memory = storage
+        .create_memory(crate::memory::MemoryInput {
+            memory_type: crate::memory::MemoryType::ExplicitFact,
+            scope: crate::memory::Scope::goal(id),
+            content: "Draft reviewed yesterday".into(),
+        })
+        .unwrap();
+    let state = AppState::new(storage).unwrap();
+    state.inner.lock().unwrap().status.mock_ai = true;
+    let reply = send_message(
+        "Where did I stop with Hackathon?".into(),
+        None,
+        Some(id),
+        None,
+        None,
+        &state,
+    )
+    .await
+    .unwrap();
+    assert!(reply.message.contains("AI_MOCK"));
+    {
+        let inner = state.inner.lock().unwrap();
+        let metadata: String = inner
+            .storage
+            .connection
+            .query_row(
+                "SELECT metadata FROM memory_retrieval_debug WHERE id=1",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let metadata: Value = serde_json::from_str(&metadata).unwrap();
+        assert!(metadata["selected"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v["id"] == memory.id));
+        let mut controls = inner.storage.memory_controls().unwrap();
+        controls.enabled = false;
+        inner.storage.set_memory_controls(&controls).unwrap();
+    }
+    send_message(
+        "Where did I stop?".into(),
+        None,
+        Some(id),
+        None,
+        None,
+        &state,
+    )
+    .await
+    .unwrap();
+    let inner = state.inner.lock().unwrap();
+    let metadata: String = inner
+        .storage
+        .connection
+        .query_row(
+            "SELECT metadata FROM memory_retrieval_debug WHERE id=1",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let metadata: Value = serde_json::from_str(&metadata).unwrap();
+    assert_eq!(metadata["disabled"], true);
+    assert_eq!(metadata["passed"], 0);
+    assert!(inner.storage.chat_history().unwrap().len() >= 4);
+    assert!(inner.storage.memory(memory.id, false).is_ok());
+}
+#[test]
+fn chat_parser_accepts_a_structured_memory_proposal_without_storing_it() {
+    let response = json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"message":"Review the suggestion in Settings.","resources":[],"memory_update":{"operation":"store_memory","type":"preference","content":"I prefer concise plans","confidence":0.85,"source":"explicit_user_statement"}}).to_string()}}]});
+    let reply = parse_chat(&response, &[]).unwrap();
+    assert!(reply.memory_update.is_some());
+    assert!(serde_json::to_value(&reply)
+        .unwrap()
+        .get("memory_update")
+        .is_none());
+    assert!(store()
+        .list_memories(Default::default())
+        .unwrap()
+        .is_empty());
+}
+#[tokio::test]
+async fn inspect_skill_uses_validated_goal_id_to_retrieve_checkpoint_for_memory_question() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let mut storage = store();
+    let goal_id = goal(&mut storage, "Хакатон", "memory-inspect");
+    let other = goal(&mut storage, "Other project", "memory-other");
+    storage
+        .save_work_context(
+            crate::memory::WorkContextInput {
+                goal_id,
+                step_id: None,
+                summary: "Outline finished".into(),
+                next_action: Some("Write the pitch".into()),
+                status: crate::memory::ContextStatus::Active,
+                last_app: None,
+                last_window: None,
+                waiting_for: None,
+            },
+            None,
+        )
+        .unwrap();
+    storage
+        .create_memory(crate::memory::MemoryInput {
+            scope: crate::memory::Scope::goal(other),
+            memory_type: crate::memory::MemoryType::ExplicitFact,
+            content: "Other confidential project".into(),
+        })
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |request:&Request|{
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan"{
+            json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"inspect_goal","input":{"goal":{"goal_id":goal_id,"reference":null}},"instruction":"Где я остановился с хакатоном?"}],"clarification":null})
+        } else {
+            assert_eq!(context["personal_memory"]["work_context"]["summary"],"Outline finished");
+            assert_eq!(context["personal_memory"]["work_context"]["next_action"],"Write the pitch");
+            assert!(!context["personal_memory"].to_string().contains("Other confidential"));
+            json!({"message":"The outline is finished. Next: write the pitch."})
+        };
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+    }).expect(2).mount(&server).await;
+    let conversation = storage.current_conversation().unwrap();
+    let state = AppState::new(storage).unwrap();
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = structured_chat_actions_with_service(
+        &json!({"latest_request":"Где я остановился с хакатоном?","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(reply.0.contains("write the pitch"));
+    assert!(!reply.2);
+}

@@ -1730,3 +1730,12 @@ p.error .text-button {
 .progress-bar .progress-nav {
   margin-bottom: 0;
 }
+
+/* Memory settings follow the shared settings column and toggle geometry. */
+.memory-items { list-style: none; padding: 0; }
+.memory-items > li { border-bottom: 1px solid var(--line, #d8dce3); padding: 16px 0; overflow-wrap: anywhere; }
+.memory-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.memory-settings form { display: grid; gap: 12px; }
+.memory-settings label:not(.toggle-row) { display: grid; gap: 6px; }
+.memory-settings textarea { min-height: 80px; resize: vertical; }
+.memory-settings [role="alertdialog"] { border: 1px solid var(--line, #d8dce3); border-radius: 10px; padding: 16px; margin-top: 16px; }
