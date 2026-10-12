@@ -254,7 +254,7 @@ fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
         .map_err(|_| "Windows returned an unreadable transcript")?;
     select_transcript(&text)
 }
-#[derive(serde::Deserialize)]
+#[derive(Clone, serde::Deserialize)]
 struct SpeechCandidate {
     text: String,
     confidence: f64,
@@ -267,6 +267,7 @@ pub(crate) fn select_transcript(json: &str) -> Result<String, String> {
     if candidates.len() > 1000 {
         return Err("Local recognition returned too many speech segments".into());
     }
+    let all = candidates.clone();
     candidates.retain(|c| {
         c.confidence.is_finite()
             && c.confidence >= 0.65
@@ -277,6 +278,25 @@ pub(crate) fn select_transcript(json: &str) -> Result<String, String> {
             && c.end <= 61.0
             && !c.text.trim().is_empty()
     });
+    // A quiet voice or an accent can lower every score. Rather than dropping the whole message,
+    // fall back to the single best phrase that is at least plausible.
+    if candidates.is_empty() {
+        candidates = all
+            .into_iter()
+            .filter(|c| {
+                c.confidence.is_finite()
+                    && c.confidence >= 0.3
+                    && c.start.is_finite()
+                    && c.end.is_finite()
+                    && c.start >= 0.0
+                    && c.end > c.start
+                    && c.end <= 61.0
+                    && !c.text.trim().is_empty()
+            })
+            .max_by(|a, b| a.confidence.total_cmp(&b.confidence))
+            .into_iter()
+            .collect();
+    }
     // Russian and English recognizers may overlap. Keep only the most confident
     // phrase in each interval instead of repeating competing transcriptions.
     candidates.sort_by(|a, b| b.confidence.total_cmp(&a.confidence));
@@ -376,6 +396,15 @@ mod tests {
         )
         .is_err());
         assert!(import_payload(&"x".repeat(16001), &[], "fixture").is_err());
+    }
+    #[test]
+    fn quiet_speech_is_kept_instead_of_dropping_the_whole_message() {
+        let low = r#"[{"text":"fix the settings screen","confidence":0.45,"start":0.0,"end":3.0},{"text":"noise","confidence":0.1,"start":0.0,"end":3.0}]"#;
+        assert_eq!(select_transcript(low).unwrap(), "fix the settings screen");
+        assert!(
+            select_transcript(r#"[{"text":"noise","confidence":0.1,"start":0.0,"end":3.0}]"#)
+                .is_err()
+        );
     }
     #[test]
     fn voice_accepts_only_bounded_mono_pcm_from_the_recorder() {

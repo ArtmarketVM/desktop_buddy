@@ -8,7 +8,7 @@ import { DesktopBuddy } from "../components/DesktopBuddy";
 import { defaultBuddyPreferences } from "../types";
 
 describe("compact workspace boundaries", () => {
-  it("keeps text entry compact without a permanent history panel", () => {
+  it("shows a support-style chat with history, a close button and no goal-context toggle", () => {
     const html = renderToStaticMarkup(
       <Conversation
         compact
@@ -20,12 +20,13 @@ describe("compact workspace boundaries", () => {
         onState={() => {}}
       />,
     );
-    expect(html).toContain('rows="1"');
+    expect(html).toContain('rows="2"');
     expect(html).toContain("Attach text or PDF");
-    expect(html).toContain("Close Buddy input");
-    expect(html).not.toContain('role="log"');
+    expect(html).toContain("Close chat");
+    expect(html).toContain('role="log"');
+    expect(html).toContain("Ask Buddy anything");
     expect(html).not.toContain("Clear conversation");
-    expect(html).not.toContain("What is getting in the way");
+    expect(html).not.toContain("conversation-context");
   });
   it("offers explicit recording, transcription and close controls", () => {
     const html = renderToStaticMarkup(

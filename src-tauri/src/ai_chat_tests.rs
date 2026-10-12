@@ -299,6 +299,8 @@ async fn live_ai_goal_and_chat_smoke() {
         "Help me start the first onboarding step".into(),
         None,
         None,
+        None,
+        None,
         &state,
     )
     .await
@@ -688,4 +690,208 @@ fn deleted_goal_backups_follow_history_retention() {
     assert_eq!(deleted_goals(&storage).len(), 1);
     storage.purge_history(None).unwrap();
     assert!(deleted_goals(&storage).is_empty());
+}
+#[test]
+fn chat_titles_name_the_topic_and_are_cleaned_up() {
+    let ok = |body: Value| json!({"choices":[{"finish_reason":"stop","message":{"content":body.to_string()}}]});
+    assert_eq!(
+        parse_title(&ok(json!({"title":"\"apply for 10 jobs on Jumpstart.\""}))).unwrap(),
+        "Apply for 10 jobs on Jumpstart"
+    );
+    assert!(parse_title(&ok(json!({"title":"   "}))).is_err());
+    assert!(parse_title(&ok(json!({"title":"x".repeat(61)}))).is_err());
+    assert!(parse_title(&ok(json!({"title":"ok","extra":1}))).is_err());
+    let mut storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    storage
+        .save_chat_turn(
+            "add a step to fix phrasing in the chat",
+            &ChatReply {
+                message: "Added.".into(),
+                ..Default::default()
+            },
+            None,
+        )
+        .unwrap();
+    storage
+        .set_conversation_title(conversation, "Fixing chat phrasing")
+        .unwrap();
+    let titles: Vec<_> = storage
+        .conversations()
+        .unwrap()
+        .into_iter()
+        .map(|c| c.title)
+        .collect();
+    assert_eq!(titles, vec!["Fixing chat phrasing".to_string()]);
+}
+#[test]
+fn opening_the_mascot_chat_starts_a_new_conversation_only_when_the_current_one_has_messages() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    assert!(!storage.start_fresh_conversation().unwrap());
+    assert_eq!(storage.current_conversation().unwrap(), first);
+    storage
+        .save_chat_turn(
+            "Hello",
+            &ChatReply {
+                message: "Hi".into(),
+                ..Default::default()
+            },
+            None,
+        )
+        .unwrap();
+    assert!(storage.start_fresh_conversation().unwrap());
+    let second = storage.current_conversation().unwrap();
+    assert_ne!(first, second);
+    assert!(storage.chat_history().unwrap().is_empty());
+    // The earlier chat is kept and still listed, so it stays available in the app.
+    assert_eq!(storage.conversations().unwrap().len(), 2);
+    assert!(!storage.start_fresh_conversation().unwrap());
+}
+#[test]
+fn chat_changes_need_a_quoted_instruction_and_questions_are_not_commands() {
+    let intent = |kind: &str, quote: Option<&str>| ChatIntent {
+        intent: kind.into(),
+        goal_id: Some(1),
+        title: None,
+        steps: vec![],
+        target: Some("x".into()),
+        new_text: None,
+        quote: quote.map(str::to_string),
+    };
+    let question = "i want to finish the japanese mascots goal, what do i need for it";
+    // The model must quote the instruction; a made-up or missing quote is ignored.
+    assert!(!grounded(&intent("complete_step", None), question));
+    assert!(!grounded(
+        &intent("complete_step", Some("mark it as done")),
+        question
+    ));
+    assert!(!grounded(
+        &intent("complete_step", Some("what do i need for it")),
+        question
+    ));
+    assert!(grounded(&intent("none", None), question));
+    // A real instruction quoted from the message passes, also as a polite question.
+    assert!(grounded(
+        &intent("complete_step", Some("mark the mascots step as done")),
+        "Please mark the mascots step as done"
+    ));
+    assert!(grounded(
+        &intent("add_steps", Some("add a step")),
+        "can you add a step to fix the chat?"
+    ));
+    assert!(!grounded(
+        &intent("delete_goal", Some("delete")),
+        "should i delete?"
+    ));
+}
+#[test]
+fn an_answer_is_saved_in_the_chat_it_was_asked_in_even_after_a_new_chat_is_started() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    // The user asks in the first chat and, while Buddy is still answering, starts another chat.
+    let second = storage.create_conversation().unwrap();
+    assert_eq!(storage.current_conversation().unwrap(), second);
+    let reply = ChatReply {
+        message: "Here is the answer.".into(),
+        ..Default::default()
+    };
+    storage
+        .save_chat_turn_to(first, "My question", &reply, None)
+        .unwrap();
+    let texts = |storage: &Storage, id: i64| -> Vec<String> {
+        storage
+            .chat_history_of(id)
+            .unwrap()
+            .into_iter()
+            .map(|m| m.text)
+            .collect()
+    };
+    assert_eq!(
+        texts(&storage, first),
+        vec!["My question", "Here is the answer."]
+    );
+    assert!(texts(&storage, second).is_empty());
+    // A chat that was deleted meanwhile does not receive the answer.
+    storage.delete_conversation(first).unwrap();
+    assert!(storage
+        .save_chat_turn_to(first, "Late", &reply, None)
+        .is_err());
+    assert!(storage.conversation_exists(second));
+}
+
+#[test]
+fn searching_chats_matches_titles_and_message_text() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    let reply = ChatReply {
+        message: "Try the green mascot".into(),
+        resources: vec![],
+        ..Default::default()
+    };
+    storage
+        .save_chat_turn("How do I plan my 100% week?", &reply, None)
+        .unwrap();
+    storage
+        .set_conversation_title(first, "Weekly plan")
+        .unwrap();
+    let second = storage.create_conversation().unwrap();
+    assert_eq!(storage.search_conversations("weekly").unwrap(), vec![first]);
+    assert_eq!(storage.search_conversations("MASCOT").unwrap(), vec![first]);
+    assert_eq!(storage.search_conversations("100%").unwrap(), vec![first]);
+    assert!(storage.search_conversations("zzz").unwrap().is_empty());
+    assert!(!storage
+        .search_conversations("chat")
+        .unwrap()
+        .contains(&first));
+    assert!(storage
+        .search_conversations("chat")
+        .unwrap()
+        .contains(&second));
+}
+
+#[test]
+fn a_question_is_kept_even_when_the_answer_never_arrives() {
+    let mut storage = store();
+    let chat = storage.current_conversation().unwrap();
+    storage
+        .save_question_to(chat, "Write me a prompt", None)
+        .unwrap();
+    let history = storage.chat_history_of(chat).unwrap();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].text, "Write me a prompt");
+    assert_eq!(
+        storage
+            .conversations()
+            .unwrap()
+            .iter()
+            .find(|c| c.id == chat)
+            .unwrap()
+            .title,
+        "Write me a prompt"
+    );
+}
+
+#[test]
+fn empty_chats_disappear_when_the_user_moves_on() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    storage.save_question_to(first, "Hello", None).unwrap();
+    assert!(storage.start_fresh_conversation().unwrap());
+    let empty = storage.current_conversation().unwrap();
+    assert_ne!(empty, first);
+    // Asking for another new chat while this one is empty reuses it.
+    assert!(!storage.start_fresh_conversation().unwrap());
+    assert_eq!(storage.conversations().unwrap().len(), 2);
+    storage.select_conversation(first).unwrap();
+    let ids: Vec<_> = storage
+        .conversations()
+        .unwrap()
+        .iter()
+        .map(|c| c.id)
+        .collect();
+    assert_eq!(ids, vec![first]);
+    // Deleting the last chat leaves one fresh empty chat to type in.
+    storage.delete_conversation(first).unwrap();
+    assert_eq!(storage.conversations().unwrap().len(), 1);
 }

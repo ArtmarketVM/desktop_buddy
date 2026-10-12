@@ -271,6 +271,7 @@ pub fn run() {
             relevance::get_goal_progress,
             ai_chat::get_buddy_chat_history,
             ai_chat::get_buddy_conversations,
+            ai_chat::search_buddy_conversations,
             ai_chat::create_buddy_conversation,
             ai_chat::select_buddy_conversation,
             ai_chat::delete_buddy_conversation,

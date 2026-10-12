@@ -51,7 +51,7 @@ export const pages = [
     id: "chats",
     label: "Chats",
     icon: MessageSquare,
-    description: "Your conversations with Buddy.",
+    description: "",
   },
   {
     id: "settings",

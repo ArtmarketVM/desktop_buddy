@@ -1,4 +1,6 @@
 import { InterventionCard } from "./InterventionCard";
+import { Markdown } from "./Markdown";
+import { MessageMeta, Sources } from "./MessageParts";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useId, useRef, useState } from "react";
 import "./conversation.css";
@@ -15,15 +17,10 @@ import {
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
-import {
-  aiApi,
-  defaultAiPreferences,
-  type ChatMessage,
-  type CoachingInsight,
-} from "../ai/api";
+import { aiApi, defaultAiPreferences, type ChatMessage } from "../ai/api";
 import { readAttachment, recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
-import { isMac, submitShortcut } from "../api/platform";
+import { isMac } from "../api/platform";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
 
@@ -34,12 +31,14 @@ export function Conversation({
   onChanged,
   onState,
   embedded = false,
+  headerless = false,
   onMove,
   onResize,
   compact = false,
   mode = "text",
   onMode,
   onClose,
+  conversationId,
 }: {
   view: CompanionView;
   goal: Goal | null;
@@ -47,12 +46,15 @@ export function Conversation({
   onChanged: () => Promise<void>;
   onState: (state: AvatarState) => void;
   embedded?: boolean;
+  headerless?: boolean;
   onMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onResize?: () => void;
   compact?: boolean;
   mode?: "text" | "voice";
   onMode?: (mode: "text" | "voice") => void;
   onClose?: () => void;
+  /** The chat this view shows; replies are saved there even if another chat is opened meanwhile. */
+  conversationId?: number;
 }) {
   const inputId = useId();
   const [text, setText] = useState(view.seed.slice(0, 4000));
@@ -67,18 +69,20 @@ export function Conversation({
   const [voice, setVoice] = useState(false);
   const [muted, setMuted] = useState(false);
   const [recording, setRecording] = useState(false);
-  const [latestReply, setLatestReply] = useState<number | null>(null);
   const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
   const voiceGeneration = useRef(0);
   const voiceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
-  const [coaching, setCoaching] = useState<CoachingInsight | null>(null);
-  const [expected, setExpected] = useState("");
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
+  const queued = useRef<Array<{ text: string; attachment: string | null }>>([]);
+  const [waiting, setWaiting] = useState(false);
   const followLatest = useRef(true);
+  // Voice callbacks outlive a render, so they read the latest values from here.
+  const latest = useRef({ text, mode, compact });
+  latest.current = { text, mode, compact };
   const cancelRecording = () => {
     voiceGeneration.current += 1;
     recorder.current?.cancel();
@@ -97,17 +101,30 @@ export function Conversation({
     setMuted(false);
     if (!active) return;
     onState("thinking");
+    let transcript = "";
     await run(async () => {
-      const transcript = await coreApi.transcribe(await active.stop());
-      if (transcript.length + text.length > 4000)
+      transcript = await coreApi.transcribe(await active.stop());
+      if (transcript.length + latest.current.text.length > 4000)
         throw new Error(
           "The transcript is too long. Record a shorter message.",
         );
-      setText((previous) =>
-        [previous, transcript].filter(Boolean).join(" ").slice(0, 4000),
-      );
-      onMode?.("text");
     });
+    if (!transcript) {
+      onState("idle");
+      return;
+    }
+    const combined = [latest.current.text, transcript]
+      .filter(Boolean)
+      .join(" ")
+      .slice(0, 4000);
+    onMode?.("text");
+    if (latest.current.compact && latest.current.mode === "voice") {
+      // A spoken message in the mascot chat is sent as soon as the person stops talking.
+      setText("");
+      await submit("", combined);
+      return;
+    }
+    setText(combined);
     onState("idle");
   }
   async function startRecording() {
@@ -115,7 +132,7 @@ export function Conversation({
     const generation = ++voiceGeneration.current;
     setError("");
     try {
-      const active = await recordVoice();
+      const active = await recordVoice(() => void finishRecording());
       if (generation !== voiceGeneration.current) {
         active.cancel();
         return;
@@ -166,14 +183,14 @@ export function Conversation({
             if (active) setError(String(e));
           });
     };
-    if (!busy) refresh();
+    if (!busy && !sending.current) refresh();
     const id = setInterval(() => {
-      if (!busy) refresh();
+      if (!busy && !sending.current) refresh();
     }, 5000);
     let stop: (() => void) | undefined;
     if (desktop)
       void listen("buddy://chat-updated", () => {
-        if (!busy) refresh();
+        if (!busy && !sending.current) refresh();
       })
         .then((unlisten) => {
           if (active) stop = unlisten;
@@ -191,26 +208,6 @@ export function Conversation({
     setText(view.seed.slice(0, 4000));
     setError("");
   }, [view.seed, view.intent, embedded]);
-  useEffect(() => {
-    let active = true;
-    setCoaching(null);
-    setExpected("");
-    if (desktop && goal && !compact)
-      void aiApi
-        .coaching(goal.id)
-        .then((result) => {
-          if (active) {
-            setCoaching(result);
-            setExpected(result.user_expected_minutes?.toString() ?? "");
-          }
-        })
-        .catch((e) => {
-          if (active) setError(String(e));
-        });
-    return () => {
-      active = false;
-    };
-  }, [goal?.id, compact]);
   useEffect(() => {
     if (scroll.current && followLatest.current)
       scroll.current.scrollTop = scroll.current.scrollHeight;
@@ -240,25 +237,72 @@ export function Conversation({
       setBusy(false);
     }
   }
-  async function submit(prefix = "") {
-    if (!text.trim() || !desktop || sending.current) return;
+  // A message leaves the field and appears in the chat right away. While Buddy is still answering,
+  // further messages are queued and sent one after another, so typing never has to wait.
+  async function submit(prefix = "", override?: string) {
+    const body = (override ?? text).trim();
+    if (!body || !desktop) return;
+    const outgoing = prefix + body;
+    const shared = attachment?.text ?? null;
+    setText("");
+    setAttachment(null);
+    setVoice(false);
+    setError("");
+    followLatest.current = true;
+    setMessages((previous) => [
+      ...previous,
+      {
+        id: -Date.now(),
+        role: "user",
+        text: outgoing,
+        created_at: new Date().toISOString(),
+        goal_id: goal?.id ?? null,
+        resources: [],
+      },
+    ]);
+    if (sending.current) {
+      queued.current.push({ text: outgoing, attachment: shared });
+      return;
+    }
     sending.current = true;
+    setWaiting(true);
     onState("thinking");
-    await run(async () => {
-      await aiApi.send(
-        prefix + text.trim(),
-        attachment?.text ?? null,
-        goal?.id ?? null,
-      );
-      followLatest.current = true;
-      const history = await aiApi.history();
-      setMessages(history);
-      setLatestReply(history.at(-1)?.id ?? null);
-      setText("");
-      setAttachment(null);
-      setVoice(false);
-    });
+    let next: { text: string; attachment: string | null } | undefined = {
+      text: outgoing,
+      attachment: shared,
+    };
+    try {
+      while (next) {
+        await aiApi.send(
+          next.text,
+          next.attachment,
+          goal?.id ?? null,
+          conversationId ?? null,
+        );
+        next = queued.current.shift();
+      }
+    } catch (e) {
+      setError(String(e));
+      // The question stays in the chat once it was accepted; anything else goes back to the input.
+      const saved = await aiApi.history().catch(() => []);
+      const unsent = [next?.text, ...queued.current.map((item) => item.text)]
+        .filter(
+          (item): item is string =>
+            !!item &&
+            !saved.some((m) => m.role === "user" && m.text.startsWith(item)),
+        )
+        .join("\n");
+      queued.current = [];
+      if (unsent) setText((previous) => previous || unsent);
+    }
+    try {
+      setMessages(await aiApi.history());
+      await onChanged();
+    } catch (e) {
+      setError(String(e));
+    }
     sending.current = false;
+    setWaiting(false);
     onState("idle");
     input.current?.focus();
   }
@@ -287,11 +331,9 @@ export function Conversation({
       className={`companion-chat ${embedded ? "workspace-chat" : ""} ${compact ? "compact-conversation" : ""} ${compact && mode === "voice" ? "voice-mode" : ""}`}
       aria-label={embedded ? "Buddy chat" : "Buddy mini chat"}
     >
-      {!compact && (
+      {!compact && !headerless && (
         <header onPointerDown={onMove}>
-          <div>
-            <strong>Buddy</strong>
-          </div>
+          <div>{!embedded && <strong>Buddy</strong>}</div>
           <button
             className="companion-icon"
             aria-label="Clear conversation"
@@ -321,6 +363,23 @@ export function Conversation({
           )}
         </header>
       )}
+      {compact && (
+        <header className="compact-header">
+          <strong>Buddy</strong>
+          <button
+            type="button"
+            className="companion-icon"
+            aria-label="Close chat"
+            title="Close chat"
+            onClick={() => {
+              cancelRecording();
+              onClose?.();
+            }}
+          >
+            <X size={16} />
+          </button>
+        </header>
+      )}
       {view.intervention && (
         <InterventionCard
           prompt={view.intervention}
@@ -330,52 +389,7 @@ export function Conversation({
           }}
         />
       )}
-      {!compact && goal && (
-        <details className="conversation-context">
-          <summary>{goal.text}</summary>
-          <p className="helper">
-            {preferences.share_goal_context
-              ? "Goal context is included in chat."
-              : "Goal context sharing is off in Settings."}
-          </p>
-          {coaching && (
-            <p>
-              {coaching.relevant_active_minutes}m relevant activity
-              {coaching.user_expected_minutes
-                ? ` · ${coaching.user_expected_minutes}m expected`
-                : ""}
-              {coaching.over_expected ? " · Taking longer than expected" : ""}
-            </p>
-          )}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void run(async () => {
-                await aiApi.expectedMinutes(
-                  goal.id,
-                  expected ? Number(expected) : null,
-                );
-                setCoaching(await aiApi.coaching(goal.id));
-              });
-            }}
-          >
-            <label>
-              Expected minutes
-              <input
-                type="number"
-                min={1}
-                max={10080}
-                value={expected}
-                onChange={(e) => setExpected(e.target.value)}
-                placeholder="Your estimate"
-                disabled={busy}
-              />
-            </label>
-            <button disabled={!desktop || busy}>Save estimate</button>
-          </form>
-        </details>
-      )}
-      {(!compact || latestReply !== null || busy) && (
+      {
         <div
           className="companion-chat-scroll conversation-history"
           ref={scroll}
@@ -388,47 +402,39 @@ export function Conversation({
           aria-label="Conversation history"
           aria-live="polite"
         >
-          {!compact && !messages.length && (
+          {!messages.length && (
             <p className="conversation-empty">
-              What is getting in the way? Tell Buddy what you need.
+              {compact
+                ? "Ask Buddy anything, or tell it what to add."
+                : "What is getting in the way? Tell Buddy what you need."}
             </p>
           )}
-          {messages
-            .filter((message) => !compact || message.id === latestReply)
-            .map((message) => (
-              <article
-                className={`conversation-message ${message.role}`}
-                key={message.id}
-              >
-                <span className="sr-only">
-                  {message.role === "user" ? "You" : "Buddy"}
-                </span>
+          {messages.map((message) => (
+            <article
+              className={`conversation-message ${message.role}`}
+              key={message.id}
+            >
+              <span className="sr-only">
+                {message.role === "user" ? "You" : "Buddy"}
+              </span>
+              {message.role === "assistant" ? (
+                <Markdown text={message.text} />
+              ) : (
                 <p>{message.text}</p>
-                {message.resources.map((resource) => (
-                  <button
-                    className="companion-resource"
-                    key={resource.url}
-                    disabled={!safeUrl(resource.url) || busy}
-                    onClick={() =>
-                      void openResource(resource.url, message.goal_id)
-                    }
-                  >
-                    <span>
-                      {resource.title}
-                      <small>{resource.whyRelevant}</small>
-                    </span>
-                    <ArrowUpRight size={14} />
-                  </button>
-                ))}
-              </article>
-            ))}
-          {busy && (
-            <p role="status">
-              {sending.current ? "Buddy is thinking…" : "Working…"}
-            </p>
+              )}
+              <Sources
+                resources={message.resources}
+                disabled={busy}
+                onOpen={(url) => void openResource(url, message.goal_id)}
+              />
+              <MessageMeta message={message} />
+            </article>
+          ))}
+          {(busy || waiting) && (
+            <p role="status">{waiting ? "Buddy is thinking…" : "Working…"}</p>
           )}
         </div>
-      )}
+      }
       {!compact && view.inbox.length > 0 && (
         <details className="conversation-context" aria-label="Saved for later">
           <summary>
@@ -530,7 +536,7 @@ export function Conversation({
           ref={input}
           value={text}
           maxLength={4000}
-          rows={compact ? 1 : 3}
+          rows={compact ? 2 : 3}
           disabled={busy}
           placeholder="Message Buddy…"
           onChange={(e) => setText(e.target.value)}
@@ -538,7 +544,7 @@ export function Conversation({
             if (
               !e.nativeEvent.isComposing &&
               e.key === "Enter" &&
-              (e.ctrlKey || e.metaKey || (compact && !e.shiftKey))
+              !e.shiftKey
             ) {
               e.preventDefault();
               void submit();
@@ -610,7 +616,7 @@ export function Conversation({
           >
             {compact && muted ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
-          {!compact && <span>{submitShortcut()}</span>}
+          {!compact && <span>Enter to send · Shift+Enter for a new line</span>}
           <button
             type="submit"
             disabled={!desktop || busy || !text.trim()}
@@ -742,15 +748,6 @@ export function Conversation({
             <X size={16} />
           </button>
         </div>
-      )}
-      {compact && mode === "text" && (
-        <button
-          className="compact-close"
-          aria-label="Close Buddy input"
-          onClick={onClose}
-        >
-          <X size={14} />
-        </button>
       )}
       {onResize && (
         <button

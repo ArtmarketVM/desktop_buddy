@@ -295,7 +295,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
             .map_err(|_| "Could not configure Buddy size")?;
         let (width, height) = match mode {
             1 => (160.0, 152.0),
-            3 => (420.0, 340.0),
+            3 => (440.0, 660.0),
             _ => (380.0, 440.0),
         };
         window

@@ -1,4 +1,4 @@
-import { isMac, submitShortcut } from "../api/platform";
+import { isMac } from "../api/platform";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CompanionChat } from "./CompanionChat";
@@ -26,7 +26,7 @@ describe("companion interaction boundary", () => {
     );
     expect(html).toContain("Explain");
     expect(html).toContain("Save for later");
-    expect(html).toContain(submitShortcut());
+    expect(html).toContain("Enter to send");
     expect(html).toContain("Attach text or PDF");
     expect(html).toContain('role="log"');
     expect(html).not.toContain("<script>");
