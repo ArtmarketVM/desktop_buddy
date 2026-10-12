@@ -401,3 +401,73 @@ fn add_requests_are_classified_into_strict_intents() {
     ))
     .is_err());
 }
+#[test]
+fn chat_goals_go_to_today_and_are_never_duplicated() {
+    let mut storage = store();
+    let existing = goal(&mut storage, "Existing goal", "chat-today");
+    let action =
+        |kind: &str, goal_id: Option<i64>, title: Option<&str>, steps: &[&str]| ChatAction {
+            kind: kind.into(),
+            goal_id,
+            title: title.map(str::to_string),
+            steps: steps.iter().map(|s| s.to_string()).collect(),
+        };
+    let lines = apply_chat_actions(
+        &mut storage,
+        Some(existing),
+        &[action(
+            "add_goal",
+            None,
+            Some("fix the chats"),
+            &["send with enter", "clear the input"],
+        )],
+    );
+    assert!(lines[0].contains("Added the goal \"Fix the chats\" with 2 steps"));
+    assert!(lines[0].contains("Also added it to Today."));
+    let snapshot = storage.core_snapshot(None).unwrap();
+    let created = snapshot
+        .goals
+        .iter()
+        .find(|g| g.title == "Fix the chats")
+        .unwrap();
+    assert!(snapshot.today.contains(&created.id));
+    // Asking again for the same goal does not create a copy; it only fills in what is missing.
+    let again = apply_chat_actions(
+        &mut storage,
+        Some(existing),
+        &[action(
+            "add_goal",
+            None,
+            Some("Fix the chats"),
+            &["send with enter", "keep focus after sending"],
+        )],
+    );
+    assert!(again[0].contains("already in your goals"));
+    assert!(again[0].contains("Added 1 new step"));
+    let snapshot = storage.core_snapshot(None).unwrap();
+    assert_eq!(
+        snapshot
+            .goals
+            .iter()
+            .filter(|g| g.title == "Fix the chats")
+            .count(),
+        1
+    );
+    // An existing goal can be put on Today by name; it is full at three goals.
+    let one = apply_chat_actions(
+        &mut storage,
+        None,
+        &[action("add_to_today", None, Some("existing goal"), &[])],
+    );
+    assert!(one[0].contains("Also added it to Today"));
+    for title in ["Third goal", "Fourth goal"] {
+        apply_chat_actions(
+            &mut storage,
+            None,
+            &[action("add_goal", None, Some(title), &["x"])],
+        );
+    }
+    let snapshot = storage.core_snapshot(None).unwrap();
+    assert_eq!(snapshot.today.len(), 3);
+    assert!(snapshot.goals.iter().any(|g| g.title == "Fourth goal"));
+}
