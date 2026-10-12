@@ -231,7 +231,7 @@ export function GoalRow({
                   Ask Buddy about this
                 </button>
                 <button
-                  disabled={disabled || (!today && snapshot.today.length >= 3)}
+                  disabled={disabled}
                   onClick={() => {
                     setMenu(false);
                     void run(() => coreApi.today(goal.id, !today));

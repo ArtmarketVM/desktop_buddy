@@ -587,3 +587,117 @@
 .tracking-details .helper {
   margin: 6px 0;
 }
+
+/*
+ * Page layout rule, shared by every screen:
+ * - one centered column that fills the window up to --page-max;
+ * - the page title and every block below it use that same column, so the title always sits
+ *   in the same place and all right edges line up;
+ * - side gutters shrink with the window (48px wide, 40px normal, 24px narrow, 16px very narrow).
+ */
+.app-shell .main {
+  --page-max: 1040px;
+  --page-gutter: 40px;
+  padding-inline: var(--page-gutter);
+}
+@media (min-width: 1500px) {
+  .app-shell .main {
+    --page-gutter: 48px;
+  }
+}
+@media (max-width: 1100px) {
+  .app-shell .main {
+    --page-gutter: 24px;
+  }
+}
+@media (max-width: 650px) {
+  .app-shell .main {
+    --page-gutter: 16px;
+  }
+}
+.app-shell .main > * {
+  width: 100%;
+  max-width: var(--page-max);
+  margin-inline: auto;
+}
+.app-shell .main .core-workspace {
+  max-width: none;
+  margin: 0;
+  padding-top: 0;
+}
+.app-shell .main > .page-title {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 40px;
+  margin-bottom: 28px;
+}
+.app-shell .main > .page-title h1 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 40px;
+}
+.app-shell .main > .page-title p {
+  margin: 6px 0 0;
+}
+.app-shell .main > .page-title > .today-dnd {
+  align-self: flex-start;
+  min-height: 40px;
+  margin-left: auto;
+  padding-block: 0;
+}
+
+/* Switches: a 40 x 24 track with an 18px knob that always stays inside it. */
+.toggle-row input[type="checkbox"],
+.core-workspace .toggle-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  width: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  height: 24px;
+  margin: 0 0 0 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: var(--field-line, var(--line));
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.toggle-row input[type="checkbox"]::before,
+.core-workspace .toggle-row input[type="checkbox"]::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transform: none;
+  transition: transform 0.18s ease;
+}
+.toggle-row input[type="checkbox"]:checked,
+.core-workspace .toggle-row input[type="checkbox"]:checked {
+  background: var(--accent-fill);
+}
+.toggle-row input[type="checkbox"]:checked::before,
+.core-workspace .toggle-row input[type="checkbox"]:checked::before {
+  background: #fff;
+  transform: translateX(16px);
+}
+.toggle-row input[type="checkbox"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toggle-row input[type="checkbox"],
+  .toggle-row input[type="checkbox"]::before {
+    transition: none;
+  }
+}

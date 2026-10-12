@@ -87,6 +87,12 @@ pub struct GoalDraft {
     pub steps: Vec<String>,
 }
 #[derive(Serialize)]
+pub struct StepTime {
+    /// Empty when the time was not tied to a step.
+    pub step_id: String,
+    pub seconds: u64,
+}
+#[derive(Serialize)]
 pub struct GoalTime {
     pub goal_id: i64,
     pub title: String,
@@ -94,6 +100,7 @@ pub struct GoalTime {
     pub seconds: u64,
     pub tracked_seconds: u64,
     pub relevant_seconds: u64,
+    pub steps: Vec<StepTime>,
 }
 #[derive(Serialize)]
 pub struct DayProgress {
@@ -101,6 +108,12 @@ pub struct DayProgress {
     pub completed: Vec<String>,
     pub completed_goals: Vec<String>,
     pub goals: Vec<GoalTime>,
+}
+#[derive(Serialize)]
+pub struct HourTime {
+    pub hour: u8,
+    pub goal_id: i64,
+    pub seconds: u64,
 }
 #[derive(Serialize)]
 pub struct CoreSnapshot {
@@ -114,6 +127,8 @@ pub struct CoreSnapshot {
     pub goals: Vec<CoreGoal>,
     pub summary: DayProgress,
     pub week: Vec<DayProgress>,
+    /// Relevant focused time of the selected day, split by local hour.
+    pub hourly: Vec<HourTime>,
     pub timer: Option<Timer>,
     pub focused_goal_id: Option<i64>,
     pub preferences: CorePreferences,
@@ -194,12 +209,15 @@ fn day(value: &str) -> Result<NaiveDate, String> {
     }
     Ok(date)
 }
-fn period_days(value: Option<&str>) -> Result<i64, String> {
+/// Number of days a period covers when it ends on `anchor`: a week is seven days, a month runs
+/// from the 1st and a year from 1 January, so a finished month or year is shown whole.
+fn period_days(value: Option<&str>, anchor: NaiveDate) -> Result<i64, String> {
+    use chrono::Datelike;
     match value.unwrap_or("week") {
         "day" => Ok(1),
         "week" => Ok(7),
-        "month" => Ok(31),
-        "year" => Ok(366),
+        "month" => Ok(anchor.day() as i64),
+        "year" => Ok(anchor.ordinal() as i64),
         _ => Err("Choose a valid progress period".into()),
     }
 }
@@ -250,6 +268,7 @@ impl Storage {
             CREATE INDEX IF NOT EXISTS core_events_day ON core_events(day);
             CREATE TABLE IF NOT EXISTS core_time(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,seconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id));
             CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS deleted_goal_backups(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,deleted_at INTEGER NOT NULL,payload TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS core_goal_details(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,due_at TEXT,priority TEXT,description TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS core_carryover_dismissals(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,PRIMARY KEY(day,goal_id));").map_err(db)?;
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_quick_batches(batch_id TEXT PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL);").map_err(db)?;
@@ -576,16 +595,6 @@ impl Storage {
             if state != "open" {
                 return Err("Resume this goal before adding it to Today".into());
             }
-            let count: u32 = tx
-                .query_row(
-                    "SELECT COUNT(*) FROM core_day_items WHERE day=?1 AND goal_id!=?2",
-                    params![date, id],
-                    |r| r.get(0),
-                )
-                .map_err(db)?;
-            if count >= 3 {
-                return Err("Choose up to three goals for Today".into());
-            }
             tx.execute(
                 "INSERT OR IGNORE INTO core_day_items(day,goal_id) VALUES(?1,?2)",
                 params![date, id],
@@ -668,21 +677,13 @@ impl Storage {
             params![batch, id],
         )
         .map_err(db)?;
-        let today_count: u32 = tx
-            .query_row(
-                "SELECT COUNT(*) FROM core_day_items WHERE day=?1",
-                [date],
-                |r| r.get(0),
-            )
-            .map_err(db)?;
-        if today_count < 3 {
-            tx.execute(
-                "INSERT INTO core_day_items(day,goal_id) VALUES(?1,?2)",
-                params![date, id],
-            )
-            .map_err(db)?;
-            tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
-        }
+        // Quick entry always lands on Today; Today has no size limit.
+        tx.execute(
+            "INSERT INTO core_day_items(day,goal_id) VALUES(?1,?2)",
+            params![date, id],
+        )
+        .map_err(db)?;
+        tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
         tx.commit().map_err(db)
     }
     pub fn core_goals_for_date(&self, date: &str) -> Result<Vec<i64>, String> {
@@ -753,6 +754,86 @@ impl Storage {
             }),
         )
     }
+    pub fn core_hourly(&self, date: &str) -> Result<Vec<HourTime>, String> {
+        use chrono::{TimeZone, Timelike};
+        let start = Local
+            .from_local_datetime(&day(date)?.and_hms_opt(0, 0, 0).ok_or("Invalid day")?)
+            .earliest()
+            .ok_or("Invalid day")?
+            .timestamp_millis();
+        let end = start + 24 * 3_600_000;
+        let mut q = self
+            .connection
+            .prepare("SELECT goal_id,started_at,ended_at FROM usage_intervals WHERE match_confidence>0 AND julianday(ended_at)>julianday(?1) AND julianday(started_at)<julianday(?2)")
+            .map_err(db)?;
+        let rows = q
+            .query_map(
+                params![
+                    DateTime::from_timestamp_millis(start).map(|t| t.to_rfc3339()),
+                    DateTime::from_timestamp_millis(end).map(|t| t.to_rfc3339())
+                ],
+                |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, String>(2)?,
+                    ))
+                },
+            )
+            .map_err(db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db)?;
+        let mut totals = std::collections::BTreeMap::<(u8, i64), i64>::new();
+        for (goal, from, to) in rows {
+            let (Ok(from), Ok(to)) = (
+                DateTime::parse_from_rfc3339(&from),
+                DateTime::parse_from_rfc3339(&to),
+            ) else {
+                continue;
+            };
+            let mut cursor = from.timestamp_millis().max(start);
+            let last = to.timestamp_millis().min(end);
+            while cursor < last {
+                let local = DateTime::from_timestamp_millis(cursor)
+                    .ok_or("Invalid sample time")?
+                    .with_timezone(&Local);
+                let hour_start = local
+                    .with_minute(0)
+                    .and_then(|t| t.with_second(0))
+                    .and_then(|t| t.with_nanosecond(0))
+                    .ok_or("Invalid hour")?;
+                let next = (hour_start.timestamp_millis() + 3_600_000).min(last);
+                *totals.entry((local.hour() as u8, goal)).or_default() += next - cursor;
+                cursor = next;
+            }
+        }
+        Ok(totals
+            .into_iter()
+            .map(|((hour, goal_id), ms)| HourTime {
+                hour,
+                goal_id,
+                seconds: (ms / 1000) as u64,
+            })
+            .filter(|item| item.seconds > 0)
+            .collect())
+    }
+    pub(crate) fn step_times(&self, goal: i64, date: &str) -> Result<Vec<StepTime>, String> {
+        let mut q = self
+            .connection
+            .prepare("SELECT step_id,milliseconds/1000 FROM goal_relevant_step_daily WHERE goal_id=?1 AND day=?2 ORDER BY step_id")
+            .map_err(db)?;
+        let rows = q
+            .query_map(params![goal, date], |r| {
+                Ok(StepTime {
+                    step_id: r.get(0)?,
+                    seconds: r.get(1)?,
+                })
+            })
+            .map_err(db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db)?;
+        Ok(rows)
+    }
     fn core_progress(&self, date: &str) -> Result<DayProgress, String> {
         let mut q=self.connection.prepare("SELECT e.title FROM core_events e WHERE e.day=?1 AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id=e.step_id AND x.day=e.day) ORDER BY e.id").map_err(db)?;
         let completed = q
@@ -771,6 +852,9 @@ impl Storage {
                     tracked_seconds: r.get(4)?,
                     relevant_seconds: self
                         .relevant_seconds(r.get(0)?, Some(date))
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                    steps: self
+                        .step_times(r.get(0)?, date)
                         .map_err(|_| rusqlite::Error::InvalidQuery)?,
                 })
             })
@@ -796,7 +880,7 @@ impl Storage {
         let today = Local::now().date_naive();
         let date = today.to_string();
         let anchor = anchor.map(day).transpose()?.unwrap_or(today);
-        let days = period_days(period)?;
+        let days = period_days(period, anchor)?;
         let mut q = self
             .connection
             .prepare("SELECT id,title FROM core_areas ORDER BY title COLLATE NOCASE")
@@ -902,6 +986,7 @@ impl Storage {
             goals,
             summary: self.core_progress(&date)?,
             week,
+            hourly: self.core_hourly(&anchor.to_string())?,
             timer: self.core_timer()?,
             focused_goal_id: self.goal()?.map(|g| g.id),
             preferences: self.read_setting("core_preferences")?.unwrap_or_default(),
@@ -950,7 +1035,7 @@ pub fn finish_core_setup(
         .filter(|g| g.status == "open")
         .map(|g| g.id)
         .collect();
-    for id in open.iter().take(3) {
+    for id in open.iter() {
         inner.storage.core_today(*id, true, &snapshot.date)?;
     }
     settings.onboarding.completed = true;

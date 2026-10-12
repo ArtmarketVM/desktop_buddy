@@ -184,10 +184,24 @@ fn relevant_daily_totals_split_at_local_midnight_and_reject_overlaps() {
     assert!(store.record_interval(id, &sample).is_err());
     assert_eq!(store.relevant_seconds(id, Some("2026-10-06")).unwrap(), 1);
     assert_eq!(store.relevant_seconds(id, Some("2026-10-07")).unwrap(), 2);
+    // A goal without steps keeps its relevant time on the goal itself (empty step id).
+    let step_total = |store: &Storage| -> u64 {
+        store
+            .connection
+            .query_row(
+                "SELECT COALESCE(SUM(milliseconds),0)/1000 FROM goal_relevant_step_daily WHERE goal_id=?1 AND step_id=''",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    assert_eq!(step_total(&store), 3);
     store.purge_history(Some(&midnight.to_rfc3339())).unwrap();
     assert_eq!(store.relevant_seconds(id, None).unwrap(), 2);
+    assert_eq!(step_total(&store), 2);
     store.purge_history(None).unwrap();
     assert_eq!(store.relevant_seconds(id, None).unwrap(), 0);
+    assert_eq!(step_total(&store), 0);
 }
 #[test]
 fn matching_can_follow_another_today_goal_without_matching_generic_work_terms() {
@@ -229,4 +243,26 @@ fn matching_can_follow_another_today_goal_without_matching_generic_work_terms() 
         .unwrap()
         .goal_id
         .is_none());
+}
+#[test]
+fn hourly_time_splits_relevant_intervals_at_local_hour_boundaries() {
+    let (mut store, id) = store();
+    let start = chrono::Local
+        .with_ymd_and_hms(2026, 10, 7, 9, 59, 58)
+        .single()
+        .unwrap()
+        .with_timezone(&Utc);
+    let sample = interval(start, "Buddy onboarding", ActivityState::Focused);
+    store.record_interval(id, &sample).unwrap();
+    let hours = store.core_hourly("2026-10-07").unwrap();
+    let seconds = |hour: u8| {
+        hours
+            .iter()
+            .filter(|item| item.hour == hour && item.goal_id == id)
+            .map(|item| item.seconds)
+            .sum::<u64>()
+    };
+    assert_eq!(seconds(9), 2);
+    assert_eq!(seconds(10), 1);
+    assert!(store.core_hourly("2026-10-08").unwrap().is_empty());
 }

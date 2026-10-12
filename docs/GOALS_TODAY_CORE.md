@@ -16,7 +16,7 @@
 
 Goal edits use the existing plan revision. Metadata edits and step edits share the same revision check and transaction. Ordinary step saves preserve metadata. Completion records `completed_at`; reopening clears it. Deletion cascades goal metadata and date membership. History retention clears dated carryover dismissals along with dated progress.
 
-`get_core_snapshot(anchor)` now includes `selected_date`, `date_goals`, and `carryover`; `today` remains tied to the real current local date. `Storage::core_goals_for_date` is the date selector. `dismiss_core_carryover` dismisses a candidate for today. Quick entry adds to Today while fewer than three goals are selected; extra goals remain in All goals.
+`get_core_snapshot(anchor)` now includes `selected_date`, `date_goals`, and `carryover`; `today` remains tied to the real current local date. `Storage::core_goals_for_date` is the date selector. `dismiss_core_carryover` dismisses a candidate for today. Quick entry always adds the goal to Today; Today has no size limit.
 
 ## Developer 2 contract
 

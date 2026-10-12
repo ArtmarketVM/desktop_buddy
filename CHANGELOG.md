@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0 — Progress overview and per-step time
+
+- Redesign Progress as an overview and a single-goal view with a stacked chart and period navigation.
+- Record relevant activity time per step and show minutes for each finished step; Day shows an hourly chart and a calendar picker chooses the period.
+- Buddy chat can add goals and steps, rename, edit, complete and delete them (a deleted goal can be restored with its time for 30 days), and no longer searches the web for questions about the app.
+- Today holds any number of goals.
+- One page layout, callout style for warnings and redrawn switches across the app.
+
 ## 0.25.1 — macOS permission and mascot fixes
 
 - Make Check permission respond, auto-refresh while blocked, and add Reset and ask again for stale Accessibility entries.

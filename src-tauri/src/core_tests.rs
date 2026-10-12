@@ -142,7 +142,7 @@ fn carryover_is_opt_in_and_dismissal_is_persistent_for_only_one_day() {
     assert!(s.core_carryover("2026-10-04").unwrap().is_empty());
 }
 #[test]
-fn quick_goal_retries_never_select_an_unrelated_goal_and_respect_daily_capacity() {
+fn quick_goal_retries_never_select_an_unrelated_goal_and_today_has_no_limit() {
     let mut s = store();
     for i in 0..4 {
         s.core_create_goal(&format!("Goal {i}"), &format!("quick-{i}"), "2026-10-01")
@@ -151,7 +151,7 @@ fn quick_goal_retries_never_select_an_unrelated_goal_and_respect_daily_capacity(
     s.core_create_goal("Retry", "quick-0", "2026-10-02")
         .unwrap();
     assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 4);
-    assert_eq!(s.core_goals_for_date("2026-10-01").unwrap().len(), 3);
+    assert_eq!(s.core_goals_for_date("2026-10-01").unwrap().len(), 4);
     assert!(s.core_goals_for_date("2026-10-02").unwrap().is_empty());
     let id = s.core_snapshot(None).unwrap().goals[0].id;
     s.core_transition(id, "delete").unwrap();
@@ -222,10 +222,11 @@ fn parallel_goals_and_today_are_persisted_without_replacing_the_legacy_focus() {
         .filter(|g| g.status == "open")
         .map(|g| g.id)
         .collect();
-    for id in &open[..3] {
+    // Today holds as many goals as the person wants.
+    for id in &open {
         s.core_today(*id, true, &snap.date).unwrap();
     }
-    assert!(s.core_today(open[3], true, &snap.date).is_err());
+    assert_eq!(s.core_snapshot(None).unwrap().today.len(), open.len());
     s.core_plan_day(&snap.date, true).unwrap();
     assert!(s.core_snapshot(None).unwrap().today.is_empty());
     assert_eq!(s.core_snapshot(None).unwrap().day_mode, "no_plan");
@@ -418,4 +419,56 @@ fn unticking_a_step_reopens_a_completed_goal_without_resetting_other_steps() {
     assert_eq!(snap.goals[0].status, "open");
     assert!(snap.goals[0].plan.steps[0].done);
     assert!(!snap.goals[0].plan.steps[1].done);
+}
+#[test]
+fn relevant_time_is_attributed_to_the_current_open_step() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![GoalDraft {
+            title: "Timed".into(),
+            area: "Work".into(),
+            steps: vec!["First".into(), "Second".into()],
+        }],
+        "step-time",
+    )
+    .unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    let goal = &snap.goals[0];
+    let (first, second) = (goal.plan.steps[0].id.clone(), goal.plan.steps[1].id.clone());
+    // With nothing chosen, the first unfinished step gets the time.
+    assert_eq!(s.attributed_step(goal.id).unwrap(), first);
+    let mut plan = goal.plan.clone();
+    plan.current_step = Some(second.clone());
+    s.core_save_goal("Timed", "Work", plan).unwrap();
+    assert_eq!(s.attributed_step(goal.id).unwrap(), second);
+    let mut plan = s.core_snapshot(None).unwrap().goals[0].plan.clone();
+    plan.steps[1].done = true;
+    plan.current_step = None;
+    s.core_save_goal("Timed", "Work", plan).unwrap();
+    // The second step is done, so the first one is the open step again.
+    assert_eq!(s.attributed_step(goal.id).unwrap(), first);
+    s.connection
+        .execute(
+            "INSERT INTO goal_relevant_step_daily(day,goal_id,step_id,milliseconds) VALUES('2026-10-12',?1,?2,90000)",
+            params![goal.id, first],
+        )
+        .unwrap();
+    let times = s.step_times(goal.id, "2026-10-12").unwrap();
+    assert_eq!(times.len(), 1);
+    assert_eq!(times[0].seconds, 90);
+}
+#[test]
+fn periods_cover_whole_calendar_months_and_years_ending_at_the_anchor() {
+    let s = store();
+    let length = |anchor: &str, period: &str| {
+        s.core_snapshot_period(Some(anchor), Some(period))
+            .unwrap()
+            .week
+            .len()
+    };
+    assert_eq!(length("2026-02-28", "month"), 28);
+    assert_eq!(length("2026-09-30", "month"), 30);
+    assert_eq!(length("2025-12-31", "year"), 365);
+    assert_eq!(length("2026-10-07", "week"), 7);
+    assert_eq!(length("2026-10-07", "day"), 1);
 }
