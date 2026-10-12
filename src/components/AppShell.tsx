@@ -16,6 +16,8 @@ import {
 import type { UserProfile } from "../types";
 import type { UpdateSnapshot } from "../updates/controller";
 import { UpdateEntry } from "./Updates";
+import { isMac } from "../api/platform";
+import { readSidebarCollapsed, isSidebarShortcut } from "./sidebar";
 
 export type WorkspacePage =
   | "focus"
@@ -96,14 +98,30 @@ export function AppShell({
   onReset?: () => void;
   onQuickGoal?: () => void;
 }) {
-  const [collapsed, setCollapsed] = useState(
-    () =>
-      typeof localStorage !== "undefined" &&
-      localStorage.getItem("buddy-sidebar-collapsed") === "true",
-  );
+  const [collapsed, setCollapsed] = useState(readSidebarCollapsed);
+  const sidebarToggle = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    localStorage.setItem("buddy-sidebar-collapsed", String(collapsed));
+    try {
+      localStorage.setItem("buddy-sidebar-collapsed", String(collapsed));
+    } catch {
+      // The control still works when browser storage is unavailable.
+    }
   }, [collapsed]);
+  useEffect(() => {
+    const toggle = (event: KeyboardEvent) => {
+      if (!isSidebarShortcut(event, isMac) || event.defaultPrevented) return;
+      if (sidebarToggle.current?.closest("[inert]")) return;
+      const target = event.target;
+      if (target instanceof Element && target.closest("[inert], [role=dialog]"))
+        return;
+      if (document.querySelector("[role=dialog][aria-modal=true]")) return;
+      event.preventDefault();
+      setCollapsed((previous) => !previous);
+    };
+    document.addEventListener("keydown", toggle);
+    return () => document.removeEventListener("keydown", toggle);
+  }, []);
+  const sidebarAction = collapsed ? "Expand sidebar" : "Collapse sidebar";
   const [menu, setMenu] = useState(false);
   const menuRoot = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -141,27 +159,32 @@ export function AppShell({
       className={`app-shell page-${page} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
     >
       <aside className="sidebar" aria-label="Workspace navigation">
-        <div className="workspace-brand">
-          <span className="brand-mark">b.</span>
-          <div>
-            Buddy<span>Personal workspace</span>
+        <div className="sidebar-header">
+          <button
+            ref={sidebarToggle}
+            type="button"
+            className="text-button sidebar-collapse"
+            aria-label={sidebarAction}
+            title={`${sidebarAction} (${isMac ? "Cmd" : "Ctrl"} + \\)`}
+            aria-expanded={!collapsed}
+            aria-controls="workspace-navigation"
+            aria-keyshortcuts={isMac ? "Meta+\\" : "Control+\\"}
+            onClick={() => setCollapsed((previous) => !previous)}
+          >
+            {collapsed ? (
+              <PanelLeftOpen size={20} aria-hidden="true" />
+            ) : (
+              <PanelLeftClose size={20} aria-hidden="true" />
+            )}
+          </button>
+          <div className="workspace-brand" aria-hidden={collapsed || undefined}>
+            <div>
+              Buddy<span>Personal workspace</span>
+            </div>
           </div>
         </div>
-        <button
-          className="text-button sidebar-collapse"
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          aria-expanded={!collapsed}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <PanelLeftOpen size={18} />
-          ) : (
-            <PanelLeftClose size={18} />
-          )}
-        </button>
         <span className="eyebrow nav-heading">WORKSPACE</span>
-        <nav>
+        <nav id="workspace-navigation" aria-label="Workspace pages">
           {pages.slice(0, 4).map((item) => (
             <button
               key={item.id}
