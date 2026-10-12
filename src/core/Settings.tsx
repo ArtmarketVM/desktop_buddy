@@ -1,3 +1,4 @@
+import { TrackingStatus } from "./TrackingStatus";
 import { MacPermissions } from "../components/MacPermissions";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
@@ -37,11 +38,13 @@ export function CoreSettings({
   onChanged,
   onDirty,
   onUpdates,
+  sectionRequest,
 }: {
   data: Dashboard;
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
   onUpdates: () => void;
+  sectionRequest?: { section: "Privacy"; revision: number };
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
   const [profile, setProfile] = useState(settings.profile);
@@ -55,6 +58,9 @@ export function CoreSettings({
   const [dirty, setDirty] = useState(false);
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
   const [section, setSection] = useState<(typeof sections)[number]>("General");
+  useEffect(() => {
+    if (sectionRequest) setSection(sectionRequest.section);
+  }, [sectionRequest]);
   useEffect(() => {
     let active = true;
     if (desktop)
@@ -193,6 +199,19 @@ export function CoreSettings({
               }}
             />
           </label>
+          <p className="helper" role="status">
+            {data.buddy.desktop_visible
+              ? "Buddy is visible on your desktop. Click to chat or drag to move."
+              : (data.buddy.visibility_reason ??
+                "Desktop visibility is being checked.")}
+          </p>
+          <button
+            className="text-button"
+            disabled={blocked || !desktop}
+            onClick={() => void run(api.resetBuddyPosition)}
+          >
+            Reset Buddy position
+          </button>
           <label className="toggle-row">
             <span>Start when I sign in</span>
             <input
@@ -346,12 +365,7 @@ export function CoreSettings({
               </button>
             </div>
           )}
-          <p className="helper" role="status">
-            {data.status.tracking_error ||
-              (data.status.tracking
-                ? "Tracking on. Nebius can identify the active goal when automatic matching is enabled."
-                : "Tracking paused · no activity is collected.")}
-          </p>
+          <TrackingStatus dashboard={data} compact />
           <fieldset disabled={blocked}>
             <div className="working-days">
               <span>Working days</span>

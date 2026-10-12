@@ -156,3 +156,20 @@ fn discards_results_after_goal_or_consent_changes() {
     inner.buddy.view.preferences.proactive = false;
     assert!(!valid(&inner, goal.id, 1).unwrap());
 }
+
+#[test]
+fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.buddy.view.preferences.suggestions_only = false;
+    inner.buddy.view.companion.preferences.hide_fullscreen = true;
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, false), 1);
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 0);
+    inner.buddy.view.companion.chat_open = true;
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 3);
+    inner.buddy.view.companion.chat_open = false;
+    inner.buddy.view.companion.preferences.hide_fullscreen = false;
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 1);
+    inner.buddy.view.avatar.visible = false;
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, false), 0);
+}

@@ -176,6 +176,9 @@ export function AppShell({
             ) : (
               <PanelLeftClose size={20} aria-hidden="true" />
             )}
+            <span className="sidebar-toggle-label" aria-hidden="true">
+              {collapsed ? "Menu" : "Hide"}
+            </span>
           </button>
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>

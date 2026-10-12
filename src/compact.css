@@ -1,5 +1,5 @@
 .app-shell {
-  --sidebar-width: 224px;
+  --sidebar-width: 192px;
   --sidebar-motion: 180ms cubic-bezier(0.2, 0, 0, 1);
 }
 .app-shell.sidebar-collapsed {
@@ -36,12 +36,22 @@
   padding: 0;
   margin: 0;
   border-radius: 8px;
-  color: var(--muted);
+  color: var(--text);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  grid-template-rows: 20px 12px;
+  align-content: center;
+  gap: 2px;
   transform: none;
+}
+.sidebar-toggle-label {
+  font-size: 10px;
+  line-height: 12px;
+  font-weight: 600;
 }
 .sidebar .sidebar-collapse:hover {
   color: var(--text);
-  background: var(--raised);
+  background: var(--accent-soft);
 }
 .sidebar .sidebar-collapse:focus-visible {
   outline: 2px solid var(--accent);
@@ -51,6 +61,11 @@
   padding: 0;
   min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+}
+.sidebar .workspace-brand > div > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar .nav-heading {
   flex: 0 0 14px;
@@ -85,6 +100,10 @@
 .sidebar .update-icon {
   flex-shrink: 0;
 }
+.sidebar .update-entry small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .sidebar .profile-entry {
   height: 60px;
   padding: 14px 6px 6px;
@@ -109,12 +128,12 @@
 }
 @media (max-width: 1100px) {
   .app-shell:not(.sidebar-collapsed) {
-    --sidebar-width: 204px;
+    --sidebar-width: 192px;
   }
 }
 @media (max-width: 850px) {
   .app-shell:not(.sidebar-collapsed) {
-    --sidebar-width: 190px;
+    --sidebar-width: 184px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -513,4 +532,58 @@
   box-shadow: none !important;
   outline: none !important;
   filter: none;
+}
+
+.tracking-settings-status {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  margin-top: 14px;
+}
+.tracking-status-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.tracking-health-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.tracking-settings-status.active .tracking-health-dot {
+  background: var(--accent);
+}
+.tracking-settings-status.attention .tracking-health-dot {
+  background: #b78034;
+}
+.tracking-health-label {
+  color: var(--muted);
+  font-size: 11px;
+  margin-left: auto;
+}
+.tracking-goal-context {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.tracking-goal-context strong {
+  color: var(--muted);
+  font-weight: 500;
+  margin-right: 5px;
+}
+.tracking-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 11px;
+  padding-block: 6px;
+}
+.tracking-details .helper {
+  margin: 6px 0;
 }

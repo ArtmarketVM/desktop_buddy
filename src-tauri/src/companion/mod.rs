@@ -777,11 +777,7 @@ pub fn open_companion_chat(
         inner.companion.view.notice = None;
         crate::buddy::sync(&app, &mut inner)?;
     }
-    if crate::buddy::workspace_visible(&app) {
-        if let Some(window) = app.get_webview_window("main") {
-            let _ = window.set_focus();
-        }
-    } else if let Some(window) = app.get_webview_window("buddy") {
+    if let Some(window) = app.get_webview_window("buddy") {
         window.set_focus().map_err(|_| "Could not focus Buddy")?;
     }
     Ok(())

@@ -57,6 +57,7 @@ export const api = {
   installedApps: () => invoke<InstalledApp[]>("get_installed_apps"),
   showBuddy: (visible: boolean) =>
     invoke<void>("show_desktop_buddy", { visible }),
+  resetBuddyPosition: () => invoke<void>("reset_buddy_position"),
   feedbackDraft: (message: string, replyEmail: string) =>
     invoke<void>("open_feedback_draft", { message, replyEmail }),
   contactEndpoint: () => invoke<string | null>("get_contact_endpoint"),

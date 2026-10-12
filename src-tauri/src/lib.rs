@@ -60,9 +60,6 @@ pub fn run() {
                 let _ = window.show();
                 let _ = window.set_focus();
             }
-            if let Some(buddy) = app.get_webview_window("buddy") {
-                let _ = buddy.hide();
-            }
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
@@ -238,10 +235,6 @@ pub fn run() {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
-                } else if matches!(event, tauri::WindowEvent::Focused(true)) {
-                    if let Some(buddy) = window.app_handle().get_webview_window("buddy") {
-                        let _ = buddy.hide();
-                    }
                 }
             }
             if window.label() == "buddy" {

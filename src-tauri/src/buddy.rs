@@ -32,6 +32,8 @@ impl Runtime {
                 decision: None,
                 snoozed_until: None,
                 quiet_reason: None,
+                desktop_visible: false,
+                visibility_reason: Some("Starting Buddy".into()),
             },
             revision: 0,
             last_search: None,
@@ -87,9 +89,26 @@ pub fn snoozed(view: &BuddyView) -> bool {
         .is_some_and(|t| t > chrono::Utc::now().timestamp())
 }
 
-pub(crate) fn workspace_visible(app: &AppHandle) -> bool {
-    app.get_webview_window("main")
-        .is_some_and(|window| window.is_visible().unwrap_or(false))
+pub fn display_mode(status: &Status, view: &BuddyView, fullscreen: bool) -> u8 {
+    if fullscreen && view.companion.preferences.hide_fullscreen && !view.companion.chat_open {
+        0
+    } else {
+        mode(status, view)
+    }
+}
+
+fn visibility_reason(view: &BuddyView, fullscreen: bool) -> Option<String> {
+    if !view.avatar.visible {
+        Some("Hidden in Settings".into())
+    } else if fullscreen && view.companion.preferences.hide_fullscreen {
+        Some("Hidden in full-screen apps".into())
+    } else if snoozed(view) {
+        Some("Buddy is snoozed".into())
+    } else if view.preferences.suggestions_only {
+        Some("Waiting for a suggestion".into())
+    } else {
+        None
+    }
 }
 
 pub fn remember_position(
@@ -203,13 +222,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     {
         inner.buddy.clear();
     }
-    let mut mode = mode(&inner.status, &inner.buddy.view);
-    if inner.buddy.fullscreen && inner.companion.view.preferences.hide_fullscreen {
-        mode = 0;
-    }
-    if workspace_visible(app) {
-        mode = 0;
-    }
+    let mut mode = display_mode(&inner.status, &inner.buddy.view, inner.buddy.fullscreen);
     if mode != 2 && inner.buddy.shown.is_some() {
         inner.buddy.clear();
     }
@@ -219,7 +232,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         && !inner.storage.reserve_nudge(&inner.buddy.view.preferences)?
     {
         inner.buddy.clear();
-        mode = self::mode(&inner.status, &inner.buddy.view);
+        mode = display_mode(&inner.status, &inner.buddy.view, inner.buddy.fullscreen);
     }
     if mode == 2 && inner.buddy.window_mode != 2 && inner.companion.view.intervention.is_none() {
         let now = chrono::Utc::now().timestamp();
@@ -257,16 +270,20 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
                 .write_setting("companion_memory", &inner.companion.memory)?;
         } else {
             inner.buddy.clear();
-            mode = self::mode(&inner.status, &inner.buddy.view);
+            mode = display_mode(&inner.status, &inner.buddy.view, inner.buddy.fullscreen);
         }
-    }
-    if mode == inner.buddy.window_mode {
-        crate::tray::sync(app, inner);
-        return Ok(());
     }
     let window = app
         .get_webview_window("buddy")
         .ok_or("Buddy window unavailable")?;
+    if mode == inner.buddy.window_mode && window.is_visible().ok() == Some(mode != 0) {
+        inner.buddy.view.desktop_visible = mode != 0;
+        inner.buddy.view.visibility_reason = (mode == 0)
+            .then(|| visibility_reason(&inner.buddy.view, inner.buddy.fullscreen))
+            .flatten();
+        crate::tray::sync(app, inner);
+        return Ok(());
+    }
     if mode == 0 {
         window.hide().map_err(|_| "Could not hide Buddy")?;
     } else {
@@ -328,6 +345,10 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         window.show().map_err(|_| "Could not show Buddy")?;
     }
     inner.buddy.window_mode = mode;
+    inner.buddy.view.desktop_visible = mode != 0;
+    inner.buddy.view.visibility_reason = (mode == 0)
+        .then(|| visibility_reason(&inner.buddy.view, inner.buddy.fullscreen))
+        .flatten();
     crate::tray::sync(app, inner);
     Ok(())
 }
@@ -452,9 +473,6 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
     window
         .unminimize()
         .map_err(|_| "Could not restore workspace")?;
-    if let Some(buddy) = app.get_webview_window("buddy") {
-        let _ = buddy.hide();
-    }
     window
         .set_focus()
         .map_err(|_| "Could not focus workspace".to_string())

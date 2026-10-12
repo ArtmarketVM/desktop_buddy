@@ -56,6 +56,7 @@ export interface SearchResult {
 export interface Status {
   tracking: boolean;
   tracking_error?: string | null;
+  last_collected_at?: string | null;
   ai_enabled: boolean;
   dnd: boolean;
   demo: boolean;
@@ -121,6 +122,8 @@ export interface BuddyView {
   decision: Decision | null;
   snoozed_until: number | null;
   quiet_reason: string | null;
+  desktop_visible?: boolean;
+  visibility_reason?: string | null;
 }
 export interface Recommendation {
   id: number;

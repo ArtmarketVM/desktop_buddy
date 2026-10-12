@@ -56,6 +56,10 @@ export default function App() {
   const [setupDirty, setSetupDirty] = useState(false);
   const dirty = draftDirty || settingsDirty || setupDirty;
   const [page, setPage] = useState<WorkspacePage>("focus");
+  const [settingsSection, setSettingsSection] = useState<{
+    section: "Privacy";
+    revision: number;
+  }>();
   const [loaded, setLoaded] = useState(!desktop);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
@@ -277,7 +281,13 @@ export default function App() {
               >
                 <Experience
                   dashboard={data}
-                  onSettings={() => setPage("settings")}
+                  onSettings={() => {
+                    setSettingsSection({
+                      section: "Privacy",
+                      revision: Date.now(),
+                    });
+                    setPage("settings");
+                  }}
                   enhancement={desktop ? goalEnhancement : undefined}
                   page={page}
                   onDirty={setDraftDirty}
@@ -296,6 +306,7 @@ export default function App() {
                   onChanged={refresh}
                   onDirty={setSettingsDirty}
                   onUpdates={() => setUpdatesOpen(true)}
+                  sectionRequest={settingsSection}
                 />
               </div>
             </>

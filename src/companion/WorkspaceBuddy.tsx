@@ -15,9 +15,11 @@ import { defaultCompanionView } from "./types";
 export function WorkspaceBuddy({
   dashboard,
   onChanged,
+  showLauncher = true,
 }: {
   dashboard: Dashboard;
   onChanged: () => Promise<void>;
+  showLauncher?: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "text" | "voice">("idle");
   const [state, setState] = useState<AvatarState>("idle");
@@ -53,6 +55,7 @@ export function WorkspaceBuddy({
     dashboard.buddy.avatar ??
     dashboard.user_settings?.profile.avatar ??
     defaultUserSettings.profile.avatar;
+  if (!showLauncher && mode === "idle") return null;
   return (
     <div className="workspace-buddy" ref={root}>
       {mode !== "idle" && (
@@ -82,29 +85,36 @@ export function WorkspaceBuddy({
           />
         </div>
       )}
-      <button
-        className="workspace-buddy-avatar"
-        aria-label="Open Buddy chat"
-        onClick={() => setMode(mode === "idle" ? "text" : "idle")}
-      >
-        <Avatar appearance={{ ...appearance, visible: true }} state={state} />
-      </button>
-      <div className="buddy-action-bar" aria-label="Buddy actions">
-        <button
-          aria-label="Write to Buddy"
-          title="Write to Buddy"
-          onClick={() => setMode("text")}
-        >
-          <SquarePen size={17} />
-        </button>
-        <button
-          aria-label="Talk to Buddy"
-          title="Talk to Buddy"
-          onClick={() => setMode("voice")}
-        >
-          <Mic size={17} />
-        </button>
-      </div>
+      {showLauncher && (
+        <>
+          <button
+            className="workspace-buddy-avatar"
+            aria-label="Open Buddy chat"
+            onClick={() => setMode(mode === "idle" ? "text" : "idle")}
+          >
+            <Avatar
+              appearance={{ ...appearance, visible: true }}
+              state={state}
+            />
+          </button>
+          <div className="buddy-action-bar" aria-label="Buddy actions">
+            <button
+              aria-label="Write to Buddy"
+              title="Write to Buddy"
+              onClick={() => setMode("text")}
+            >
+              <SquarePen size={17} />
+            </button>
+            <button
+              aria-label="Talk to Buddy"
+              title="Talk to Buddy"
+              onClick={() => setMode("voice")}
+            >
+              <Mic size={17} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }
