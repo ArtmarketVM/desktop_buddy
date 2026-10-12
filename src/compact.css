@@ -8,6 +8,7 @@
 .app-shell .sidebar {
   width: var(--sidebar-width);
   padding: 16px 14px 12px;
+  overflow-x: hidden;
   transition: width var(--sidebar-motion);
 }
 .app-shell .main {
@@ -56,6 +57,7 @@
   height: 14px;
   margin: 20px 13px 8px;
   white-space: nowrap;
+  overflow: hidden;
 }
 .sidebar nav {
   margin-top: 0;
