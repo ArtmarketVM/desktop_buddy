@@ -332,6 +332,7 @@ fn chat_actions_add_goals_and_steps_and_report_exact_results() {
             goal_id,
             title: title.map(str::to_string),
             steps: steps.iter().map(|s| s.to_string()).collect(),
+            ..Default::default()
         };
     let lines = apply_chat_actions(
         &mut storage,
@@ -393,7 +394,7 @@ fn add_requests_are_classified_into_strict_intents() {
     assert_eq!(intent.goal_id, Some(3));
     assert_eq!(intent.steps.len(), 2);
     assert!(parse_intent(&ok(
-        json!({"intent":"delete_goal","goal_id":3,"title":null,"steps":[]})
+        json!({"intent":"format_disk","goal_id":3,"title":null,"steps":[]})
     ))
     .is_err());
     assert!(parse_intent(&ok(
@@ -411,6 +412,7 @@ fn chat_goals_go_to_today_and_are_never_duplicated() {
             goal_id,
             title: title.map(str::to_string),
             steps: steps.iter().map(|s| s.to_string()).collect(),
+            ..Default::default()
         };
     let lines = apply_chat_actions(
         &mut storage,
@@ -475,4 +477,155 @@ fn chat_goals_go_to_today_and_are_never_duplicated() {
         .find(|g| g.title == "Fourth goal")
         .unwrap();
     assert!(snapshot.today.contains(&fourth.id));
+}
+#[test]
+fn chat_can_rename_edit_complete_and_remove_but_reports_what_it_did() {
+    let mut storage = store();
+    let id = goal(&mut storage, "Old name", "chat-edit");
+    apply_chat_actions(
+        &mut storage,
+        Some(id),
+        &[ChatAction {
+            kind: "add_steps".into(),
+            steps: vec!["write the intro".into(), "write the outro".into()],
+            ..Default::default()
+        }],
+    );
+    let run = |storage: &mut Storage,
+               kind: &str,
+               title: Option<&str>,
+               target: Option<&str>,
+               new_text: Option<&str>| {
+        apply_chat_actions(
+            storage,
+            Some(id),
+            &[ChatAction {
+                kind: kind.into(),
+                goal_id: Some(id),
+                title: title.map(str::to_string),
+                target: target.map(str::to_string),
+                new_text: new_text.map(str::to_string),
+                ..Default::default()
+            }],
+        )
+        .remove(0)
+    };
+    let steps = |storage: &Storage| -> Vec<(String, bool)> {
+        storage.core_snapshot(None).unwrap().goals[0]
+            .plan
+            .steps
+            .iter()
+            .map(|s| (s.text.clone(), s.done))
+            .collect()
+    };
+    assert!(
+        run(&mut storage, "rename_goal", Some("new name"), None, None)
+            .contains("Renamed \"Old name\" to \"New name\"")
+    );
+    assert_eq!(
+        storage.core_snapshot(None).unwrap().goals[0].title,
+        "New name"
+    );
+    assert!(run(
+        &mut storage,
+        "edit_step",
+        None,
+        Some("intro"),
+        Some("write a better intro")
+    )
+    .contains("Changed the step"));
+    assert!(run(&mut storage, "complete_step", None, Some("outro"), None).contains("Marked"));
+    assert_eq!(
+        steps(&storage),
+        vec![
+            ("Write a better intro".to_string(), false),
+            ("Write the outro".to_string(), true)
+        ]
+    );
+    // Ambiguous or unknown steps are reported, never guessed.
+    assert!(
+        run(&mut storage, "delete_step", None, Some("write"), None).starts_with("More than one")
+    );
+    assert!(
+        run(&mut storage, "delete_step", None, Some("conclusion"), None).starts_with("I couldn't")
+    );
+    assert!(run(
+        &mut storage,
+        "delete_step",
+        None,
+        Some("write the outro"),
+        None
+    )
+    .contains("Removed the step"));
+    assert_eq!(steps(&storage).len(), 1);
+    // Completing and reopening a goal.
+    assert!(run(&mut storage, "complete_goal", None, None, None).contains("Completed"));
+    assert_eq!(
+        storage.core_snapshot(None).unwrap().goals[0].status,
+        "completed"
+    );
+    assert!(run(&mut storage, "reopen_goal", None, None, None).contains("Reopened"));
+    assert_eq!(storage.core_snapshot(None).unwrap().goals[0].status, "open");
+}
+#[test]
+fn chat_deletes_at_once_and_can_restore_the_goal_with_its_steps() {
+    let mut storage = store();
+    let id = goal(&mut storage, "Delete me", "chat-delete");
+    apply_chat_actions(
+        &mut storage,
+        Some(id),
+        &[ChatAction {
+            kind: "add_steps".into(),
+            steps: vec!["first step".into(), "second step".into()],
+            ..Default::default()
+        }],
+    );
+    let mut plan = storage.core_snapshot(None).unwrap().goals[0].plan.clone();
+    plan.steps[0].done = true;
+    storage
+        .core_save_goal_details("Delete me", "General", plan, None)
+        .unwrap();
+    let line = apply_chat_actions(
+        &mut storage,
+        None,
+        &[ChatAction {
+            kind: "delete_goal".into(),
+            goal_id: Some(id),
+            ..Default::default()
+        }],
+    )
+    .remove(0);
+    assert!(line.starts_with("Deleted \"Delete me\""));
+    assert!(storage.core_snapshot(None).unwrap().goals.is_empty());
+    assert_eq!(deleted_goals(&storage).len(), 1);
+    let line = apply_chat_actions(
+        &mut storage,
+        None,
+        &[ChatAction {
+            kind: "restore_goal".into(),
+            ..Default::default()
+        }],
+    )
+    .remove(0);
+    assert!(line.starts_with("Restored \"Delete me\" with 2 steps"));
+    let snapshot = storage.core_snapshot(None).unwrap();
+    assert_eq!(snapshot.goals.len(), 1);
+    let steps: Vec<_> = snapshot.goals[0]
+        .plan
+        .steps
+        .iter()
+        .map(|s| (s.text.as_str(), s.done))
+        .collect();
+    assert_eq!(steps, vec![("First step", true), ("Second step", false)]);
+    assert!(deleted_goals(&storage).is_empty());
+    let again = apply_chat_actions(
+        &mut storage,
+        None,
+        &[ChatAction {
+            kind: "restore_goal".into(),
+            ..Default::default()
+        }],
+    )
+    .remove(0);
+    assert_eq!(again, "There is no deleted goal to restore.");
 }

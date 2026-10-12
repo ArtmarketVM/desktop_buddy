@@ -20,8 +20,7 @@ A simpler Progress screen, with minutes per step. Shared by Windows and macOS.
   website", "add steps to the desktop app goal") and Buddy works out sensible steps itself instead of
   asking for exact wording. A separate strictly structured request decides whether the message is an
   add request; the app applies it and replies with the exact result and the list of added steps, so
-  Buddy can no longer claim a change that did not happen. Existing
-  goals and steps cannot be edited, completed or deleted from chat.
+  Buddy can no longer claim a change that did not happen. Chat can also rename a goal, edit, delete, complete or reopen a step, complete or reopen a goal, and move a goal on or off Today. Deleting a goal asks for confirmation first ("Reply yes to confirm") and expires after ten minutes.
 - Questions about Desktop Buddy itself are answered from built-in product facts, with no web search and
   no links to other products' guides.
 - Warnings and notices share one style everywhere: a flat strip with an icon, a short sentence and the
