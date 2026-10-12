@@ -1721,3 +1721,13 @@ p.error .text-button {
 .mac-permissions {
   margin-bottom: 12px;
 }
+.progress-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.progress-bar .progress-nav {
+  margin-bottom: 0;
+}

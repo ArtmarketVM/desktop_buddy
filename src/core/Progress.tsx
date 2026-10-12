@@ -226,8 +226,8 @@ export function Progress({
       className="core-section progress-history progress-screen"
       aria-label="Progress"
     >
-      <div className="progress-top">
-        {focus ? (
+      {focus && (
+        <div className="progress-top">
           <button
             className="text-button progress-back"
             onClick={() => setSelected(null)}
@@ -235,9 +235,38 @@ export function Progress({
             <ChevronLeft size={16} />
             Progress
           </button>
-        ) : (
-          <span />
-        )}
+        </div>
+      )}
+      {focus && (
+        <h2 className="progress-goal-title">{sentenceCase(focus.title)}</h2>
+      )}
+      <div className="progress-bar">
+        <div className="progress-nav" role="group" aria-label="Choose period">
+          <button
+            className="text-button"
+            aria-label={`Previous ${period}`}
+            disabled={busy}
+            onClick={() => onWeek(shiftPeriod(-1))}
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <PeriodPicker
+            period={period}
+            newest={newest}
+            today={snapshot.date}
+            label={rangeLabel}
+            disabled={busy}
+            onPick={onWeek}
+          />
+          <button
+            className="text-button"
+            aria-label={`Next ${period}`}
+            disabled={busy || newest >= snapshot.date}
+            onClick={() => onWeek(shiftPeriod(1))}
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
         <div className="segmented-control" role="tablist" aria-label="Period">
           {periodOptions.map((item) => (
             <button
@@ -255,35 +284,6 @@ export function Progress({
             </button>
           ))}
         </div>
-      </div>
-      {focus && (
-        <h2 className="progress-goal-title">{sentenceCase(focus.title)}</h2>
-      )}
-      <div className="progress-nav" role="group" aria-label="Choose period">
-        <button
-          className="text-button"
-          aria-label={`Previous ${period}`}
-          disabled={busy}
-          onClick={() => onWeek(shiftPeriod(-1))}
-        >
-          <ChevronLeft size={16} />
-        </button>
-        <PeriodPicker
-          period={period}
-          newest={newest}
-          today={snapshot.date}
-          label={rangeLabel}
-          disabled={busy}
-          onPick={onWeek}
-        />
-        <button
-          className="text-button"
-          aria-label={`Next ${period}`}
-          disabled={busy || newest >= snapshot.date}
-          onClick={() => onWeek(shiftPeriod(1))}
-        >
-          <ChevronRight size={16} />
-        </button>
       </div>
       <div className="progress-total">{total > 0 ? duration(total) : "0m"}</div>
       <p className="progress-sub">
