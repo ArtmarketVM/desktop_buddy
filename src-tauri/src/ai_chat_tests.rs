@@ -8,7 +8,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),16);
+            assert_eq!(context["registry"].as_array().unwrap().len(),19);
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
@@ -1237,4 +1237,214 @@ async fn inspect_skill_uses_validated_goal_id_to_retrieve_checkpoint_for_memory_
     .unwrap();
     assert!(reply.0.contains("write the pitch"));
     assert!(!reply.2);
+}
+
+#[tokio::test]
+async fn park_chat_commands_generate_then_validate_then_save_checkpoint() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    for phrase in [
+        "Park this",
+        "Сохрани, где я остановился",
+        "Запомни это, мне надо переключиться",
+    ] {
+        let mut storage = store();
+        let id = goal(&mut storage, "Hackathon", "park-chat");
+        storage.transition_goal(id, "resume").unwrap();
+        let conversation = storage.current_conversation().unwrap();
+        let state = AppState::new(storage).unwrap();
+        let server = MockServer::start().await;
+        let instruction = phrase.to_string();
+        Mock::given(method("POST")).respond_with(move |request: &Request| {
+            let body:Value = serde_json::from_slice(&request.body).unwrap();
+            let context:Value = serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            let output = match body["response_format"]["json_schema"]["name"].as_str().unwrap() {
+                "buddy_skill_plan" => {
+                    assert_eq!(context["state"]["focused_goal_id"], id);
+                    json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"park_context","input":{"goal":{"goal_id":null,"reference":"active_goal"},"checkpoint":null,"current_app":null},"instruction":instruction}],"clarification":null})
+                },
+                "buddy_park_checkpoint" => {
+                    assert_eq!(context["goal"]["id"], id);
+                    assert!(context.get("meaningful_events").is_some());
+                    assert!(context.get("personal_memory").is_some());
+                    assert!(context.get("window_text").is_none());
+                    assert!(context.get("accessibility_text").is_none());
+                    json!({"summary":"Scope identified; progress beyond this is unknown","next_action":"Draft requirements","waiting_for":"Team feedback"})
+                },
+                "buddy_skill_result" => {
+                    assert_eq!(context["result"]["results"][0]["data"]["checkpoint"]["next_action"], "Draft requirements");
+                    json!({"message":"Hackathon parked. Next: draft requirements. Waiting for team feedback."})
+                },
+                _ => panic!("Unexpected provider operation"),
+            };
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+        }).expect(3).mount(&server).await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let reply = structured_chat_actions_with_service(
+            &json!({"latest_request":phrase,"conversation":[]}),
+            conversation,
+            &state,
+            0,
+            true,
+            &service,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(reply.2);
+        let inner = state.inner.lock().unwrap();
+        let saved = inner.storage.work_context(id).unwrap().unwrap();
+        assert_eq!(
+            saved.context.next_action.as_deref(),
+            Some("Draft requirements")
+        );
+        assert_eq!(saved.context.waiting_for.as_deref(), Some("Team feedback"));
+        assert!(inner.storage.goal().unwrap().is_none());
+    }
+}
+
+#[tokio::test]
+async fn resume_and_inspect_chat_use_exact_context_and_never_other_lanes() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    for (phrase, name, focuses) in [
+        ("Верни меня к хакатону", "resume_context", true),
+        ("Продолжим Deloitte", "resume_context", true),
+        ("Где я остановился?", "inspect_work_context", false),
+        (
+            "Что я делал здесь последний раз?",
+            "inspect_work_context",
+            false,
+        ),
+    ] {
+        let mut storage = store();
+        let id = goal(&mut storage, "Deloitte Hackathon", "resume-chat");
+        let other = goal(&mut storage, "Other project", "other-chat");
+        storage
+            .park_work_context(
+                id,
+                crate::work_context::CheckpointDraft {
+                    summary: "Outline saved".into(),
+                    next_action: "Review requirements".into(),
+                    waiting_for: Some("Team feedback".into()),
+                },
+                None,
+            )
+            .unwrap();
+        storage
+            .park_work_context(
+                other,
+                crate::work_context::CheckpointDraft {
+                    summary: "UNRELATED PROJECT CHECKPOINT".into(),
+                    next_action: "Other action".into(),
+                    waiting_for: None,
+                },
+                None,
+            )
+            .unwrap();
+        let conversation = storage.current_conversation().unwrap();
+        let state = AppState::new(storage).unwrap();
+        let server = MockServer::start().await;
+        let instruction = phrase.to_string();
+        Mock::given(method("POST")).respond_with(move |request: &Request| {
+            let body:Value = serde_json::from_slice(&request.body).unwrap();
+            let context:Value = serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            let output = if body["response_format"]["json_schema"]["name"] == "buddy_skill_plan" {
+                let mut input=json!({"goal":{"goal_id":id,"reference":null}});
+                if name=="resume_context" {input["set_focus"]=json!(true);}
+                json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":name,"input":input,"instruction":instruction}],"clarification":null})
+            } else {
+                assert_eq!(context["result"]["results"][0]["data"]["checkpoint"]["summary"], "Outline saved");
+                assert!(!context.to_string().contains("UNRELATED PROJECT CHECKPOINT"));
+                assert!(context["personal_memory"].is_object());
+                json!({"message":"Outline saved. Next: review requirements. Waiting for team feedback."})
+            };
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+        }).expect(2).mount(&server).await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let reply = structured_chat_actions_with_service(
+            &json!({"latest_request":phrase,"conversation":[]}),
+            conversation,
+            &state,
+            0,
+            true,
+            &service,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(reply.2, focuses);
+        let inner = state.inner.lock().unwrap();
+        assert_eq!(
+            inner.storage.goal().unwrap().map(|g| g.id),
+            if focuses { Some(id) } else { None }
+        );
+        assert!(inner
+            .storage
+            .work_context(other)
+            .unwrap()
+            .unwrap()
+            .resumed_at
+            .is_none());
+    }
+}
+
+#[tokio::test]
+async fn invalid_or_stale_generated_checkpoint_never_parks_the_goal() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    for stale in [false, true] {
+        let mut storage = store();
+        let id = goal(&mut storage, "Hackathon", "invalid-park");
+        storage.transition_goal(id, "resume").unwrap();
+        let conversation = storage.current_conversation().unwrap();
+        let state = std::sync::Arc::new(AppState::new(storage).unwrap());
+        let captured = state.clone();
+        let server = MockServer::start().await;
+        Mock::given(method("POST")).respond_with(move |request:&Request| {
+            let body:Value=serde_json::from_slice(&request.body).unwrap();
+            let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
+                json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"park_context","input":{"goal":{"goal_id":id,"reference":null},"checkpoint":null,"current_app":null},"instruction":"Park this"}],"clarification":null})
+            } else if stale {
+                captured.inner.lock().unwrap().privacy_revision+=1;
+                json!({"summary":"Outline saved","next_action":"Continue","waiting_for":null})
+            } else {
+                json!({"summary":"Unsafe","next_action":"Continue","waiting_for":null,"raw_accessibility_text":"MUST NOT STORE"})
+            };
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+        }).mount(&server).await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let reply = structured_chat_actions_with_service(
+            &json!({"latest_request":"Park this","conversation":[]}),
+            conversation,
+            &state,
+            0,
+            true,
+            &service,
+        )
+        .await;
+        assert!(reply.is_err() || !reply.unwrap().unwrap().2);
+        let inner = state.inner.lock().unwrap();
+        assert_eq!(inner.storage.goal().unwrap().unwrap().id, id);
+        assert!(inner
+            .storage
+            .work_context(id)
+            .unwrap()
+            .unwrap()
+            .parked_at
+            .is_none());
+    }
 }

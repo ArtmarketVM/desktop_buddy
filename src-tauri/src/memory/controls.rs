@@ -91,7 +91,7 @@ impl Storage {
             .map_err(db_error)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db_error)?;
-        let mut stmt=self.connection.prepare("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned FROM work_contexts ORDER BY id DESC LIMIT 51 OFFSET ?1").map_err(db_error)?;
+        let mut stmt=self.connection.prepare("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned,last_result,parked_at,resumed_at FROM work_contexts ORDER BY id DESC LIMIT 51 OFFSET ?1").map_err(db_error)?;
         let mut contexts = stmt
             .query_map([offset], context_row)
             .map_err(db_error)?

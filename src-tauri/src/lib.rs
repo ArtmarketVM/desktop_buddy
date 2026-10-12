@@ -39,6 +39,7 @@ mod tavily;
 mod tracking;
 mod tray;
 mod updates;
+mod work_context;
 use tauri::Manager;
 
 #[cfg(test)]
@@ -330,6 +331,7 @@ pub fn run() {
             goals::transition_goal,
             goals::refine_goal,
             commands::get_dashboard,
+            work_context::run_work_context_action,
             memory::controls::get_memory_overview,
             memory::controls::set_memory_controls,
             memory::controls::clear_personal_memory,

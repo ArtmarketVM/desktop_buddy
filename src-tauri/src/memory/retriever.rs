@@ -207,7 +207,7 @@ impl Storage {
                     };
                     if valid_step && fresh && state_agrees {
                         let c = &checkpoint.context;
-                        context["work_context"] = json!({"goal_id":id,"step_id":c.step_id,"summary":c.summary,"next_action":c.next_action,"status":c.status,"waiting_for":c.waiting_for,"updated_at":checkpoint.updated_at});
+                        context["work_context"] = json!({"goal_id":id,"step_id":c.step_id,"summary":c.summary,"next_action":c.next_action,"status":c.status,"waiting_for":c.waiting_for,"updated_at":checkpoint.updated_at,"last_result":checkpoint.last_result,"parked_at":checkpoint.parked_at,"resumed_at":checkpoint.resumed_at});
                         if size(&context) > budget.maximum_context_size {
                             context["work_context"] = Value::Null;
                         } else {

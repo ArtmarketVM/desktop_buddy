@@ -50,6 +50,8 @@ pub struct CoreGoal {
     pub description: String,
     pub created_at: String,
     pub completed_at: Option<String>,
+    #[serde(default)]
+    pub work_context: Option<crate::memory::WorkContext>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
@@ -914,6 +916,16 @@ impl Storage {
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
+        let memory_ready:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='personal_memory_migrations')",[],|r|r.get(0)).map_err(db)?;
+        let memory_ready = memory_ready
+            && self
+                .connection
+                .query_row(
+                    "SELECT COALESCE(MAX(version),0)>=3 FROM personal_memory_migrations",
+                    [],
+                    |r| r.get::<_, bool>(0),
+                )
+                .map_err(db)?;
         let mut goals = rows
             .into_iter()
             .map(
@@ -944,6 +956,7 @@ impl Storage {
                         description,
                         created_at,
                         completed_at,
+                        work_context: if memory_ready {self.work_context(id)?} else {None},
                     })
                 },
             )

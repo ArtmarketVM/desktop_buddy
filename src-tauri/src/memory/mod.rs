@@ -223,6 +223,9 @@ pub struct WorkContextInput {
 pub struct WorkContext {
     pub id: i64,
     pub pinned: bool,
+    pub last_result: Option<String>,
+    pub parked_at: Option<String>,
+    pub resumed_at: Option<String>,
     #[serde(flatten)]
     pub context: WorkContextInput,
     pub created_at: String,
@@ -289,6 +292,9 @@ fn context_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<WorkContext> {
     Ok(WorkContext {
         id: r.get(0)?,
         pinned: r.get(11)?,
+        last_result: r.get(12)?,
+        parked_at: r.get(13)?,
+        resumed_at: r.get(14)?,
         context: WorkContextInput {
             goal_id: r.get(1)?,
             step_id: r.get(2)?,
@@ -361,7 +367,7 @@ impl Storage {
                 |r| r.get(0),
             )
             .map_err(db_error)?;
-        if version > 2 {
+        if version > 3 {
             return Err("This database needs a newer personal memory implementation".into());
         }
         if version == 0 {
@@ -378,6 +384,25 @@ impl Storage {
                 .map_err(db_error)?;
             tx.execute(
                 "INSERT INTO personal_memory_migrations(version,applied_at) VALUES(2,?1)",
+                [Utc::now().to_rfc3339()],
+            )
+            .map_err(db_error)?;
+        }
+        if version < 3 {
+            tx.execute_batch(include_str!("migrations/003_park_resume.sql"))
+                .map_err(db_error)?;
+            for table in ["work_contexts", "memory_controls", "memories"] {
+                for event in ["INSERT", "UPDATE", "DELETE"] {
+                    let filter = if table == "memories" && event == "UPDATE" {
+                        " WHEN NEW.updated_at!=OLD.updated_at OR NEW.pinned!=OLD.pinned OR NEW.archived!=OLD.archived"
+                    } else {
+                        ""
+                    };
+                    tx.execute_batch(&format!("CREATE TRIGGER buddy_version_{table}_{event} AFTER {event} ON {table}{filter} BEGIN UPDATE buddy_action_version SET revision=revision+1 WHERE id=1; END;")).map_err(db_error)?;
+                }
+            }
+            tx.execute(
+                "INSERT INTO personal_memory_migrations(version,applied_at) VALUES(3,?1)",
                 [Utc::now().to_rfc3339()],
             )
             .map_err(db_error)?;
@@ -679,7 +704,7 @@ impl Storage {
     }
     pub fn work_context(&self, goal_id: i64) -> Result<Option<WorkContext>, String> {
         Scope::goal(goal_id).validate(&self.connection)?;
-        self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)
+        self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned,last_result,parked_at,resumed_at FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)
     }
     pub fn save_work_context(
         &mut self,

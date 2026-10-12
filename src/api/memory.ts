@@ -47,6 +47,9 @@ export type WorkContext = {
   created_at: string;
   updated_at: string;
   pinned: boolean;
+  last_result?: string | null;
+  parked_at?: string | null;
+  resumed_at?: string | null;
 };
 export type MemoryOverview = {
   controls: MemoryControls;
@@ -88,6 +91,9 @@ export const memoryApi = {
       created_at: _created,
       updated_at,
       pinned: _pinned,
+      last_result: _result,
+      parked_at: _parked,
+      resumed_at: _resumed,
       ...input
     } = context;
     return invoke<WorkContext>("save_work_context", {

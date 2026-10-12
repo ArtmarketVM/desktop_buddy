@@ -57,6 +57,9 @@ pub struct Input {
     pub text: Option<String>,
     pub steps: Option<Vec<String>>,
     pub backup_id: Option<i64>,
+    pub checkpoint: Option<crate::work_context::CheckpointDraft>,
+    pub current_app: Option<String>,
+    pub set_focus: Option<bool>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -145,6 +148,7 @@ impl Execution {
                 "add_goal_to_today"=>format!("Added \"{title}\" to Today."),
                 "remove_goal_from_today"=>format!("Removed \"{title}\" from Today."),
                 "set_focus_goal"=>format!("Selected \"{title}\" for activity tracking."),
+                "park_context" | "resume_context" | "inspect_work_context" => crate::work_context::receipt(&r.skill,title,&r.data["checkpoint"]),
                 "inspect_goal"=>format!("{title}\n{}",r.data["steps"].as_array().unwrap().iter().enumerate().map(|(i,s)|format!("{}. {}{}",i+1,s["text"].as_str().unwrap_or_default(),if s["done"]==true {" (complete)"} else {""})).collect::<Vec<_>>().join("\n")),
                 "list_goals"=>r.data["goals"].as_array().unwrap().iter().map(|g|g["title"].as_str().unwrap_or_default()).collect::<Vec<_>>().join("\n"),
                 _=>"Completed the requested action.".into(),
@@ -189,6 +193,9 @@ fn result_schema(name: &str) -> Value {
     let step =
         shape(json!({"id":{"type":"string"},"text":{"type":"string"},"done":{"type":"boolean"}}));
     let data = match name {
+        "park_context" | "resume_context" | "inspect_work_context" => shape(
+            json!({"title":{"type":"string"},"status":{"type":"string"},"created_at":{"type":"string"},"checkpoint":{"anyOf":[crate::work_context::public_checkpoint_schema(),{"type":"null"}]}}),
+        ),
         "list_goals" => shape(
             json!({"goals":{"type":"array","items":shape(json!({"goal_id":{"type":"integer"},"title":{"type":"string"},"status":{"type":"string"}}))}}),
         ),
@@ -255,7 +262,7 @@ fn shape(properties: Value) -> Value {
 }
 fn goal_schema() -> Value {
     shape(
-        json!({"goal_id":{"type":["integer","null"],"minimum":1},"reference":{"type":["string","null"],"enum":[null,"last_referenced","last_created","previous_action","only_goal"]}}),
+        json!({"goal_id":{"type":["integer","null"],"minimum":1},"reference":{"type":["string","null"],"enum":[null,"last_referenced","last_created","previous_action","only_goal","active_goal","only_parked"]}}),
     )
 }
 fn step_schema() -> Value {
@@ -268,6 +275,9 @@ pub fn registry() -> Vec<Skill> {
     let goal = goal_schema();
     let step = step_schema();
     [
+        ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
+        ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
+        ("inspect_work_context","Read where work stopped, the last meaningful result, next action and waiting state",Safety::ReadOnly,json!({"goal":goal})),
         (
             "list_goals",
             "List actual goals and stable IDs",
@@ -415,7 +425,11 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
     let properties = skill.input_schema["properties"].as_object().unwrap();
     if fields.len() != properties.len()
         || fields.keys().any(|k| !properties.contains_key(k))
-        || fields.values().any(Value::is_null)
+        || fields.iter().any(|(key, value)| {
+            value.is_null()
+                && !(skill.name == "park_context"
+                    && ["checkpoint", "current_app"].contains(&key.as_str()))
+        })
     {
         return Err("Skill input does not match its schema".into());
     }
@@ -444,6 +458,8 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
                     "last_created",
                     "previous_action",
                     "only_goal",
+                    "active_goal",
+                    "only_parked",
                 ]
                 .contains(&r.as_str())
             })
@@ -470,6 +486,21 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
         {
             return Err("Supply one unambiguous step reference".into());
         }
+    }
+    if input
+        .goal
+        .as_ref()
+        .and_then(|g| g.reference.as_deref())
+        .is_some_and(|r| ["active_goal", "only_parked"].contains(&r))
+        && !["park_context", "resume_context", "inspect_work_context"].contains(&skill.name)
+    {
+        return Err("Work-context references are only available to workflow skills".into());
+    }
+    if let Some(checkpoint) = &input.checkpoint {
+        checkpoint.clone().validate()?;
+    }
+    if let Some(app) = &input.current_app {
+        crate::memory::safe_text(app, 120)?;
     }
     if input.backup_id.is_some_and(|id| id <= 0) {
         return Err("Invalid backup ID".into());
@@ -520,7 +551,7 @@ pub fn snapshot(storage: &Storage, conversation: i64) -> Result<Snapshot, String
     }
     let core = storage.core_snapshot(None)?;
     let refs = storage.action_references(conversation)?;
-    let goals: Vec<_> = core.goals.iter().map(|g|json!({"goal_id":g.id,"created_at":g.created_at,"title":g.title,"status":g.status,"area_id":g.area_id,"plan":g.plan,"description":g.description,"due_at":g.due_at,"priority":g.priority})).collect();
+    let goals: Vec<_> = core.goals.iter().map(|g|json!({"goal_id":g.id,"created_at":g.created_at,"title":g.title,"status":g.status,"area_id":g.area_id,"plan":g.plan,"description":g.description,"due_at":g.due_at,"priority":g.priority,"has_work_context":g.work_context.is_some(),"parked":g.status=="deferred" && g.work_context.as_ref().is_some_and(|c|c.parked_at.is_some())})).collect();
     let mut q = storage
         .connection
         .prepare("SELECT id,payload FROM deleted_goal_backups WHERE deleted_at>=?1 ORDER BY id")
@@ -560,7 +591,7 @@ pub fn planning_context(snap: &Snapshot, share: bool) -> Value {
     });
     goals.truncate(40);
     let deleted = &snap.data["backups"];
-    json!({"state_version":snap.version,"sharing":true,"goals":goals,"today":snap.data["today"],"references":snap.references,"deleted_goals":deleted,"total_goals":snap.data["goals"].as_array().unwrap().len()})
+    json!({"state_version":snap.version,"sharing":true,"goals":goals,"today":snap.data["today"],"references":snap.references,"deleted_goals":deleted,"focused_goal_id":snap.data["focused_goal_id"],"total_goals":snap.data["goals"].as_array().unwrap().len()})
 }
 
 fn resolve_goal(storage: &Storage, target: &GoalTarget, refs: &References) -> Result<i64, String> {
@@ -571,6 +602,27 @@ fn resolve_goal(storage: &Storage, target: &GoalTarget, refs: &References) -> Re
             .last_action
             .as_ref()
             .and_then(|a| a["goal_id"].as_i64()),
+        Some("active_goal") => storage.goal()?.map(|g| g.id),
+        Some("only_parked") => {
+            let parked: Vec<i64> = storage
+                .core_snapshot(None)?
+                .goals
+                .iter()
+                .filter(|g| {
+                    g.status == "deferred"
+                        && g.work_context
+                            .as_ref()
+                            .is_some_and(|c| c.parked_at.is_some())
+                })
+                .map(|g| g.id)
+                .collect();
+            if parked.len() != 1 {
+                return Err(
+                    "Which parked goal do you mean? Please select or name one goal.".into(),
+                );
+            }
+            parked.first().copied()
+        }
         Some("only_goal") => {
             let goals: Vec<_> = storage
                 .core_snapshot(None)?
@@ -698,6 +750,28 @@ fn execute_one(
         result.goal_id = Some(id);
         match skill.name {
             "inspect_goal" => {}
+            "park_context" => {
+                let context = storage.park_work_context(
+                    id,
+                    input
+                        .checkpoint
+                        .ok_or("Generate a checkpoint before parking work")?,
+                    input.current_app,
+                )?;
+                result.step_id = context.context.step_id.clone();
+            }
+            "resume_context" => {
+                let context = storage.resume_work_context(
+                    id,
+                    input
+                        .set_focus
+                        .ok_or("Choose whether to focus the resumed goal")?,
+                )?;
+                result.step_id = context.context.step_id.clone();
+            }
+            "inspect_work_context" => {
+                storage.inspect_work_context(id)?;
+            }
             "delete_goal" => {
                 let backup = delete(storage, id)?;
                 result.data = json!({"title":goal.title,"backup_id":backup,"undo":"restore_goal","undo_days":30});
@@ -799,6 +873,9 @@ fn execute_one(
         .ok_or("Goal no longer exists")?;
     let removed = result.data["removed_step"].clone();
     result.data = json!({"title":goal.title,"status":goal.status,"revision":goal.plan.revision,"created_at":goal.created_at,"steps":goal.plan.steps,"on_today":core.today.contains(&id),"focused":core.focused_goal_id==Some(id),"removed_step":removed});
+    if ["park_context", "resume_context", "inspect_work_context"].contains(&skill.name) {
+        result.data = json!({"title":goal.title,"status":goal.status,"created_at":goal.created_at,"checkpoint":storage.inspect_work_context(id)?.map(|c|crate::work_context::public_checkpoint(&c))});
+    }
     if refs.last_referenced_goal_id != Some(id) {
         refs.last_referenced_step_id = None;
     }
@@ -1018,6 +1095,29 @@ pub fn execute(
             }
         }
     }
+    let mut parked = std::collections::HashSet::new();
+    for action in plan.actions.iter().filter(|a| a.name == "park_context") {
+        let id = resolve_workflow_goal(storage, &action.input, snap)?;
+        if !parked.insert(id) {
+            return Err("Park each goal once per request".into());
+        }
+        for other in plan.actions.iter().filter(|a| a.name != "park_context") {
+            if registry()
+                .iter()
+                .any(|s| s.name == other.name && s.safety != Safety::ReadOnly)
+            {
+                if let Some(target) = other.input.get("goal") {
+                    let target: GoalTarget = serde_json::from_value(target.clone())
+                        .map_err(|_| "Invalid goal reference")?;
+                    if resolve_goal(storage, &target, &snap.references)
+                        .is_ok_and(|other_id| other_id == id)
+                    {
+                        return Err("Park separately from other changes to the same goal so the checkpoint uses current work".into());
+                    }
+                }
+            }
+        }
+    }
     if plan.actions.iter().any(|a| {
         registry()
             .iter()
@@ -1104,3 +1204,20 @@ pub fn pending_reply(
 
 #[cfg(test)]
 mod tests;
+
+pub fn resolve_workflow_goal(
+    storage: &Storage,
+    input: &Value,
+    snapshot: &Snapshot,
+) -> Result<i64, String> {
+    let skill = registry()
+        .into_iter()
+        .find(|s| s.name == "park_context")
+        .unwrap();
+    let input = (skill.validator)(&skill, input)?;
+    resolve_goal(
+        storage,
+        input.goal.as_ref().ok_or("Choose a goal")?,
+        &snapshot.references,
+    )
+}

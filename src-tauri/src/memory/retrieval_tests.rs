@@ -663,7 +663,7 @@ fn phase_two_database_migrates_in_place_with_existing_memories_and_checkpoint() 
                 |r| r.get::<_, i64>(0)
             )
             .unwrap(),
-        2
+        3
     );
 }
 #[test]

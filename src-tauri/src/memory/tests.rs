@@ -332,7 +332,7 @@ fn migration_preserves_existing_goals_chats_and_activity_and_is_idempotent() {
                 .query_row("SELECT COUNT(*) FROM personal_memory_migrations", [], |r| r
                     .get::<_, i64>(0))
                 .unwrap(),
-            2
+            3
         );
         assert!(s.list_memories(Default::default()).unwrap().is_empty());
     }
@@ -670,7 +670,7 @@ fn migration_failure_rolls_back_without_replacing_existing_data() {
     let s = store();
     s.connection
         .execute(
-            "UPDATE personal_memory_migrations SET version=99 WHERE version=2",
+            "UPDATE personal_memory_migrations SET version=99 WHERE version=3",
             [],
         )
         .unwrap();
