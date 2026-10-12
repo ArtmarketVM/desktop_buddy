@@ -721,8 +721,17 @@ impl Storage {
     }
     pub fn save_work_context(
         &mut self,
+        input: WorkContextInput,
+        expected_updated_at: Option<String>,
+    ) -> Result<WorkContext, String> {
+        self.save_work_context_at(input, expected_updated_at, Utc::now())
+    }
+    // Keep historical fixtures independent of the runner's wall clock. IPC never supplies this time.
+    pub(crate) fn save_work_context_at(
+        &mut self,
         mut input: WorkContextInput,
         expected_updated_at: Option<String>,
+        at: chrono::DateTime<Utc>,
     ) -> Result<WorkContext, String> {
         if !self.memory_controls()?.remember_work_context || !self.memory_controls()?.enabled {
             return Err("Remember work context is disabled".into());
@@ -765,7 +774,7 @@ impl Storage {
             return Err("The checkpoint status must agree with the current goal state".into());
         }
         atomic(&self.connection, || {
-            let now = Utc::now().to_rfc3339();
+            let now = at.to_rfc3339();
             self.connection.execute("INSERT INTO work_contexts(goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?9) ON CONFLICT(goal_id) DO UPDATE SET step_id=excluded.step_id,summary=excluded.summary,next_action=excluded.next_action,status=excluded.status,last_app=excluded.last_app,last_window=excluded.last_window,waiting_for=excluded.waiting_for,updated_at=excluded.updated_at",params![input.goal_id,input.step_id,input.summary,input.next_action,input.status.name(),input.last_app,input.last_window,input.waiting_for,now]).map_err(db_error)?;
             if input.status == ContextStatus::Waiting
                 && old.as_ref().is_none_or(|c| {

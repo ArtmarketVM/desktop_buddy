@@ -32,7 +32,7 @@ fn goal(s: &mut Storage, title: &str) -> i64 {
 }
 fn checkpoint(s: &mut Storage, id: i64, status: ContextStatus, day: &str, summary: &str) {
     let old = s.work_context(id).unwrap().map(|c| c.updated_at);
-    s.save_work_context(
+    s.save_work_context_at(
         WorkContextInput {
             goal_id: id,
             step_id: Some("step-0".into()),
@@ -44,14 +44,9 @@ fn checkpoint(s: &mut Storage, id: i64, status: ContextStatus, day: &str, summar
             waiting_for: Some("Design approval".into()),
         },
         old,
+        format!("{day}T12:00:00Z").parse().unwrap(),
     )
     .unwrap();
-    s.connection
-        .execute(
-            "UPDATE work_contexts SET updated_at=?1 WHERE goal_id=?2",
-            params![format!("{day}T12:00:00Z"), id],
-        )
-        .unwrap();
 }
 fn event(s: &Storage, id: i64, step: &str, title: &str, kind: &str, day: &str, source: &str) {
     s.connection.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![id,step,title,kind,day,format!("{day}T12:00:00Z"),source]).unwrap();
@@ -750,7 +745,15 @@ fn historical_context_follows_history_retention_and_clear_personal_memory() {
         "2026-10-11",
         "Historical fixture",
     );
-    s.purge_history(Some("2026-10-12T00:00:00Z")).unwrap();
+    let cutoff = NaiveDate::from_ymd_opt(2026, 10, 12)
+        .unwrap()
+        .and_hms_opt(12, 0, 0)
+        .unwrap()
+        .and_local_timezone(chrono::Local)
+        .single()
+        .unwrap()
+        .to_rfc3339();
+    s.purge_history(Some(&cutoff)).unwrap();
     assert_eq!(
         s.connection
             .query_row(
