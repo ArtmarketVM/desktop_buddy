@@ -14,6 +14,7 @@ impl Storage {
         store.initialize_core()?;
         store.initialize_skills()?;
         store.initialize_personal_memory()?;
+        store.initialize_research()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {

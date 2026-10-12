@@ -499,12 +499,12 @@ pub async fn run_work_context_action(
 mod tests;
 
 pub fn public_checkpoint(context: &WorkContext) -> Value {
-    json!({"goal_id":context.context.goal_id,"step_id":context.context.step_id,"summary":context.context.summary,"next_action":context.context.next_action,"status":context.context.status,"waiting_for":context.context.waiting_for,"last_result":context.last_result,"parked_at":context.parked_at,"resumed_at":context.resumed_at,"updated_at":context.updated_at})
+    json!({"goal_id":context.context.goal_id,"step_id":context.context.step_id,"summary":context.context.summary,"next_action":context.context.next_action,"status":context.context.status,"waiting_for":context.context.waiting_for,"last_result":context.last_result,"parked_at":context.parked_at,"resumed_at":context.resumed_at,"updated_at":context.updated_at,"research":context.research})
 }
 pub fn public_checkpoint_schema() -> Value {
     let string = json!({"type":"string"});
     let optional = json!({"type":["string","null"]});
-    json!({"type":"object","additionalProperties":false,"properties":{"goal_id":{"type":"integer"},"step_id":optional,"summary":string,"next_action":optional,"status":string,"waiting_for":optional,"last_result":optional,"parked_at":optional,"resumed_at":optional,"updated_at":string},"required":["goal_id","step_id","summary","next_action","status","waiting_for","last_result","parked_at","resumed_at","updated_at"]})
+    json!({"type":"object","additionalProperties":false,"properties":{"goal_id":{"type":"integer"},"step_id":optional,"summary":string,"next_action":optional,"status":string,"waiting_for":optional,"last_result":optional,"parked_at":optional,"resumed_at":optional,"updated_at":string,"research":crate::research::attachment_list_schema()},"required":["goal_id","step_id","summary","next_action","status","waiting_for","last_result","parked_at","resumed_at","updated_at","research"]})
 }
 pub fn receipt(skill: &str, title: &str, checkpoint: &Value) -> String {
     if checkpoint.is_null() {

@@ -171,6 +171,8 @@ pub(crate) fn offer_agent(
     inner: &mut Inner,
     goal_id: Option<i64>,
     text: &str,
+    stuck: bool,
+    step_id: Option<&str>,
 ) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp();
     let local = chrono::Local::now();
@@ -183,6 +185,12 @@ pub(crate) fn offer_agent(
         )
     {
         return Ok(());
+    }
+    if stuck {
+        if let Ok(prompt) = crate::research::stuck_offer(inner, goal_id, step_id) {
+            return offer(app, inner, prompt, now);
+        }
+        // A disabled research tool may still offer ordinary help, never a hidden search.
     }
     let plan_revision = goal_id
         .map(|id| inner.storage.goal_plan(id).map(|p| p.revision))
@@ -1065,8 +1073,21 @@ pub fn respond_companion_intervention(
         .filter(|p| p.id == id && p.expires_at > chrono::Utc::now().timestamp())
         .ok_or("This suggestion expired. Buddy will wait for another good moment.")?;
     let now = chrono::Utc::now().timestamp();
+    let research_job = if prompt.kind == Kind::Research {
+        if !["accept", "ignore"].contains(&action.as_str()) {
+            return Err("Unknown research response".into());
+        }
+        crate::research::respond_offer(&mut inner, &prompt, action == "accept")?
+    } else {
+        None
+    };
     if action == "accept" {
         match prompt.kind {
+            Kind::Research => {
+                inner.companion.view.chat_open = true;
+                inner.companion.view.notice =
+                    Some("Researching this step. You can keep working.".into());
+            }
             Kind::NewTask => {
                 append_task(
                     &mut inner.storage,
@@ -1149,6 +1170,13 @@ pub fn respond_companion_intervention(
     inner.privacy_revision += 1;
     crate::buddy::sync(&app, &mut inner)?;
     drop(inner);
+    if let Some(id) = research_job {
+        crate::research::spawn_from_offer(
+            app.clone(),
+            prompt.goal_id.ok_or("Research goal missing")?,
+            id,
+        );
+    }
     if action == "accept"
         && ![
             Kind::NewTask,
@@ -1156,6 +1184,7 @@ pub fn respond_companion_intervention(
             Kind::GoalCompletion,
             Kind::Movement,
             Kind::Midday,
+            Kind::Research,
         ]
         .contains(&prompt.kind)
         || action == "summary"

@@ -34,7 +34,15 @@ export type MemoryItem = {
   evidence_count: number;
   source: string;
 };
+export type ResearchAttachment = {
+  research_id: number;
+  step_id: string | null;
+  summary: string;
+  next_action: string;
+  sources: { title: string; url: string; content: string }[];
+};
 export type WorkContext = {
+  research?: ResearchAttachment[];
   id: number;
   goal_id: number;
   step_id: string | null;

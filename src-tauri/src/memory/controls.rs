@@ -73,7 +73,7 @@ impl Storage {
     }
     pub fn clear_personal_memory(&self) -> Result<(), String> {
         atomic(&self.connection, || {
-            self.connection.execute_batch("DELETE FROM memory_evidence; DELETE FROM memories; DELETE FROM work_contexts; DELETE FROM memory_proposals; DELETE FROM memory_retrieval_debug;").map_err(db_error)
+            self.connection.execute_batch("DELETE FROM contextual_research; DELETE FROM memory_evidence; DELETE FROM memories; DELETE FROM work_contexts; DELETE FROM memory_proposals; DELETE FROM memory_retrieval_debug;").map_err(db_error)
         })
     }
     pub fn memory_overview(&self, offset: u32) -> Result<MemoryOverview, String> {
@@ -97,6 +97,9 @@ impl Storage {
             .map_err(db_error)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db_error)?;
+        for context in &mut contexts {
+            context.research = self.context_research(context.id)?;
+        }
         let more = memories.len() > 50 || contexts.len() > 50;
         memories.truncate(50);
         contexts.truncate(50);

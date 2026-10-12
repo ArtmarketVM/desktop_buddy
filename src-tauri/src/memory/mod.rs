@@ -221,6 +221,8 @@ pub struct WorkContextInput {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct WorkContext {
+    #[serde(default)]
+    pub research: Vec<crate::research::Attachment>,
     pub id: i64,
     pub pinned: bool,
     pub last_result: Option<String>,
@@ -290,6 +292,7 @@ fn memory_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<Memory> {
 }
 fn context_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<WorkContext> {
     Ok(WorkContext {
+        research: vec![],
         id: r.get(0)?,
         pinned: r.get(11)?,
         last_result: r.get(12)?,
@@ -407,6 +410,10 @@ impl Storage {
             )
             .map_err(db_error)?;
         }
+        // Research is an additive checkpoint extension. Create it in the same migration
+        // transaction, including callers upgrading a legacy memory database in place.
+        tx.execute_batch(include_str!("../research/schema.sql"))
+            .map_err(db_error)?;
         tx.commit().map_err(db_error)
     }
     pub fn create_memory(&self, input: MemoryInput) -> Result<Memory, String> {
@@ -551,6 +558,8 @@ impl Storage {
         )
         .map_err(db_error)?;
         if let Some(id) = scope.goal_id() {
+            tx.execute("DELETE FROM contextual_research WHERE goal_id=?1", [id])
+                .map_err(db_error)?;
             tx.execute("DELETE FROM work_contexts WHERE goal_id=?1", [id])
                 .map_err(db_error)?;
         }
@@ -704,7 +713,11 @@ impl Storage {
     }
     pub fn work_context(&self, goal_id: i64) -> Result<Option<WorkContext>, String> {
         Scope::goal(goal_id).validate(&self.connection)?;
-        self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned,last_result,parked_at,resumed_at FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)
+        let mut context: Option<WorkContext> = self.connection.query_row("SELECT id,goal_id,step_id,summary,next_action,status,last_app,last_window,waiting_for,created_at,updated_at,pinned,last_result,parked_at,resumed_at FROM work_contexts WHERE goal_id=?1",[goal_id],context_row).optional().map_err(db_error)?;
+        if let Some(c) = &mut context {
+            c.research = self.context_research(c.id)?;
+        }
+        Ok(context)
     }
     pub fn save_work_context(
         &mut self,

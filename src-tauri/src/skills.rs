@@ -60,6 +60,8 @@ pub struct Input {
     pub checkpoint: Option<crate::work_context::CheckpointDraft>,
     pub current_app: Option<String>,
     pub set_focus: Option<bool>,
+    pub research_id: Option<i64>,
+    pub helpful: Option<bool>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -134,6 +136,9 @@ impl Execution {
                 })
                 .unwrap_or("step");
             let line=match r.skill.as_str() {
+                "search_web" => format!("Search the web for \"{}\"{} after confirmation.",r.data["title"].as_str().unwrap_or("this goal"),r.data["step_text"].as_str().map(|s|format!(" — step: {s}")).unwrap_or_default()),
+                "attach_research_to_context" => "Attached the validated research to this work context.".into(),
+                "record_research_feedback" => "Recorded your research feedback.".into(),
                 "create_goal"=>format!("Created \"{title}\" and added it to Today."),
                 "rename_goal"=>format!("Renamed the goal to \"{title}\"."),
                 "delete_goal"=>format!("Deleted \"{title}\". You can ask to restore it within 30 days, subject to your history retention settings."),
@@ -200,6 +205,9 @@ fn result_schema(name: &str) -> Value {
     let step =
         shape(json!({"id":{"type":"string"},"text":{"type":"string"},"done":{"type":"boolean"}}));
     let data = match name {
+        "search_web" | "attach_research_to_context" | "record_research_feedback" => shape(
+            json!({"research_id":{"type":"integer"},"status":{"type":"string"},"title":{"type":"string"},"created_at":{"type":"string"},"step_text":{"type":["string","null"]}}),
+        ),
         "park_context" | "resume_context" | "inspect_work_context" => shape(
             json!({"title":{"type":"string"},"status":{"type":"string"},"created_at":{"type":"string"},"checkpoint":{"anyOf":[crate::work_context::public_checkpoint_schema(),{"type":"null"}]}}),
         ),
@@ -287,6 +295,9 @@ pub fn registry() -> Vec<Skill> {
     let goal = goal_schema();
     let step = step_schema();
     [
+        ("search_web", "Search for information for this goal and optional step; requires explicit web-search confirmation before any provider call", Safety::Confirmation, json!({"goal":goal,"step":{"anyOf":[step,{"type":"null"}]},"text":text})),
+        ("attach_research_to_context", "Attach an existing validated research receipt to its original goal checkpoint; never invent research content", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1}})),
+        ("record_research_feedback", "Record whether this exact goal research helped; no completion is implied", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1},"helpful":{"type":"boolean"}})),
         ("inspect_today", "Read today's confirmed results and separate timer, observed and relevant time; time alone is not completion", Safety::ReadOnly, json!({})),
         ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
         ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
@@ -443,6 +454,7 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
             value.is_null()
                 && !(skill.name == "park_context"
                     && ["checkpoint", "current_app"].contains(&key.as_str()))
+                && !(skill.name == "search_web" && key == "step")
         })
     {
         return Err("Skill input does not match its schema".into());
@@ -451,6 +463,18 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
         serde_json::from_value(value.clone()).map_err(|_| "Invalid skill arguments")?;
     for value in [&input.title, &input.text].into_iter().flatten() {
         crate::goals::text(value, true)?;
+    }
+    if input.research_id.is_some_and(|id| id <= 0) {
+        return Err("Invalid research ID".into());
+    }
+    if skill.name == "search_web" {
+        crate::memory::safe_text(
+            input
+                .text
+                .as_deref()
+                .ok_or("Describe the information needed")?,
+            500,
+        )?;
     }
     if let Some(steps) = &input.steps {
         if steps.len() > 20 {
@@ -555,7 +579,11 @@ impl Storage {
         row.map(|s| serde_json::from_str(&s).map_err(|_| "Invalid conversation references".into()))
             .unwrap_or(Ok(References::default()))
     }
-    fn save_references(&self, conversation: i64, refs: &References) -> Result<(), String> {
+    pub(crate) fn save_references(
+        &self,
+        conversation: i64,
+        refs: &References,
+    ) -> Result<(), String> {
         self.connection.execute("INSERT INTO buddy_action_state(conversation_id,references_json) VALUES(?1,?2) ON CONFLICT(conversation_id) DO UPDATE SET references_json=excluded.references_json",params![conversation,serde_json::to_string(refs).map_err(|e|e.to_string())?]).map(|_|()).map_err(|e|e.to_string())
     }
 }
@@ -771,6 +799,48 @@ fn execute_one(
             .ok_or("Goal no longer exists")?;
         result.goal_id = Some(id);
         match skill.name {
+            "search_web" | "attach_research_to_context" | "record_research_feedback" => {
+                let step = input
+                    .step
+                    .as_ref()
+                    .map(|s| resolve_step(&storage.goal_plan(id)?, s, refs))
+                    .transpose()?;
+                let receipt = match skill.name {
+                    "search_web" => storage.queue_research(
+                        id,
+                        step,
+                        input.text.as_deref().unwrap_or_default(),
+                    )?,
+                    "attach_research_to_context" => {
+                        let receipt = input.research_id.ok_or("Choose research")?;
+                        storage.attach_research(id, receipt)?;
+                        receipt
+                    }
+                    _ => {
+                        let receipt = input.research_id.ok_or("Choose research")?;
+                        storage.research_feedback(
+                            id,
+                            receipt,
+                            input.helpful.ok_or("Choose helpful or not helpful")?,
+                        )?;
+                        receipt
+                    }
+                };
+                result.step_id = storage.research_record(id, receipt)?.step_id;
+                let step_text = goal
+                    .plan
+                    .steps
+                    .iter()
+                    .find(|s| Some(&s.id) == result.step_id.as_ref())
+                    .map(|s| s.text.clone());
+                result.data = json!({"research_id":receipt,"status":if skill.name=="search_web" {"authorized"} else {"saved"},"title":goal.title,"created_at":goal.created_at,"step_text":step_text});
+                refs.last_action =
+                    Some(serde_json::to_value(&result).map_err(|_| "Invalid research receipt")?);
+                refs.last_referenced_goal_id = Some(id);
+                refs.last_referenced_goal_created_at = Some(goal.created_at.clone());
+                refs.last_referenced_step_id = result.step_id.clone();
+                return Ok(result);
+            }
             "inspect_goal" => {}
             "park_context" => {
                 let context = storage.park_work_context(
@@ -1141,6 +1211,9 @@ pub fn execute_for_event(
             }
         }
     }
+    if plan.actions.iter().any(|a| a.name == "search_web") && plan.actions.len() != 1 {
+        return Err("Confirm web research separately from other actions".into());
+    }
     let mut parked = std::collections::HashSet::new();
     for action in plan.actions.iter().filter(|a| a.name == "park_context") {
         let id = resolve_workflow_goal(storage, &action.input, snap)?;
@@ -1190,7 +1263,7 @@ pub fn execute_for_event(
                 ],
             )
             .map_err(|e| e.to_string())?;
-        return Ok(Execution{status:"confirmation_required",results:preview,message:Some("Confirm this batch of changes? It includes a deletion. Reply Confirm or Cancel. Nothing has changed yet.".into())});
+        return Ok(Execution{status:"confirmation_required",results:preview,message:Some(if plan.actions.iter().any(|a|a.name=="search_web") {"Allow web research for this goal and step? Only a short search query goes to Tavily. Reply Confirm or Cancel. No search has run yet."} else {"Confirm this batch of changes? It includes a deletion. Reply Confirm or Cancel. Nothing has changed yet."}.into())});
     }
     Ok(Execution {
         status: "executed",

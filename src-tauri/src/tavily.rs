@@ -57,7 +57,7 @@ pub async fn research(client: &reqwest::Client, query: &str) -> Result<Vec<Searc
     )
     .await
 }
-async fn research_call(
+pub(crate) async fn research_call(
     client: &reqwest::Client,
     url: &str,
     key: &str,

@@ -9,31 +9,35 @@ export function InterventionCard({
   respond: (action: "accept" | "ignore" | "tomorrow" | "summary") => void;
 }) {
   const title =
-    prompt.kind === "goal_completion"
-      ? "Looks like this goal may be complete"
-      : prompt.kind === "new_task"
-        ? "Looks like a new task"
-        : prompt.kind === "completion"
-          ? "Looks like this may be done"
-          : prompt.kind === "movement"
-            ? "A moment to stretch"
-            : prompt.kind === "end_of_day"
-              ? "A small wrap-up"
-              : "A quick check-in";
-  const accept =
-    prompt.kind === "goal_completion"
-      ? "Yes, complete goal"
-      : prompt.kind === "new_task"
-        ? "Add task"
-        : prompt.kind === "completion"
-          ? "Yes, mark complete"
-          : prompt.kind === "no_goals"
-            ? "Plan today"
+    prompt.kind === "research"
+      ? "Find information for this step?"
+      : prompt.kind === "goal_completion"
+        ? "Looks like this goal may be complete"
+        : prompt.kind === "new_task"
+          ? "Looks like a new task"
+          : prompt.kind === "completion"
+            ? "Looks like this may be done"
             : prompt.kind === "movement"
-              ? "Done"
-              : prompt.kind === "midday"
-                ? "Ask Buddy"
-                : "Review progress";
+              ? "A moment to stretch"
+              : prompt.kind === "end_of_day"
+                ? "A small wrap-up"
+                : "A quick check-in";
+  const accept =
+    prompt.kind === "research"
+      ? "Search the web"
+      : prompt.kind === "goal_completion"
+        ? "Yes, complete goal"
+        : prompt.kind === "new_task"
+          ? "Add task"
+          : prompt.kind === "completion"
+            ? "Yes, mark complete"
+            : prompt.kind === "no_goals"
+              ? "Plan today"
+              : prompt.kind === "movement"
+                ? "Done"
+                : prompt.kind === "midday"
+                  ? "Ask Buddy"
+                  : "Review progress";
   return (
     <section
       className="suggestion-card companion-prompt"
@@ -43,6 +47,11 @@ export function InterventionCard({
       <span className="eyebrow">BUDDY · YOUR CHOICE</span>
       <h2>{title}</h2>
       <p>{prompt.text}</p>
+      {prompt.kind === "research" && (
+        <small>
+          No search runs until you agree. Only a short query is sent to Tavily.
+        </small>
+      )}
       {["new_task", "completion", "goal_completion"].includes(prompt.kind) && (
         <small>
           Suggested from visible context. Nothing changes until you confirm.

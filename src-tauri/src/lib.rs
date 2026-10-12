@@ -32,6 +32,7 @@ mod product_feedback;
 mod profile;
 mod recommendations;
 mod relevance;
+mod research;
 mod signing_trust;
 mod skills;
 mod startup;

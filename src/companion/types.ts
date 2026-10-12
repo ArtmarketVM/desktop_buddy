@@ -29,6 +29,7 @@ export interface Intervention {
     | "goal_completion"
     | "no_goals"
     | "midday"
+    | "research"
     | "end_of_day"
     | "movement";
   text: string;

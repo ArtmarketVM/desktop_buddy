@@ -489,6 +489,8 @@ async fn run_pending(app: &AppHandle) {
                         &mut inner,
                         offer.event.goal_id,
                         &offer.text,
+                        offer.event.kind == EventKind::PossibleStuck,
+                        offer.event.step_id.as_deref(),
                     );
                 }
             }
@@ -578,16 +580,32 @@ pub async fn tick(app: &AppHandle) {
                 crate::commands::automatic_analysis(&handle, &handle.state::<AppState>()).await;
             });
         }
-        if state.inner.lock().is_ok_and(|i| crate::buddy::due(&i)) {
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let state = handle.state::<AppState>();
-                if let Err(error) = crate::buddy::recommend(&handle, &state).await {
-                    if let Ok(mut inner) = state.inner.lock() {
-                        inner.last_error = Some(format!("Suggestion unavailable: {error}"));
-                    }
+        // The legacy proactive cadence can offer research, never authorize a Tavily call.
+        if let Ok(mut inner) = state.inner.lock() {
+            if crate::buddy::due(&inner) {
+                let goal = inner.storage.goal().ok().flatten().map(|g| g.id);
+                let _ = crate::companion::offer_agent(
+                    app,
+                    &mut inner,
+                    goal,
+                    "Search for information for this step?",
+                    true,
+                    None,
+                );
+                if inner
+                    .companion
+                    .view
+                    .intervention
+                    .as_ref()
+                    .is_some_and(|p| p.kind == crate::companion::engine::Kind::Research)
+                {
+                    inner.buddy.last_search = Some(std::time::Instant::now());
+                    inner.buddy.last_attempt_at = Some(Utc::now().timestamp());
+                    let _ = inner
+                        .storage
+                        .write_setting("buddy_last_attempt", &inner.buddy.last_attempt_at);
                 }
-            });
+            }
         }
         if state
             .inner
