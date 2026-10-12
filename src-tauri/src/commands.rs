@@ -6,6 +6,7 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub agent: crate::agent_runtime::AgentRuntime,
     pub goal_matching: crate::goal_matching::Runtime,
     pub companion: crate::companion::Runtime,
     pub tracking_settings: crate::tracking::TrackingSettings,
@@ -51,6 +52,7 @@ impl AppState {
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                agent: crate::agent_runtime::AgentRuntime::load(&storage)?,
                 goal_matching: Default::default(),
                 companion: crate::companion::Runtime::load(&storage)?,
                 tracking_settings: storage.tracking_settings()?,
@@ -228,6 +230,9 @@ pub fn set_tracking(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         .storage
         .write_setting("tracking_requested", &enabled)?;
     inner.status.tracking = enabled;
+    if !enabled {
+        inner.agent.suspend();
+    }
     inner.goal_matching.clear();
     inner.status.tracking_error = None;
     if !enabled {
@@ -268,6 +273,9 @@ pub fn set_dnd(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.status.dnd = enabled;
+    if enabled {
+        inner.agent.suspend();
+    }
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)?;
     Ok(())

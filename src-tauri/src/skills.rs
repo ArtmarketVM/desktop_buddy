@@ -396,6 +396,7 @@ pub fn plan_schema() -> Value {
         json!({"kind":{"type":"string","enum":["chat","actions","clarification"]},"state_version":{"type":"string"},"actions":{"type":"array","maxItems":20,"items":{"anyOf":alternatives}},"clarification":{"type":["string","null"],"maxLength":500}}),
     )
 }
+#[cfg(test)]
 pub fn parse_plan(response: &Value) -> Result<Plan, String> {
     let plan: Plan = serde_json::from_str(crate::goal_analysis::response_text(response)?)
         .map_err(|_| "Buddy returned an invalid action plan; nothing was changed")?;
@@ -1220,4 +1221,27 @@ pub fn resolve_workflow_goal(
         input.goal.as_ref().ok_or("Choose a goal")?,
         &snapshot.references,
     )
+}
+
+/// Validate a background proposal's exact ownership without executing or previewing any mutation.
+pub(crate) fn validate_offer(
+    storage: &Storage,
+    snapshot: &Snapshot,
+    action: &Action,
+    goal: Option<i64>,
+) -> Result<(), String> {
+    let skill = registry()
+        .into_iter()
+        .find(|s| s.name == action.name)
+        .ok_or("Unknown agent skill")?;
+    let input = (skill.validator)(&skill, &action.input)?;
+    let target = input.goal.ok_or("An offer requires a goal")?;
+    if target.goal_id != goal || target.reference.is_some() || goal.is_none() {
+        return Err("An offer requires the exact event goal".into());
+    }
+    let id = resolve_goal(storage, &target, &snapshot.references)?;
+    if let Some(step) = input.step {
+        resolve_step(&storage.goal_plan(id)?, &step, &snapshot.references)?;
+    }
+    Ok(())
 }

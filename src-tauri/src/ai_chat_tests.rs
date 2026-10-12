@@ -15,7 +15,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
             assert!(context["result"]["results"][0]["goal_id"].as_i64().unwrap()>0);
             json!({"message":"Created your interview goal."})
         };
-        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
     }).expect(2).mount(&server).await;
     let storage = store();
     let conversation = storage.current_conversation().unwrap();
@@ -66,7 +66,7 @@ async fn structured_skill_orchestration_discards_plan_when_privacy_changes() {
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         captured.inner.lock().unwrap().privacy_revision+=1;
         let plan=json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Must not be created","steps":[]},"instruction":"Create a goal"}],"clarification":null});
-        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":plan.to_string()}}]}))
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(plan).to_string()}}]}))
     }).expect(1).mount(&server).await;
     let service = Service {
         client: &state.client,
@@ -103,7 +103,7 @@ async fn structured_skill_orchestration_returns_clarification_without_executing(
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let plan=json!({"kind":"clarification","state_version":context["state"]["state_version"],"actions":[],"clarification":"Which interview goal do you mean?"});
-        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":plan.to_string()}}]}))
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(plan).to_string()}}]}))
     }).expect(1).mount(&server).await;
     let mut storage = store();
     goal(&mut storage, "Interview", "one");
@@ -157,7 +157,7 @@ async fn committed_action_keeps_authoritative_receipt_when_reply_sharing_changes
             captured.inner.lock().unwrap().privacy_revision+=1;
             json!({"message":"This stale wording must be discarded"})
         };
-        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":response.to_string()}}]}))
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(response).to_string()}}]}))
     }).expect(2).mount(&server).await;
     let service = Service {
         client: &state.client,
@@ -496,6 +496,7 @@ async fn live_ai_goal_and_chat_smoke() {
         None,
         None,
         &state,
+        false,
     )
     .await
     .map_err(|e| crate::goal_analysis::user_error("live_chat", &e))
@@ -1109,6 +1110,7 @@ async fn chat_uses_contextual_memory_and_memory_off_disables_recall_without_dele
         None,
         None,
         &state,
+        false,
     )
     .await
     .unwrap();
@@ -1141,6 +1143,7 @@ async fn chat_uses_contextual_memory_and_memory_off_disables_recall_without_dele
         None,
         None,
         &state,
+        false,
     )
     .await
     .unwrap();
@@ -1214,7 +1217,7 @@ async fn inspect_skill_uses_validated_goal_id_to_retrieve_checkpoint_for_memory_
             assert!(!context["personal_memory"].to_string().contains("Other confidential"));
             json!({"message":"The outline is finished. Next: write the pitch."})
         };
-        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
     }).expect(2).mount(&server).await;
     let conversation = storage.current_conversation().unwrap();
     let state = AppState::new(storage).unwrap();
@@ -1276,7 +1279,7 @@ async fn park_chat_commands_generate_then_validate_then_save_checkpoint() {
                 },
                 _ => panic!("Unexpected provider operation"),
             };
-            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
         }).expect(3).mount(&server).await;
         let service = Service {
             client: &state.client,
@@ -1362,7 +1365,7 @@ async fn resume_and_inspect_chat_use_exact_context_and_never_other_lanes() {
                 assert!(context["personal_memory"].is_object());
                 json!({"message":"Outline saved. Next: review requirements. Waiting for team feedback."})
             };
-            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
         }).expect(2).mount(&server).await;
         let service = Service {
             client: &state.client,
@@ -1419,7 +1422,7 @@ async fn invalid_or_stale_generated_checkpoint_never_parks_the_goal() {
             } else {
                 json!({"summary":"Unsafe","next_action":"Continue","waiting_for":null,"raw_accessibility_text":"MUST NOT STORE"})
             };
-            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+            ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
         }).mount(&server).await;
         let service = Service {
             client: &state.client,

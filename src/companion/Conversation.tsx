@@ -71,13 +71,16 @@ export function Conversation({
   const [recording, setRecording] = useState(false);
   const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
   const voiceGeneration = useRef(0);
+  const voiceDraft = useRef(false);
   const voiceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
-  const queued = useRef<Array<{ text: string; attachment: string | null }>>([]);
+  const queued = useRef<
+    Array<{ text: string; attachment: string | null; voiceMessage: boolean }>
+  >([]);
   const [waiting, setWaiting] = useState(false);
   const followLatest = useRef(true);
   // Voice callbacks outlive a render, so they read the latest values from here.
@@ -113,6 +116,7 @@ export function Conversation({
       onState("idle");
       return;
     }
+    voiceDraft.current = true;
     const combined = [latest.current.text, transcript]
       .filter(Boolean)
       .join(" ")
@@ -243,6 +247,8 @@ export function Conversation({
     const body = (override ?? text).trim();
     if (!body || !desktop) return;
     const outgoing = prefix + body;
+    const voiceMessage = voiceDraft.current || voice;
+    voiceDraft.current = false;
     const shared = attachment?.text ?? null;
     setText("");
     setAttachment(null);
@@ -261,15 +267,18 @@ export function Conversation({
       },
     ]);
     if (sending.current) {
-      queued.current.push({ text: outgoing, attachment: shared });
+      queued.current.push({ text: outgoing, attachment: shared, voiceMessage });
       return;
     }
     sending.current = true;
     setWaiting(true);
     onState("thinking");
-    let next: { text: string; attachment: string | null } | undefined = {
+    let next:
+      | { text: string; attachment: string | null; voiceMessage: boolean }
+      | undefined = {
       text: outgoing,
       attachment: shared,
+      voiceMessage,
     };
     try {
       while (next) {
@@ -278,6 +287,7 @@ export function Conversation({
           next.attachment,
           goal?.id ?? null,
           conversationId ?? null,
+          next.voiceMessage,
         );
         next = queued.current.shift();
       }

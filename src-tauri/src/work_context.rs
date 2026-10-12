@@ -349,10 +349,17 @@ pub async fn run_work_context_action(
     if window.label() != "main" {
         return Err("Manage work context in the workspace".into());
     }
-    let _guard = state
-        .companion_request
-        .try_lock()
-        .map_err(|_| "Buddy is already preparing a response")?;
+    {
+        let mut inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        crate::agent_runtime::begin_explicit(
+            &mut inner,
+            crate::agent_runtime::EventKind::UserMessage,
+        );
+    }
+    let _guard = state.companion_request.lock().await;
     let (snapshot, revision, mock) = {
         let inner = state
             .inner

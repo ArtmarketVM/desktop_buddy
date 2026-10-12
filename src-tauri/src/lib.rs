@@ -1,3 +1,4 @@
+mod agent_runtime;
 mod ai_chat;
 mod attention;
 mod automatic_goals;
@@ -124,90 +125,7 @@ pub fn run() {
                 ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                 loop {
                     ticker.tick().await;
-                    let state = handle.state::<commands::AppState>();
-                    if let Ok(mut inner) = state.inner.lock() {
-                        if let Err(error) = automatic_goals::sync_focus(&mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        if let Err(error) = inner.storage.core_tick_at(chrono::Utc::now()) {
-                            inner.last_error = Some(error);
-                        }
-                    }
-                    if let Err(error) = commands::collect(&state) {
-                        if let Ok(mut inner) = state.inner.lock() {
-                            if error != collector::CONTEXT_CHANGED {
-                                inner.last_error = Some(error);
-                            }
-                            inner.buddy.foreground = None;
-                            inner.usage = Default::default();
-                            inner.activity_state.stop(false);
-                        }
-                    }
-                    let recommend = if let Ok(mut inner) = state.inner.lock() {
-                        if let Err(error) = privacy::cleanup_due(&mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        if let Err(error) = buddy::sync(&handle, &mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        buddy::due(&inner)
-                    } else {
-                        false
-                    };
-                    if recommend {
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let state = handle.state::<commands::AppState>();
-                            if let Err(error) = buddy::recommend(&handle, &state).await {
-                                if let Ok(mut inner) = state.inner.lock() {
-                                    inner.last_error =
-                                        Some(format!("Suggestion unavailable: {error}"));
-                                }
-                            }
-                        });
-                    }
-                    {
-                        let app = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            automatic_goals::run_pending(&app).await;
-                        });
-                    }
-                    if goal_matching::due(&state) {
-                        let matching_handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            goal_matching::identify(
-                                &matching_handle,
-                                &matching_handle.state::<commands::AppState>(),
-                            )
-                            .await;
-                        });
-                    }
-                    if commands::should_analyze(&state) {
-                        // HTTP must never block the collection interval.
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            commands::automatic_analysis(
-                                &handle,
-                                &handle.state::<commands::AppState>(),
-                            )
-                            .await;
-                        });
-                    }
-                    let detect = state
-                        .inner
-                        .lock()
-                        .is_ok_and(|inner| companion::detection_due(&inner));
-                    if detect {
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let state = handle.state::<commands::AppState>();
-                            if let Err(error) = companion::detect(&handle, &state).await {
-                                if let Ok(mut inner) = state.inner.lock() {
-                                    inner.companion.progress_error = Some(error);
-                                }
-                            }
-                        });
-                    }
+                    agent_runtime::tick(&handle).await;
                 }
             });
             Ok(())

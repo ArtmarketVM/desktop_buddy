@@ -165,6 +165,44 @@ fn offer(app: &AppHandle, inner: &mut Inner, prompt: Intervention, now: i64) -> 
     }
     Ok(())
 }
+/// Runtime offers open the existing help conversation; they never execute proposed mutations.
+pub(crate) fn offer_agent(
+    app: &AppHandle,
+    inner: &mut Inner,
+    goal_id: Option<i64>,
+    text: &str,
+) -> Result<(), String> {
+    let now = chrono::Utc::now().timestamp();
+    let local = chrono::Local::now();
+    if inner.companion.view.intervention.is_some()
+        || !inner.companion.memory.allowed(
+            now,
+            &inner.companion.view.preferences,
+            local.hour() * 60 + local.minute(),
+            suppressed(inner),
+        )
+    {
+        return Ok(());
+    }
+    let plan_revision = goal_id
+        .map(|id| inner.storage.goal_plan(id).map(|p| p.revision))
+        .transpose()?;
+    offer(
+        app,
+        inner,
+        Intervention {
+            id: fingerprint(&format!("agent:{goal_id:?}:{now}")),
+            kind: Kind::Midday,
+            text: text.into(),
+            confidence: 1.0,
+            goal_id,
+            plan_revision,
+            step_id: None,
+            expires_at: now + 120,
+        },
+        now,
+    )
+}
 pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp();
     let local = chrono::Local::now();
@@ -435,7 +473,7 @@ pub fn detection_due(inner: &Inner) -> bool {
         && chrono::Utc::now().timestamp() >= inner.companion.next_detection
         && inner.companion.memory.progress_shown < 64
 }
-fn sensitive_window(activity: &ActivitySnapshot) -> bool {
+pub(crate) fn sensitive_window(activity: &ActivitySnapshot) -> bool {
     let title = activity.window_title.to_ascii_lowercase();
     let process = activity.process_name.to_ascii_lowercase();
     [
@@ -993,7 +1031,8 @@ pub async fn companion_submit(
         });
     }
     // Compatibility entry point shares the same consent, history and research policy.
-    let reply = crate::ai_chat::send_buddy_message(text, None, None, None, app, state).await?;
+    let reply =
+        crate::ai_chat::send_buddy_message(text, None, None, None, None, app, state).await?;
     Ok(Reply {
         message: reply.message,
         resources: reply
