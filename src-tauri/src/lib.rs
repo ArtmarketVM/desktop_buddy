@@ -23,6 +23,7 @@ mod installed_apps;
 mod macos;
 #[cfg(any(target_os = "macos", test))]
 mod macos_speech;
+mod memory;
 mod models;
 mod nebius;
 mod privacy;
@@ -329,6 +330,17 @@ pub fn run() {
             goals::transition_goal,
             goals::refine_goal,
             commands::get_dashboard,
+            memory::create_memory,
+            memory::retrieve_memory,
+            memory::list_memories,
+            memory::update_memory,
+            memory::forget_memory,
+            memory::archive_memory,
+            memory::pin_memory,
+            memory::clear_memory_scope,
+            memory::retrieve_work_context,
+            memory::save_work_context,
+            memory::get_working_memory,
             buddy::set_buddy_preferences,
             buddy::open_workspace,
             buddy::snooze_buddy,

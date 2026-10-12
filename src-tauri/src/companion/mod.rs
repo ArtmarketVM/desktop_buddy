@@ -1083,6 +1083,20 @@ pub fn respond_companion_intervention(
     } else if action != "ignore" {
         return Err("Unknown confirmation action".into());
     }
+    let scope = prompt
+        .goal_id
+        .map(crate::memory::Scope::goal)
+        .unwrap_or_else(crate::memory::Scope::global);
+    inner.storage.record_memory_event(
+        scope,
+        if action == "ignore" {
+            crate::memory::EventKind::InterventionRejected
+        } else {
+            crate::memory::EventKind::InterventionAccepted
+        },
+        "intervention_feedback",
+        Some(&format!("intervention-{}-{action}", prompt.id)),
+    )?;
     if action == "ignore" {
         inner.companion.memory.rejected = inner.companion.memory.rejected.saturating_add(1);
     } else {

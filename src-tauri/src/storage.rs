@@ -13,6 +13,7 @@ impl Storage {
         store.initialize_profile()?;
         store.initialize_core()?;
         store.initialize_skills()?;
+        store.initialize_personal_memory()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -59,18 +60,32 @@ impl Storage {
             .map(Option::flatten)
     }
     pub fn write_setting<T: serde::Serialize>(&self, name: &str, value: &T) -> Result<(), String> {
-        self.connection
-            .execute(
-                "INSERT OR REPLACE INTO preferences(name,value) VALUES(?1,?2)",
-                params![
-                    name,
-                    serde_json::to_string(value).map_err(|e| e.to_string())?
-                ],
-            )
+        let serialized = serde_json::to_string(value).map_err(|e| e.to_string())?;
+        let old: Option<String> = self
+            .connection
+            .query_row("SELECT value FROM preferences WHERE name=?1", [name], |r| {
+                r.get(0)
+            })
+            .optional()
             .map_err(|e| e.to_string())?;
-        Ok(())
+        let changed = old
+            .as_ref()
+            .and_then(|s| serde_json::from_str::<serde_json::Value>(s).ok())
+            != serde_json::from_str::<serde_json::Value>(&serialized).ok();
+        crate::memory::atomic(&self.connection, || {
+            self.connection
+                .execute(
+                    "INSERT OR REPLACE INTO preferences(name,value) VALUES(?1,?2)",
+                    params![name, serialized],
+                )
+                .map_err(|e| e.to_string())?;
+            if changed {
+                self.remember_setting(name, value, old.as_deref())?;
+            }
+            Ok(())
+        })
     }
-    /// Removes local history, not settings, keys, or the active goal. None means all history.
+    /// Removes local history and personal memories, not settings, keys, or the active goal. None means all history.
     pub fn purge_history(&mut self, cutoff: Option<&str>) -> Result<(), String> {
         let cutoff_day = cutoff
             .map(|v| {
@@ -80,7 +95,18 @@ impl Storage {
             })
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
-        tx.execute("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR julianday(updated_at)<julianday(?1)", [cutoff]).map_err(|e| e.to_string())?;
+        if cutoff.is_none() {
+            tx.execute("DELETE FROM memory_evidence", [])
+                .map_err(|e| e.to_string())?;
+            tx.execute("DELETE FROM memories", [])
+                .map_err(|e| e.to_string())?;
+            tx.execute("DELETE FROM work_contexts", [])
+                .map_err(|e| e.to_string())?;
+        } else {
+            tx.execute("DELETE FROM memories WHERE memory_type='episodic' AND pinned=0 AND julianday(created_at)<julianday(?1)",[cutoff]).map_err(|e|e.to_string())?;
+            tx.execute("DELETE FROM work_contexts WHERE status='completed' AND julianday(updated_at)<julianday(?1)",[cutoff]).map_err(|e|e.to_string())?;
+        }
+        tx.execute("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR (julianday(updated_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM memories WHERE conversation_id=buddy_conversations.id AND pinned=1))", [cutoff]).map_err(|e| e.to_string())?;
         // Backups of goals deleted in chat hold activity history, so they follow the same retention.
         let cutoff_unix = cutoff
             .map(|v| chrono::DateTime::parse_from_rfc3339(v).map(|d| d.timestamp()))
@@ -146,7 +172,7 @@ impl Storage {
             )
             .map_err(|e| e.to_string())?;
         }
-        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=goals.id AND state IN ('open','deferred')) AND NOT EXISTS(SELECT 1 FROM usage_intervals WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM tracking_events WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id)",[cutoff]).map_err(|e|e.to_string())?;
+        tx.execute("DELETE FROM goals WHERE status!='active' AND (?1 IS NULL OR (status!='deferred' AND julianday(created_at)<julianday(?1))) AND NOT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=goals.id AND state IN ('open','deferred')) AND NOT EXISTS(SELECT 1 FROM usage_intervals WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM tracking_events WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM usage_daily WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM activity WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM decisions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM recommendation_history WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM suggestions WHERE goal_id=goals.id) AND NOT EXISTS(SELECT 1 FROM memories WHERE goal_id=goals.id AND pinned=1)",[cutoff]).map_err(|e|e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn record_recommendation(
@@ -188,17 +214,41 @@ impl Storage {
             .map_err(|e| e.to_string())
     }
     pub fn rate_recommendation(&self, id: i64, helpful: Option<bool>) -> Result<(), String> {
-        let changed = self
+        let (goal, old): (i64, Option<bool>) = self
             .connection
-            .execute(
-                "UPDATE recommendation_history SET feedback=?1 WHERE id=?2",
-                params![helpful, id],
+            .query_row(
+                "SELECT goal_id,feedback FROM recommendation_history WHERE id=?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
-            .map_err(|e| e.to_string())?;
-        if changed == 0 {
-            return Err("Recommendation not found".into());
+            .optional()
+            .map_err(|e| e.to_string())?
+            .ok_or("Recommendation not found")?;
+        if old == helpful {
+            return Ok(());
         }
-        Ok(())
+        crate::memory::atomic(&self.connection, || {
+            self.connection
+                .execute(
+                    "UPDATE recommendation_history SET feedback=?1 WHERE id=?2",
+                    params![helpful, id],
+                )
+                .map_err(|e| e.to_string())?;
+            self.record_memory_event(
+                crate::memory::Scope::goal(goal),
+                match helpful {
+                    Some(true) => crate::memory::EventKind::ResearchAccepted,
+                    Some(false) => crate::memory::EventKind::ResearchRejected,
+                    None => crate::memory::EventKind::MeaningfulCorrection,
+                },
+                "research_feedback",
+                Some(&format!(
+                    "research-{id}-{}",
+                    Utc::now().timestamp_nanos_opt().unwrap_or_default()
+                )),
+            )?;
+            Ok(())
+        })
     }
     pub fn buddy_preferences(&self) -> Result<BuddyPreferences, String> {
         let value: Option<String> = self
