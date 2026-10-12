@@ -151,9 +151,18 @@ export function Experience({
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
-      {page === "activity" && (
-        <TrackingStatus dashboard={dashboard} onSettings={onSettings} />
-      )}
+      {page === "activity" &&
+        (!dashboard.status.tracking || dashboard.status.tracking_error) && (
+          <p className="progress-notice" role="status">
+            <span aria-hidden="true" />
+            {dashboard.status.tracking
+              ? "Tracking is blocked."
+              : "Tracking is paused."}{" "}
+            <button className="text-button" onClick={onSettings}>
+              Fix in Settings
+            </button>
+          </p>
+        )}
       <div hidden={page !== "resources" && !(page === "history" && showImport)}>
         <Composer
           importMode={page === "resources" || page === "history"}

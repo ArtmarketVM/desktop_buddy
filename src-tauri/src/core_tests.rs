@@ -419,3 +419,40 @@ fn unticking_a_step_reopens_a_completed_goal_without_resetting_other_steps() {
     assert!(snap.goals[0].plan.steps[0].done);
     assert!(!snap.goals[0].plan.steps[1].done);
 }
+#[test]
+fn relevant_time_is_attributed_to_the_current_open_step() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![GoalDraft {
+            title: "Timed".into(),
+            area: "Work".into(),
+            steps: vec!["First".into(), "Second".into()],
+        }],
+        "step-time",
+    )
+    .unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    let goal = &snap.goals[0];
+    let (first, second) = (goal.plan.steps[0].id.clone(), goal.plan.steps[1].id.clone());
+    // With nothing chosen, the first unfinished step gets the time.
+    assert_eq!(s.attributed_step(goal.id).unwrap(), first);
+    let mut plan = goal.plan.clone();
+    plan.current_step = Some(second.clone());
+    s.core_save_goal("Timed", "Work", plan).unwrap();
+    assert_eq!(s.attributed_step(goal.id).unwrap(), second);
+    let mut plan = s.core_snapshot(None).unwrap().goals[0].plan.clone();
+    plan.steps[1].done = true;
+    plan.current_step = None;
+    s.core_save_goal("Timed", "Work", plan).unwrap();
+    // The second step is done, so the first one is the open step again.
+    assert_eq!(s.attributed_step(goal.id).unwrap(), first);
+    s.connection
+        .execute(
+            "INSERT INTO goal_relevant_step_daily(day,goal_id,step_id,milliseconds) VALUES('2026-10-12',?1,?2,90000)",
+            params![goal.id, first],
+        )
+        .unwrap();
+    let times = s.step_times(goal.id, "2026-10-12").unwrap();
+    assert_eq!(times.len(), 1);
+    assert_eq!(times[0].seconds, 90);
+}

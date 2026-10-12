@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.26.0 — Progress overview and per-step time
+
+- Redesign Progress as an overview and a single-goal view with a stacked chart and period navigation.
+- Record relevant activity time per step and show minutes for each finished step.
+
 ## 0.25.1 — macOS permission and mascot fixes
 
 - Make Check permission respond, auto-refresh while blocked, and add Reset and ask again for stale Accessibility entries.

@@ -39,7 +39,7 @@ export const pages = [
     id: "activity",
     label: "Progress",
     icon: BarChart3,
-    description: "Your goals, completed steps and focused time.",
+    description: "",
   },
   {
     id: "history",

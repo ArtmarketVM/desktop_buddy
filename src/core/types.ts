@@ -41,6 +41,7 @@ export interface GoalTime {
   seconds: number;
   tracked_seconds?: number;
   relevant_seconds?: number;
+  steps?: Array<{ step_id: string; seconds: number }>;
 }
 export interface DayProgress {
   day: string;

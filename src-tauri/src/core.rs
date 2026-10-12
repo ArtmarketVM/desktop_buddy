@@ -87,6 +87,12 @@ pub struct GoalDraft {
     pub steps: Vec<String>,
 }
 #[derive(Serialize)]
+pub struct StepTime {
+    /// Empty when the time was not tied to a step.
+    pub step_id: String,
+    pub seconds: u64,
+}
+#[derive(Serialize)]
 pub struct GoalTime {
     pub goal_id: i64,
     pub title: String,
@@ -94,6 +100,7 @@ pub struct GoalTime {
     pub seconds: u64,
     pub tracked_seconds: u64,
     pub relevant_seconds: u64,
+    pub steps: Vec<StepTime>,
 }
 #[derive(Serialize)]
 pub struct DayProgress {
@@ -753,6 +760,23 @@ impl Storage {
             }),
         )
     }
+    fn step_times(&self, goal: i64, date: &str) -> Result<Vec<StepTime>, String> {
+        let mut q = self
+            .connection
+            .prepare("SELECT step_id,milliseconds/1000 FROM goal_relevant_step_daily WHERE goal_id=?1 AND day=?2 ORDER BY step_id")
+            .map_err(db)?;
+        let rows = q
+            .query_map(params![goal, date], |r| {
+                Ok(StepTime {
+                    step_id: r.get(0)?,
+                    seconds: r.get(1)?,
+                })
+            })
+            .map_err(db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db)?;
+        Ok(rows)
+    }
     fn core_progress(&self, date: &str) -> Result<DayProgress, String> {
         let mut q=self.connection.prepare("SELECT e.title FROM core_events e WHERE e.day=?1 AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id=e.step_id AND x.day=e.day) ORDER BY e.id").map_err(db)?;
         let completed = q
@@ -771,6 +795,9 @@ impl Storage {
                     tracked_seconds: r.get(4)?,
                     relevant_seconds: self
                         .relevant_seconds(r.get(0)?, Some(date))
+                        .map_err(|_| rusqlite::Error::InvalidQuery)?,
+                    steps: self
+                        .step_times(r.get(0)?, date)
                         .map_err(|_| rusqlite::Error::InvalidQuery)?,
                 })
             })

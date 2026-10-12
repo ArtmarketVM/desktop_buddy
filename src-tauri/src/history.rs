@@ -175,8 +175,21 @@ impl Storage {
                     .map_err(|e| e.to_string())?;
             }
         }
-        self.connection.execute_batch("CREATE TABLE IF NOT EXISTS goal_relevant_daily(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,process_name TEXT NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id,process_name));").map_err(|e|e.to_string())?;
+        self.connection.execute_batch("CREATE TABLE IF NOT EXISTS goal_relevant_daily(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,process_name TEXT NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id,process_name));
+            CREATE TABLE IF NOT EXISTS goal_relevant_step_daily(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,step_id TEXT NOT NULL,milliseconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id,step_id));").map_err(|e|e.to_string())?;
         Ok(())
+    }
+    /// Relevant time belongs to the step being worked on: the chosen current step if it is still
+    /// open, otherwise the first unfinished step. An empty id means the goal has no open step.
+    pub fn attributed_step(&self, goal: i64) -> Result<String, String> {
+        let plan = self.goal_plan(goal)?;
+        Ok(plan
+            .current_step
+            .as_ref()
+            .filter(|id| plan.steps.iter().any(|s| &s.id == *id && !s.done))
+            .cloned()
+            .or_else(|| plan.steps.iter().find(|s| !s.done).map(|s| s.id.clone()))
+            .unwrap_or_default())
     }
     pub fn tracking_event(
         &self,
@@ -233,6 +246,11 @@ impl Storage {
             && matched.confidence.is_finite()
             && (crate::relevance::THRESHOLD..=1.0).contains(&matched.confidence)
             && matched.goal_id.as_deref() == Some(goal.to_string().as_str());
+        let step = if relevant {
+            self.attributed_step(goal)?
+        } else {
+            String::new()
+        };
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         // Intervals are strictly disjoint per goal. Reject retries and overlap
         // rather than inflating the daily or historical totals.
@@ -259,6 +277,7 @@ impl Storage {
                     params![day,goal,process,next-cursor]).map_err(|e| e.to_string())?;
                 if relevant {
                     tx.execute("INSERT INTO goal_relevant_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,process_name) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,process,next-cursor]).map_err(|e|e.to_string())?;
+                    tx.execute("INSERT INTO goal_relevant_step_daily(day,goal_id,step_id,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,step_id) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,step,next-cursor]).map_err(|e|e.to_string())?;
                 }
                 cursor = next;
             }

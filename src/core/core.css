@@ -1458,3 +1458,155 @@ select:focus,
 textarea:focus {
   border-color: var(--accent);
 }
+.progress-screen {
+  display: flex;
+  flex-direction: column;
+  max-width: 720px;
+}
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.progress-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding-left: 0;
+  color: var(--muted);
+}
+.progress-goal-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.progress-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.progress-nav strong {
+  font-weight: 500;
+  min-width: 120px;
+  text-align: center;
+}
+.progress-nav .text-button {
+  padding: 2px 6px;
+  color: var(--muted);
+}
+.progress-total {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 36px;
+}
+.progress-sub {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.stack-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 120px;
+  margin: 4px 0 20px;
+}
+.stack-col {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: stretch;
+}
+.stack-bar {
+  display: flex;
+  flex-direction: column-reverse;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+  min-height: 2px;
+  background: var(--line);
+}
+.stack-bar:not(:has(i)) {
+  height: 2px !important;
+}
+.stack-col small {
+  height: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+.progress-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  color: var(--text);
+  text-align: left;
+  font-size: 14px;
+}
+.progress-row > span:not(.done-box) {
+  flex: 1;
+  min-width: 0;
+}
+.progress-row > i {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+}
+.progress-row > em {
+  font-style: normal;
+  color: var(--muted);
+}
+.progress-row.muted {
+  color: var(--muted);
+}
+.progress-row svg {
+  color: var(--muted);
+}
+.done-box {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--surface);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.done-box svg {
+  color: var(--surface);
+}
+.progress-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.progress-notice > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #c0a343;
+}
+.progress-notice .text-button {
+  padding: 0;
+  color: var(--text);
+  text-decoration: underline;
+}

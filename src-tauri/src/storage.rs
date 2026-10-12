@@ -86,6 +86,11 @@ impl Storage {
         )
         .map_err(|e| e.to_string())?;
         tx.execute(
+            "DELETE FROM goal_relevant_step_daily WHERE ?1 IS NULL OR day<?1",
+            [cutoff_day.as_deref()],
+        )
+        .map_err(|e| e.to_string())?;
+        tx.execute(
             "DELETE FROM usage_daily WHERE ?1 IS NULL OR day<?1",
             [cutoff_day.as_deref()],
         )
