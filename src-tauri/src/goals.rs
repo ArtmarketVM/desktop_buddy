@@ -240,6 +240,9 @@ pub fn transition_goal(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.transition_goal(id, &action)?;
+    if action == "resume" {
+        inner.storage.mark_explicit_focus(id)?;
+    }
     inner.companion.invalidate();
     crate::companion::emit(
         &app,

@@ -1256,6 +1256,7 @@ pub fn set_core_timer(
             if storage.goal()?.map(|goal| goal.id) != Some(id) {
                 storage.transition_goal(id, "resume")?;
             }
+            storage.mark_explicit_focus(id)?;
         }
         Ok(())
     })

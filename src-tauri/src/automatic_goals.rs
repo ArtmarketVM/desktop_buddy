@@ -85,6 +85,12 @@ impl Storage {
     }
 }
 pub fn sync_focus(inner: &mut Inner) -> Result<(), String> {
+    if inner.storage.explicit_focus()?.is_some()
+        || (inner.goal_matching.view.goal_id.is_some()
+            && inner.storage.goal()?.map(|g| g.id) == inner.goal_matching.view.goal_id)
+    {
+        return Ok(());
+    }
     // Nebius chooses among all open goals. Do not replace its choice with Today ordering.
     if inner.storage.ai_preferences()?.automatic_goal_matching {
         return Ok(());
@@ -121,6 +127,7 @@ pub fn select_core_goal(id: i64, app: AppHandle, state: State<AppState>) -> Resu
     if snapshot.focused_goal_id != Some(id) {
         inner.storage.transition_goal(id, "resume")?;
     }
+    inner.storage.mark_explicit_focus(id)?;
     inner.status.tracking = crate::tracking::requested(&inner.storage)?;
     inner.usage = Default::default();
     inner.activity_state.stop(false);

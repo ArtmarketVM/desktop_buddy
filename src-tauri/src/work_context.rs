@@ -185,6 +185,7 @@ impl Storage {
                 if storage.goal()?.map(|g| g.id) != Some(goal_id) {
                     storage.transition_goal(goal_id, "resume")?;
                 }
+                storage.mark_explicit_focus(goal_id)?;
                 // Focusing can fire the legacy start trigger; keep waiting state intact.
                 storage
                     .connection

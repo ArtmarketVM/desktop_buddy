@@ -829,6 +829,7 @@ fn execute_one(
                 if snapshot.focused_goal_id != Some(id) {
                     storage.transition_goal(id, "resume")?;
                 }
+                storage.mark_explicit_focus(id)?;
             }
             kind => {
                 let mut plan = goal.plan.clone();

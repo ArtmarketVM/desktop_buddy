@@ -1,0 +1,51 @@
+{
+  "active_goals": 6,
+  "new": {
+    "local_only_resolutions": 5,
+    "nemotron_calls": 1,
+    "segments": [
+      {
+        "latency_seconds": 30,
+        "source": "local_keywords",
+        "start": 0
+      },
+      {
+        "latency_seconds": 30,
+        "source": "local_keywords",
+        "start": 114
+      },
+      {
+        "latency_seconds": 60,
+        "source": "nebius",
+        "start": 204
+      },
+      {
+        "latency_seconds": 30,
+        "source": "work_context",
+        "start": 294
+      },
+      {
+        "latency_seconds": 30,
+        "source": "local_keywords",
+        "start": 384
+      },
+      {
+        "latency_seconds": 30,
+        "source": "local_keywords",
+        "start": 474
+      }
+    ]
+  },
+  "note": "Simulated 3-second collection; actual local HTTP fixture; provider latency excluded; counts cover goal matching only",
+  "old": {
+    "local_only_resolutions": 0,
+    "nemotron_calls": 0,
+    "recognized_segments": 0,
+    "stable_threshold_seconds": 600
+  },
+  "scenario_seconds": 564,
+  "stationary_ambiguous_first_eligibility_seconds": {
+    "new": 60,
+    "old": 600
+  }
+}

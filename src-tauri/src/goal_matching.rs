@@ -4,34 +4,65 @@ use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
 
-const CLASSIFICATION_WINDOW: Duration = Duration::from_secs(10 * 60);
-
+#[cfg(test)]
+mod cascade_tests;
+mod resolution;
+pub const LOCAL_STABLE: Duration = Duration::from_secs(30);
+pub const AI_STABLE: Duration = Duration::from_secs(60);
+const AI_COOLDOWN: Duration = Duration::from_secs(90);
+const CACHE_TTL: Duration = Duration::from_secs(600);
 #[derive(Clone, Default, Serialize)]
 pub struct MatchView {
     pub goal_id: Option<i64>,
     pub confidence: Option<f64>,
     pub reason: Option<String>,
+    pub source: Option<String>,
     pub enabled: bool,
+}
+struct Cache {
+    key: String,
+    signature: String,
+    view: MatchView,
+    at: Instant,
+}
+#[derive(Default, Serialize)]
+pub struct Metrics {
+    pub local_resolutions: u64,
+    pub nemotron_calls: u64,
+    pub cache_hits: u64,
 }
 #[derive(Default)]
 pub struct Runtime {
     pub view: MatchView,
+    pub metrics: Metrics,
     sample: Option<ActivitySnapshot>,
     stable_since: Option<Instant>,
+    last_seen: Option<Instant>,
     last_attempt: Option<Instant>,
-    matched_at: Option<Instant>,
     in_flight: bool,
     context_revision: u64,
+    signature: Option<String>,
+    proposal: MatchView,
+    cache: std::collections::VecDeque<Cache>,
 }
 impl Runtime {
+    pub(crate) fn current_sample(&self) -> Option<&ActivitySnapshot> {
+        self.sample.as_ref()
+    }
     pub fn clear(&mut self) {
         self.context_revision = self.context_revision.wrapping_add(1);
         self.view = MatchView::default();
+        self.proposal = MatchView::default();
         self.sample = None;
         self.stable_since = None;
-        self.matched_at = None;
+        self.last_seen = None;
+        self.signature = None;
     }
+    #[cfg(test)]
     pub fn observe(&mut self, sample: &ActivitySnapshot, allowed: bool) {
+        self.observe_at(sample, allowed, Instant::now());
+    }
+    fn observe_at(&mut self, sample: &ActivitySnapshot, allowed: bool, now: Instant) {
         if !allowed {
             self.clear();
             self.view.enabled = true;
@@ -40,31 +71,179 @@ impl Runtime {
         let changed = self
             .sample
             .as_ref()
-            .is_none_or(|previous| fingerprint(previous) != fingerprint(sample));
+            .is_none_or(|old| fingerprint(old) != fingerprint(sample))
+            || self
+                .last_seen
+                .is_some_and(|at| now.saturating_duration_since(at) > Duration::from_secs(15));
         if changed {
             self.context_revision = self.context_revision.wrapping_add(1);
             self.view = MatchView {
                 enabled: true,
                 ..Default::default()
             };
-            self.stable_since = Some(Instant::now());
-            self.matched_at = None;
-        }
-        if self
-            .matched_at
-            .is_some_and(|time| time.elapsed() > Duration::from_secs(60))
-        {
-            self.view.goal_id = None;
+            self.stable_since = Some(now);
         }
         self.view.enabled = true;
         self.sample = Some(sample.clone());
+        self.last_seen = Some(now);
+    }
+    fn cached(
+        &mut self,
+        sample: &ActivitySnapshot,
+        signature: &str,
+        now: Instant,
+    ) -> Option<MatchView> {
+        self.cache
+            .retain(|c| now.saturating_duration_since(c.at) < CACHE_TTL);
+        self.cache
+            .iter()
+            .find(|c| c.key == fingerprint(sample) && c.signature == signature)
+            .map(|c| c.view.clone())
     }
 }
-fn fingerprint(sample: &ActivitySnapshot) -> (String, String) {
-    (
-        sample.process_name.to_lowercase(),
-        sample.window_title.clone(),
+fn fingerprint(sample: &ActivitySnapshot) -> String {
+    crate::companion::engine::fingerprint(
+        &serde_json::json!([
+            sample.process_name.to_lowercase(),
+            sample.window_title,
+            sample.browser
+        ])
+        .to_string(),
     )
+}
+pub fn observe_inner(
+    inner: &mut crate::commands::Inner,
+    sample: &ActivitySnapshot,
+    allowed: bool,
+) -> Result<(), String> {
+    observe_inner_at(inner, sample, allowed, Instant::now())
+}
+fn observe_inner_at(
+    inner: &mut crate::commands::Inner,
+    sample: &ActivitySnapshot,
+    allowed: bool,
+    now: Instant,
+) -> Result<(), String> {
+    let allowed = allowed
+        && inner.status.tracking
+        && sample.idle_seconds < inner.tracking_settings.idle_seconds
+        && !crate::attention::excluded(&inner.buddy.view.preferences, &sample.process_name)
+        && !crate::companion::sensitive_window(sample);
+    if !allowed {
+        inner.goal_matching.observe_at(sample, false, now);
+        return Ok(());
+    }
+    let resolved = resolution::resolve(inner, sample)?;
+    if inner.goal_matching.signature.as_ref() != Some(&resolved.signature) {
+        inner.goal_matching.clear();
+    }
+    inner.goal_matching.observe_at(sample, true, now);
+    inner.goal_matching.signature = Some(resolved.signature.clone());
+    inner.goal_matching.proposal = resolved.view.clone();
+    let stable = inner
+        .goal_matching
+        .stable_since
+        .is_some_and(|at| now.saturating_duration_since(at) >= LOCAL_STABLE);
+    let explicit = resolved.view.source.as_deref() == Some("explicit_focus");
+    // A still-current verified result does not expire just because time passed.
+    // TTL applies to returning to a previous context, not continuous work in one window.
+    let accepted = (stable
+        && inner.goal_matching.view.source.as_deref() == Some("nebius")
+        && inner.goal_matching.view.goal_id.is_some())
+    .then(|| inner.goal_matching.view.clone());
+    let cached = accepted.or_else(|| {
+        stable
+            .then(|| inner.goal_matching.cached(sample, &resolved.signature, now))
+            .flatten()
+    });
+    let view = if explicit {
+        resolved.view
+    } else if let Some(cached) = cached {
+        if inner.goal_matching.view.source != cached.source
+            || inner.goal_matching.view.goal_id != cached.goal_id
+        {
+            inner.goal_matching.metrics.cache_hits += 1;
+        }
+        cached
+    } else if stable {
+        resolved.view
+    } else {
+        MatchView {
+            source: Some("debouncing".into()),
+            enabled: true,
+            ..Default::default()
+        }
+    };
+    if view.goal_id.is_some()
+        && (inner.goal_matching.view.goal_id != view.goal_id
+            || inner.goal_matching.view.source != view.source)
+        && view.source.as_deref() != Some("nebius")
+    {
+        inner.goal_matching.metrics.local_resolutions += 1;
+    }
+    if let Some(id) = view.goal_id {
+        select_goal(inner, id)?;
+    }
+    inner.goal_matching.view = view;
+    // Focus lifecycle updates can change a checkpoint; bind to the resulting state.
+    inner.goal_matching.signature = Some(resolution::resolve(inner, sample)?.signature);
+    Ok(())
+}
+fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String> {
+    if inner.storage.goal()?.map(|g| g.id) != Some(id) {
+        let waiting = inner
+            .storage
+            .work_context(id)?
+            .is_some_and(|c| c.context.status == crate::memory::ContextStatus::Waiting);
+        inner.storage.transition_goal(id, "resume")?;
+        if waiting {
+            inner
+                .storage
+                .connection
+                .execute(
+                    "UPDATE work_contexts SET status='waiting' WHERE goal_id=?1",
+                    [id],
+                )
+                .map_err(|e| e.to_string())?;
+        }
+        inner.usage = Default::default();
+        inner.activity_state.stop(false);
+        inner.companion.invalidate();
+        inner.buddy.clear();
+        inner.last_analysis = None;
+    }
+    Ok(())
+}
+/// Direction is distinct from relevance: explicit focus and a remembered app do not prove work.
+pub fn attribution(
+    inner: &crate::commands::Inner,
+    sample: &ActivitySnapshot,
+) -> Result<crate::relevance::ActivityMatch, String> {
+    let view = &inner.goal_matching.view;
+    let mut confidence = view.confidence.unwrap_or(0.);
+    if matches!(
+        view.source.as_deref(),
+        Some("explicit_focus" | "work_context")
+    ) {
+        let local = inner.storage.match_activity(sample)?;
+        confidence = if local
+            .goal_id
+            .as_ref()
+            .is_some_and(|id| Some(id.parse::<i64>().unwrap_or_default()) == view.goal_id)
+        {
+            local.confidence
+        } else {
+            0.
+        };
+    }
+    Ok(crate::relevance::ActivityMatch {
+        goal_id: view.goal_id.map(|id| id.to_string()),
+        confidence,
+        reason: view
+            .reason
+            .clone()
+            .unwrap_or_else(|| "No verified relevance".into()),
+    })
 }
 fn candidates(inner: &crate::commands::Inner) -> Result<Value, String> {
     let snapshot = inner.storage.core_snapshot(None)?;
@@ -79,24 +258,49 @@ fn candidates(inner: &crate::commands::Inner) -> Result<Value, String> {
         "next_steps": goal.plan.steps.iter().filter(|step| !step.done).take(3).map(|step| &step.text).collect::<Vec<_>>()
     })).collect::<Vec<_>>()))
 }
-pub fn due(state: &AppState) -> bool {
-    let Ok(inner) = state.inner.lock() else {
-        return false;
-    };
-    let matching = &inner.goal_matching;
+fn cloud_allowed(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
-        && !matching.in_flight
-        && matching.sample.is_some()
-        && matching
-            .stable_since
-            .is_some_and(|time| time.elapsed() >= CLASSIFICATION_WINDOW)
-        && matching
-            .last_attempt
-            .is_none_or(|time| time.elapsed() >= CLASSIFICATION_WINDOW)
+        && !inner.status.dnd
+        && !crate::buddy::snoozed(&inner.buddy.view)
+        && !inner.buddy.fullscreen
+        && !inner.companion.view.preferences.paused
+        && !inner.companion.view.preferences.quiet({
+            use chrono::Timelike;
+            let now = chrono::Local::now();
+            now.hour() * 60 + now.minute()
+        })
         && inner
             .storage
             .ai_preferences()
-            .is_ok_and(|preferences| preferences.enabled && preferences.automatic_goal_matching)
+            .is_ok_and(|p| p.enabled && p.share_goal_context && p.automatic_goal_matching)
+}
+fn due_inner(inner: &crate::commands::Inner, now: Instant) -> bool {
+    let matching = &inner.goal_matching;
+    cloud_allowed(inner)
+        && (inner.status.nebius_configured || inner.status.mock_ai)
+        && !matching.in_flight
+        && matching.sample.is_some()
+        && matching.view.goal_id.is_none()
+        && matching.proposal.source.as_deref() == Some("ambiguous")
+        && matching
+            .stable_since
+            .is_some_and(|at| now.saturating_duration_since(at) >= AI_STABLE)
+        && matching
+            .last_attempt
+            .is_none_or(|at| now.saturating_duration_since(at) >= AI_COOLDOWN)
+        && matching.sample.as_ref().is_none_or(|sample| {
+            !matching.cache.iter().any(|c| {
+                c.key == fingerprint(sample)
+                    && Some(&c.signature) == matching.signature.as_ref()
+                    && now.saturating_duration_since(c.at) < CACHE_TTL
+            })
+        })
+}
+pub fn due(state: &AppState) -> bool {
+    state
+        .inner
+        .lock()
+        .is_ok_and(|inner| due_inner(&inner, Instant::now()))
 }
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -168,87 +372,114 @@ async fn request_at(
         {"role":"user","content":json!({"open_goals":goals,"activity":{"app":sample.process_name,"window_title":sample.window_title.chars().take(160).collect::<String>()}}).to_string()}]});
     parse(&http::post_json(client, url, key, &payload).await?, goals)
 }
-pub async fn identify(app: &AppHandle, state: &AppState) {
-    if !due(state) {
-        return;
+struct Job {
+    sample: ActivitySnapshot,
+    goals: Value,
+    revision: u64,
+    context_revision: u64,
+    mock: bool,
+}
+fn claim(inner: &mut crate::commands::Inner, now: Instant) -> Result<Option<Job>, String> {
+    if !due_inner(inner, now) {
+        return Ok(None);
     }
-    let input = (|| {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if inner.goal_matching.in_flight {
-            return Err("Goal matching is already running".into());
-        }
-        let sample = inner
-            .goal_matching
-            .sample
-            .clone()
-            .ok_or("No activity to match")?;
-        let goals = candidates(&inner)?;
-        if goals.as_array().is_none_or(|goals| goals.is_empty()) {
-            return Err("Add an open goal to enable matching".into());
-        }
-        inner.goal_matching.in_flight = true;
-        inner.goal_matching.last_attempt = Some(Instant::now());
-        Ok::<_, String>((
-            sample,
-            goals,
-            inner.privacy_revision,
-            inner.goal_matching.context_revision,
-            inner.status.mock_ai,
-        ))
-    })();
-    let Ok((sample, goals, revision, context_revision, mock)) = input else {
-        return;
-    };
-    let result = if mock {
-        Ok(MatchResult {
-            goal_id: None,
-            confidence: 0.0,
-            reason: "Mock AI: activity remains unassigned.".into(),
-        })
-    } else {
-        request(&state.client, &goals, &sample).await
-    };
-    let Ok(mut inner) = state.inner.lock() else {
-        return;
-    };
+    let sample = inner
+        .goal_matching
+        .sample
+        .clone()
+        .ok_or("No activity to match")?;
+    let goals = candidates(inner)?;
+    if goals.as_array().is_none_or(|g| g.is_empty()) {
+        return Ok(None);
+    }
+    inner.goal_matching.in_flight = true;
+    inner.goal_matching.last_attempt = Some(now);
+    if !inner.status.mock_ai {
+        inner.goal_matching.metrics.nemotron_calls += 1;
+    }
+    Ok(Some(Job {
+        sample,
+        goals,
+        revision: inner.privacy_revision,
+        context_revision: inner.goal_matching.context_revision,
+        mock: inner.status.mock_ai,
+    }))
+}
+fn finish(
+    inner: &mut crate::commands::Inner,
+    job: &Job,
+    result: Result<MatchResult, String>,
+    now: Instant,
+) -> Result<(), String> {
     inner.goal_matching.in_flight = false;
-    // Never apply a response to new activity, edited goals or revoked sharing consent.
-    if !context_current(&inner, revision, context_revision, &goals, &sample) {
-        return;
+    if !context_current(
+        inner,
+        job.revision,
+        job.context_revision,
+        &job.goals,
+        &job.sample,
+    ) {
+        return Ok(());
     }
-    match result {
+    inner.goal_matching.view = match result {
         Ok(result) => {
             let id = result.goal_id.filter(|_| result.confidence >= 0.8);
             if let Some(id) = id {
-                if inner.storage.goal().ok().flatten().map(|goal| goal.id) != Some(id) {
-                    if inner.storage.transition_goal(id, "resume").is_err() {
-                        return;
-                    }
-                    inner.usage = Default::default();
-                    inner.activity_state.stop(false);
-                    inner.companion.invalidate();
-                    inner.buddy.clear();
-                    inner.last_analysis = None;
-                }
+                select_goal(inner, id)?;
             }
-            inner.goal_matching.view = MatchView {
+            MatchView {
                 goal_id: id,
                 confidence: Some(result.confidence),
                 reason: Some(result.reason),
+                source: Some("nebius".into()),
                 enabled: true,
-            };
-            inner.goal_matching.matched_at = Some(Instant::now());
+            }
         }
-        Err(_) => {
-            inner.goal_matching.view.goal_id = None;
-            inner.goal_matching.view.reason = Some("Goal matching unavailable. Check Nebius in Integrations / AI; activity stays unassigned.".into());
-        }
+        Err(_) => MatchView {
+            source: Some("provider_unavailable".into()),
+            reason: Some("Goal matching unavailable; activity stays unassigned.".into()),
+            enabled: true,
+            ..Default::default()
+        },
+    };
+    let signature = resolution::resolve(inner, &job.sample)?.signature;
+    inner.goal_matching.signature = Some(signature.clone());
+    let cached = Cache {
+        key: fingerprint(&job.sample),
+        signature,
+        view: inner.goal_matching.view.clone(),
+        at: now,
+    };
+    if inner.goal_matching.cache.len() >= 16 {
+        inner.goal_matching.cache.pop_front();
     }
-    let _ = crate::buddy::sync(app, &mut inner);
+    inner.goal_matching.cache.push_back(cached);
+    Ok(())
 }
+pub async fn identify(app: &AppHandle, state: &AppState) {
+    let job = state
+        .inner
+        .lock()
+        .ok()
+        .and_then(|mut inner| claim(&mut inner, Instant::now()).ok().flatten());
+    let Some(job) = job else { return };
+    let result = if job.mock {
+        Ok(MatchResult {
+            goal_id: None,
+            confidence: 0.,
+            reason: "Mock AI: activity remains unassigned.".into(),
+        })
+    } else {
+        request(&state.client, &job.goals, &job.sample).await
+    };
+    if let Ok(mut inner) = state.inner.lock() {
+        if let Err(error) = finish(&mut inner, &job, result, Instant::now()) {
+            inner.last_error = Some(error);
+        }
+        let _ = crate::buddy::sync(app, &mut inner);
+    }
+}
+
 fn context_current(
     inner: &crate::commands::Inner,
     revision: u64,
@@ -256,7 +487,15 @@ fn context_current(
     goals: &Value,
     sample: &ActivitySnapshot,
 ) -> bool {
-    inner.status.tracking
+    cloud_allowed(inner)
+        && inner.storage.explicit_focus().ok().flatten().is_none()
+        && inner
+            .goal_matching
+            .signature
+            .as_ref()
+            .is_none_or(|signature| {
+                resolution::resolve(inner, sample).is_ok_and(|r| &r.signature == signature)
+            })
         && revision == inner.privacy_revision
         && context_revision == inner.goal_matching.context_revision
         && inner
@@ -440,6 +679,8 @@ mod tests {
         let state = AppState::new(storage).unwrap();
         let mut inner = state.inner.lock().unwrap();
         inner.status.tracking = true;
+        inner.companion.view.preferences.quiet_start_minute = 0;
+        inner.companion.view.preferences.quiet_end_minute = 0;
         let sample = ActivitySnapshot {
             process_name: "editor.exe".into(),
             window_title: "Release notes".into(),

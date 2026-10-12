@@ -303,7 +303,9 @@ fn prepare(inner: &mut Inner, now: i64) -> Result<Option<Job>, String> {
         .iter()
         .find(|g| Some(g["goal_id"].as_i64().unwrap()) == event.goal_id)
         .cloned();
-    let understanding = json!({"activity_state":inner.activity_state.state,"possible_stuck":inner.agent.observation.stuck,"possible_drift":inner.agent.observation.drift});
+    let work_state = crate::work_state::compute(inner)?;
+    // Checkpoint text remains exclusively in the scoped, budgeted memory envelope.
+    let understanding = json!({"personal_work_state":{"active_goal_id":work_state.active_goal_id,"active_step_id":work_state.active_step_id,"state":work_state.state,"confidence":work_state.confidence,"relevant_evidence":work_state.relevant_evidence},"activity_state":inner.activity_state.state,"possible_stuck":inner.agent.observation.stuck,"possible_drift":inner.agent.observation.drift});
     let source = json!({"observation":understanding,"event":event,"state_version":snapshot.version,"goal":goal,"current_app":app,"personal_memory":memory,"registry":skills::catalog()});
     let (cancel, receiver) = watch::channel(false);
     inner.agent.saved.last_attempt = now;

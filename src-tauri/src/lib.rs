@@ -41,6 +41,7 @@ mod tracking;
 mod tray;
 mod updates;
 mod work_context;
+mod work_state;
 use tauri::Manager;
 
 #[cfg(test)]
