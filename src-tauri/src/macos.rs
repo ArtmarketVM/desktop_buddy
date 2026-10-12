@@ -1,7 +1,7 @@
 //! Public macOS APIs behind a small, owned-string native boundary.
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use std::ffi::{c_char, CStr, CString};
+use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::OnceLock;
 use tauri::{Manager, WebviewWindow};
 
@@ -18,6 +18,7 @@ extern "C" {
     fn buddy_idle() -> f64;
     fn buddy_foreground(metadata: bool) -> *mut c_char;
     fn buddy_fullscreen() -> bool;
+    fn buddy_pin_window(window: *mut c_void);
     fn buddy_context(window: u64, selected: bool) -> *mut c_char;
     fn buddy_apps() -> *mut c_char;
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
@@ -105,6 +106,31 @@ pub fn request_accessibility_permission(window: WebviewWindow) -> Result<bool, S
         return Err("Open Settings in the workspace to manage permissions".into());
     }
     Ok(unsafe { buddy_accessibility(true) })
+}
+/// macOS ties an Accessibility switch to the exact signature of the app that was added. After an
+/// update the switch can look enabled while access is still blocked. Clearing the stale entry and
+/// asking again attaches it to this copy of the app.
+pub fn reset_accessibility_permission(
+    app: &tauri::AppHandle,
+    window: WebviewWindow,
+) -> Result<bool, String> {
+    if window.label() != "main" {
+        return Err("Open Settings in the workspace to manage permissions".into());
+    }
+    let identifier = app.config().identifier.clone();
+    let status = std::process::Command::new("/usr/bin/tccutil")
+        .args(["reset", "Accessibility", &identifier])
+        .status()
+        .map_err(|_| "Could not reset the Accessibility permission")?;
+    if !status.success() {
+        return Err("macOS did not reset the Accessibility permission".into());
+    }
+    Ok(unsafe { buddy_accessibility(true) })
+}
+pub fn pin_window(window: &WebviewWindow) {
+    if let Ok(handle) = window.ns_window() {
+        unsafe { buddy_pin_window(handle) };
+    }
 }
 pub fn get_accessibility_permission() -> bool {
     unsafe { buddy_accessibility(false) }

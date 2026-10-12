@@ -343,6 +343,8 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
             inner.buddy.positioned = true;
         }
         window.show().map_err(|_| "Could not show Buddy")?;
+        #[cfg(target_os = "macos")]
+        crate::macos::pin_window(&window);
     }
     inner.buddy.window_mode = mode;
     inner.buddy.view.desktop_visible = mode != 0;

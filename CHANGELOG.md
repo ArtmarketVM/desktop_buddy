@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.25.1 — macOS permission and mascot fixes
+
+- Make Check permission respond, auto-refresh while blocked, and add Reset and ask again for stale Accessibility entries.
+- Keep the mascot window on all Spaces and above full-screen apps on macOS.
+
 ## 0.24.1 — dark theme, feedback and macOS signing path
 
 - Improve dark theme contrast for buttons and form controls.
