@@ -356,8 +356,12 @@ export function Experience({
           )}
         </>
       )}
-      {!desktop && page !== "chats" && (
-        <WorkspaceBuddy dashboard={dashboard} onChanged={onChanged} />
+      {page !== "chats" && (
+        <WorkspaceBuddy
+          dashboard={dashboard}
+          onChanged={onChanged}
+          showLauncher={!desktop}
+        />
       )}
       {page === "chats" && (
         <Chats dashboard={dashboard} onChanged={onChanged} />

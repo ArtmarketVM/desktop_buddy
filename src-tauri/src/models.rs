@@ -65,6 +65,7 @@ pub struct SearchResult {
 pub struct Status {
     pub tracking: bool,
     pub tracking_error: Option<String>,
+    pub last_collected_at: Option<String>,
     pub ai_enabled: bool,
     pub dnd: bool,
     pub demo: bool,
@@ -140,6 +141,8 @@ pub struct BuddyView {
     pub decision: Option<Decision>,
     pub snoozed_until: Option<i64>,
     pub quiet_reason: Option<String>,
+    pub desktop_visible: bool,
+    pub visibility_reason: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

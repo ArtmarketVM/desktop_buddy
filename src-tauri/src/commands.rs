@@ -64,6 +64,7 @@ impl AppState {
                 status: Status {
                     tracking,
                     tracking_error: None,
+                    last_collected_at: None,
                     ai_enabled: false,
                     dnd: false,
                     demo,
@@ -339,6 +340,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         let mut snapshot = match inner.collector.collect() {
             Ok(snapshot) => {
                 inner.status.tracking_error = None;
+                inner.status.last_collected_at = Some(snapshot.timestamp.clone());
                 snapshot
             }
             Err(error) => {
@@ -584,6 +586,7 @@ mod tests {
         let mut status = Status {
             tracking: true,
             tracking_error: None,
+            last_collected_at: None,
             ai_enabled: true,
             dnd: false,
             demo: false,
@@ -744,5 +747,57 @@ pub fn request_accessibility_permission(window: tauri::WebviewWindow) -> Result<
     {
         let _ = window;
         Ok(true)
+    }
+}
+
+#[cfg(test)]
+mod collection_status_tests {
+    use super::*;
+
+    struct Sample(Result<ActivitySnapshot, String>);
+    impl crate::collector::ActivityCollector for Sample {
+        fn collect(&mut self) -> Result<ActivitySnapshot, String> {
+            self.0.clone()
+        }
+    }
+
+    #[test]
+    fn heartbeat_records_successful_collection_without_claiming_goal_time() {
+        let state =
+            AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+        let timestamp = chrono::Utc::now().to_rfc3339();
+        {
+            let mut inner = state.inner.lock().unwrap();
+            inner.status.tracking = true;
+            inner.status.demo = true;
+            inner.collector = Box::new(Sample(Ok(ActivitySnapshot {
+                timestamp: timestamp.clone(),
+                process_name: "work-app".into(),
+                ..Default::default()
+            })));
+        }
+        collect(&state).unwrap();
+        let inner = state.inner.lock().unwrap();
+        assert_eq!(inner.status.last_collected_at.as_ref(), Some(&timestamp));
+        assert!(inner.storage.goal().unwrap().is_none());
+        assert!(inner.storage.today(None).unwrap().apps.is_empty());
+    }
+
+    #[test]
+    fn failed_collection_does_not_advance_the_heartbeat() {
+        let state =
+            AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+        {
+            let mut inner = state.inner.lock().unwrap();
+            inner.status.tracking = true;
+            inner.collector = Box::new(Sample(Err("Permission required".into())));
+        }
+        assert!(collect(&state).is_err());
+        let inner = state.inner.lock().unwrap();
+        assert!(inner.status.last_collected_at.is_none());
+        assert_eq!(
+            inner.status.tracking_error.as_deref(),
+            Some("Permission required")
+        );
     }
 }
