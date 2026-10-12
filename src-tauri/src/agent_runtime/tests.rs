@@ -349,7 +349,7 @@ async fn cancellation_drops_an_in_flight_http_request_and_explicit_input_preempt
         begin_explicit(&mut state.inner.lock().unwrap(), EventKind::UserMessage);
     };
     let service = service(&state, &server);
-    let (result, _) = tokio::join!(reason(&mut job, &service), cancel);
+    let (result, _) = tokio::join!(reason(&state, &mut job, &service), cancel);
     assert!(result.unwrap_err().contains("cancelled"));
     assert_eq!(state.inner.lock().unwrap().agent.diagnostics.cancelled, 1);
 }
@@ -677,4 +677,32 @@ fn explicit_no_help_preference_suppresses_reasoning_before_provider_call() {
         inner.agent.diagnostics.suppression_reason,
         Some("adaptive_policy")
     );
+}
+
+#[tokio::test]
+async fn hackathon_idle_stress_has_no_db_writes_inference_or_queue_growth() {
+    let (state, _) = state();
+    let server = MockServer::start().await;
+    mount_silent(&server, 0).await;
+    let start = std::time::Instant::now();
+    let changes;
+    {
+        let mut inner = state.inner.lock().unwrap();
+        let now = Utc::now().timestamp();
+        observe::observe(&mut inner, now).unwrap();
+        observe::observe(&mut inner, now + 31).unwrap();
+        inner.agent.pending.clear();
+        let before = inner.storage.connection.total_changes();
+        for _ in 0..1000 {
+            observe::observe(&mut inner, now + 32).unwrap();
+        }
+        changes = inner.storage.connection.total_changes() - before;
+        assert_eq!(changes, 0);
+        assert!(inner.agent.pending.is_empty());
+    }
+    assert!(run_pending_with_service(&state, &service(&state, &server))
+        .await
+        .unwrap()
+        .is_none());
+    println!("Idle fixture: 1000 stable observations, {} ms wall time, {changes} DB writes, 0 queued events, 0 inference requests", start.elapsed().as_millis());
 }

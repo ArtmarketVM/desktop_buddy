@@ -959,7 +959,10 @@ pub struct Reply {
     pub message: String,
     pub resources: Vec<SearchResult>,
 }
-fn confirm_completion(storage: &mut Storage, prompt: &Intervention) -> Result<(), String> {
+pub(crate) fn confirm_completion(
+    storage: &mut Storage,
+    prompt: &Intervention,
+) -> Result<(), String> {
     // Stamp only the events created by this explicitly confirmed AI suggestion.
     storage
         .connection

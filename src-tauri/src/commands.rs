@@ -6,6 +6,7 @@ use std::{
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub engine: crate::engine_observability::Telemetry,
     pub agent: crate::agent_runtime::AgentRuntime,
     pub goal_matching: crate::goal_matching::Runtime,
     pub companion: crate::companion::Runtime,
@@ -52,6 +53,7 @@ impl AppState {
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                engine: Default::default(),
                 agent: crate::agent_runtime::AgentRuntime::load(&storage)?,
                 goal_matching: Default::default(),
                 companion: crate::companion::Runtime::load(&storage)?,

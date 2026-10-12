@@ -185,6 +185,9 @@ impl AgentRuntime {
     }
 }
 /// Explicit input preempts background work; it is handled immediately by the shared chat pipeline.
+pub(crate) fn diagnostics_view(inner: &Inner) -> Value {
+    json!({"status":if inner.agent.flight.is_some(){"reasoning"}else if !background_allowed(inner){"suppressed"}else{"idle"},"pending_events":inner.agent.pending.len(),"diagnostics":inner.agent.diagnostics})
+}
 pub fn begin_explicit(inner: &mut Inner, kind: EventKind) {
     debug_assert!(kind.explicit());
     inner.agent.cancel();
@@ -378,12 +381,16 @@ fn valid(inner: &Inner, job: &Job) -> bool {
         && skills::snapshot(&inner.storage, job.snapshot.conversation)
             .is_ok_and(|s| s.data == job.snapshot.data)
 }
-async fn reason(job: &mut Job, service: &Service<'_>) -> Result<Reasoning, String> {
+async fn reason(
+    state: &AppState,
+    job: &mut Job,
+    service: &Service<'_>,
+) -> Result<Reasoning, String> {
     if *job.cancel.borrow() {
         return Err("Agent request cancelled".into());
     }
     tokio::select! {
-        result=service.request_validated(reasoning::BACKGROUND_PROMPT,job.source.clone(),"buddy_agent_reasoning",reasoning::schema(),reasoning::parse) => result,
+        result=crate::engine_observability::request_validated(state,service,reasoning::BACKGROUND_PROMPT,job.source.clone(),"buddy_agent_reasoning",reasoning::schema(),reasoning::parse) => result,
         _=job.cancel.changed() => Err("Agent request cancelled".into()),
     }
 }
@@ -451,7 +458,7 @@ async fn process_pending_with_service(
     let outcome = if mock {
         Ok(Reasoning::silent(job.snapshot.version.clone()))
     } else {
-        reason(&mut job, service).await
+        reason(state, &mut job, service).await
     };
     let mut inner = state.inner.lock().map_err(|_| "Agent state unavailable")?;
     let applied = outcome.and_then(|result| apply(&mut inner, &job, &result));

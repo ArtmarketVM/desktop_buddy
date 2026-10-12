@@ -14,6 +14,7 @@ import { ProviderKey } from "../components/Settings";
 import { PrivacySettings } from "../components/PrivacySettings";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
+import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
 import { AiSettings } from "../ai/AiSettings";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
@@ -486,6 +487,7 @@ export function CoreSettings({
               : "Not configured"}
           </p>
           <AiSettings onChanged={onChanged} />
+          <PersonalAiEnginePanel />
         </details>
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>

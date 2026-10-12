@@ -14,6 +14,7 @@ mod core;
 mod core_capture;
 mod core_import;
 mod credentials;
+mod engine_observability;
 mod goal_analysis;
 mod goal_matching;
 mod goals;
@@ -281,6 +282,8 @@ pub fn run() {
             privacy::set_retention,
             privacy::clear_local_history,
             privacy::test_provider_connection,
+            engine_observability::get_personal_ai_engine,
+            engine_observability::test_nebius_inference,
             commands::set_provider_key,
             commands::set_goal,
             commands::get_current_goal,

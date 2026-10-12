@@ -17,6 +17,10 @@ fn assert_worker_dispatch(source: &str) {
 #[test]
 fn all_registered_command_modules_dispatch_on_workers() {
     let modules = [
+        (
+            "engine_observability",
+            include_str!("engine_observability.rs"),
+        ),
         ("updates", include_str!("updates.rs")),
         ("ai_chat", include_str!("ai_chat.rs")),
         ("memory", include_str!("memory/mod.rs")),
