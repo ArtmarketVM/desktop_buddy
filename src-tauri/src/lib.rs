@@ -31,6 +31,7 @@ mod profile;
 mod recommendations;
 mod relevance;
 mod signing_trust;
+mod skills;
 mod startup;
 mod storage;
 mod tavily;

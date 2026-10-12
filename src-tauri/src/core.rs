@@ -137,7 +137,7 @@ fn db(e: rusqlite::Error) -> String {
     e.to_string()
 }
 pub(crate) fn record_step_changes(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &rusqlite::Connection,
     old: &GoalPlan,
     plan: &GoalPlan,
 ) -> Result<(), String> {
@@ -155,7 +155,7 @@ pub(crate) fn record_step_changes(
     Ok(())
 }
 pub(crate) fn record_legacy_transition(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &rusqlite::Connection,
     id: i64,
     action: &str,
 ) -> Result<(), String> {
@@ -301,7 +301,7 @@ impl Storage {
             .connection
             .query_row("SELECT COUNT(*) FROM goals", [], |r| r.get(0))
             .map_err(db)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let inserted = tx
             .execute(
                 "INSERT OR IGNORE INTO core_import_batches(batch_id) VALUES(?1)",
@@ -393,7 +393,7 @@ impl Storage {
         if old.revision != plan.revision {
             return Err("This goal changed. Reload before saving.".into());
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let exists: bool = tx
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=?1)",
@@ -467,7 +467,7 @@ impl Storage {
             step.done = done;
         }
         plan.current_step = None;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         record_step_changes(&tx, &old, &plan)?;
         plan.revision = plan
             .revision
@@ -531,7 +531,7 @@ impl Storage {
                 self.core_set_all_steps(id, false)?;
             }
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let previous: String = tx.query_row("SELECT CASE WHEN g.status='completed' THEN 'completed' ELSE c.state END FROM core_goals c JOIN goals g ON g.id=c.goal_id WHERE c.goal_id=?1", [id], |r| r.get(0)).map_err(|_| "Goal no longer exists")?;
         if action == "delete" {
             tx.execute("DELETE FROM feedback WHERE decision_id IN(SELECT id FROM decisions WHERE goal_id=?1)", [id]).map_err(db)?;
@@ -585,7 +585,7 @@ impl Storage {
     }
     pub fn core_today(&mut self, id: i64, include: bool, date: &str) -> Result<(), String> {
         day(date)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         if include {
             let state: String = tx
                 .query_row("SELECT state FROM core_goals WHERE goal_id=?1", [id], |r| {
@@ -612,7 +612,7 @@ impl Storage {
     }
     pub fn core_plan_day(&mut self, date: &str, no_plan: bool) -> Result<(), String> {
         day(date)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,?2) ON CONFLICT(day) DO UPDATE SET mode=excluded.mode", params![date,if no_plan {"no_plan"} else {"plan"}]).map_err(db)?;
         if no_plan {
             tx.execute("DELETE FROM core_day_items WHERE day=?1", [date])
@@ -641,7 +641,7 @@ impl Storage {
         {
             return Err("Invalid draft identifier".into());
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let seen: bool = tx
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM core_quick_batches WHERE batch_id=?1)",
@@ -706,7 +706,7 @@ impl Storage {
     }
     pub fn core_tick_at(&mut self, now: DateTime<Utc>) -> Result<(), String> {
         if let Some(mut timer) = self.core_timer()? {
-            let tx = self.connection.transaction().map_err(db)?;
+            let tx = self.connection.savepoint().map_err(db)?;
             let duration = (now - timer.last_tick).num_seconds();
             // Count only live heartbeats, never app downtime, sleep or throttled gaps.
             if (1..=30).contains(&duration) {

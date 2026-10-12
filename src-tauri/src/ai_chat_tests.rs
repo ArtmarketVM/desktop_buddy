@@ -1,4 +1,198 @@
 use super::*;
+
+#[tokio::test]
+async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|request:&Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
+            assert_eq!(context["registry"].as_array().unwrap().len(),16);
+            json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
+        } else {
+            assert_eq!(context["result"]["status"],"executed");
+            assert!(context["result"]["results"][0]["goal_id"].as_i64().unwrap()>0);
+            json!({"message":"Created your interview goal."})
+        };
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":output.to_string()}}]}))
+    }).expect(2).mount(&server).await;
+    let storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    let state = AppState::new(storage).unwrap();
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = structured_chat_actions_with_service(
+        &json!({"latest_request":"Create an interview goal","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(reply.0, "Created your interview goal.");
+    assert_eq!(reply.1, 1);
+    assert_eq!(
+        state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals[0]
+            .title,
+        "Prepare for interview"
+    );
+}
+
+#[tokio::test]
+async fn structured_skill_orchestration_discards_plan_when_privacy_changes() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    let state = std::sync::Arc::new(AppState::new(storage).unwrap());
+    let server = MockServer::start().await;
+    let captured = state.clone();
+    Mock::given(method("POST")).respond_with(move |request:&Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        captured.inner.lock().unwrap().privacy_revision+=1;
+        let plan=json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Must not be created","steps":[]},"instruction":"Create a goal"}],"clarification":null});
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":plan.to_string()}}]}))
+    }).expect(1).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    assert!(structured_chat_actions_with_service(
+        &json!({"latest_request":"Create a goal","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service
+    )
+    .await
+    .is_err());
+    assert!(state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .core_snapshot(None)
+        .unwrap()
+        .goals
+        .is_empty());
+}
+
+#[tokio::test]
+async fn structured_skill_orchestration_returns_clarification_without_executing() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|request:&Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let plan=json!({"kind":"clarification","state_version":context["state"]["state_version"],"actions":[],"clarification":"Which interview goal do you mean?"});
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":plan.to_string()}}]}))
+    }).expect(1).mount(&server).await;
+    let mut storage = store();
+    goal(&mut storage, "Interview", "one");
+    goal(&mut storage, "Interview", "two");
+    let conversation = storage.current_conversation().unwrap();
+    let state = AppState::new(storage).unwrap();
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = structured_chat_actions_with_service(
+        &json!({"latest_request":"Добавь туда шаг","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(reply.0, "Which interview goal do you mean?");
+    assert!(state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .core_snapshot(None)
+        .unwrap()
+        .goals
+        .iter()
+        .all(|g| g.plan.steps.is_empty()));
+}
+
+#[tokio::test]
+async fn committed_action_keeps_authoritative_receipt_when_reply_sharing_changes() {
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    let state = std::sync::Arc::new(AppState::new(storage).unwrap());
+    let server = MockServer::start().await;
+    let captured = state.clone();
+    Mock::given(method("POST")).respond_with(move |request:&Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let response=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
+            json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Interview","steps":[]},"instruction":"Create a goal"}],"clarification":null})
+        } else {
+            captured.inner.lock().unwrap().privacy_revision+=1;
+            json!({"message":"This stale wording must be discarded"})
+        };
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":response.to_string()}}]}))
+    }).expect(2).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = structured_chat_actions_with_service(
+        &json!({"latest_request":"Create a goal","conversation":[]}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert!(reply.2);
+    assert!(reply.0.contains("Created \"Interview\""));
+    assert!(!reply.0.contains("stale wording"));
+    assert_eq!(
+        state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .len(),
+        1
+    );
+}
+
 fn store() -> Storage {
     Storage::open(std::path::Path::new(":memory:")).unwrap()
 }
