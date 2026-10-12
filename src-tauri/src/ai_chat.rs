@@ -435,9 +435,6 @@ async fn chat_change(
             .lock()
             .map_err(|_| "Application state unavailable")?;
         deleted_goals(&inner.storage)
-            .into_iter()
-            .map(|g| g.title)
-            .collect()
     };
     let mut request = request.clone();
     request["recently_deleted_goals"] = json!(deleted);
@@ -578,27 +575,138 @@ fn find_goal_by_title(storage: &Storage, title: &str) -> Option<i64> {
         .find(|g| g.status != "deleted" && g.title.trim().to_lowercase() == wanted)
         .map(|g| g.id)
 }
-/// A copy of a deleted goal, kept for 30 days so the user can ask for it back.
-#[derive(Clone, Serialize, Deserialize)]
-struct DeletedGoal {
+/// Everything needed to bring a deleted goal back: the goal, its steps with their ids and the
+/// activity rows recorded for it. Kept for 30 days.
+#[derive(Serialize, Deserialize)]
+struct GoalBackup {
     title: String,
     area: String,
-    steps: Vec<(String, bool)>,
     status: String,
     on_today: bool,
-    deleted_at: i64,
+    plan: crate::goals::GoalPlan,
+    rows: std::collections::BTreeMap<String, Vec<serde_json::Map<String, Value>>>,
 }
 const KEEP_DELETED_SECONDS: i64 = 30 * 86400;
-fn deleted_goals(storage: &Storage) -> Vec<DeletedGoal> {
-    let now = chrono::Utc::now().timestamp();
-    storage
-        .read_setting::<Vec<DeletedGoal>>("chat_deleted_goals")
-        .ok()
-        .flatten()
-        .unwrap_or_default()
-        .into_iter()
-        .filter(|g| now - g.deleted_at < KEEP_DELETED_SECONDS)
+/// Tables with a goal_id that hold time, history or per-step progress.
+const BACKUP_TABLES: [&str; 6] = [
+    "core_time",
+    "usage_daily",
+    "goal_relevant_daily",
+    "goal_relevant_step_daily",
+    "usage_intervals",
+    "core_events",
+];
+fn table_columns(storage: &Storage, table: &str) -> Result<Vec<String>, String> {
+    let mut query = storage
+        .connection
+        .prepare(&format!("PRAGMA table_info({table})"))
+        .map_err(|e| e.to_string())?;
+    let columns = query
+        .query_map([], |r| r.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(columns)
+}
+fn dump_rows(
+    storage: &Storage,
+    table: &str,
+    goal: i64,
+) -> Result<Vec<serde_json::Map<String, Value>>, String> {
+    use rusqlite::types::Value as Sql;
+    let columns = table_columns(storage, table)?;
+    let mut query = storage
+        .connection
+        .prepare(&format!("SELECT * FROM {table} WHERE goal_id=?1"))
+        .map_err(|e| e.to_string())?;
+    let rows = query
+        .query_map([goal], |r| {
+            let mut row = serde_json::Map::new();
+            for (index, name) in columns.iter().enumerate() {
+                let value = match r.get::<_, Sql>(index)? {
+                    Sql::Integer(v) => json!(v),
+                    Sql::Real(v) => json!(v),
+                    Sql::Text(v) => json!(v),
+                    Sql::Null | Sql::Blob(_) => Value::Null,
+                };
+                row.insert(name.clone(), value);
+            }
+            Ok(row)
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    Ok(rows)
+}
+fn load_rows(
+    storage: &Storage,
+    table: &str,
+    goal: i64,
+    rows: &[serde_json::Map<String, Value>],
+) -> Result<(), String> {
+    use rusqlite::types::Value as Sql;
+    let allowed = table_columns(storage, table)?;
+    for row in rows {
+        let names: Vec<&String> = row
+            .keys()
+            .filter(|k| k.as_str() != "id" && allowed.contains(k))
+            .collect();
+        if names.is_empty() {
+            continue;
+        }
+        let values: Vec<Sql> = names
+            .iter()
+            .map(|name| {
+                if name.as_str() == "goal_id" {
+                    return Sql::Integer(goal);
+                }
+                match &row[name.as_str()] {
+                    Value::Number(n) if n.is_i64() => Sql::Integer(n.as_i64().unwrap_or_default()),
+                    Value::Number(n) => Sql::Real(n.as_f64().unwrap_or_default()),
+                    Value::String(t) => Sql::Text(t.clone()),
+                    _ => Sql::Null,
+                }
+            })
+            .collect();
+        let placeholders = vec!["?"; names.len()].join(",");
+        let list = names
+            .iter()
+            .map(|n| n.as_str())
+            .collect::<Vec<_>>()
+            .join(",");
+        storage
+            .connection
+            .execute(
+                &format!("INSERT OR IGNORE INTO {table}({list}) VALUES({placeholders})"),
+                rusqlite::params_from_iter(values),
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+/// Backups from the last 30 days, oldest first. Older ones are removed.
+fn backups(storage: &Storage) -> Vec<(i64, GoalBackup)> {
+    let cutoff = chrono::Utc::now().timestamp() - KEEP_DELETED_SECONDS;
+    let _ = storage.connection.execute(
+        "DELETE FROM deleted_goal_backups WHERE deleted_at<?1",
+        [cutoff],
+    );
+    let Ok(mut query) = storage
+        .connection
+        .prepare("SELECT id,payload FROM deleted_goal_backups ORDER BY id")
+    else {
+        return Vec::new();
+    };
+    let rows = query
+        .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))
+        .map(|rows| rows.filter_map(Result::ok).collect::<Vec<_>>())
+        .unwrap_or_default();
+    rows.into_iter()
+        .filter_map(|(id, payload)| Some((id, serde_json::from_str(&payload).ok()?)))
         .collect()
+}
+fn deleted_goals(storage: &Storage) -> Vec<String> {
+    backups(storage).into_iter().map(|(_, b)| b.title).collect()
 }
 fn delete_goal_with_backup(storage: &mut Storage, id: i64) -> String {
     let Ok(snapshot) = storage.core_snapshot(None) else {
@@ -611,7 +719,16 @@ fn delete_goal_with_backup(storage: &mut Storage, id: i64) -> String {
     else {
         return "That goal no longer exists.".into();
     };
-    let backup = DeletedGoal {
+    let mut rows = std::collections::BTreeMap::new();
+    for table in BACKUP_TABLES {
+        match dump_rows(storage, table, id) {
+            Ok(found) => {
+                rows.insert(table.to_string(), found);
+            }
+            Err(_) => return "Couldn't delete the goal. Try again.".into(),
+        }
+    }
+    let backup = GoalBackup {
         title: goal.title.clone(),
         area: snapshot
             .areas
@@ -619,46 +736,54 @@ fn delete_goal_with_backup(storage: &mut Storage, id: i64) -> String {
             .find(|a| a.id == goal.area_id)
             .map(|a| a.title.clone())
             .unwrap_or_else(|| "General".into()),
-        steps: goal
-            .plan
-            .steps
-            .iter()
-            .map(|s| (s.text.clone(), s.done))
-            .collect(),
         status: goal.status.clone(),
         on_today: snapshot.today.contains(&id),
-        deleted_at: chrono::Utc::now().timestamp(),
+        plan: goal.plan.clone(),
+        rows,
     };
     let (title, count) = (goal.title.clone(), goal.plan.steps.len());
-    let mut list = deleted_goals(storage);
-    list.push(backup);
-    let skip = list.len().saturating_sub(10);
-    let list: Vec<DeletedGoal> = list.into_iter().skip(skip).collect();
-    if storage.write_setting("chat_deleted_goals", &list).is_err() {
+    let Ok(payload) = serde_json::to_string(&backup) else {
+        return "Couldn't delete the goal. Try again.".into();
+    };
+    let inserted = storage.connection.execute(
+        "INSERT INTO deleted_goal_backups(title,deleted_at,payload) VALUES(?1,?2,?3)",
+        params![title, chrono::Utc::now().timestamp(), payload],
+    );
+    if inserted.is_err() {
         return "Couldn't delete the goal. Try again.".into();
     }
+    let backup_id = storage.connection.last_insert_rowid();
+    let _ = storage.connection.execute(
+        "DELETE FROM deleted_goal_backups WHERE id NOT IN (SELECT id FROM deleted_goal_backups ORDER BY id DESC LIMIT 10)",
+        [],
+    );
     match storage
         .core_transition(id, "delete")
         .and_then(|()| storage.ensure_today_focus().map(|_| ()))
     {
         Ok(()) => format!(
-            "Deleted \"{title}\" and its {count} {}. Say \"restore it\" to bring it back; recorded time is not restored.",
+            "Deleted \"{title}\" and its {count} {}. Say \"restore it\" to bring it back, with its recorded time, for 30 days.",
             if count == 1 { "step" } else { "steps" }
         ),
-        Err(_) => "Couldn't delete the goal. Try again.".into(),
+        Err(_) => {
+            let _ = storage
+                .connection
+                .execute("DELETE FROM deleted_goal_backups WHERE id=?1", [backup_id]);
+            "Couldn't delete the goal. Try again.".into()
+        }
     }
 }
 fn restore_goal(storage: &mut Storage, name: Option<&str>, index: usize) -> String {
-    let mut list = deleted_goals(storage);
+    let list = backups(storage);
     let wanted = name
         .map(|n| n.trim().to_lowercase())
         .filter(|n| !n.is_empty());
     let position = match &wanted {
         Some(w) => list
             .iter()
-            .rposition(|g| g.title.to_lowercase() == *w)
+            .rposition(|(_, g)| g.title.to_lowercase() == *w)
             .or_else(|| {
-                list.iter().rposition(|g| {
+                list.iter().rposition(|(_, g)| {
                     g.title.to_lowercase().contains(w) || w.contains(&g.title.to_lowercase())
                 })
             }),
@@ -667,7 +792,7 @@ fn restore_goal(storage: &mut Storage, name: Option<&str>, index: usize) -> Stri
     let Some(position) = position else {
         return "There is no deleted goal to restore.".into();
     };
-    let backup = list[position].clone();
+    let (backup_id, backup) = &list[position];
     if find_goal_by_title(storage, &backup.title).is_some() {
         return format!("\"{}\" already exists in your goals.", backup.title);
     }
@@ -675,7 +800,7 @@ fn restore_goal(storage: &mut Storage, name: Option<&str>, index: usize) -> Stri
     let draft = crate::core::GoalDraft {
         title: backup.title.clone(),
         area: backup.area.clone(),
-        steps: backup.steps.iter().map(|(text, _)| text.clone()).collect(),
+        steps: backup.plan.steps.iter().map(|s| s.text.clone()).collect(),
     };
     if storage.core_add_goals(vec![draft], &batch).is_err() {
         return "Couldn't restore the goal. Try again.".into();
@@ -690,14 +815,24 @@ fn restore_goal(storage: &mut Storage, name: Option<&str>, index: usize) -> Stri
             .iter()
             .find(|g| g.id == id)
             .ok_or("missing")?;
+        // Same steps with their original ids, so per-step time and history line up again.
         let mut plan = goal.plan.clone();
-        for (step, (_, done)) in plan.steps.iter_mut().zip(backup.steps.iter()) {
-            step.done = *done;
+        plan.steps = backup.plan.steps.clone();
+        plan.current_step = backup.plan.current_step.clone();
+        plan.done_when = backup.plan.done_when.clone();
+        storage.core_save_goal_details(&goal.title, &backup.area, plan, None)?;
+        for table in BACKUP_TABLES {
+            if let Some(rows) = backup.rows.get(table) {
+                load_rows(storage, table, id, rows)?;
+            }
         }
-        if plan.steps.iter().any(|s| s.done) {
-            storage.core_save_goal_details(&goal.title, &backup.area, plan, None)?;
-        }
-        if backup.status == "completed" {
+        if backup.status == "completed"
+            && storage
+                .core_snapshot(None)?
+                .goals
+                .iter()
+                .any(|g| g.id == id && g.status != "completed")
+        {
             storage.core_transition(id, "complete")?;
         }
         if backup.on_today {
@@ -705,14 +840,15 @@ fn restore_goal(storage: &mut Storage, name: Option<&str>, index: usize) -> Stri
         }
         Ok(())
     })();
-    list.remove(position);
-    let _ = storage.write_setting("chat_deleted_goals", &list);
+    let _ = storage
+        .connection
+        .execute("DELETE FROM deleted_goal_backups WHERE id=?1", [backup_id]);
     match result {
         Ok(()) => format!(
-            "Restored \"{}\" with {} {}.",
+            "Restored \"{}\" with {} {} and its recorded time.",
             backup.title,
-            backup.steps.len(),
-            if backup.steps.len() == 1 {
+            backup.plan.steps.len(),
+            if backup.plan.steps.len() == 1 {
                 "step"
             } else {
                 "steps"

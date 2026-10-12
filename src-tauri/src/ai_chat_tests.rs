@@ -585,6 +585,18 @@ fn chat_deletes_at_once_and_can_restore_the_goal_with_its_steps() {
     storage
         .core_save_goal_details("Delete me", "General", plan, None)
         .unwrap();
+    let first_step = storage.core_snapshot(None).unwrap().goals[0].plan.steps[0]
+        .id
+        .clone();
+    storage.connection.execute("INSERT INTO goal_relevant_daily(day,goal_id,process_name,milliseconds) VALUES('2026-10-12',?1,'editor',120000)", [id]).unwrap();
+    storage.connection.execute("INSERT INTO goal_relevant_step_daily(day,goal_id,step_id,milliseconds) VALUES('2026-10-12',?1,?2,120000)", params![id, first_step]).unwrap();
+    storage
+        .connection
+        .execute(
+            "INSERT INTO core_time(day,goal_id,seconds) VALUES('2026-10-12',?1,300)",
+            [id],
+        )
+        .unwrap();
     let line = apply_chat_actions(
         &mut storage,
         None,
@@ -617,6 +629,16 @@ fn chat_deletes_at_once_and_can_restore_the_goal_with_its_steps() {
         .map(|s| (s.text.as_str(), s.done))
         .collect();
     assert_eq!(steps, vec![("First step", true), ("Second step", false)]);
+    // The recorded time came back with the goal, tied to the same step ids.
+    let new_id = snapshot.goals[0].id;
+    assert_eq!(storage.relevant_seconds(new_id, None).unwrap(), 120);
+    assert_eq!(snapshot.goals[0].focused_seconds, 300);
+    let times = storage.step_times(new_id, "2026-10-12").unwrap();
+    assert_eq!(times.len(), 1);
+    assert_eq!(
+        (times[0].step_id.as_str(), times[0].seconds),
+        (first_step.as_str(), 120)
+    );
     assert!(deleted_goals(&storage).is_empty());
     let again = apply_chat_actions(
         &mut storage,
@@ -628,4 +650,42 @@ fn chat_deletes_at_once_and_can_restore_the_goal_with_its_steps() {
     )
     .remove(0);
     assert_eq!(again, "There is no deleted goal to restore.");
+}
+#[test]
+fn deleted_goal_backups_follow_history_retention() {
+    let mut storage = store();
+    let id = goal(&mut storage, "Temporary", "chat-retention");
+    apply_chat_actions(
+        &mut storage,
+        None,
+        &[ChatAction {
+            kind: "delete_goal".into(),
+            goal_id: Some(id),
+            ..Default::default()
+        }],
+    );
+    assert_eq!(deleted_goals(&storage), vec!["Temporary".to_string()]);
+    // Backups older than 30 days disappear on their own.
+    storage
+        .connection
+        .execute(
+            "UPDATE deleted_goal_backups SET deleted_at=deleted_at-?1",
+            [KEEP_DELETED_SECONDS + 10],
+        )
+        .unwrap();
+    assert!(deleted_goals(&storage).is_empty());
+    // Deleting all history also removes them.
+    let again = goal(&mut storage, "Another", "chat-retention-2");
+    apply_chat_actions(
+        &mut storage,
+        None,
+        &[ChatAction {
+            kind: "delete_goal".into(),
+            goal_id: Some(again),
+            ..Default::default()
+        }],
+    );
+    assert_eq!(deleted_goals(&storage).len(), 1);
+    storage.purge_history(None).unwrap();
+    assert!(deleted_goals(&storage).is_empty());
 }

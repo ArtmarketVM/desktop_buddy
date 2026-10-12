@@ -268,6 +268,7 @@ impl Storage {
             CREATE INDEX IF NOT EXISTS core_events_day ON core_events(day);
             CREATE TABLE IF NOT EXISTS core_time(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,seconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id));
             CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);
+            CREATE TABLE IF NOT EXISTS deleted_goal_backups(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,deleted_at INTEGER NOT NULL,payload TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS core_goal_details(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,due_at TEXT,priority TEXT,description TEXT NOT NULL DEFAULT '');
             CREATE TABLE IF NOT EXISTS core_carryover_dismissals(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,PRIMARY KEY(day,goal_id));").map_err(db)?;
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_quick_batches(batch_id TEXT PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL);").map_err(db)?;
@@ -816,7 +817,7 @@ impl Storage {
             .filter(|item| item.seconds > 0)
             .collect())
     }
-    fn step_times(&self, goal: i64, date: &str) -> Result<Vec<StepTime>, String> {
+    pub(crate) fn step_times(&self, goal: i64, date: &str) -> Result<Vec<StepTime>, String> {
         let mut q = self
             .connection
             .prepare("SELECT step_id,milliseconds/1000 FROM goal_relevant_step_daily WHERE goal_id=?1 AND day=?2 ORDER BY step_id")

@@ -80,6 +80,16 @@ impl Storage {
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR julianday(updated_at)<julianday(?1)", [cutoff]).map_err(|e| e.to_string())?;
+        // Backups of goals deleted in chat hold activity history, so they follow the same retention.
+        let cutoff_unix = cutoff
+            .map(|v| chrono::DateTime::parse_from_rfc3339(v).map(|d| d.timestamp()))
+            .transpose()
+            .map_err(|e| e.to_string())?;
+        tx.execute(
+            "DELETE FROM deleted_goal_backups WHERE ?1 IS NULL OR deleted_at<?1",
+            [cutoff_unix],
+        )
+        .map_err(|e| e.to_string())?;
         tx.execute(
             "DELETE FROM goal_relevant_daily WHERE ?1 IS NULL OR day<?1",
             [cutoff_day.as_deref()],
