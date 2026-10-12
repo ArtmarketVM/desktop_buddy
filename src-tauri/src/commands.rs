@@ -750,6 +750,22 @@ pub fn request_accessibility_permission(window: tauri::WebviewWindow) -> Result<
     }
 }
 
+#[tauri::command(async)]
+pub fn reset_accessibility_permission(
+    app: tauri::AppHandle,
+    window: tauri::WebviewWindow,
+) -> Result<bool, String> {
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::reset_accessibility_permission(&app, window)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        let _ = (app, window);
+        Ok(true)
+    }
+}
+
 #[cfg(test)]
 mod collection_status_tests {
     use super::*;

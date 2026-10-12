@@ -107,6 +107,16 @@ char *buddy_foreground(bool metadata) {
         return json(@{@"process": process, @"title": title ?: @"", @"window": @(identity), @"idle": @(buddy_idle()), @"fullscreen": @(fullscreen), @"media": @(audioPlaying()), @"address": address ?: NSNull.null});
     }
 }
+// Keep the mascot on every Space and above full-screen apps so it never gets left behind.
+void buddy_pin_window(void *handle) {
+    if (!handle) return;
+    NSWindow *window = (__bridge NSWindow *)handle;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        window.collectionBehavior |= NSWindowCollectionBehaviorCanJoinAllSpaces | NSWindowCollectionBehaviorFullScreenAuxiliary | NSWindowCollectionBehaviorStationary | NSWindowCollectionBehaviorIgnoresCycle;
+        window.level = NSStatusWindowLevel;
+        window.hidesOnDeactivate = NO;
+    });
+}
 bool buddy_fullscreen(void) {
     @autoreleasepool {
         if (!buddy_accessibility(false)) return false;

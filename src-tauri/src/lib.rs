@@ -254,6 +254,7 @@ pub fn run() {
             commands::get_accessibility_permission,
             tracking::set_goal_monitoring,
             commands::request_accessibility_permission,
+            commands::reset_accessibility_permission,
             companion::get_companion_view,
             companion::get_companion_goal_context,
             companion::set_companion_preferences,
