@@ -1461,7 +1461,6 @@ textarea:focus {
 .progress-screen {
   display: flex;
   flex-direction: column;
-  max-width: 720px;
 }
 .progress-top {
   display: flex;

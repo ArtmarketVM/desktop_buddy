@@ -9,6 +9,8 @@
 - Preserve the distinction between simulated activity (`DEMO_MODE`) and mock provider responses (`AI_MOCK`). Production integrations must use real HTTP calls.
 - Before handing off Rust changes, run `cargo test --locked --manifest-path src-tauri/Cargo.toml` when Windows build prerequisites are available. Run `npm test` and `npm run build` for frontend changes.
 
+- Follow `docs/UI_LAYOUT.md` for screen layout: one shared column, one title position, aligned right edges, shared callouts and switches.
+
 ## Efficient execution
 
 - Keep work scoped to the request. Do not add unrelated improvements.

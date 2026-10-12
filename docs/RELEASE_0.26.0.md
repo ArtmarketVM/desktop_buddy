@@ -14,6 +14,8 @@ A simpler Progress screen, with minutes per step. Shared by Windows and macOS.
   any day of a week to choose that Monday–Sunday week, a month, or a year. Future periods are disabled.
   Month and year now cover the whole calendar month or year ending at the chosen date, so a finished
   month or year is shown complete. **Day** shows an hourly chart.
+- Every screen uses one page column and title position (see docs/UI_LAYOUT.md), so headings and right
+  edges line up and the layout adapts to the window width. Switches in Settings were redrawn.
 - Warnings and notices share one style everywhere: a flat strip with an icon, a short sentence and the
   action on the right (for example "Tracking is blocked. Fix in Settings"). The Accessibility block uses it too.
 
