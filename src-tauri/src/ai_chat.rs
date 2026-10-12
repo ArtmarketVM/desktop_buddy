@@ -523,7 +523,7 @@ pub fn apply_chat_actions(
                         added.push(text);
                     }
                     if !added.is_empty() {
-                        storage.core_save_goal(&goal.title, &area, plan)?;
+                        storage.core_save_goal_details(&goal.title, &area, plan, None)?;
                     }
                     Ok((goal.title.clone(), added))
                 })();
