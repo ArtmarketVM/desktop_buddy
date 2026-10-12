@@ -9,6 +9,7 @@ fn conversations_isolate_messages_and_delete_only_the_selected_history() {
     let reply = ChatReply {
         message: "Answer".into(),
         resources: vec![],
+        ..Default::default()
     };
     storage
         .save_chat_turn("First question", &reply, None)
@@ -43,6 +44,7 @@ fn legacy_chat_migration_preserves_turns_and_is_idempotent() {
     let reply = ChatReply {
         message: "Earlier answer".into(),
         resources: vec![],
+        ..Default::default()
     };
     storage
         .save_chat_turn("Earlier question", &reply, None)
@@ -76,6 +78,7 @@ fn conversation_survives_reopening_the_database_without_an_active_goal() {
                 &ChatReply {
                     message: "A helpful answer".into(),
                     resources: vec![],
+                    ..Default::default()
                 },
                 None,
             )
@@ -130,6 +133,7 @@ fn conversation_is_shared_across_goals_bounded_and_cleared_by_retention() {
     let reply = ChatReply {
         message: "Choose one next step.".into(),
         resources: vec![],
+        ..Default::default()
     };
     storage
         .save_chat_turn("What is blocking me?", &reply, Some(id))
@@ -317,4 +321,74 @@ async fn live_ai_goal_and_chat_smoke() {
         result.suggested_steps.len(),
         result.resources.len()
     );
+}
+#[test]
+fn chat_actions_add_goals_and_steps_and_report_exact_results() {
+    let mut storage = store();
+    let id = goal(&mut storage, "Update the app", "chat-actions");
+    let action =
+        |kind: &str, goal_id: Option<i64>, title: Option<&str>, steps: &[&str]| ChatAction {
+            kind: kind.into(),
+            goal_id,
+            title: title.map(str::to_string),
+            steps: steps.iter().map(|s| s.to_string()).collect(),
+        };
+    let lines = apply_chat_actions(
+        &mut storage,
+        Some(id),
+        &[
+            action(
+                "add_steps",
+                None,
+                None,
+                &["fix the toggles", "Fix the toggles", "ship it"],
+            ),
+            action(
+                "add_goal",
+                None,
+                Some("publish a website"),
+                &["pick a domain", "write the pages"],
+            ),
+            action("add_steps", Some(9999), None, &["x"]),
+            action("add_steps", Some(id), None, &["ship it"]),
+        ],
+    );
+    assert_eq!(lines.len(), 4);
+    assert!(lines[0].starts_with("Added 2 steps to"));
+    assert!(lines[1].contains("Publish a website") && lines[1].contains("2 steps"));
+    assert!(lines[2].starts_with("Couldn't"));
+    assert!(lines[3].starts_with("Nothing new"));
+    let snapshot = storage.core_snapshot(None).unwrap();
+    let existing = snapshot.goals.iter().find(|g| g.id == id).unwrap();
+    let texts: Vec<_> = existing
+        .plan
+        .steps
+        .iter()
+        .map(|s| s.text.as_str())
+        .collect();
+    assert!(texts.contains(&"Fix the toggles") && texts.contains(&"Ship it"));
+    assert_eq!(
+        texts
+            .iter()
+            .filter(|t| t.to_lowercase() == "fix the toggles")
+            .count(),
+        1
+    );
+    let created = snapshot
+        .goals
+        .iter()
+        .find(|g| g.title == "Publish a website")
+        .unwrap();
+    assert_eq!(created.plan.steps.len(), 2);
+    assert_eq!(created.plan.steps[0].text, "Pick a domain");
+}
+#[test]
+fn chat_replies_carry_actions_only_when_parsed_from_the_model() {
+    let response = json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"message":"Adding it.","resources":[],"actions":[{"type":"add_steps","goal_id":3,"title":null,"steps":["One"]}],"explicit_request":true}).to_string()}}]});
+    let reply = parse_chat(&response, &[]).unwrap();
+    assert!(reply.explicit_request);
+    assert_eq!(reply.actions.len(), 1);
+    let plain = json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"message":"Hi","resources":[]}).to_string()}}]});
+    let reply = parse_chat(&plain, &[]).unwrap();
+    assert!(!reply.explicit_request && reply.actions.is_empty());
 }

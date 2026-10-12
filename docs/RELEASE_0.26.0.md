@@ -16,6 +16,13 @@ A simpler Progress screen, with minutes per step. Shared by Windows and macOS.
   month or year is shown complete. **Day** shows an hourly chart.
 - Every screen uses one page column and title position (see docs/UI_LAYOUT.md), so headings and right
   edges line up and the layout adapts to the window width. Switches in Settings were redrawn.
+- **Buddy chat can add goals and steps.** Ask in the side chat or the app chat ("add a goal to publish a
+  website", "add steps to the desktop app goal") and Buddy works out sensible steps itself instead of
+  asking for exact wording. The app applies only what was explicitly requested and reports the exact
+  result ("Added 2 steps to ..."), so Buddy can no longer claim a change that did not happen. Existing
+  goals and steps cannot be edited, completed or deleted from chat.
+- Questions about Desktop Buddy itself are answered from built-in product facts, with no web search and
+  no links to other products' guides.
 - Warnings and notices share one style everywhere: a flat strip with an icon, a short sentence and the
   action on the right (for example "Tracking is blocked. Fix in Settings"). The Accessibility block uses it too.
 
