@@ -383,12 +383,21 @@ fn chat_actions_add_goals_and_steps_and_report_exact_results() {
     assert_eq!(created.plan.steps[0].text, "Pick a domain");
 }
 #[test]
-fn chat_replies_carry_actions_only_when_parsed_from_the_model() {
-    let response = json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"message":"Adding it.","resources":[],"actions":[{"type":"add_steps","goal_id":3,"title":null,"steps":["One"]}],"explicit_request":true}).to_string()}}]});
-    let reply = parse_chat(&response, &[]).unwrap();
-    assert!(reply.explicit_request);
-    assert_eq!(reply.actions.len(), 1);
-    let plain = json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"message":"Hi","resources":[]}).to_string()}}]});
-    let reply = parse_chat(&plain, &[]).unwrap();
-    assert!(!reply.explicit_request && reply.actions.is_empty());
+fn add_requests_are_classified_into_strict_intents() {
+    let ok = |body: Value| json!({"choices":[{"finish_reason":"stop","message":{"content":body.to_string()}}]});
+    let intent = parse_intent(&ok(
+        json!({"intent":"add_steps","goal_id":3,"title":null,"steps":["One","Two"]}),
+    ))
+    .unwrap();
+    assert_eq!(intent.intent, "add_steps");
+    assert_eq!(intent.goal_id, Some(3));
+    assert_eq!(intent.steps.len(), 2);
+    assert!(parse_intent(&ok(
+        json!({"intent":"delete_goal","goal_id":3,"title":null,"steps":[]})
+    ))
+    .is_err());
+    assert!(parse_intent(&ok(
+        json!({"intent":"none","goal_id":null,"title":null,"steps":[],"extra":1})
+    ))
+    .is_err());
 }
