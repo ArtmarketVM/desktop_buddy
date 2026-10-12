@@ -4,7 +4,7 @@ This version combines Developer 1's daily workspace with Developer 2's companion
 
 ## Daily flow
 
-- Today presents the Buddy composer, one to three chosen goals, expandable goals grouped into areas, and a positive daily summary.
+- Today presents the Buddy composer, the goals you choose (no limit), expandable goals grouped into areas, and a positive daily summary.
 - Goals can be edited, completed, reopened, deferred or deleted. Checking a step does not complete its goal. An explicit delete confirmation removes its local history too.
 - Plan today selects saved goals; No plan today clears only today's selection. Previous days remain in Progress.
 - Progress shows completed goals/steps and manual focus time by goal for today, previous days and seven-day ranges.

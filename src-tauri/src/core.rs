@@ -594,16 +594,6 @@ impl Storage {
             if state != "open" {
                 return Err("Resume this goal before adding it to Today".into());
             }
-            let count: u32 = tx
-                .query_row(
-                    "SELECT COUNT(*) FROM core_day_items WHERE day=?1 AND goal_id!=?2",
-                    params![date, id],
-                    |r| r.get(0),
-                )
-                .map_err(db)?;
-            if count >= 3 {
-                return Err("Choose up to three goals for Today".into());
-            }
             tx.execute(
                 "INSERT OR IGNORE INTO core_day_items(day,goal_id) VALUES(?1,?2)",
                 params![date, id],
@@ -686,21 +676,13 @@ impl Storage {
             params![batch, id],
         )
         .map_err(db)?;
-        let today_count: u32 = tx
-            .query_row(
-                "SELECT COUNT(*) FROM core_day_items WHERE day=?1",
-                [date],
-                |r| r.get(0),
-            )
-            .map_err(db)?;
-        if today_count < 3 {
-            tx.execute(
-                "INSERT INTO core_day_items(day,goal_id) VALUES(?1,?2)",
-                params![date, id],
-            )
-            .map_err(db)?;
-            tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
-        }
+        // Quick entry always lands on Today; Today has no size limit.
+        tx.execute(
+            "INSERT INTO core_day_items(day,goal_id) VALUES(?1,?2)",
+            params![date, id],
+        )
+        .map_err(db)?;
+        tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
         tx.commit().map_err(db)
     }
     pub fn core_goals_for_date(&self, date: &str) -> Result<Vec<i64>, String> {
@@ -1052,7 +1034,7 @@ pub fn finish_core_setup(
         .filter(|g| g.status == "open")
         .map(|g| g.id)
         .collect();
-    for id in open.iter().take(3) {
+    for id in open.iter() {
         inner.storage.core_today(*id, true, &snapshot.date)?;
     }
     settings.onboarding.completed = true;

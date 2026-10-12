@@ -198,7 +198,7 @@ export function Experience({
                 </div>
                 <button
                   className="text-button"
-                  disabled={busy || !desktop || snapshot.today.length >= 3}
+                  disabled={busy || !desktop}
                   onClick={() => setPicking(!picking)}
                 >
                   <Plus size={15} />
@@ -283,7 +283,7 @@ export function Experience({
               </GoalOrder>
               {picking && (
                 <div className="today-picker">
-                  <h3>Choose up to three open goals</h3>
+                  <h3>Choose goals for Today</h3>
                   {snapshot.carryover.length > 0 && (
                     <section aria-label="Unfinished goals from previous days">
                       <h3>Pick up where you left off</h3>
@@ -293,7 +293,7 @@ export function Experience({
                           <GoalLine goal={goal} key={goal.id}>
                             <button
                               className="text-button"
-                              disabled={busy || snapshot.today.length >= 3}
+                              disabled={busy}
                               onClick={() =>
                                 void run(() => coreApi.today(goal.id, true))
                               }
@@ -327,7 +327,7 @@ export function Experience({
                         <button
                           className="text-button"
                           aria-label={`Add ${goal.title} to today`}
-                          disabled={busy || snapshot.today.length >= 3}
+                          disabled={busy}
                           onClick={() =>
                             void run(() => coreApi.today(goal.id, true))
                           }

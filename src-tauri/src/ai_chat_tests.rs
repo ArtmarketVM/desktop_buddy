@@ -453,7 +453,7 @@ fn chat_goals_go_to_today_and_are_never_duplicated() {
             .count(),
         1
     );
-    // An existing goal can be put on Today by name; it is full at three goals.
+    // An existing goal can be put on Today by name, and Today has no size limit.
     let one = apply_chat_actions(
         &mut storage,
         None,
@@ -468,6 +468,11 @@ fn chat_goals_go_to_today_and_are_never_duplicated() {
         );
     }
     let snapshot = storage.core_snapshot(None).unwrap();
-    assert_eq!(snapshot.today.len(), 3);
-    assert!(snapshot.goals.iter().any(|g| g.title == "Fourth goal"));
+    assert_eq!(snapshot.today.len(), 4);
+    let fourth = snapshot
+        .goals
+        .iter()
+        .find(|g| g.title == "Fourth goal")
+        .unwrap();
+    assert!(snapshot.today.contains(&fourth.id));
 }
