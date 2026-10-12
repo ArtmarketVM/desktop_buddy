@@ -1,4 +1,3 @@
-import { isMac } from "../api/platform";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CompanionChat } from "./CompanionChat";
@@ -21,9 +20,7 @@ describe("companion interaction boundary", () => {
       />,
     );
     expect(html).toContain("Your message or task");
-    expect(html).toContain(
-      isMac ? "Start voice recording" : "Start Windows voice typing",
-    );
+    expect(html).toContain("Start voice recording");
     expect(html).toContain("Explain");
     expect(html).toContain("Save for later");
     expect(html).toContain("Enter to send");
@@ -97,5 +94,35 @@ describe("companion interaction boundary", () => {
     expect(html).toContain("Yes, complete goal");
     expect(html).toContain("Not yet");
     expect(html).toContain("Nothing changes until you confirm");
+  });
+});
+
+describe("contextual research consent", () => {
+  const prompt: Intervention = {
+    id: "research-offer",
+    kind: "research",
+    text: "It looks like information may be missing for this step. Search the web?",
+    confidence: 0.8,
+    goal_id: 1,
+    plan_revision: 2,
+    step_id: "step-0",
+    expires_at: 99999999,
+  };
+  it("states the provider and requires an explicit search choice with a refusal", () => {
+    const html = renderToStaticMarkup(
+      <InterventionCard prompt={prompt} busy={false} respond={() => {}} />,
+    );
+    expect(html).toContain("Find information for this step?");
+    expect(html).toContain("Search the web");
+    expect(html).toContain("Not now");
+    expect(html).toContain("No search runs until you agree");
+    expect(html).toContain("Only a short query is sent to Tavily");
+    expect(html).not.toContain("Yes, mark complete");
+  });
+  it("prevents duplicate approval clicks while a response is pending", () => {
+    const html = renderToStaticMarkup(
+      <InterventionCard prompt={prompt} busy respond={() => {}} />,
+    );
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
   });
 });

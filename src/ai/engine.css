@@ -1,0 +1,26 @@
+.personal-ai-engine .engine-facts {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(0, 2fr);
+  gap: 8px 16px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+.personal-ai-engine .engine-facts dt {
+  color: var(--muted);
+}
+.personal-ai-engine .engine-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.personal-ai-engine h4 {
+  margin: 20px 0 8px;
+}
+@media (max-width: 600px) {
+  .personal-ai-engine .engine-facts {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .personal-ai-engine .engine-facts dd {
+    margin-bottom: 8px;
+  }
+}

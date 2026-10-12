@@ -50,6 +50,8 @@ pub struct CoreGoal {
     pub description: String,
     pub created_at: String,
     pub completed_at: Option<String>,
+    #[serde(default)]
+    pub work_context: Option<crate::memory::WorkContext>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(default, deny_unknown_fields)]
@@ -137,7 +139,7 @@ fn db(e: rusqlite::Error) -> String {
     e.to_string()
 }
 pub(crate) fn record_step_changes(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &rusqlite::Connection,
     old: &GoalPlan,
     plan: &GoalPlan,
 ) -> Result<(), String> {
@@ -149,13 +151,13 @@ pub(crate) fn record_step_changes(
             .find(|previous| previous.id == step.id)
             .is_some_and(|previous| previous.done);
         if was_done != step.done {
-            tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,?2,?3,?4,?5,?6)", params![plan.goal_id,step.id,step.text,if step.done {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+            tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,?2,?3,?4,?5,?6,'manual')", params![plan.goal_id,step.id,step.text,if step.done {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
         }
     }
     Ok(())
 }
 pub(crate) fn record_legacy_transition(
-    tx: &rusqlite::Transaction<'_>,
+    tx: &rusqlite::Connection,
     id: i64,
     action: &str,
 ) -> Result<(), String> {
@@ -174,7 +176,7 @@ pub(crate) fn record_legacy_transition(
             .query_row("SELECT text FROM goals WHERE id=?1", [id], |row| row.get(0))
             .map_err(db)?;
         let now = Utc::now();
-        tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'goal',?2,'completed',?3,?4)", params![id,title,now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+        tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,'completed',?3,?4,'manual')", params![id,title,now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
     }
     if action != "resume" {
         let timer: Option<String> = tx
@@ -301,7 +303,7 @@ impl Storage {
             .connection
             .query_row("SELECT COUNT(*) FROM goals", [], |r| r.get(0))
             .map_err(db)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let inserted = tx
             .execute(
                 "INSERT OR IGNORE INTO core_import_batches(batch_id) VALUES(?1)",
@@ -393,7 +395,7 @@ impl Storage {
         if old.revision != plan.revision {
             return Err("This goal changed. Reload before saving.".into());
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let exists: bool = tx
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=?1)",
@@ -467,7 +469,7 @@ impl Storage {
             step.done = done;
         }
         plan.current_step = None;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         record_step_changes(&tx, &old, &plan)?;
         plan.revision = plan
             .revision
@@ -531,7 +533,7 @@ impl Storage {
                 self.core_set_all_steps(id, false)?;
             }
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let previous: String = tx.query_row("SELECT CASE WHEN g.status='completed' THEN 'completed' ELSE c.state END FROM core_goals c JOIN goals g ON g.id=c.goal_id WHERE c.goal_id=?1", [id], |r| r.get(0)).map_err(|_| "Goal no longer exists")?;
         if action == "delete" {
             tx.execute("DELETE FROM feedback WHERE decision_id IN(SELECT id FROM decisions WHERE goal_id=?1)", [id]).map_err(db)?;
@@ -574,7 +576,7 @@ impl Storage {
                 let title: String = tx
                     .query_row("SELECT text FROM goals WHERE id=?1", [id], |r| r.get(0))
                     .map_err(db)?;
-                tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'goal',?2,?3,?4,?5)", params![id,title,if action=="complete" {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
+                tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,?3,?4,?5,'manual')", params![id,title,if action=="complete" {"completed"} else {"reopened"},now.with_timezone(&Local).date_naive().to_string(),now.to_rfc3339()]).map_err(db)?;
             }
         }
         tx.commit().map_err(db)?;
@@ -585,7 +587,7 @@ impl Storage {
     }
     pub fn core_today(&mut self, id: i64, include: bool, date: &str) -> Result<(), String> {
         day(date)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         if include {
             let state: String = tx
                 .query_row("SELECT state FROM core_goals WHERE goal_id=?1", [id], |r| {
@@ -612,7 +614,7 @@ impl Storage {
     }
     pub fn core_plan_day(&mut self, date: &str, no_plan: bool) -> Result<(), String> {
         day(date)?;
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,?2) ON CONFLICT(day) DO UPDATE SET mode=excluded.mode", params![date,if no_plan {"no_plan"} else {"plan"}]).map_err(db)?;
         if no_plan {
             tx.execute("DELETE FROM core_day_items WHERE day=?1", [date])
@@ -641,7 +643,7 @@ impl Storage {
         {
             return Err("Invalid draft identifier".into());
         }
-        let tx = self.connection.transaction().map_err(db)?;
+        let tx = self.connection.savepoint().map_err(db)?;
         let seen: bool = tx
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM core_quick_batches WHERE batch_id=?1)",
@@ -706,7 +708,7 @@ impl Storage {
     }
     pub fn core_tick_at(&mut self, now: DateTime<Utc>) -> Result<(), String> {
         if let Some(mut timer) = self.core_timer()? {
-            let tx = self.connection.transaction().map_err(db)?;
+            let tx = self.connection.savepoint().map_err(db)?;
             let duration = (now - timer.last_tick).num_seconds();
             // Count only live heartbeats, never app downtime, sleep or throttled gaps.
             if (1..=30).contains(&duration) {
@@ -914,6 +916,16 @@ impl Storage {
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
+        let memory_ready:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='personal_memory_migrations')",[],|r|r.get(0)).map_err(db)?;
+        let memory_ready = memory_ready
+            && self
+                .connection
+                .query_row(
+                    "SELECT COALESCE(MAX(version),0)>=3 FROM personal_memory_migrations",
+                    [],
+                    |r| r.get::<_, bool>(0),
+                )
+                .map_err(db)?;
         let mut goals = rows
             .into_iter()
             .map(
@@ -944,6 +956,7 @@ impl Storage {
                         description,
                         created_at,
                         completed_at,
+                        work_context: if memory_ready {self.work_context(id)?} else {None},
                     })
                 },
             )
@@ -1243,6 +1256,7 @@ pub fn set_core_timer(
             if storage.goal()?.map(|goal| goal.id) != Some(id) {
                 storage.transition_goal(id, "resume")?;
             }
+            storage.mark_explicit_focus(id)?;
         }
         Ok(())
     })

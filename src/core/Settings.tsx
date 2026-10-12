@@ -1,3 +1,4 @@
+import { MemorySettings } from "../components/MemorySettings";
 import { TrackingStatus } from "./TrackingStatus";
 import { MacPermissions } from "../components/MacPermissions";
 import { isMac } from "../api/platform";
@@ -13,6 +14,7 @@ import { ProviderKey } from "../components/Settings";
 import { PrivacySettings } from "../components/PrivacySettings";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
+import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
 import { AiSettings } from "../ai/AiSettings";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
@@ -21,6 +23,7 @@ const sections = [
   "General",
   "Profile",
   "Privacy",
+  "Memory",
   "Appearance",
   "Updates",
   "Integrations / AI",
@@ -428,6 +431,10 @@ export function CoreSettings({
             />
           </details>
         </details>
+        <details className="core-section" hidden={section !== "Memory"} open>
+          <summary>Memory</summary>
+          {section === "Memory" && <MemorySettings onChanged={onChanged} />}
+        </details>
         <details className="core-section" hidden={section !== "Updates"} open>
           <summary>Updates</summary>
           <p>Installed version {data.version}</p>
@@ -480,6 +487,7 @@ export function CoreSettings({
               : "Not configured"}
           </p>
           <AiSettings onChanged={onChanged} />
+          <PersonalAiEnginePanel />
         </details>
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>

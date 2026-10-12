@@ -18,6 +18,7 @@ export interface CoreGoal {
   description?: string;
   created_at?: string;
   completed_at?: string | null;
+  work_context?: import("../api/memory").WorkContext | null;
   analysis?: {
     state: "" | "queued" | "working" | "ready" | "failed";
     result: import("./analysis").GoalAnalysisResult | null;

@@ -1,0 +1,49 @@
+import { invoke } from "@tauri-apps/api/core";
+
+export interface InferenceHealth {
+  status: string;
+  latency_ms: number | null;
+  provider_reported_model: string | null;
+  error: string | null;
+  checked_at: string | null;
+}
+export interface PersonalAiEngine {
+  provider: string;
+  configured_model: string | null;
+  active_goal: { id: number; label: string } | null;
+  active_step: { id: string; label: string } | null;
+  work_state: string;
+  retrieval: { found: number; passed: number; context_bytes: number } | null;
+  last_decision: string | null;
+  last_skill: string | null;
+  last_inference: {
+    operation: string;
+    status: string;
+    latency_ms: number;
+    provider_reported_model: string | null;
+  } | null;
+  tavily_status: string;
+  runtime: {
+    status: string;
+    pending_events: number;
+    diagnostics: {
+      ai_calls: number;
+      suppressed: number;
+      cancelled: number;
+      verified: number;
+      suppression_reason: string | null;
+    };
+  };
+  health: InferenceHealth;
+  skills: {
+    group: string;
+    skills: { name: string; permission: string }[];
+    note: string;
+  }[];
+  demo_mode: boolean;
+  ai_mock: boolean;
+}
+export const engineApi = {
+  status: () => invoke<PersonalAiEngine>("get_personal_ai_engine"),
+  health: () => invoke<InferenceHealth>("test_nebius_inference"),
+};

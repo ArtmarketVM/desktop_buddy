@@ -75,6 +75,7 @@ pub struct Status {
 }
 #[derive(Serialize)]
 pub struct Dashboard {
+    pub work_state: crate::work_state::PersonalWorkState,
     pub goal_matching: crate::goal_matching::MatchView,
     pub user_settings: crate::profile::UserSettings,
     pub app_rules: Vec<crate::insights::AppRule>,

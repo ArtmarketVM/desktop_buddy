@@ -414,6 +414,9 @@ pub fn snooze_buddy(enabled: bool, app: AppHandle, state: State<AppState>) -> Re
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
+    if enabled {
+        inner.agent.suspend();
+    }
     inner.buddy.view.snoozed_until = if enabled {
         Some(chrono::Utc::now().timestamp() + 3600)
     } else {
@@ -462,6 +465,8 @@ pub fn quit_app(app: AppHandle, state: State<AppState>) -> Result<(), String> {
             .lock()
             .map_err(|_| "Application state unavailable")?;
         remember_position(&app, &mut inner)?;
+        inner.agent.cancel();
+        inner.agent.diagnostics.last_event = Some(crate::agent_runtime::EventKind::SessionEnded);
     }
     app.exit(0);
     Ok(())

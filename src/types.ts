@@ -64,8 +64,20 @@ export interface Status {
   nebius_configured: boolean;
   tavily_configured: boolean;
 }
+export interface PersonalWorkState {
+  active_goal_id: number | null;
+  active_step_id: string | null;
+  state: "working" | "waiting" | "stuck" | "drifting" | "away";
+  confidence: number;
+  last_meaningful_event: string | null;
+  current_work_context: Record<string, unknown> | null;
+  waiting_for: string | null;
+  relevant_evidence: string[];
+}
 export interface Dashboard {
+  work_state?: PersonalWorkState;
   goal_matching?: {
+    source?: string | null;
     goal_id: number | null;
     confidence: number | null;
     reason: string | null;

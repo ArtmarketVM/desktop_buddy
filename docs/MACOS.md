@@ -1,5 +1,7 @@
 # Desktop Buddy for macOS — 0.21.0
 
+Current release policy: macOS 14.5+ on Apple Silicon only. Do not build or publish Intel or universal Mac installers. Older platform-validation notes below are historical.
+
 Windows and macOS share the React UI, Rust application state, SQLite schema, AI providers and companion. Platform adapters are selected at compile time. Windows retains its NSIS configuration and native adapters; `tauri.macos.conf.json` is merged automatically on macOS.
 
 ## Install

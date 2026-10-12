@@ -50,7 +50,7 @@ export function verifyRelease(
     throw new Error(
       "macOS channel does not match the verified release archives.",
     );
-  for (const arch of ["aarch64", "x86_64"]) {
+  for (const arch of ["aarch64"]) {
     if (!expected.platforms[`darwin-${arch}`])
       throw new Error(`Missing macOS architecture: ${arch}`);
     for (const extension of ["dmg", "zip"]) {

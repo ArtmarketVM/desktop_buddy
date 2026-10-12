@@ -118,7 +118,7 @@ impl Storage {
         let title = text(title, true)?;
         let mut plan = validate(plan)?;
         let old = self.goal_plan(plan.goal_id)?;
-        let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        let tx = self.connection.savepoint().map_err(|e| e.to_string())?;
         let active: Option<i64> = tx
             .query_row(
                 "SELECT id FROM goals WHERE status='active' ORDER BY id DESC LIMIT 1",
@@ -152,7 +152,7 @@ impl Storage {
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn transition_goal(&mut self, id: i64, action: &str) -> Result<(), String> {
-        let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        let tx = self.connection.savepoint().map_err(|e| e.to_string())?;
         if action == "resume" {
             let status: Option<String> = tx
                 .query_row("SELECT status FROM goals WHERE id=?1", [id], |r| r.get(0))
@@ -240,6 +240,9 @@ pub fn transition_goal(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.transition_goal(id, &action)?;
+    if action == "resume" {
+        inner.storage.mark_explicit_focus(id)?;
+    }
     inner.companion.invalidate();
     crate::companion::emit(
         &app,

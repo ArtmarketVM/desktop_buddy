@@ -20,7 +20,6 @@ import { api, desktop, safeUrl } from "../api/tauri";
 import { aiApi, defaultAiPreferences, type ChatMessage } from "../ai/api";
 import { readAttachment, recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
-import { isMac } from "../api/platform";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
 
@@ -66,18 +65,20 @@ export function Conversation({
   } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [voice, setVoice] = useState(false);
   const [muted, setMuted] = useState(false);
   const [recording, setRecording] = useState(false);
   const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
   const voiceGeneration = useRef(0);
+  const voiceDraft = useRef(false);
   const voiceTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
-  const queued = useRef<Array<{ text: string; attachment: string | null }>>([]);
+  const queued = useRef<
+    Array<{ text: string; attachment: string | null; voiceMessage: boolean }>
+  >([]);
   const [waiting, setWaiting] = useState(false);
   const followLatest = useRef(true);
   // Voice callbacks outlive a render, so they read the latest values from here.
@@ -93,7 +94,7 @@ export function Conversation({
     onState("idle");
   };
   async function finishRecording() {
-    voiceGeneration.current += 1;
+    const generation = ++voiceGeneration.current;
     if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
     const active = recorder.current;
     recorder.current = null;
@@ -102,17 +103,23 @@ export function Conversation({
     if (!active) return;
     onState("thinking");
     let transcript = "";
-    await run(async () => {
-      transcript = await coreApi.transcribe(await active.stop());
+    const recognized = await run(async () => {
+      transcript = (await coreApi.transcribe(await active.stop())).trim();
+      if (!transcript)
+        throw new Error(
+          "No speech was recognized. Try again or type your message.",
+        );
       if (transcript.length + latest.current.text.length > 4000)
         throw new Error(
           "The transcript is too long. Record a shorter message.",
         );
     });
-    if (!transcript) {
+    if (generation !== voiceGeneration.current) return;
+    if (!recognized || !transcript) {
       onState("idle");
       return;
     }
+    voiceDraft.current = true;
     const combined = [latest.current.text, transcript]
       .filter(Boolean)
       .join(" ")
@@ -132,6 +139,12 @@ export function Conversation({
     const generation = ++voiceGeneration.current;
     setError("");
     try {
+      const languages = await coreApi.voiceLanguages();
+      if (generation !== voiceGeneration.current) return;
+      if (!languages.length)
+        throw new Error(
+          "Local speech recognition is unavailable. Install an on-device speech language or type your message.",
+        );
       const active = await recordVoice(() => void finishRecording());
       if (generation !== voiceGeneration.current) {
         active.cancel();
@@ -143,7 +156,12 @@ export function Conversation({
       voiceTimeout.current = setTimeout(() => void finishRecording(), 60000);
     } catch (e) {
       if (generation === voiceGeneration.current) {
-        setError(String(e));
+        setError(
+          e instanceof DOMException &&
+            ["NotAllowedError", "SecurityError"].includes(e.name)
+            ? "Microphone access was denied. Allow microphone access in system settings, then try again or type your message."
+            : String(e),
+        );
         onState("idle");
       }
     }
@@ -231,8 +249,10 @@ export function Conversation({
     try {
       await work();
       await onChanged();
+      return true;
     } catch (e) {
       setError(String(e));
+      return false;
     } finally {
       setBusy(false);
     }
@@ -243,10 +263,11 @@ export function Conversation({
     const body = (override ?? text).trim();
     if (!body || !desktop) return;
     const outgoing = prefix + body;
+    const voiceMessage = voiceDraft.current;
+    voiceDraft.current = false;
     const shared = attachment?.text ?? null;
     setText("");
     setAttachment(null);
-    setVoice(false);
     setError("");
     followLatest.current = true;
     setMessages((previous) => [
@@ -261,15 +282,18 @@ export function Conversation({
       },
     ]);
     if (sending.current) {
-      queued.current.push({ text: outgoing, attachment: shared });
+      queued.current.push({ text: outgoing, attachment: shared, voiceMessage });
       return;
     }
     sending.current = true;
     setWaiting(true);
     onState("thinking");
-    let next: { text: string; attachment: string | null } | undefined = {
+    let next:
+      | { text: string; attachment: string | null; voiceMessage: boolean }
+      | undefined = {
       text: outgoing,
       attachment: shared,
+      voiceMessage,
     };
     try {
       while (next) {
@@ -278,6 +302,7 @@ export function Conversation({
           next.attachment,
           goal?.id ?? null,
           conversationId ?? null,
+          next.voiceMessage,
         );
         next = queued.current.shift();
       }
@@ -539,7 +564,10 @@ export function Conversation({
           rows={compact ? 2 : 3}
           disabled={busy}
           placeholder="Message Buddy…"
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (!e.target.value.trim()) voiceDraft.current = false;
+          }}
           onKeyDown={(e) => {
             if (
               !e.nativeEvent.isComposing &&
@@ -576,19 +604,11 @@ export function Conversation({
             aria-label={
               compact
                 ? "Start voice input"
-                : voice || (isMac && recording)
-                  ? isMac
-                    ? "Stop voice recording"
-                    : "Stop Windows voice typing"
-                  : isMac
-                    ? "Start voice recording"
-                    : "Start Windows voice typing"
+                : recording
+                  ? "Stop voice recording"
+                  : "Start voice recording"
             }
-            title={
-              isMac
-                ? "Record and transcribe locally"
-                : "Voice typing · Windows + H"
-            }
+            title="Record and transcribe locally"
             disabled={!desktop || busy}
             onClick={() => {
               if (compact) {
@@ -599,19 +619,8 @@ export function Conversation({
                 } else onMode?.("voice");
                 return;
               }
-              if (isMac) {
-                if (recording) void finishRecording();
-                else void startRecording();
-                return;
-              }
-              input.current?.focus();
-              setVoice(!voice);
-              onState(voice ? "idle" : "listening");
-              void api.voiceInput().catch((e) => {
-                setError(String(e));
-                setVoice(false);
-                onState("idle");
-              });
+              if (recording) void finishRecording();
+              else void startRecording();
             }}
           >
             {compact && muted ? <MicOff size={16} /> : <Mic size={16} />}
@@ -675,11 +684,10 @@ export function Conversation({
             </button>
           </div>
         )}
-        {(voice || (!compact && recording)) && (
+        {!compact && recording && (
           <p className="helper" role="status">
-            {isMac
-              ? "Recording for up to 60 seconds. Stop to transcribe locally, then review before sending."
-              : "Windows voice typing uses your input language. Switch Russian/English with Windows + Space. Review the transcript before sending."}
+            Recording for up to 60 seconds. Stop to transcribe locally, then
+            review before sending.
           </p>
         )}
       </form>

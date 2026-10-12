@@ -63,7 +63,7 @@ function fixture() {
   write("updates-epoch-1.json", manifest);
   writeFileSync(join(directory, name), data.data);
   writeFileSync(join(directory, name + ".sig"), signer.signature);
-  for (const arch of ["aarch64", "x86_64"]) {
+  for (const arch of ["aarch64"]) {
     const base = `Desktop.Buddy_0.13.0_${arch}`;
     writeFileSync(join(directory, base + ".app.tar.gz"), data.data);
     writeFileSync(join(directory, base + ".app.tar.gz.sig"), signer.signature);
@@ -93,8 +93,8 @@ test("complete release accepts verified matching Windows and macOS assets", () =
   }
 });
 
-test("complete release rejects a missing architecture and empty installers", () => {
-  const { directory, write, macInput } = fixture();
+test("complete release rejects a missing Apple Silicon archive and empty installers", () => {
+  const { directory } = fixture();
   try {
     const dmg = join(directory, "Desktop.Buddy_0.13.0_aarch64.dmg");
     writeFileSync(dmg, "");
@@ -103,11 +103,10 @@ test("complete release rejects a missing architecture and empty installers", () 
       /empty/,
     );
     writeFileSync(dmg, "installer fixture");
-    rmSync(join(directory, "Desktop.Buddy_0.13.0_x86_64.app.tar.gz"));
-    write("updates-macos-epoch-1.json", createMacManifest(macInput));
+    rmSync(join(directory, "Desktop.Buddy_0.13.0_aarch64.app.tar.gz"));
     assert.throws(
       () => verifyRelease(directory, "v0.13.0", directory),
-      /Missing macOS architecture/,
+      /Missing macOS updater archive/,
     );
   } finally {
     rmSync(directory, { recursive: true, force: true });

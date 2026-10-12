@@ -3,6 +3,7 @@ import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
+import { GoalWorkContext } from "./GoalWorkContext";
 import { GoalOrder } from "./GoalOrder";
 import {
   deadlineISO,
@@ -324,6 +325,7 @@ export function GoalRow({
           />
         </button>
       </div>
+      <GoalWorkContext goal={goal} busy={busy} run={run} readOnly={readOnly} />
       <div className="goal-expanded" hidden={!expanded}>
         <ul className="core-steps">
           {goal.plan.steps.map((step) => (

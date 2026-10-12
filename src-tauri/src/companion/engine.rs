@@ -63,6 +63,7 @@ pub enum Kind {
     GoalCompletion,
     NoGoals,
     Midday,
+    Research,
     EndOfDay,
     Movement,
 }

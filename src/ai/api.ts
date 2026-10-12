@@ -80,10 +80,11 @@ export const aiApi = {
     attachmentText: string | null,
     goalId: number | null = null,
     conversationId: number | null = null,
+    voiceMessage = false,
   ) =>
     invoke<{ message: string; resources: ChatResource[] }>(
       "send_buddy_message",
-      { text, attachmentText, goalId, conversationId },
+      { text, attachmentText, goalId, conversationId, voiceMessage },
     ),
   resourceOpened: (goalId: number | null, url: string) =>
     invoke<void>("record_resource_view", { goalId, url }),

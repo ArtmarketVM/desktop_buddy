@@ -1,3 +1,4 @@
+mod agent_runtime;
 mod ai_chat;
 mod attention;
 mod automatic_goals;
@@ -8,10 +9,12 @@ mod collector;
 mod commands;
 mod companion;
 mod contact;
+mod continuity;
 mod core;
 mod core_capture;
 mod core_import;
 mod credentials;
+mod engine_observability;
 mod goal_analysis;
 mod goal_matching;
 mod goals;
@@ -23,6 +26,7 @@ mod installed_apps;
 mod macos;
 #[cfg(any(target_os = "macos", test))]
 mod macos_speech;
+mod memory;
 mod models;
 mod nebius;
 mod privacy;
@@ -30,13 +34,17 @@ mod product_feedback;
 mod profile;
 mod recommendations;
 mod relevance;
+mod research;
 mod signing_trust;
+mod skills;
 mod startup;
 mod storage;
 mod tavily;
 mod tracking;
 mod tray;
 mod updates;
+mod work_context;
+mod work_state;
 use tauri::Manager;
 
 #[cfg(test)]
@@ -121,90 +129,7 @@ pub fn run() {
                 ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
                 loop {
                     ticker.tick().await;
-                    let state = handle.state::<commands::AppState>();
-                    if let Ok(mut inner) = state.inner.lock() {
-                        if let Err(error) = automatic_goals::sync_focus(&mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        if let Err(error) = inner.storage.core_tick_at(chrono::Utc::now()) {
-                            inner.last_error = Some(error);
-                        }
-                    }
-                    if let Err(error) = commands::collect(&state) {
-                        if let Ok(mut inner) = state.inner.lock() {
-                            if error != collector::CONTEXT_CHANGED {
-                                inner.last_error = Some(error);
-                            }
-                            inner.buddy.foreground = None;
-                            inner.usage = Default::default();
-                            inner.activity_state.stop(false);
-                        }
-                    }
-                    let recommend = if let Ok(mut inner) = state.inner.lock() {
-                        if let Err(error) = privacy::cleanup_due(&mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        if let Err(error) = buddy::sync(&handle, &mut inner) {
-                            inner.last_error = Some(error);
-                        }
-                        buddy::due(&inner)
-                    } else {
-                        false
-                    };
-                    if recommend {
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let state = handle.state::<commands::AppState>();
-                            if let Err(error) = buddy::recommend(&handle, &state).await {
-                                if let Ok(mut inner) = state.inner.lock() {
-                                    inner.last_error =
-                                        Some(format!("Suggestion unavailable: {error}"));
-                                }
-                            }
-                        });
-                    }
-                    {
-                        let app = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            automatic_goals::run_pending(&app).await;
-                        });
-                    }
-                    if goal_matching::due(&state) {
-                        let matching_handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            goal_matching::identify(
-                                &matching_handle,
-                                &matching_handle.state::<commands::AppState>(),
-                            )
-                            .await;
-                        });
-                    }
-                    if commands::should_analyze(&state) {
-                        // HTTP must never block the collection interval.
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            commands::automatic_analysis(
-                                &handle,
-                                &handle.state::<commands::AppState>(),
-                            )
-                            .await;
-                        });
-                    }
-                    let detect = state
-                        .inner
-                        .lock()
-                        .is_ok_and(|inner| companion::detection_due(&inner));
-                    if detect {
-                        let handle = handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            let state = handle.state::<commands::AppState>();
-                            if let Err(error) = companion::detect(&handle, &state).await {
-                                if let Ok(mut inner) = state.inner.lock() {
-                                    inner.companion.progress_error = Some(error);
-                                }
-                            }
-                        });
-                    }
+                    agent_runtime::tick(&handle).await;
                 }
             });
             Ok(())
@@ -328,6 +253,25 @@ pub fn run() {
             goals::transition_goal,
             goals::refine_goal,
             commands::get_dashboard,
+            work_context::run_work_context_action,
+            memory::controls::get_memory_overview,
+            memory::controls::set_memory_controls,
+            memory::controls::clear_personal_memory,
+            memory::controls::forget_work_context,
+            memory::controls::pin_work_context,
+            memory::controls::resolve_memory_proposal,
+            memory::retriever::get_memory_retrieval_debug,
+            memory::create_memory,
+            memory::retrieve_memory,
+            memory::list_memories,
+            memory::update_memory,
+            memory::forget_memory,
+            memory::archive_memory,
+            memory::pin_memory,
+            memory::clear_memory_scope,
+            memory::retrieve_work_context,
+            memory::save_work_context,
+            memory::get_working_memory,
             buddy::set_buddy_preferences,
             buddy::open_workspace,
             buddy::snooze_buddy,
@@ -338,6 +282,8 @@ pub fn run() {
             privacy::set_retention,
             privacy::clear_local_history,
             privacy::test_provider_connection,
+            engine_observability::get_personal_ai_engine,
+            engine_observability::test_nebius_inference,
             commands::set_provider_key,
             commands::set_goal,
             commands::get_current_goal,
