@@ -1,6 +1,6 @@
 # Desktop Buddy 0.27.0
 
-Personal AI workflows for Windows and macOS, built on the existing goals, chat, tracking and local speech interfaces.
+Personal AI workflows for Windows x64 and macOS Apple Silicon (14.5+), built on the existing goals, chat, tracking and local speech interfaces.
 
 - **Reliable chat actions:** structured skills create, rename, inspect, complete, reopen and organize goals and steps using real backend IDs. Conversation references support follow-up instructions. Ambiguous or stale targets require clarification. Destructive operations retain confirmation or reliable goal undo.
 - **Personal memory:** persistent local facts, preferences, meaningful events and independent goal checkpoints. Settings let you inspect, edit, pin, forget and clear memory, with separate switches for work context, preferences, feedback and conversation context.
@@ -18,3 +18,5 @@ Existing goals, chats, activity and progress are retained by additive migrations
 The release uses the existing trusted update-signing channels. Older Windows installations may require their existing signed bridge updates before reaching the current channel; signature verification is not relaxed.
 
 Validation includes frontend and Rust regressions, mocked provider integrations, persistent two-goal hero workflow, idle stress, release/signing checks and native platform CI builds. These checks do not establish perfect live-model interpretation, real microphone/Accessibility behavior on every device or successful in-app installation/restart on every supported OS. Use the manual inference check to verify your configured Nebius account.
+
+Mac releases now target Apple Silicon only. Intel and universal Mac installers are no longer built or published. Existing trusted signing keys and Windows compatibility bridges are unchanged.

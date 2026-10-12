@@ -32,15 +32,9 @@ test("macOS manifests verify the archive, signer and signed version before publi
     const intelName = name.replace("aarch64", "x86_64");
     writeFileSync(join(directory, intelName), fixture.data);
     writeFileSync(join(directory, `${intelName}.sig`), signer.signature);
-    const combined = createMacManifest(input);
-    assert.equal(
-      combined.platforms["darwin-x86_64"].signature,
-      signer.signature,
-    );
-    assert.equal(
-      combined.platforms["darwin-x86_64"].url,
-      `https://github.com/ArtmarketVM/desktop_buddy/releases/download/v0.13.0/${intelName}`,
-    );
+    assert.throws(() => createMacManifest(input), /Intel macOS/);
+    rmSync(join(directory, intelName));
+    rmSync(join(directory, `${intelName}.sig`));
     assert.throws(
       () => createMacManifest({ ...input, tag: "v0.12.0" }),
       /tag/i,

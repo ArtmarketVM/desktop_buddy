@@ -14,15 +14,11 @@ fi
 export MACOSX_DEPLOYMENT_TARGET=14.5
 target="${1:-aarch64-apple-darwin}"
 case "$target" in
-  universal-apple-darwin|aarch64-apple-darwin|x86_64-apple-darwin) ;;
-  *) echo "Choose universal-apple-darwin, aarch64-apple-darwin or x86_64-apple-darwin." >&2; exit 1 ;;
+  aarch64-apple-darwin) ;;
+  *) echo "macOS releases support Apple Silicon only (aarch64-apple-darwin)." >&2; exit 1 ;;
 esac
 command -v cargo >/dev/null || { echo "Install Rust using rustup first." >&2; exit 1; }
-if [[ "$target" == universal-apple-darwin ]]; then
-  rustup target add aarch64-apple-darwin x86_64-apple-darwin
-else
-  rustup target add "$target"
-fi
+rustup target add "$target"
 config=(--config src-tauri/tauri.macos.conf.json)
 if [[ "${BUDDY_MACOS_UNSIGNED:-false}" == true ]]; then
   config+=(--config src-tauri/tauri.macos.ci.conf.json)
