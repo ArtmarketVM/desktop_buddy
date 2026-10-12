@@ -150,6 +150,13 @@ impl Execution {
                 "set_focus_goal"=>format!("Selected \"{title}\" for activity tracking."),
                 "park_context" | "resume_context" | "inspect_work_context" => crate::work_context::receipt(&r.skill,title,&r.data["checkpoint"]),
                 "inspect_goal"=>format!("{title}\n{}",r.data["steps"].as_array().unwrap().iter().enumerate().map(|(i,s)|format!("{}. {}{}",i+1,s["text"].as_str().unwrap_or_default(),if s["done"]==true {" (complete)"} else {""})).collect::<Vec<_>>().join("\n")),
+                "inspect_today"=>format!("Today ({})\n{}\nRelevant activity: {} min. Observed activity: {} min. Manual timer: {} min. Time alone does not confirm completion.",
+                    r.data["day"].as_str().unwrap_or_default(),
+                    if r.data["confirmed_results"].as_array().unwrap().is_empty() { "No confirmed completion is recorded today.".into() }
+                    else { r.data["confirmed_results"].as_array().unwrap().iter().map(|v|format!("• {}",v.as_str().unwrap_or_default())).collect::<Vec<_>>().join("\n") },
+                    r.data["relevant_seconds"].as_u64().unwrap_or_default()/60,
+                    r.data["observed_seconds"].as_u64().unwrap_or_default()/60,
+                    r.data["timer_seconds"].as_u64().unwrap_or_default()/60),
                 "list_goals"=>r.data["goals"].as_array().unwrap().iter().map(|g|g["title"].as_str().unwrap_or_default()).collect::<Vec<_>>().join("\n"),
                 _=>"Completed the requested action.".into(),
             };
@@ -196,6 +203,11 @@ fn result_schema(name: &str) -> Value {
         "park_context" | "resume_context" | "inspect_work_context" => shape(
             json!({"title":{"type":"string"},"status":{"type":"string"},"created_at":{"type":"string"},"checkpoint":{"anyOf":[crate::work_context::public_checkpoint_schema(),{"type":"null"}]}}),
         ),
+        "inspect_today" => shape(json!({
+            "day":{"type":"string"},"confirmed_results":{"type":"array","items":{"type":"string"}},
+            "completed_goals":{"type":"array","items":{"type":"string"}},
+            "timer_seconds":{"type":"integer"},"observed_seconds":{"type":"integer"},"relevant_seconds":{"type":"integer"}
+        })),
         "list_goals" => shape(
             json!({"goals":{"type":"array","items":shape(json!({"goal_id":{"type":"integer"},"title":{"type":"string"},"status":{"type":"string"}}))}}),
         ),
@@ -275,6 +287,7 @@ pub fn registry() -> Vec<Skill> {
     let goal = goal_schema();
     let step = step_schema();
     [
+        ("inspect_today", "Read today's confirmed results and separate timer, observed and relevant time; time alone is not completion", Safety::ReadOnly, json!({})),
         ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
         ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
         ("inspect_work_context","Read where work stopped, the last meaningful result, next action and waiting state",Safety::ReadOnly,json!({"goal":goal})),
@@ -704,6 +717,14 @@ fn execute_one(
         step_id: None,
         data: json!({}),
     };
+    if skill.name == "inspect_today" {
+        let summary = storage.core_snapshot(None)?.summary;
+        result.data = json!({"day":summary.day,"confirmed_results":summary.completed,"completed_goals":summary.completed_goals,
+            "timer_seconds":summary.goals.iter().map(|g|g.seconds).sum::<u64>(),
+            "observed_seconds":summary.goals.iter().map(|g|g.tracked_seconds).sum::<u64>(),
+            "relevant_seconds":summary.goals.iter().map(|g|g.relevant_seconds).sum::<u64>()});
+        return Ok(result);
+    }
     if skill.name == "list_goals" {
         result.data = json!({"goals":storage.core_snapshot(None)?.goals.into_iter().filter(|g|g.status!="deleted").map(|g|json!({"goal_id":g.id,"title":g.title,"status":g.status})).collect::<Vec<_>>()});
         return Ok(result);
@@ -1054,6 +1075,29 @@ pub fn execute(
     share: bool,
     confirmed: bool,
 ) -> Result<Execution, String> {
+    execute_for_event(
+        storage,
+        snap,
+        plan,
+        latest,
+        share,
+        confirmed,
+        crate::agent_runtime::EventKind::UserMessage,
+    )
+}
+/// Text and voice share all validation/execution; speech additionally confirms deletions.
+pub fn execute_for_event(
+    storage: &mut Storage,
+    snap: &Snapshot,
+    plan: &Plan,
+    latest: &str,
+    share: bool,
+    confirmed: bool,
+    event: crate::agent_runtime::EventKind,
+) -> Result<Execution, String> {
+    if !event.explicit() {
+        return Err("An explicit user action is required".into());
+    }
     if plan.state_version != snap.version || snapshot(storage, snap.conversation)?.data != snap.data
     {
         return Err(
@@ -1120,9 +1164,12 @@ pub fn execute(
         }
     }
     if plan.actions.iter().any(|a| {
-        registry()
-            .iter()
-            .any(|s| s.name == a.name && s.safety == Safety::Confirmation)
+        registry().iter().any(|s| {
+            s.name == a.name
+                && (s.safety == Safety::Confirmation
+                    || (event == crate::agent_runtime::EventKind::VoiceMessage
+                        && a.name == "delete_goal"))
+        })
     }) && !confirmed
     {
         let preview = batch(storage, snap, plan, false)?;
@@ -1142,7 +1189,7 @@ pub fn execute(
                 ],
             )
             .map_err(|e| e.to_string())?;
-        return Ok(Execution{status:"confirmation_required",results:preview,message:Some("Confirm this batch of changes? It includes deleting a step. Reply Confirm or Cancel. Nothing has changed yet.".into())});
+        return Ok(Execution{status:"confirmation_required",results:preview,message:Some("Confirm this batch of changes? It includes a deletion. Reply Confirm or Cancel. Nothing has changed yet.".into())});
     }
     Ok(Execution {
         status: "executed",

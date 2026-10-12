@@ -8,7 +8,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),19);
+            assert_eq!(context["registry"].as_array().unwrap().len(),20);
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
@@ -1449,5 +1449,435 @@ async fn invalid_or_stale_generated_checkpoint_never_parks_the_goal() {
             .unwrap()
             .parked_at
             .is_none());
+    }
+}
+
+// Speech candidates replace only the native recognizer in these integration tests.
+// Everything after transcription uses the production AgentRuntime/HTTP/skill path.
+mod voice_agent {
+    use super::*;
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    fn spoken(text: &str) -> String {
+        crate::core_import::select_transcript(
+            &json!([{"text":text,"confidence":0.95,"start":0,"end":3}]).to_string(),
+        )
+        .unwrap()
+    }
+    fn answer(value: Value) -> ResponseTemplate {
+        ResponseTemplate::new(200).set_body_json(
+            json!({"choices":[{"finish_reason":"stop","message":{"content":value.to_string()}}]}),
+        )
+    }
+    async fn mount(server: &MockServer, action: &str, input: Value, decision: &str) {
+        let action = action.to_string();
+        let decision = decision.to_string();
+        Mock::given(method("POST")).respond_with(move |request: &Request| {
+            let body: Value = serde_json::from_slice(&request.body).unwrap();
+            let serialized = body.to_string();
+            assert!(!serialized.contains("RAW_AUDIO_SENTINEL"));
+            assert!(!serialized.contains("input_audio"));
+            let context: Value = serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            match body["response_format"]["json_schema"]["name"].as_str().unwrap() {
+                "buddy_skill_plan" => {
+                    assert!(["user_message","voice_message"].contains(&context["event_type"].as_str().unwrap()));
+                    answer(json!({"situation":"Handle the explicit command","decision":decision,
+                        "proposed_actions":if decision=="request_clarification" {json!([])} else {json!([{"name":action,"input":input,"instruction":context["latest_request"]}])},
+                        "memory_updates":[],"state_version":context["state"]["state_version"],
+                        "clarification":if decision=="request_clarification" {json!("Which goal do you mean?")} else {Value::Null}}))
+                },
+                "buddy_park_checkpoint" => answer(json!({"summary":"Outline started","next_action":"Write draft","waiting_for":"Review"})),
+                "buddy_skill_result" => {
+                    assert_eq!(context["result"]["status"],"executed");
+                    answer(json!({"message":"Verified backend result"}))
+                },
+                _ => panic!("Unexpected AI flow; no voice or search pipeline may be used"),
+            }
+        }).mount(server).await;
+    }
+    async fn run(
+        state: &AppState,
+        server: &MockServer,
+        text: &str,
+        voice: bool,
+    ) -> Result<(String, u64, bool), String> {
+        let text = if voice {
+            spoken(text)
+        } else {
+            text.to_string()
+        };
+        let (conversation, revision) = {
+            let mut inner = state.inner.lock().unwrap();
+            crate::agent_runtime::begin_explicit(
+                &mut inner,
+                if voice {
+                    crate::agent_runtime::EventKind::VoiceMessage
+                } else {
+                    crate::agent_runtime::EventKind::UserMessage
+                },
+            );
+            (
+                inner.storage.current_conversation().unwrap(),
+                inner.privacy_revision,
+            )
+        };
+        crate::agent_runtime::handle_explicit_actions(
+            &json!({"latest_request":text,"event_type":if voice {"voice_message"}else{"user_message"},"conversation":[],"personal_memory":{}}),
+            conversation,state,revision,true,
+            &Service{client:&state.client,endpoint:server.uri(),key:"fixture".into(),model:"fixture".into()},
+        ).await?.ok_or("Expected a structured agent action".into())
+    }
+    #[tokio::test]
+    async fn mocked_stt_create_goal_and_text_use_the_same_runtime() {
+        for voice in [false, true] {
+            let state = AppState::new(store()).unwrap();
+            let server = MockServer::start().await;
+            mount(
+                &server,
+                "create_goal",
+                json!({"title":"Interview","steps":[]}),
+                "execute_explicit_user_action",
+            )
+            .await;
+            assert!(
+                run(&state, &server, "Create an interview goal", voice)
+                    .await
+                    .unwrap()
+                    .2
+            );
+            let inner = state.inner.lock().unwrap();
+            assert_eq!(
+                inner.storage.core_snapshot(None).unwrap().goals[0].title,
+                "Interview"
+            );
+            assert_eq!(
+                inner.agent.diagnostics.last_input,
+                Some(if voice {
+                    crate::agent_runtime::EventKind::VoiceMessage
+                } else {
+                    crate::agent_runtime::EventKind::UserMessage
+                })
+            );
+        }
+    }
+    #[tokio::test]
+    async fn mocked_stt_create_complete_step_rename_today_and_focus() {
+        let mut s = store();
+        let id = goal(&mut s, "Interview", "voice-actions");
+        let state = AppState::new(s).unwrap();
+        for (text, name, input) in [
+            (
+                "Add a practice step",
+                "create_step",
+                json!({"goal":{"goal_id":id,"reference":null},"text":"Practice answers"}),
+            ),
+            (
+                "Add a review step",
+                "create_step",
+                json!({"goal":{"goal_id":id,"reference":null},"text":"Review notes"}),
+            ),
+            (
+                "Complete the first step",
+                "complete_step",
+                json!({"goal":{"goal_id":id,"reference":null},"step":{"step_id":null,"ordinal":1,"reference":null}}),
+            ),
+            (
+                "Rename this goal to Interview preparation",
+                "rename_goal",
+                json!({"goal":{"goal_id":id,"reference":null},"title":"Interview preparation"}),
+            ),
+            (
+                "Add this goal to Today",
+                "add_goal_to_today",
+                json!({"goal":{"goal_id":id,"reference":null}}),
+            ),
+            (
+                "Focus on this goal",
+                "set_focus_goal",
+                json!({"goal":{"goal_id":id,"reference":null}}),
+            ),
+        ] {
+            let server = MockServer::start().await;
+            mount(&server, name, input, "execute_explicit_user_action").await;
+            assert!(run(&state, &server, text, true).await.unwrap().2);
+        }
+        let inner = state.inner.lock().unwrap();
+        let snapshot = inner.storage.core_snapshot(None).unwrap();
+        let g = &snapshot.goals[0];
+        assert_eq!(g.title, "Interview preparation");
+        assert_eq!(g.plan.steps.len(), 2);
+        assert!(g.plan.steps[0].done);
+        assert!(!g.plan.steps[1].done);
+        assert!(snapshot.today.contains(&id));
+        assert_eq!(snapshot.focused_goal_id, Some(id));
+    }
+    #[tokio::test]
+    async fn mocked_stt_park_resume_and_where_did_i_stop() {
+        let mut s = store();
+        let id = goal(&mut s, "Hackathon", "voice-park");
+        s.transition_goal(id, "resume").unwrap();
+        let state = AppState::new(s).unwrap();
+        for (text, name, input) in [
+            (
+                "Сохрани, где я остановился",
+                "park_context",
+                json!({"goal":{"goal_id":id,"reference":null},"checkpoint":null,"current_app":null}),
+            ),
+            (
+                "Где я остановился?",
+                "inspect_work_context",
+                json!({"goal":{"goal_id":id,"reference":null}}),
+            ),
+            (
+                "Верни меня к хакатону",
+                "resume_context",
+                json!({"goal":{"goal_id":id,"reference":null},"set_focus":true}),
+            ),
+        ] {
+            let server = MockServer::start().await;
+            mount(&server, name, input, "execute_explicit_user_action").await;
+            let reply = run(&state, &server, text, true).await.unwrap();
+            assert_eq!(reply.2, name != "inspect_work_context");
+            let inner = state.inner.lock().unwrap();
+            assert_eq!(
+                inner
+                    .storage
+                    .work_context(id)
+                    .unwrap()
+                    .unwrap()
+                    .context
+                    .next_action
+                    .as_deref(),
+                Some("Write draft")
+            );
+        }
+        assert_eq!(
+            state
+                .inner
+                .lock()
+                .unwrap()
+                .storage
+                .goal()
+                .unwrap()
+                .unwrap()
+                .id,
+            id
+        );
+    }
+    #[tokio::test]
+    async fn mocked_stt_ambiguous_reference_requests_clarification() {
+        let mut s = store();
+        goal(&mut s, "Interview", "one");
+        goal(&mut s, "Interview", "two");
+        let state = AppState::new(s).unwrap();
+        let server = MockServer::start().await;
+        mount(&server, "create_step", json!({}), "request_clarification").await;
+        let reply = run(&state, &server, "Добавь туда шаг", true).await.unwrap();
+        assert_eq!(reply.0, "Which goal do you mean?");
+        assert!(!reply.2);
+        assert!(state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .iter()
+            .all(|g| g.plan.steps.is_empty()));
+    }
+    #[tokio::test]
+    async fn spoken_goal_delete_shows_transcript_then_needs_separate_confirmation() {
+        let mut s = store();
+        let id = goal(&mut s, "Interview", "voice-delete");
+        let state = AppState::new(s).unwrap();
+        let server = MockServer::start().await;
+        mount(
+            &server,
+            "delete_goal",
+            json!({"goal":{"goal_id":id,"reference":null}}),
+            "execute_explicit_user_action",
+        )
+        .await;
+        let reply = run(&state, &server, "Delete the Interview goal", true)
+            .await
+            .unwrap();
+        assert!(reply
+            .0
+            .contains("Recognized transcript: Delete the Interview goal"));
+        assert!(reply.0.contains("Confirm or Cancel"));
+        assert!(reply.0.contains("Delete \"Interview\""));
+        assert!(!reply.2);
+        assert_eq!(server.received_requests().await.unwrap().len(), 1); // No model-generated preview.
+        assert_eq!(
+            state
+                .inner
+                .lock()
+                .unwrap()
+                .storage
+                .core_snapshot(None)
+                .unwrap()
+                .goals
+                .len(),
+            1
+        );
+        assert!(run(&state, &server, "Confirm", true).await.unwrap().2);
+        assert!(state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .is_empty());
+    }
+    #[tokio::test]
+    async fn voice_and_text_reject_the_same_invalid_step_without_mutating() {
+        for voice in [false, true] {
+            let mut s = store();
+            let id = goal(&mut s, "Interview", "invalid-step");
+            let state = AppState::new(s).unwrap();
+            let server = MockServer::start().await;
+            mount(&server,"complete_step",json!({"goal":{"goal_id":id,"reference":null},"step":{"step_id":"not-a-real-step","ordinal":null,"reference":null}}),"execute_explicit_user_action").await;
+            let reply = run(&state, &server, "Complete that step", voice)
+                .await
+                .unwrap();
+            assert!(reply.0.contains("No changes were made"));
+            assert!(!reply.2);
+            assert!(state
+                .inner
+                .lock()
+                .unwrap()
+                .storage
+                .goal_plan(id)
+                .unwrap()
+                .steps
+                .is_empty());
+        }
+    }
+    #[tokio::test]
+    async fn voice_today_question_uses_confirmed_backend_history_not_elapsed_time() {
+        let mut s = store();
+        let id = goal(&mut s, "Interview", "voice-today");
+        let c = s.current_conversation().unwrap();
+        let snap = crate::skills::snapshot(&s, c).unwrap();
+        let plan = crate::skills::Plan {
+            kind: "actions".into(),
+            state_version: snap.version.clone(),
+            actions: vec![crate::skills::Action {
+                name: "create_step".into(),
+                input: json!({"goal":{"goal_id":id,"reference":null},"text":"Practice answers"}),
+                instruction: Some("Add practice step".into()),
+            }],
+            clarification: None,
+        };
+        crate::skills::execute(&mut s, &snap, &plan, "Add practice step", true, false).unwrap();
+        let mut p = s.goal_plan(id).unwrap();
+        p.steps[0].done = true;
+        s.core_save_goal("Interview", "Work", p).unwrap();
+        let state = AppState::new(s).unwrap();
+        let server = MockServer::start().await;
+        mount(
+            &server,
+            "inspect_today",
+            json!({}),
+            "execute_explicit_user_action",
+        )
+        .await;
+        assert!(
+            !run(&state, &server, "Что я сегодня сделал?", true)
+                .await
+                .unwrap()
+                .2
+        );
+        let requests = server.received_requests().await.unwrap();
+        let body: Value = serde_json::from_slice(&requests[1].body).unwrap();
+        let data: Value =
+            serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let result = &data["result"]["results"][0]["data"];
+        assert!(result["confirmed_results"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("Practice answers")));
+        assert_eq!(result["timer_seconds"], 0);
+        assert_eq!(result["relevant_seconds"], 0);
+    }
+    #[tokio::test]
+    async fn spoken_step_delete_cancel_and_stale_confirmation_are_safe() {
+        for changed in [false, true] {
+            let mut s = store();
+            s.core_add_goals(
+                vec![crate::core::GoalDraft {
+                    title: "Interview".into(),
+                    area: "Work".into(),
+                    steps: vec!["Practice".into(), "Review".into()],
+                }],
+                "voice-step-delete",
+            )
+            .unwrap();
+            let id = s.core_snapshot(None).unwrap().goals[0].id;
+            let state = AppState::new(s).unwrap();
+            let server = MockServer::start().await;
+            mount(&server,"delete_step",json!({"goal":{"goal_id":id,"reference":null},"step":{"step_id":null,"ordinal":1,"reference":null}}),"execute_explicit_user_action").await;
+            let preview = run(&state, &server, "Delete the first step", true)
+                .await
+                .unwrap();
+            assert!(preview
+                .0
+                .contains("Recognized transcript: Delete the first step"));
+            assert!(preview.0.contains("Practice"));
+            assert!(!preview.2);
+            if changed {
+                state.inner.lock().unwrap().privacy_revision += 1;
+                assert!(run(&state, &server, "Confirm", true).await.is_err());
+            } else {
+                assert!(!run(&state, &server, "Cancel", true).await.unwrap().2);
+            }
+            let inner = state.inner.lock().unwrap();
+            assert_eq!(inner.storage.goal_plan(id).unwrap().steps.len(), 2);
+        }
+    }
+    #[tokio::test]
+    async fn today_summary_has_no_yesterday_results_and_sharing_off_blocks_it() {
+        let mut s = store();
+        let id = goal(&mut s, "Interview", "daily-scope");
+        let day = chrono::Local::now().date_naive().to_string();
+        let yesterday = (chrono::Local::now().date_naive() - chrono::Duration::days(1)).to_string();
+        s.connection.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'past','YESTERDAY ONLY','completed',?2,?3)",rusqlite::params![id,yesterday,chrono::Utc::now().to_rfc3339()]).unwrap();
+        s.connection.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at) VALUES(?1,'now','TODAY VERIFIED','completed',?2,?3)",rusqlite::params![id,day,chrono::Utc::now().to_rfc3339()]).unwrap();
+        let conversation = s.current_conversation().unwrap();
+        let snapshot = crate::skills::snapshot(&s, conversation).unwrap();
+        let plan = crate::skills::Plan {
+            kind: "actions".into(),
+            state_version: snapshot.version.clone(),
+            actions: vec![crate::skills::Action {
+                name: "inspect_today".into(),
+                input: json!({}),
+                instruction: None,
+            }],
+            clarification: None,
+        };
+        assert!(crate::skills::execute(
+            &mut s,
+            &snapshot,
+            &plan,
+            "What did I do today?",
+            false,
+            false
+        )
+        .is_err());
+        let result = crate::skills::execute(
+            &mut s,
+            &snapshot,
+            &plan,
+            "What did I do today?",
+            true,
+            false,
+        )
+        .unwrap();
+        let receipt = result.fallback_message();
+        assert!(receipt.contains("TODAY VERIFIED"));
+        assert!(!receipt.contains("YESTERDAY ONLY"));
+        assert!(!result.committed_changes());
     }
 }

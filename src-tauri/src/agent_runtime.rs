@@ -191,6 +191,33 @@ pub fn begin_explicit(inner: &mut Inner, kind: EventKind) {
     inner.agent.pending.clear();
     inner.agent.diagnostics.last_input = Some(kind);
 }
+/// Shared post-transcript action entry. Audio is accepted only by the local STT IPC.
+pub fn explicit_event_kind(request: &Value) -> Result<EventKind, String> {
+    match request.get("event_type").and_then(Value::as_str) {
+        None | Some("user_message") => Ok(EventKind::UserMessage),
+        Some("voice_message") => Ok(EventKind::VoiceMessage),
+        _ => Err("An explicit text or voice message is required".into()),
+    }
+}
+pub async fn handle_explicit_actions(
+    request: &Value,
+    conversation: i64,
+    state: &AppState,
+    revision: u64,
+    share: bool,
+    service: &Service<'_>,
+) -> Result<Option<(String, u64, bool)>, String> {
+    explicit_event_kind(request)?;
+    crate::ai_chat::structured_chat_actions_with_service(
+        request,
+        conversation,
+        state,
+        revision,
+        share,
+        service,
+    )
+    .await
+}
 fn service_allowed(inner: &Inner) -> bool {
     let minute = Local::now().hour() * 60 + Local::now().minute();
     inner

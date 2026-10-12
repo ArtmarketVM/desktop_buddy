@@ -1,4 +1,3 @@
-import { isMac } from "../api/platform";
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { CompanionChat } from "./CompanionChat";
@@ -21,9 +20,7 @@ describe("companion interaction boundary", () => {
       />,
     );
     expect(html).toContain("Your message or task");
-    expect(html).toContain(
-      isMac ? "Start voice recording" : "Start Windows voice typing",
-    );
+    expect(html).toContain("Start voice recording");
     expect(html).toContain("Explain");
     expect(html).toContain("Save for later");
     expect(html).toContain("Enter to send");

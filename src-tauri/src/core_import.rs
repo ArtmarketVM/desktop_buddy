@@ -328,7 +328,7 @@ fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
 #[cfg(not(any(windows, target_os = "macos")))]
 fn transcribe(_audio: &[u8], _language: &str) -> Result<String, String> {
     Err(
-        "Local voice recognition is available on Windows. Paste a transcript on this platform."
+        "Local voice recognition is available on Windows and macOS. Type or paste a transcript on this platform."
             .into(),
     )
 }
