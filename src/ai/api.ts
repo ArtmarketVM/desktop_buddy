@@ -67,6 +67,8 @@ export const aiApi = {
     invoke<string[]>("complete_goal_step", { goalId, prefix }),
   history: () => invoke<ChatMessage[]>("get_buddy_chat_history"),
   conversations: () => invoke<ChatConversation[]>("get_buddy_conversations"),
+  searchConversations: (query: string) =>
+    invoke<number[]>("search_buddy_conversations", { query }),
   newConversation: () => invoke<number>("create_buddy_conversation"),
   selectConversation: (id: number) =>
     invoke<void>("select_buddy_conversation", { id }),
@@ -77,10 +79,11 @@ export const aiApi = {
     text: string,
     attachmentText: string | null,
     goalId: number | null = null,
+    conversationId: number | null = null,
   ) =>
     invoke<{ message: string; resources: ChatResource[] }>(
       "send_buddy_message",
-      { text, attachmentText, goalId },
+      { text, attachmentText, goalId, conversationId },
     ),
   resourceOpened: (goalId: number | null, url: string) =>
     invoke<void>("record_resource_view", { goalId, url }),

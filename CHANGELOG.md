@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.26.1 — chat window, voice and titles
+
+- Make the mascot chat larger with full history, a close button and the mascot below the card.
+- Stop voice recording on a pause, send spoken messages in the mascot chat and keep quiet speech.
+- Send with Enter in app chats, remove the goal-context block and subtitle, and title chats by topic.
+- Redesign Chats with working search (titles and message text), a header menu and a hover menu with Delete on each chat.
+- Save every question at once and keep each answer in the chat it was asked in; empty chats are removed automatically.
+- Format answers like Claude (paragraphs, lists, copyable code blocks, a Sources list, time and a Copy button) and make Buddy write out the actual answer, including names of sites and tools.
+
 ## 0.26.0 — Progress overview and per-step time
 
 - Redesign Progress as an overview and a single-goal view with a stacked chart and period navigation.

@@ -178,3 +178,178 @@
   padding: 3px;
   cursor: nwse-resize;
 }
+
+.conversation-message .markdown {
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.workspace-chat .conversation-message .markdown {
+  font-size: 14px;
+}
+.conversation-message .markdown > * {
+  margin: 0 0 0.75em;
+}
+.conversation-message .markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown h3,
+.markdown h4,
+.markdown h5 {
+  margin: 1.1em 0 0.4em;
+  font-size: 1.08em;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.conversation-message .markdown > :first-child {
+  margin-top: 0;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 1.4em;
+}
+.markdown li {
+  margin: 0.25em 0;
+  padding-left: 0.15em;
+}
+.markdown strong {
+  font-weight: 600;
+}
+.markdown blockquote {
+  padding-left: 12px;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+}
+.markdown hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.markdown code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+}
+.md-code {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+.md-code pre {
+  margin: 0;
+  padding: 34px 14px 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.md-code pre code {
+  padding: 0;
+  background: transparent;
+  font-size: 0.88em;
+}
+.md-copy {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.md-copy:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.message-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.conversation-message.user .message-meta {
+  justify-content: flex-end;
+}
+.message-copy {
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+.message-copy:hover {
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text);
+}
+.message-sources {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.message-sources h4 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+.message-sources ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.message-sources button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.message-sources button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+}
+.message-sources .source-number {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--muted);
+  font-size: 10px;
+}
+.message-sources .source-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.message-sources .source-title {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-sources .source-domain {
+  color: var(--muted);
+  font-size: 11px;
+}
+.message-sources svg {
+  flex: none;
+  color: var(--muted);
+}

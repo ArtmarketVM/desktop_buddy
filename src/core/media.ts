@@ -149,7 +149,12 @@ export function resampleVoice(
   return output;
 }
 
-export async function recordVoice(): Promise<{
+/** Quiet time after speech that counts as "the person finished talking". */
+export const VOICE_PAUSE_MS = 1500;
+/** Extra recording after Stop so the last word is not clipped. */
+const VOICE_TAIL_MS = 350;
+
+export async function recordVoice(onPause?: () => void): Promise<{
   stop: () => Promise<Uint8Array>;
   cancel: () => void;
   setMuted: (muted: boolean) => void;
@@ -182,11 +187,37 @@ export async function recordVoice(): Promise<{
   let size = 0;
   let closed = false;
   let muted = false;
+  // Pause detection: learn the room noise from the first chunks, then call onPause once the
+  // person has spoken and has been quiet for VOICE_PAUSE_MS.
+  let noise = 0;
+  let calibration = 0;
+  let spoke = false;
+  let lastVoice = 0;
+  let paused = false;
   processor.onaudioprocess = (event) => {
     if (!muted && size < context.sampleRate * 60) {
       const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
       chunks.push(chunk);
       size += chunk.length;
+      let sum = 0;
+      for (const value of chunk) sum += value * value;
+      const level = Math.sqrt(sum / chunk.length);
+      const now = performance.now();
+      if (calibration < 4) {
+        noise = Math.max(noise, level);
+        calibration += 1;
+      } else if (level > Math.max(0.02, noise * 2.5)) {
+        spoke = true;
+        lastVoice = now;
+      } else if (
+        spoke &&
+        !paused &&
+        onPause &&
+        now - lastVoice >= VOICE_PAUSE_MS
+      ) {
+        paused = true;
+        onPause();
+      }
     }
   };
   source.connect(processor);
@@ -210,6 +241,8 @@ export async function recordVoice(): Promise<{
     },
     cancel: close,
     stop: async () => {
+      if (!paused)
+        await new Promise((resolve) => setTimeout(resolve, VOICE_TAIL_MS));
       close();
       const samples = new Float32Array(Math.min(size, context.sampleRate * 60));
       let offset = 0;

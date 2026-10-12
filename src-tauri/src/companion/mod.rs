@@ -771,6 +771,12 @@ pub fn open_companion_chat(
         if !inner.storage.user_settings()?.onboarding.completed {
             return Err("Finish setup first".into());
         }
+        // Every time the mascot chat is opened it starts its own conversation, which then shows up
+        // in the app's Chats. An empty conversation is reused instead of piling up blank chats.
+        let fresh = !inner.companion.view.chat_open && inner.storage.start_fresh_conversation()?;
+        if fresh {
+            let _ = tauri::Emitter::emit(&app, "buddy://chat-updated", ());
+        }
         inner.companion.view.chat_open = true;
         inner.companion.view.intent = intent;
         inner.companion.view.seed.clear();
@@ -987,7 +993,7 @@ pub async fn companion_submit(
         });
     }
     // Compatibility entry point shares the same consent, history and research policy.
-    let reply = crate::ai_chat::send_buddy_message(text, None, None, app, state).await?;
+    let reply = crate::ai_chat::send_buddy_message(text, None, None, None, app, state).await?;
     Ok(Reply {
         message: reply.message,
         resources: reply
