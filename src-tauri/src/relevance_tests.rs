@@ -244,3 +244,25 @@ fn matching_can_follow_another_today_goal_without_matching_generic_work_terms() 
         .goal_id
         .is_none());
 }
+#[test]
+fn hourly_time_splits_relevant_intervals_at_local_hour_boundaries() {
+    let (mut store, id) = store();
+    let start = chrono::Local
+        .with_ymd_and_hms(2026, 10, 7, 9, 59, 58)
+        .single()
+        .unwrap()
+        .with_timezone(&Utc);
+    let sample = interval(start, "Buddy onboarding", ActivityState::Focused);
+    store.record_interval(id, &sample).unwrap();
+    let hours = store.core_hourly("2026-10-07").unwrap();
+    let seconds = |hour: u8| {
+        hours
+            .iter()
+            .filter(|item| item.hour == hour && item.goal_id == id)
+            .map(|item| item.seconds)
+            .sum::<u64>()
+    };
+    assert_eq!(seconds(9), 2);
+    assert_eq!(seconds(10), 1);
+    assert!(store.core_hourly("2026-10-08").unwrap().is_empty());
+}

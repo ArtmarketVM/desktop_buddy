@@ -104,6 +104,18 @@ function bucketsFor(days: DayProgress[], period: ProgressPeriod): Bucket[] {
   return [...buckets.values()];
 }
 
+function hourBuckets(hourly: CoreSnapshot["hourly"]): Bucket[] {
+  return Array.from({ length: 24 }, (_, hour) => ({
+    key: String(hour),
+    label: hour % 6 === 0 ? `${String(hour).padStart(2, "0")}:00` : "",
+    goals: new Map(
+      hourly
+        .filter((item) => item.hour === hour)
+        .map((item) => [item.goal_id, item.seconds] as const),
+    ),
+  }));
+}
+
 export function Progress({
   snapshot,
   anchor,
@@ -153,7 +165,11 @@ export function Progress({
     ];
   const focus =
     selected === null ? null : snapshot.goals.find((g) => g.id === selected);
-  const buckets = bucketsFor(days, period).map((bucket) => ({
+  const buckets = (
+    period === "day"
+      ? hourBuckets(snapshot.hourly ?? [])
+      : bucketsFor(days, period)
+  ).map((bucket) => ({
     ...bucket,
     goals:
       selected === null
@@ -274,7 +290,9 @@ export function Progress({
                   />
                 ))}
             </div>
-            <small>{buckets.length > 14 ? "" : bucket.label}</small>
+            <small>
+              {buckets.length > 14 && period !== "day" ? "" : bucket.label}
+            </small>
           </div>
         ))}
       </div>

@@ -60,6 +60,7 @@ export interface CoreSnapshot {
   goals: CoreGoal[];
   summary: DayProgress;
   week: DayProgress[];
+  hourly: Array<{ hour: number; goal_id: number; seconds: number }>;
   timer: { goal_id: number; last_tick: string } | null;
   focused_goal_id: number | null;
   preferences: CorePreferences;
@@ -91,6 +92,7 @@ export const emptyCore = (): CoreSnapshot => {
       completed: [],
       goals: [],
     })),
+    hourly: [],
     timer: null,
     focused_goal_id: null,
     preferences: {
