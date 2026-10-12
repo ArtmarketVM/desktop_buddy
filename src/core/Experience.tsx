@@ -153,12 +153,11 @@ export function Experience({
       {!ready && <p role="status">Opening your goals…</p>}
       {page === "activity" &&
         (!dashboard.status.tracking || dashboard.status.tracking_error) && (
-          <p className="progress-notice" role="status">
-            <span aria-hidden="true" />
+          <p className="callout" role="status">
             {dashboard.status.tracking
               ? "Tracking is blocked."
-              : "Tracking is paused."}{" "}
-            <button className="text-button" onClick={onSettings}>
+              : "Tracking is paused."}
+            <button className="text-button callout-action" onClick={onSettings}>
               Fix in Settings
             </button>
           </p>

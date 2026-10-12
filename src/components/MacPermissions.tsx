@@ -44,68 +44,66 @@ export function MacPermissions() {
   }, [allowed, refresh]);
   if (!isMac || !desktop) return null;
   return (
-    <div className="card" aria-label="macOS permissions">
-      <p className="helper">
-        Accessibility access is{" "}
-        {allowed === null
-          ? "being checked"
-          : allowed
-            ? "enabled"
-            : "needed for active-window tracking and selected text"}
-        .{" "}
-        {!allowed && (
-          <>
-            Enable Desktop Buddy in System Settings → Privacy &amp; Security →
-            Accessibility (Device Control and Data Access on newer macOS). If it
-            is already switched on but access stays blocked, for example after
-            an update, choose Reset and ask again. Goals and chat remain
-            available without this permission.{" "}
-          </>
-        )}
-        No screenshots are taken.
-      </p>
-      {!allowed && (
-        <>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              void invoke<boolean>("request_accessibility_permission")
-                .then(setAllowed)
-                .catch((e) => setError(String(e)));
-            }}
-          >
-            Allow Accessibility access
-          </button>
-          <button
-            type="button"
-            className="secondary"
-            onClick={() => {
-              setNote("");
-              void invoke<boolean>("reset_accessibility_permission")
-                .then((next) => {
-                  setAllowed(next);
-                  setNote(
-                    next
-                      ? "Accessibility access is enabled. Tracking can start."
-                      : "Switch Desktop Buddy on when macOS asks. This page updates by itself.",
-                  );
-                })
-                .catch((e) => setError(String(e)));
-            }}
-          >
-            Reset and ask again
-          </button>
-        </>
+    <div className="mac-permissions" aria-label="macOS permissions">
+      {allowed === false ? (
+        <p className="callout" role="status">
+          Accessibility access is needed for tracking.
+          <span className="callout-actions">
+            <button
+              type="button"
+              className="text-button callout-action"
+              onClick={() => {
+                void invoke<boolean>("request_accessibility_permission")
+                  .then(setAllowed)
+                  .catch((e) => setError(String(e)));
+              }}
+            >
+              Allow access
+            </button>
+            <button
+              type="button"
+              className="text-button callout-action"
+              onClick={() => {
+                setNote("");
+                void invoke<boolean>("reset_accessibility_permission")
+                  .then((next) => {
+                    setAllowed(next);
+                    setNote(
+                      next
+                        ? "Accessibility access is enabled. Tracking can start."
+                        : "Switch Desktop Buddy on when macOS asks. This page updates by itself.",
+                    );
+                  })
+                  .catch((e) => setError(String(e)));
+              }}
+            >
+              Reset and ask again
+            </button>
+          </span>
+        </p>
+      ) : (
+        <p className="helper">
+          Accessibility access is{" "}
+          {allowed === null ? "being checked" : "enabled"}. No screenshots are
+          taken.
+        </p>
       )}
-      <button
-        type="button"
-        className="text-button"
-        disabled={checking}
-        onClick={() => void refresh(true)}
-      >
-        {checking ? "Checking…" : "Check permission"}
-      </button>
+      {allowed === false && (
+        <p className="helper">
+          Turn on Desktop Buddy in System Settings → Privacy &amp; Security →
+          Accessibility. If it is already on but access stays blocked, for
+          example after an update, choose Reset and ask again. Goals and chat
+          work without it. No screenshots are taken.{" "}
+          <button
+            type="button"
+            className="text-button"
+            disabled={checking}
+            onClick={() => void refresh(true)}
+          >
+            {checking ? "Checking…" : "Check permission"}
+          </button>
+        </p>
+      )}
       {note && (
         <p className="helper" role="status">
           {note}
