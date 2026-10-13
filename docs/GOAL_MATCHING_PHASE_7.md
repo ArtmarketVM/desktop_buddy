@@ -77,10 +77,12 @@ not personal memory and introduces no schema migration.
 Local and cloud switches use the same existing backend goal transition. They
 reset the interval boundary rather than backfilling elapsed time into the new
 goal. Waiting checkpoints retain their waiting state during automatic focus.
-Explicit focus and a remembered app determine direction; neither alone makes all
-activity relevant. Their time attribution still requires conservative local
-relevance evidence. Unsupported/unassigned activity can remain observed time
-without inflating relevant time or confirmed completion.
+Explicit focus and a remembered app determine direction. Focused time in an app
+that is not excluded or a distraction counts for that goal, including windows
+that name no goal at all (meetings, mail, generic documents). It stops counting
+when the window carries keyword evidence for a different goal, or is ambiguous
+between several goals; that activity remains observed time without inflating the
+selected goal's relevant time or confirming completion (0.27.5).
 
 ## Computed Personal Work State
 

@@ -214,7 +214,10 @@ fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String
     }
     Ok(())
 }
-/// Direction is distinct from relevance: explicit focus and a remembered app do not prove work.
+/// Time counts for the goal the user selected (or a remembered app lane) while they are focused,
+/// unless the window clearly belongs to another goal: a keyword match for a different goal, or an
+/// ambiguous match between several goals, keeps that activity out of the selected goal's time.
+/// A window that names no goal at all, such as a meeting or an email, stays with the selected goal.
 pub fn attribution(
     inner: &crate::commands::Inner,
     sample: &ActivitySnapshot,
@@ -226,15 +229,21 @@ pub fn attribution(
         Some("explicit_focus" | "work_context")
     ) {
         let local = inner.storage.match_activity(sample)?;
-        confidence = if local
+        let selected = |id: i64| Some(id) == view.goal_id;
+        if local
             .goal_id
             .as_ref()
-            .is_some_and(|id| Some(id.parse::<i64>().unwrap_or_default()) == view.goal_id)
+            .is_some_and(|id| selected(id.parse::<i64>().unwrap_or_default()))
         {
-            local.confidence
-        } else {
-            0.
-        };
+            confidence = local.confidence;
+        } else if inner
+            .storage
+            .matching_goals(sample)?
+            .into_iter()
+            .any(|id| !selected(id))
+        {
+            confidence = 0.;
+        }
     }
     Ok(crate::relevance::ActivityMatch {
         goal_id: view.goal_id.map(|id| id.to_string()),

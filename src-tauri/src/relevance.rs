@@ -117,6 +117,26 @@ pub fn classify(candidates: &[(i64, String, bool)], activity: &ActivitySnapshot)
 }
 impl Storage {
     pub fn match_activity(&self, activity: &ActivitySnapshot) -> Result<ActivityMatch, String> {
+        Ok(classify(&self.match_candidates(activity)?, activity))
+    }
+    /// Today goals whose own title, description or open steps match the window on their own.
+    /// Several entries mean the window is ambiguous between goals; none means it names no goal.
+    pub fn matching_goals(&self, activity: &ActivitySnapshot) -> Result<Vec<i64>, String> {
+        Ok(self
+            .match_candidates(activity)?
+            .iter()
+            .filter(|candidate| {
+                classify(std::slice::from_ref(candidate), activity)
+                    .goal_id
+                    .is_some()
+            })
+            .map(|candidate| candidate.0)
+            .collect())
+    }
+    fn match_candidates(
+        &self,
+        activity: &ActivitySnapshot,
+    ) -> Result<Vec<(i64, String, bool)>, String> {
         let day = chrono::Local::now().date_naive().to_string();
         let mut query=self.connection.prepare("SELECT g.id,g.text,COALESCE(m.description,'') FROM goals g JOIN core_goals c ON c.goal_id=g.id JOIN core_day_items d ON d.goal_id=g.id LEFT JOIN core_goal_details m ON m.goal_id=g.id WHERE d.day=?1 AND c.state='open' AND g.status!='completed' ORDER BY d.rowid").map_err(|_| "Today goals unavailable")?;
         let rows = query
@@ -156,7 +176,7 @@ impl Storage {
             );
             candidates.push((id, context, explicit));
         }
-        Ok(classify(&candidates, activity))
+        Ok(candidates)
     }
     pub fn relevant_seconds(&self, id: i64, day: Option<&str>) -> Result<u64, String> {
         self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0)/1000 FROM goal_relevant_daily WHERE goal_id=?1 AND (?2 IS NULL OR day=?2)",params![id,day],|r|r.get(0)).map_err(|_| "Goal progress unavailable".into())
