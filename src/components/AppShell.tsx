@@ -5,8 +5,8 @@ import {
   History,
   Settings,
   ChevronDown,
-  PanelLeftClose,
-  PanelLeftOpen,
+  ChevronsLeft,
+  ChevronsRight,
   Sun,
   Moon,
   UserRound,
@@ -172,13 +172,10 @@ export function AppShell({
             onClick={() => setCollapsed((previous) => !previous)}
           >
             {collapsed ? (
-              <PanelLeftOpen size={20} aria-hidden="true" />
+              <ChevronsRight size={20} strokeWidth={1.75} aria-hidden="true" />
             ) : (
-              <PanelLeftClose size={20} aria-hidden="true" />
+              <ChevronsLeft size={20} strokeWidth={1.75} aria-hidden="true" />
             )}
-            <span className="sidebar-toggle-label" aria-hidden="true">
-              {collapsed ? "Menu" : "Hide"}
-            </span>
           </button>
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>
