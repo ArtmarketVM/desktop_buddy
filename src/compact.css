@@ -36,22 +36,21 @@
   padding: 0;
   margin: 0;
   border-radius: 8px;
-  color: var(--text);
-  background: var(--raised);
-  border: 1px solid var(--line);
-  grid-template-rows: 20px 12px;
-  align-content: center;
-  gap: 2px;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  transition:
+    background 150ms,
+    color 150ms;
   transform: none;
-}
-.sidebar-toggle-label {
-  font-size: 10px;
-  line-height: 12px;
-  font-weight: 600;
 }
 .sidebar .sidebar-collapse:hover {
   color: var(--text);
-  background: var(--accent-soft);
+  background: var(--raised);
+}
+.sidebar .sidebar-collapse:active {
+  background: var(--line);
 }
 .sidebar .sidebar-collapse:focus-visible {
   outline: 2px solid var(--accent);
