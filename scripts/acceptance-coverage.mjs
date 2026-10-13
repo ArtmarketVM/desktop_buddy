@@ -255,7 +255,7 @@ partial(
   [
     ui(
       "src/core/GoalWorkContext.test.tsx",
-      "shows independent parked, waiting, checkpoint, confirmed result and next action",
+      "keeps parked checkpoints compact until explicitly opened",
     ),
     ...rust("six_parallel_contexts_are_isolated"),
   ],
