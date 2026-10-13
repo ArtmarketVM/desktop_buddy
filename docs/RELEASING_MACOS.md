@@ -1,54 +1,36 @@
 # Shared Windows and macOS releases
 
-macOS 0.22.0 introduces a signed Apple Silicon updater channel. Install this
-bootstrap version once; later releases use the existing Updates button, download
-and verify the archive, replace the installed app, and restart. Existing Windows
-signers and compatibility channels are unchanged.
+Release from reviewed main using the `Publish Windows and macOS release` workflow
+(`release.yml`) and the synchronized new `release_tag`. It builds and tests
+Windows x64 and Mac Apple Silicon (14.5+), verifies signatures and compatibility
+channels, then publishes one complete GitHub release. Intel Mac and universal
+Mac installers are not produced. Never replace delivered installers under an
+existing version.
 
-The macOS updater key is independent of Developer ID signing/notarization. Its
-public key is in `src-tauri/trusted-signers.macos.json`. The private key stays in
-the ignored `.tools/signing/desktop-buddy-macos.key` file with restricted file
-permissions on the owner's Mac. Keep a secure backup; losing it requires a
-reviewed signing-key transition. Never add the private key to Git or an installer.
-The build supports the path or contents through `TAURI_SIGNING_PRIVATE_KEY`, as
-documented by the [Tauri updater](https://v2.tauri.app/plugin/updater/).
+Required repository Actions secrets:
 
-For GitHub automation, configure repository Actions secrets:
+- `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`: the existing Windows updater signer.
+- `TAURI_SIGNING_PRIVATE_KEY_MACOS` and optional `TAURI_SIGNING_PRIVATE_KEY_PASSWORD_MACOS`: the existing Mac updater signer.
+- `BUDDY_MACOS_P12_BASE64` and `BUDDY_MACOS_P12_PASSWORD`: the reviewed persistent internal Mac app-signing identity.
 
-- `TAURI_SIGNING_PRIVATE_KEY` and its optional password: existing Windows signer.
-- `TAURI_SIGNING_PRIVATE_KEY_MACOS` and its optional
-  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD_MACOS`: the owner's macOS updater key.
+App signing and updater signing are separate. Preserve both identities. Follow
+[the permission persistence procedure](MACOS_PERMISSION_PERSISTENCE.md) for the
+internal certificate, its encrypted backups and local validation. Missing app
+signing credentials must fail the delivered build rather than silently fall
+back to ad-hoc signing. Do not generate fresh certificates per developer.
 
-Synchronize all five version files, test, commit and push the reviewed source to main.
-Build Windows locally with `scripts/dev.ps1 -Task release -SignerId developer2`
-using the existing protected key; do not upload that key to GitHub. Dispatch
-**Build signed macOS release** (`release.yml`) with the matching release tag to
-test and build Apple Silicon and Intel using the existing macOS Actions secret.
+Normal PR CI uses ad-hoc Mac artifacts for validation and cannot publish an
+update. Those validation artifacts must not replace a delivered internally
+signed app. Local release packaging uses `npm run build:macos`; output includes
+the DMG, ZIP, signed updater archive, verified manifest and checksums in the
+ignored `artifacts/` directory. Existing Windows compatibility bridges are kept.
 
-Collect both Mac artifacts and the locally signed Windows installer in one draft
-release. Verify every archive signature and its signed version, then generate a
-combined Mac manifest containing `darwin-aarch64` and `darwin-x86_64`. Include the
-Windows signature, `latest.json`, every Windows compatibility channel, the Mac
-manifest, both DMGs, both signed updater archives and checksums. Publish only
-after all three platform builds and signatures pass. Existing installers under
-older version tags must not be replaced. Archive the generated public Windows
-compatibility metadata with the release source.
-
-Normal PR/branch CI uses unsigned macOS bundles and cannot publish an update.
-Local `npm run build:macos` uses the restricted local key if no signing environment
-variable is provided. Signed archives, signatures, a verified manifest, DMG, ZIP
-and checksums are placed in `artifacts/`.
-
-Publish both platforms together after collecting the verified workflow artifacts. A macOS-only
-release must also retain the latest Windows compatibility manifests as release
-assets because existing Windows clients resolve the latest GitHub release.
-Publishing a release without those manifests interrupts Windows update checks.
-
-Ad-hoc app signing supports local installation. Public distribution should use
-the owner's Developer ID certificate and notarization; macOS may otherwise
-require renewed Accessibility approval after a changed app signature. macOS
-14.5 needs its own runtime validation; the minimum deployment target alone is
-not a hardware test.
+Internal signing is not Apple Developer ID signing or notarization. The initial
+transition from old ad-hoc releases may require one Accessibility approval;
+future versions must preserve the same certificate-bound identity. A browser
+download may still require macOS Open Anyway. Apple Developer ID is an explicit
+future distribution option and requires its own reviewed identity transition.
+The minimum deployment target does not establish exact macOS 14.5 runtime testing.
 
 # Goal monitoring
 
