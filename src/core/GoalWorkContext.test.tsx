@@ -61,7 +61,7 @@ it("parks the exact goal through Rust and shows its authoritative receipt", asyn
   );
   expect(screen.getByRole("status").textContent).toBe("Checkpoint saved");
 });
-it("shows independent parked, waiting, checkpoint, confirmed result and next action", () => {
+it("keeps parked checkpoints compact until explicitly opened", async () => {
   render(
     <GoalWorkContext
       goal={{ ...goal, status: "deferred", work_context: context }}
@@ -69,9 +69,13 @@ it("shows independent parked, waiting, checkpoint, confirmed result and next act
       run={run}
     />,
   );
+  expect(screen.queryByRole("dialog")).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Checkpoint for Hackathon" }),
+  );
   for (const text of [
     "Parked",
-    "Waiting",
+    "Waiting for:",
     "Outline started",
     "Review draft",
     "Reviewer feedback",
@@ -79,7 +83,7 @@ it("shows independent parked, waiting, checkpoint, confirmed result and next act
   ])
     expect(screen.getByText(text)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Park" })).toBeNull();
-  expect(document.querySelector("details")?.open).toBe(true);
+  expect(screen.getByRole("dialog")).toBeTruthy();
 });
 it("resumes the exact parked goal without a frontend state mutation", async () => {
   render(
@@ -88,6 +92,9 @@ it("resumes the exact parked goal without a frontend state mutation", async () =
       busy={false}
       run={run}
     />,
+  );
+  await userEvent.click(
+    screen.getByRole("button", { name: "Checkpoint for Hackathon" }),
   );
   await userEvent.click(screen.getByRole("button", { name: "Resume" }));
   await waitFor(() =>
@@ -130,7 +137,7 @@ it("failed generation leaves the action available and shows no success receipt",
   );
   expect(screen.queryByRole("status")).toBeNull();
 });
-it("read-only and completed goals expose no workflow actions", () => {
+it("read-only and completed goals expose no workflow mutations", async () => {
   const { rerender } = render(
     <GoalWorkContext
       goal={{ ...goal, work_context: context }}
@@ -139,7 +146,11 @@ it("read-only and completed goals expose no workflow actions", () => {
       readOnly
     />,
   );
-  expect(screen.queryByRole("button")).toBeNull();
+  await userEvent.click(
+    screen.getByRole("button", { name: "Checkpoint for Hackathon" }),
+  );
+  expect(screen.queryByRole("button", { name: "Park" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Resume" })).toBeNull();
   expect(screen.getByText("Outline started")).toBeTruthy();
   rerender(
     <GoalWorkContext
@@ -148,9 +159,9 @@ it("read-only and completed goals expose no workflow actions", () => {
       run={run}
     />,
   );
-  expect(screen.queryByRole("region")).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
-it("respects the shared busy lock", () => {
+it("allows reading while the shared busy lock blocks workflow mutations", async () => {
   render(
     <GoalWorkContext
       goal={{ ...goal, work_context: context }}
@@ -158,9 +169,11 @@ it("respects the shared busy lock", () => {
       run={run}
     />,
   );
-  expect(
-    screen
-      .getAllByRole("button")
-      .every((button) => (button as HTMLButtonElement).disabled),
-  ).toBe(true);
+  await userEvent.click(
+    screen.getByRole("button", { name: "Checkpoint for Hackathon" }),
+  );
+  for (const name of ["Park", "Resume"])
+    expect(
+      (screen.getByRole("button", { name }) as HTMLButtonElement).disabled,
+    ).toBe(true);
 });
