@@ -296,3 +296,92 @@ async fn instrumented_request_uses_existing_validation_and_records_metadata_only
     );
     assert!(!data.to_string().contains("RAW_CONTENT_CANARY"));
 }
+
+#[test]
+fn sidebar_status_is_content_free_and_configuration_does_not_claim_connectivity() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.nebius_configured = true;
+    inner.status.tavily_configured = true;
+    let status = service_status_view(&inner);
+    assert_eq!(status["services"][0]["status"], "not_checked");
+    assert_eq!(status["services"][1]["status"], "not_checked");
+    assert_eq!(status["services"][2]["status"], "not_checked");
+    let keys: Vec<_> = status
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(keys, ["configured_model", "services"]);
+    let serialized = status.to_string();
+    for private in [
+        "api_key",
+        "active_goal",
+        "memory",
+        "accessibility",
+        "prompt",
+    ] {
+        assert!(!serialized.contains(private));
+    }
+    assert!(main_window("buddy").is_err());
+}
+#[test]
+fn sidebar_distinguishes_provider_access_from_model_access_and_expires_checks() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.nebius_configured = true;
+    inner.status.tavily_configured = true;
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    assert!(begin_connection_check(&mut inner, "nebius").is_err());
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "checking"
+    );
+    let revision = inner.privacy_revision;
+    finish_connection_check(&mut inner, "nebius", revision, true, Some(false));
+    let status = service_status_view(&inner);
+    assert_eq!(status["services"][0]["status"], "verified");
+    assert_eq!(status["services"][1]["status"], "unavailable");
+    assert!(begin_connection_check(&mut inner, "nebius").is_err());
+    finish_connection_check(&mut inner, "tavily", revision, false, None);
+    assert_eq!(
+        service_status_view(&inner)["services"][2]["status"],
+        "unavailable"
+    );
+    inner.engine.connections[0].as_mut().unwrap().checked =
+        Instant::now() - Duration::from_secs(16 * 60);
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "expired"
+    );
+    assert_eq!(
+        service_status_view(&inner)["services"][1]["status"],
+        "expired"
+    );
+}
+#[test]
+fn sidebar_invalidates_checks_and_discards_results_when_credentials_or_privacy_change() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.nebius_configured = true;
+    let revision = inner.privacy_revision;
+    finish_connection_check(&mut inner, "nebius", revision, true, Some(true));
+    assert_eq!(
+        service_status_view(&inner)["services"][1]["status"],
+        "verified"
+    );
+    inner.privacy_revision += 1;
+    assert_eq!(
+        service_status_view(&inner)["services"][1]["status"],
+        "not_checked"
+    );
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    finish_connection_check(&mut inner, "nebius", revision, true, Some(true));
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "not_checked"
+    );
+    inner.status.mock_ai = true;
+    assert_eq!(service_status_view(&inner)["services"][0]["status"], "mock");
+}

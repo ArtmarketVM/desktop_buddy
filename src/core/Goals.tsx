@@ -1,10 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
 import { GoalWorkContext } from "./GoalWorkContext";
 import { GoalOrder } from "./GoalOrder";
+import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
   deadlineISO,
   localDeadline,
@@ -104,7 +112,34 @@ export function GoalRow({
   initialAdding?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initialExpanded);
-  const [menu, setMenu] = useState(false);
+  const {
+    open: menu,
+    setOpen: setMenu,
+    rootRef: menuRoot,
+    surfaceRef: menuSurface,
+    triggerRef: menuTrigger,
+    id: menuId,
+  } = useDismissiblePopover();
+  const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+  useLayoutEffect(() => {
+    if (!menu || !menuSurface.current || !menuTrigger.current) return;
+    menuSurface.current
+      .querySelector<HTMLButtonElement>("button:not(:disabled)")
+      ?.focus();
+    const anchor = menuTrigger.current.getBoundingClientRect();
+    const panel = menuSurface.current.getBoundingClientRect();
+    const left =
+      anchor.right + panel.width + 8 < window.innerWidth - 12
+        ? anchor.right + 8
+        : anchor.left - panel.width - 8;
+    setMenuPosition({
+      left: Math.max(12, left),
+      top: Math.max(
+        12,
+        Math.min(anchor.top, window.innerHeight - panel.height - 12),
+      ),
+    });
+  }, [menu]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepText, setStepText] = useState("");
   const [adding, setAdding] = useState(initialAdding);
@@ -185,109 +220,109 @@ export function GoalRow({
     };
   }, [stepText, adding, goal.id]);
   return (
-    <article
-      className={`core-goal ${goal.status}`}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") setMenu(false);
-      }}
-    >
+    <article className={`core-goal ${goal.status}`}>
       <div className="goal-heading">
         {!readOnly && (
-          <div
-            className="goal-overflow"
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget as Node))
-                setMenu(false);
-            }}
-          >
+          <div className="goal-overflow" ref={menuRoot}>
             <button
+              ref={menuTrigger}
               className="text-button"
               aria-label={`More actions for ${goal.title}`}
               aria-expanded={menu}
+              aria-controls={menu ? menuId : undefined}
               disabled={disabled}
               onClick={() => setMenu(!menu)}
             >
               <MoreHorizontal size={18} />
             </button>
-            {menu && (
-              <div className="goal-menu" aria-label="Goal actions">
-                <button
-                  disabled={disabled}
-                  onClick={() => {
-                    setMenu(false);
-                    edit(goal);
-                  }}
+            {menu &&
+              createPortal(
+                <div
+                  ref={menuSurface}
+                  style={menuPosition}
+                  id={menuId}
+                  className="goal-menu goal-actions-popover"
+                  role="group"
+                  aria-label="Goal actions"
                 >
-                  Edit goal
-                </button>
-                <button
-                  disabled={disabled}
-                  onClick={() => {
-                    setMenu(false);
-                    window.dispatchEvent(
-                      new CustomEvent("buddy:ask-goal", { detail: goal }),
-                    );
-                  }}
-                >
-                  Ask Buddy about this
-                </button>
-                <button
-                  disabled={disabled}
-                  onClick={() => {
-                    setMenu(false);
-                    void run(() => coreApi.today(goal.id, !today));
-                  }}
-                >
-                  {today ? "Remove from Today" : "Add to Today"}
-                </button>
-                {today && (
-                  <button
-                    disabled={disabled || active}
-                    onClick={() => {
-                      setMenu(false);
-                      void run(() => coreApi.focus(goal.id));
-                    }}
-                  >
-                    {active ? "Current goal" : "Focus on this goal"}
-                  </button>
-                )}
-                {goal.status === "open" && (
                   <button
                     disabled={disabled}
                     onClick={() => {
                       setMenu(false);
-                      void completeGoal();
+                      edit(goal);
                     }}
                   >
-                    Mark complete
+                    Edit goal
                   </button>
-                )}
-                <button
-                  disabled={disabled}
-                  onClick={() => {
-                    setMenu(false);
-                    void run(() =>
-                      coreApi.transition(
-                        goal.id,
-                        goal.status === "open" ? "defer" : "resume",
-                      ),
-                    );
-                  }}
-                >
-                  {goal.status === "open" ? "Set aside" : "Reopen goal"}
-                </button>
-                <button
-                  className="danger-text"
-                  disabled={disabled}
-                  onClick={() => {
-                    setMenu(false);
-                    setConfirmDelete(true);
-                  }}
-                >
-                  Delete goal
-                </button>
-              </div>
-            )}
+                  <button
+                    disabled={disabled}
+                    onClick={() => {
+                      setMenu(false);
+                      window.dispatchEvent(
+                        new CustomEvent("buddy:ask-goal", { detail: goal }),
+                      );
+                    }}
+                  >
+                    Ask Buddy about this
+                  </button>
+                  <button
+                    disabled={disabled}
+                    onClick={() => {
+                      setMenu(false);
+                      void run(() => coreApi.today(goal.id, !today));
+                    }}
+                  >
+                    {today ? "Remove from Today" : "Add to Today"}
+                  </button>
+                  {today && (
+                    <button
+                      disabled={disabled || active}
+                      onClick={() => {
+                        setMenu(false);
+                        void run(() => coreApi.focus(goal.id));
+                      }}
+                    >
+                      {active ? "Current goal" : "Focus on this goal"}
+                    </button>
+                  )}
+                  {goal.status === "open" && (
+                    <button
+                      disabled={disabled}
+                      onClick={() => {
+                        setMenu(false);
+                        void completeGoal();
+                      }}
+                    >
+                      Mark complete
+                    </button>
+                  )}
+                  <button
+                    disabled={disabled}
+                    onClick={() => {
+                      setMenu(false);
+                      void run(() =>
+                        coreApi.transition(
+                          goal.id,
+                          goal.status === "open" ? "defer" : "resume",
+                        ),
+                      );
+                    }}
+                  >
+                    {goal.status === "open" ? "Set aside" : "Reopen goal"}
+                  </button>
+                  <button
+                    className="danger-text"
+                    disabled={disabled}
+                    onClick={() => {
+                      setMenu(false);
+                      setConfirmDelete(true);
+                    }}
+                  >
+                    Delete goal
+                  </button>
+                </div>,
+                document.body,
+              )}
           </div>
         )}
         {readOnly && <span className="goal-overflow" aria-hidden="true" />}
@@ -324,8 +359,13 @@ export function GoalRow({
             className={`goal-chevron ${expanded ? "rotated" : ""}`}
           />
         </button>
+        <GoalWorkContext
+          goal={goal}
+          busy={busy}
+          run={run}
+          readOnly={readOnly}
+        />
       </div>
-      <GoalWorkContext goal={goal} busy={busy} run={run} readOnly={readOnly} />
       <div className="goal-expanded" hidden={!expanded}>
         <ul className="core-steps">
           {goal.plan.steps.map((step) => (
@@ -871,7 +911,7 @@ export function GoalAreas({
             goals={active}
             allGoals={snapshot.goals}
             disabled={busy || !!query}
-            reorder={(ids) => void run(() => coreApi.reorder(ids))}
+            reorder={(ids) => run(() => coreApi.reorder(ids))}
           >
             {(goal) => (
               <GoalRow

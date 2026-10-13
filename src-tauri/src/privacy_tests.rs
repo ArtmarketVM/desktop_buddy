@@ -182,3 +182,51 @@ async fn connection_errors_do_not_echo_provider_bodies() {
     assert!(error.contains("401"));
     assert!(!error.contains("private key details"));
 }
+
+#[tokio::test]
+async fn model_list_probe_reports_missing_model_without_claiming_inference() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(
+            ResponseTemplate::new(200).set_body_json(json!({"data":[{"id":"other-model"}]})),
+        )
+        .expect(1)
+        .mount(&server)
+        .await;
+    let result = probe_connection(
+        &reqwest::Client::new(),
+        &server.uri(),
+        "fixture-key",
+        "nebius",
+        Some("configured-model"),
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.model_available, Some(false));
+    assert!(result.message.contains("not listed"));
+    assert!(server.received_requests().await.unwrap()[0].body.is_empty());
+}
+
+#[tokio::test]
+async fn tavily_probe_verifies_usage_without_sending_a_search_query() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(json!({"key":{"usage":3}})))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let result = probe_connection(
+        &reqwest::Client::new(),
+        &server.uri(),
+        "fixture-key",
+        "tavily",
+        None,
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.model_available, None);
+    assert!(result.message.contains("search access has not been tested"));
+    let requests = server.received_requests().await.unwrap();
+    assert!(requests[0].body.is_empty());
+    assert!(!result.message.contains("fixture-key"));
+}

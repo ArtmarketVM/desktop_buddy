@@ -18,6 +18,7 @@ import type { UpdateSnapshot } from "../updates/controller";
 import { UpdateEntry } from "./Updates";
 import { isMac } from "../api/platform";
 import { readSidebarCollapsed, isSidebarShortcut } from "./sidebar";
+import { SidebarAiServices } from "./SidebarAiServices";
 
 export type WorkspacePage =
   | "focus"
@@ -203,6 +204,7 @@ export function AppShell({
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
           <button
             className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
             disabled={onboarding}

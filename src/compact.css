@@ -957,3 +957,251 @@ main.desktop-buddy.chatting > .companion-error {
   max-height: 110px;
   white-space: pre-wrap;
 }
+
+/* Secondary goal context stays on the title line until explicitly opened. */
+.goal-heading .goal-expand-toggle {
+  min-width: 0;
+  flex: 1;
+}
+.goal-work-context {
+  position: relative;
+  flex: 0 0 auto;
+  margin: 0 0 0 auto;
+}
+.goal-work-context .checkpoint-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.checkpoint-popover {
+  position: fixed;
+  z-index: 80;
+  width: min(340px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 36px #0002;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.checkpoint-popover .checkpoint-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.checkpoint-popover time {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.checkpoint-popover p {
+  margin: 10px 0;
+}
+.checkpoint-popover .helper {
+  font-size: 11px;
+}
+.checkpoint-popover .work-context-actions {
+  border-top: 1px solid var(--line);
+  padding-top: 8px;
+}
+@media (max-width: 650px) {
+  .checkpoint-trigger span {
+    display: none;
+  }
+  .goal-work-context .checkpoint-trigger {
+    width: 30px;
+    justify-content: center;
+  }
+}
+
+/* Quiet connection metadata above the workspace settings. */
+.sidebar-ai-services {
+  margin: 0 0 8px;
+  padding: 0 4px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.sidebar-ai-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 9px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sidebar-ai-heading .service-check {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+.sidebar .sidebar-service {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  min-height: 30px;
+  padding: 5px 9px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 400;
+  border: 0;
+  border-radius: 6px;
+}
+.sidebar-service > svg {
+  flex-shrink: 0;
+}
+.sidebar-service > .sidebar-service-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.service-dot {
+  display: inline-block;
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.sidebar-service .service-dot {
+  margin-left: auto;
+}
+.service-dot.service-verified {
+  background: var(--accent);
+}
+.service-dot.service-unavailable,
+.service-dot.service-not_configured,
+.service-dot.service-offline {
+  background: var(--danger, #c34f56);
+}
+.service-dot.service-checking {
+  background: var(--muted);
+}
+.service-tooltip {
+  position: fixed;
+  z-index: 100;
+  width: 264px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 12px 36px #0003;
+  font-size: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+.service-tooltip p {
+  margin: 8px 0;
+  line-height: 1.5;
+}
+.service-tooltip strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.service-tooltip small {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+}
+.service-model {
+  color: var(--muted);
+  font-size: 10px;
+  overflow-wrap: anywhere;
+}
+.service-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  font-size: 11px;
+}
+.service-receipt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.sidebar-collapsed .sidebar-ai-services {
+  padding: 0 0 10px;
+}
+.sidebar-collapsed .sidebar-ai-heading {
+  justify-content: center;
+  padding: 0;
+}
+.sidebar-collapsed .sidebar-service-label {
+  display: none;
+}
+.sidebar-collapsed .sidebar-service {
+  position: relative;
+  justify-content: center;
+  padding: 0;
+}
+.sidebar-collapsed .sidebar-service .service-dot {
+  position: absolute;
+  right: 7px;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+}
+
+/* Today exposes a dedicated grip; title clicks and checkpoint actions stay independent. */
+.ordered-goal.has-drag-handle > .goal-drag-handle {
+  position: absolute;
+  left: -24px;
+  top: 18px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  min-height: 34px;
+  padding: 0;
+  opacity: 0.55;
+  cursor: grab;
+  touch-action: none;
+}
+.ordered-goal.has-drag-handle:hover > .goal-drag-handle,
+.ordered-goal.has-drag-handle:focus-within > .goal-drag-handle {
+  opacity: 1;
+}
+.ordered-goal.drop-target {
+  box-shadow: inset 0 -2px var(--accent);
+}
+.reordering .goal-drag-handle {
+  cursor: grabbing;
+  opacity: 1;
+}
+@media (max-width: 650px) {
+  .ordered-goal.has-drag-handle > .goal-drag-handle {
+    left: -16px;
+    width: 16px;
+  }
+}
+
+.goal-menu.goal-actions-popover {
+  position: fixed;
+  right: auto;
+  z-index: 80;
+  width: 192px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}

@@ -132,16 +132,21 @@ pub fn test_url(endpoint: &str, provider: &str) -> Result<reqwest::Url, String> 
     url.set_fragment(None);
     Ok(url)
 }
-pub async fn check_connection(
+pub struct ConnectionProbe {
+    pub message: String,
+    pub model_available: Option<bool>,
+}
+pub async fn probe_connection(
     client: &reqwest::Client,
     url: &str,
     key: &str,
     provider: &str,
     model: Option<&str>,
-) -> Result<String, String> {
+) -> Result<ConnectionProbe, String> {
     let response = client
         .get(url)
         .bearer_auth(key)
+        .timeout(Duration::from_secs(10))
         .send()
         .await
         .map_err(|_| "Connection failed. Check your network and endpoint settings.")?;
@@ -154,40 +159,89 @@ pub async fn check_connection(
         .map_err(|_| "Provider returned an invalid connection-check response")?;
     match provider {
         "nebius" => {
-            let models=data.get("data").and_then(Value::as_array).ok_or("Nebius returned an invalid model list")?;
-            if !models.iter().any(|v|v.get("id").and_then(Value::as_str)==model) { return Ok("Connected, but the configured model is not listed for this key. Update NEBIUS_MODEL_ID or check model access. No focus request was sent.".into()); }
-            Ok("Connected. The configured model is listed. Generation, billing, and structured-output support have not been tested.".into())
-        },
-        "tavily" if data.get("key").is_some_and(Value::is_object) => Ok("Connected. The key can access usage information. No search query was sent; search access has not been tested.".into()),
+            let models = data.get("data").and_then(Value::as_array).ok_or("Nebius returned an invalid model list")?;
+            let available = models.iter().any(|v| v.get("id").and_then(Value::as_str) == model);
+            Ok(ConnectionProbe { model_available: Some(available), message: if available {
+                "Connected. The configured model is listed. Generation, billing, and structured-output support have not been tested."
+            } else {
+                "Connected, but the configured model is not listed for this key. Update NEBIUS_MODEL_ID or check model access. No focus request was sent."
+            }.into() })
+        }
+        "tavily" if data.get("key").is_some_and(Value::is_object) => Ok(ConnectionProbe {
+            model_available: None,
+            message: "Connected. The key can access usage information. No search query was sent; search access has not been tested.".into(),
+        }),
         _ => Err("Provider returned an invalid connection-check response".into()),
     }
 }
+#[cfg(test)]
+pub async fn check_connection(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    provider: &str,
+    model: Option<&str>,
+) -> Result<String, String> {
+    probe_connection(client, url, key, provider, model)
+        .await
+        .map(|r| r.message)
+}
 #[tauri::command(async)]
 pub async fn test_provider_connection(
+    window: tauri::WebviewWindow,
     provider: String,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
+    if window.label() != "main" {
+        return Err("Open Settings in the main window".into());
+    }
     crate::credentials::provider_name(&provider)?;
-    let (endpoint, key, model) = if provider == "nebius" {
-        (
-            http::endpoint("NEBIUS_API_URL")?,
-            http::secret("NEBIUS_API_KEY")?,
-            Some(http::secret("NEBIUS_MODEL_ID")?),
-        )
-    } else {
-        (
-            http::endpoint("TAVILY_API_URL")?,
-            http::secret("TAVILY_API_KEY")?,
-            None,
-        )
+    let revision = {
+        let mut inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        crate::engine_observability::begin_connection_check(&mut inner, &provider)?;
+        inner.privacy_revision
     };
-    let url = test_url(&endpoint, &provider)?;
-    check_connection(
-        &state.client,
-        url.as_str(),
-        &key,
+    let result = async {
+        let (endpoint, key, model) = if provider == "nebius" {
+            (
+                http::endpoint("NEBIUS_API_URL")?,
+                http::secret("NEBIUS_API_KEY")?,
+                Some(http::secret("NEBIUS_MODEL_ID")?),
+            )
+        } else {
+            (
+                http::endpoint("TAVILY_API_URL")?,
+                http::secret("TAVILY_API_KEY")?,
+                None,
+            )
+        };
+        let url = test_url(&endpoint, &provider)?;
+        probe_connection(
+            &state.client,
+            url.as_str(),
+            &key,
+            &provider,
+            model.as_deref(),
+        )
+        .await
+    }
+    .await;
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    crate::engine_observability::finish_connection_check(
+        &mut inner,
         &provider,
-        model.as_deref(),
-    )
-    .await
+        revision,
+        result.is_ok(),
+        result.as_ref().ok().and_then(|r| r.model_available),
+    );
+    if inner.privacy_revision != revision {
+        return Err("Connection settings changed during the check. Try again.".into());
+    }
+    result.map(|r| r.message)
 }

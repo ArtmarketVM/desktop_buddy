@@ -41,6 +41,8 @@ impl Default for Health {
 }
 #[derive(Default)]
 pub struct Telemetry {
+    connections: [Option<ConnectionHealth>; 2],
+    checking_connections: [bool; 2],
     sequence: u64,
     last: Option<Inference>,
     last_skill: Option<String>,
@@ -49,6 +51,105 @@ pub struct Telemetry {
     health_privacy: u64,
     health_started: Option<Instant>,
     health_running: bool,
+}
+#[derive(Clone)]
+struct ConnectionHealth {
+    connected: bool,
+    model_available: Option<bool>,
+    privacy: u64,
+    checked: Instant,
+    checked_at: String,
+}
+fn provider_index(provider: &str) -> Result<usize, String> {
+    match provider {
+        "nebius" => Ok(0),
+        "tavily" => Ok(1),
+        _ => Err("Unknown provider".into()),
+    }
+}
+pub(crate) fn begin_connection_check(inner: &mut Inner, provider: &str) -> Result<(), String> {
+    let index = provider_index(provider)?;
+    if inner.engine.checking_connections[index] {
+        return Err("A connection check is already running".into());
+    }
+    if inner.engine.connections[index].as_ref().is_some_and(|c| {
+        c.privacy == inner.privacy_revision && c.checked.elapsed() < Duration::from_secs(10)
+    }) {
+        return Err("Wait a few seconds before checking this connection again".into());
+    }
+    inner.engine.checking_connections[index] = true;
+    Ok(())
+}
+pub(crate) fn finish_connection_check(
+    inner: &mut Inner,
+    provider: &str,
+    revision: u64,
+    connected: bool,
+    model_available: Option<bool>,
+) {
+    let Ok(index) = provider_index(provider) else {
+        return;
+    };
+    inner.engine.checking_connections[index] = false;
+    if inner.privacy_revision != revision {
+        return;
+    }
+    inner.engine.connections[index] = Some(ConnectionHealth {
+        connected,
+        model_available,
+        privacy: revision,
+        checked: Instant::now(),
+        checked_at: chrono::Utc::now().to_rfc3339(),
+    });
+}
+fn service_status_view(inner: &Inner) -> Value {
+    let configured_model = http::secret("NEBIUS_MODEL_ID")
+        .ok()
+        .as_deref()
+        .and_then(model_label);
+    let services: Vec<Value> = [
+        ("nebius", 0, inner.status.nebius_configured),
+        (
+            "nvidia",
+            0,
+            inner.status.nebius_configured && configured_model.is_some(),
+        ),
+        ("tavily", 1, inner.status.tavily_configured),
+    ]
+    .into_iter()
+    .map(|(id, index, configured)| {
+        let check = inner.engine.connections[index]
+            .as_ref()
+            .filter(|c| c.privacy == inner.privacy_revision);
+        let status = if inner.status.mock_ai {
+            "mock"
+        } else if !configured {
+            "not_configured"
+        } else if inner.engine.checking_connections[index] {
+            "checking"
+        } else {
+            match check {
+                None => "not_checked",
+                Some(c) if c.checked.elapsed() > Duration::from_secs(15 * 60) => "expired",
+                Some(c) if !c.connected || (id == "nvidia" && c.model_available != Some(true)) => {
+                    "unavailable"
+                }
+                Some(_) => "verified",
+            }
+        };
+        json!({"id":id,"status":status,"checked_at":check.map(|c|c.checked_at.as_str())})
+    })
+    .collect();
+    json!({"configured_model":configured_model,"services":services})
+}
+#[tauri::command(async)]
+pub fn get_ai_service_status(
+    window: WebviewWindow,
+    state: State<AppState>,
+) -> Result<Value, String> {
+    main_window(window.label())?;
+    let inner = state.inner.lock().map_err(|_| "Engine state unavailable")?;
+    Ok(service_status_view(&inner))
 }
 fn model_label(value: &str) -> Option<String> {
     (value.len() <= 160

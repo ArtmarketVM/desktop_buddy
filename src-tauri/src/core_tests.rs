@@ -472,3 +472,56 @@ fn periods_cover_whole_calendar_months_and_years_ending_at_the_anchor() {
     assert_eq!(length("2026-10-07", "week"), 7);
     assert_eq!(length("2026-10-07", "day"), 1);
 }
+
+#[test]
+fn today_drag_order_survives_database_reopen_without_changing_today_membership() {
+    let path = std::env::temp_dir().join(format!(
+        "buddy-today-order-{}-{}.sqlite",
+        std::process::id(),
+        Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    let expected;
+    let today;
+    let date = Utc::now().date_naive().to_string();
+    {
+        let mut storage = Storage::open(&path).unwrap();
+        storage
+            .core_add_goals(
+                vec![
+                    draft("First", "Work"),
+                    draft("Other day", "Personal"),
+                    draft("Second", "Work"),
+                    draft("Third", "Work"),
+                ],
+                "drag-order",
+            )
+            .unwrap();
+        let ids: Vec<i64> = storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .iter()
+            .map(|g| g.id)
+            .collect();
+        today = vec![ids[0], ids[2], ids[3]];
+        for id in &ids {
+            storage.core_today(*id, today.contains(id), &date).unwrap();
+        }
+        expected = vec![ids[2], ids[1], ids[3], ids[0]];
+        storage.core_reorder(expected.clone()).unwrap();
+    }
+    {
+        let storage = Storage::open(&path).unwrap();
+        let snapshot = storage.core_snapshot(Some(&date)).unwrap();
+        assert_eq!(
+            snapshot.goals.iter().map(|g| g.id).collect::<Vec<_>>(),
+            expected
+        );
+        let mut actual = snapshot.today;
+        actual.sort();
+        let mut membership = today;
+        membership.sort();
+        assert_eq!(actual, membership);
+    }
+    std::fs::remove_file(path).unwrap();
+}

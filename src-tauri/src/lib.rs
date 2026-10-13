@@ -283,6 +283,7 @@ pub fn run() {
             privacy::clear_local_history,
             privacy::test_provider_connection,
             engine_observability::get_personal_ai_engine,
+            engine_observability::get_ai_service_status,
             engine_observability::test_nebius_inference,
             commands::set_provider_key,
             commands::set_goal,

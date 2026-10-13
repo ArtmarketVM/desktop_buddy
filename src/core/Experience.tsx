@@ -265,9 +265,10 @@ export function Experience({
               )}
               <GoalOrder
                 goals={today}
+                showHandles
                 allGoals={snapshot.goals}
                 disabled={busy}
-                reorder={(ids) => void run(() => coreApi.reorder(ids))}
+                reorder={(ids) => run(() => coreApi.reorder(ids))}
               >
                 {(goal) => (
                   <GoalRow
