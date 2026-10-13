@@ -89,6 +89,36 @@ fn explicit_focus_wins_without_inflating_other_goal_activity() {
     assert_eq!(view.state, State::Drifting);
 }
 #[test]
+fn explicit_focus_counts_activity_that_names_no_other_goal() {
+    let (state, ids) = setup(&["Orion launch", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    i.storage.mark_explicit_focus(ids[0]).unwrap();
+    // A meeting, an inbox or a generic document never contain goal keywords.
+    for title in [
+        "Meet - Weekly sync",
+        "Inbox (3) - Mail",
+        "Untitled document",
+    ] {
+        let a = sample(title);
+        observe_inner_at(&mut i, &a, true, Instant::now()).unwrap();
+        assert_eq!(i.goal_matching.view.goal_id, Some(ids[0]));
+        let matched = attribution(&i, &a).unwrap();
+        assert_eq!(
+            matched.goal_id.as_deref(),
+            Some(ids[0].to_string().as_str())
+        );
+        assert_eq!(matched.confidence, 1., "{title}");
+        assert_eq!(work_state::compute(&i).unwrap().state, State::Working);
+    }
+    // Several goals matching at once is ambiguous and stays out of the selected goal's time.
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    i.storage.mark_explicit_focus(ids[0]).unwrap();
+    let a = sample("Atlas launch");
+    observe_inner_at(&mut i, &a, true, Instant::now()).unwrap();
+    assert_eq!(attribution(&i, &a).unwrap().confidence, 0.);
+}
+#[test]
 fn unique_user_app_rule_precedes_keywords_and_presets_do_not() {
     let (state, ids) = setup(&["Orion launch", "Vega budget"]);
     let mut i = state.inner.lock().unwrap();

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.27.5 — goal time on macOS counts again
+
+- Count focused time for the goal you selected, including meetings, mail and other windows that name no goal. Since 0.27.0 only windows whose title matched the goal's keywords were counted, so Progress stayed empty.
+- Activity whose window clearly belongs to another goal, or is ambiguous between goals, still stays out of the selected goal's time.
+
 ## 0.26.1 — chat window, voice and titles
 
 - Make the mascot chat larger with full history, a close button and the mascot below the card.
