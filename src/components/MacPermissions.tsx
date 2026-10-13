@@ -17,6 +17,8 @@ export function MacPermissions() {
       const next = await invoke<boolean>("get_accessibility_permission");
       setAllowed(next);
       setError("");
+      // A background refresh must dismiss instructions for a permission already granted.
+      if (next) setNote("");
       if (manual)
         setNote(
           next

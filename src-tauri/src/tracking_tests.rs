@@ -477,3 +477,39 @@ fn one_goal_monitoring_switch_persists_time_and_progress_consent() {
     assert!(!inner.companion.view.preferences.screen_task_detection);
     assert!(inner.storage.ai_preferences().unwrap().enabled);
 }
+
+#[test]
+fn goal_monitoring_choice_survives_database_reopen_and_restart() {
+    let path = std::env::temp_dir().join(format!(
+        "buddy-monitoring-restart-{}-{}.db",
+        std::process::id(),
+        Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    {
+        let state = crate::commands::AppState::new(Storage::open(&path).unwrap()).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        let mut settings = inner.storage.user_settings().unwrap();
+        settings.onboarding.completed = true;
+        inner
+            .storage
+            .write_setting("user_settings", &settings)
+            .unwrap();
+        configure_goal_monitoring(&mut inner, true).unwrap();
+    }
+    {
+        let state = crate::commands::AppState::new(Storage::open(&path).unwrap()).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        assert!(inner.status.tracking);
+        assert!(requested(&inner.storage).unwrap());
+        assert!(inner.companion.view.preferences.screen_task_detection);
+        configure_goal_monitoring(&mut inner, false).unwrap();
+    }
+    {
+        let state = crate::commands::AppState::new(Storage::open(&path).unwrap()).unwrap();
+        let inner = state.inner.lock().unwrap();
+        assert!(!inner.status.tracking);
+        assert!(!requested(&inner.storage).unwrap());
+        assert!(!inner.companion.view.preferences.screen_task_detection);
+    }
+    std::fs::remove_file(path).unwrap();
+}
