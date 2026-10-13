@@ -72,6 +72,42 @@ fn execute(s: &mut Storage, name: &str, input: Value) -> Result<skills::Executio
     )
 }
 #[test]
+fn acceptance_seventh_goal_has_independent_park_and_resume_context() {
+    let mut s = db();
+    let mut ids = Vec::new();
+    for i in 0..7 {
+        let id = goal(&mut s, &format!("Acceptance project {i}"), true);
+        s.park_work_context(
+            id,
+            draft(&format!("Checkpoint {i}"), &format!("Continue project {i}")),
+            None,
+        )
+        .unwrap();
+        ids.push(id);
+    }
+    s.resume_work_context(ids[6], true).unwrap();
+    for (i, id) in ids.iter().enumerate() {
+        let context = s.work_context(*id).unwrap().unwrap().context;
+        assert_eq!(context.summary, format!("Checkpoint {i}"));
+        assert_eq!(context.next_action, Some(format!("Continue project {i}")));
+        assert_eq!(
+            context.status,
+            if i == 6 {
+                ContextStatus::Active
+            } else {
+                ContextStatus::Paused
+            }
+        );
+    }
+    assert!(s
+        .goal_plan(ids[6])
+        .unwrap()
+        .steps
+        .iter()
+        .all(|step| !step.done));
+}
+
+#[test]
 fn park_active_goal_saves_step_and_stops_its_timer_without_claiming_completion() {
     let mut s = db();
     let id = goal(&mut s, "Hackathon", true);

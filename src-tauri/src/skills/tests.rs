@@ -57,6 +57,44 @@ fn fail(store: &mut Storage, actions: Vec<Action>) -> String {
 }
 
 #[test]
+fn acceptance_ordinals_include_completed_steps_in_the_full_order() {
+    let mut s = store();
+    let id = create(
+        &mut s,
+        "Ordinal acceptance",
+        vec!["Already done", "Second step", "Third step"],
+    );
+    let first_id = s.goal_plan(id).unwrap().steps[0].id.clone();
+    run(
+        &mut s,
+        vec![action(
+            "complete_step",
+            json!({"goal":goal(id),"step":step(&first_id)}),
+        )],
+    );
+    run(
+        &mut s,
+        vec![action(
+            "rename_step",
+            json!({"goal":goal(id),"step":ordinal(2),"text":"Renamed second step"}),
+        )],
+    );
+    let plan = s.goal_plan(id).unwrap();
+    assert!(plan.steps[0].done);
+    assert_eq!(plan.steps[0].text, "Already done");
+    assert_eq!(plan.steps[1].text, "Renamed second step");
+    assert_eq!(plan.steps[2].text, "Third step");
+    run(
+        &mut s,
+        vec![action(
+            "reopen_step",
+            json!({"goal":goal(id),"step":ordinal(1)}),
+        )],
+    );
+    assert!(!s.goal_plan(id).unwrap().steps[0].done);
+}
+
+#[test]
 fn create_goal_through_structured_plan_and_result() {
     let mut s = store();
     let c = s.current_conversation().unwrap();

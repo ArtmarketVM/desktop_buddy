@@ -63,6 +63,41 @@ fn checkpoint(id: i64) -> WorkContextInput {
     }
 }
 #[test]
+fn acceptance_default_memory_limits_bound_entries_and_utf8_bytes() {
+    let mut s = db();
+    let short_goal = goal(&mut s, "Short preference fixture");
+    for i in 0..12 {
+        remember(
+            &s,
+            Scope::goal(short_goal),
+            MemoryType::ExplicitPreference,
+            &format!("Use concise next actions for fixture {i}"),
+        );
+    }
+    let short = retrieve(&s, request(short_goal));
+    assert_eq!(short.metadata.found, 12);
+    assert_eq!(short.metadata.passed, 8);
+    assert_eq!(ids(&short).len(), 8);
+    let long_goal = goal(&mut s, "UTF8 preference fixture");
+    for i in 0..12 {
+        remember(
+            &s,
+            Scope::goal(long_goal),
+            MemoryType::ExplicitPreference,
+            &format!(
+                "Fixture {i} prefers these visual markers {}",
+                "🧩".repeat(250)
+            ),
+        );
+    }
+    let long = retrieve(&s, request(long_goal));
+    assert_eq!(long.metadata.maximum_context_size, 6000);
+    assert!(long.metadata.passed > 0 && long.metadata.passed < 8);
+    assert!(serde_json::to_vec(&long.context).unwrap().len() <= 6000);
+    assert!(ids(&long).iter().all(|id| !ids(&short).contains(id)));
+}
+
+#[test]
 fn retrieval_returns_goal_checkpoint_next_action_and_related_events() {
     let mut s = db();
     let id = goal(&mut s, "Hackathon");

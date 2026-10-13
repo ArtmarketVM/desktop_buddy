@@ -33,11 +33,9 @@ jobs:
           workspaces: src-tauri
           key: ${{ matrix.target }}
       - run: npm ci
-      - run: npm test
-      - run: npm run test:release
-      - run: npm run build
+      - name: Run ten phase automated acceptance
+        run: npm run test:acceptance -- --output .tools/acceptance/ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
-      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Build a macOS app and disk image for validation
         env:
           BUDDY_MACOS_UNSIGNED: "true"
@@ -47,3 +45,10 @@ jobs:
           name: desktop-buddy-macos-${{ matrix.name }}
           path: artifacts/*
           if-no-files-found: error
+      - name: Upload acceptance evidence even when checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-macos-${{ matrix.name }}
+          path: .tools/acceptance/ci/
+          if-no-files-found: warn
