@@ -22,11 +22,9 @@ jobs:
         with:
           workspaces: src-tauri
       - run: npm ci
-      - run: npm test
-      - run: npm run test:release
-      - run: npm run build
+      - name: Run ten phase automated acceptance
+        run: npm run test:acceptance -- --output .tools/acceptance/ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
-      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - name: Build a CI installer without release signing
         run: npm run tauri -- build --config src-tauri/tauri.ci.conf.json -- --locked
       - uses: actions/upload-artifact@v4
@@ -40,3 +38,10 @@ jobs:
             src-tauri/target/release/bundle/nsis/updates-epoch-*.json
             updates/compatibility.json
           if-no-files-found: error
+      - name: Upload acceptance evidence even when checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acceptance-windows-x64
+          path: .tools/acceptance/ci/
+          if-no-files-found: warn

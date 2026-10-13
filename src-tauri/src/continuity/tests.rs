@@ -85,6 +85,60 @@ fn preference(s: &Storage, scope: Scope, text: &str) -> i64 {
     .id
 }
 #[test]
+fn acceptance_positive_feedback_reduces_cooldown_without_cross_goal_leaks() {
+    let mut s = store();
+    let id = goal(&mut s, "Feedback acceptance");
+    let other = goal(&mut s, "Other feedback fixture");
+    let first_day = (today() - Duration::days(1)).to_string();
+    let second_day = today().to_string();
+    for i in 0..3 {
+        feedback(
+            &s,
+            Scope::goal(id),
+            EventKind::InterventionRejected,
+            &format!("acceptance-reject-{i}"),
+            if i == 0 { &first_day } else { &second_day },
+        );
+    }
+    let before = s
+        .adaptive_policy(Some(id), now())
+        .unwrap()
+        .extra_cooldown_seconds;
+    assert!(before > 0);
+    feedback(
+        &s,
+        Scope::goal(other),
+        EventKind::InterventionAccepted,
+        "other-accept",
+        &second_day,
+    );
+    assert_eq!(
+        s.adaptive_policy(Some(id), now())
+            .unwrap()
+            .extra_cooldown_seconds,
+        before
+    );
+    feedback(
+        &s,
+        Scope::goal(id),
+        EventKind::InterventionAccepted,
+        "acceptance-positive",
+        &second_day,
+    );
+    let after = s
+        .adaptive_policy(Some(id), now())
+        .unwrap()
+        .extra_cooldown_seconds;
+    assert!(after < before);
+    assert_eq!(
+        s.adaptive_policy(Some(other), now())
+            .unwrap()
+            .extra_cooldown_seconds,
+        0
+    );
+}
+
+#[test]
 fn new_day_remembers_context_without_inventing_completion() {
     let mut s = store();
     let id = goal(&mut s, "Hackathon");
