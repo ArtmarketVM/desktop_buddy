@@ -101,7 +101,7 @@ pub async fn propose_core_import(
             .lock()
             .map_err(|_| "Application state unavailable")?;
         if !inner.storage.ai_preferences()?.enabled {
-            return Err("Enable Buddy AI assistance in Settings before sharing this draft".into());
+            return Err("Enable sumi AI assistance in Settings before sharing this draft".into());
         }
         (
             inner.status.mock_ai,

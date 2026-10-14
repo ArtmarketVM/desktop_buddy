@@ -33,7 +33,7 @@ impl Runtime {
                 snoozed_until: None,
                 quiet_reason: None,
                 desktop_visible: false,
-                visibility_reason: Some("Starting Buddy".into()),
+                visibility_reason: Some("Starting sumi".into()),
             },
             revision: 0,
             last_search: None,
@@ -103,7 +103,7 @@ fn visibility_reason(view: &BuddyView, fullscreen: bool) -> Option<String> {
     } else if fullscreen && view.companion.preferences.hide_fullscreen {
         Some("Hidden in full-screen apps".into())
     } else if snoozed(view) {
-        Some("Buddy is snoozed".into())
+        Some("sumi is snoozed".into())
     } else if view.preferences.suggestions_only {
         Some("Waiting for a suggestion".into())
     } else {
@@ -275,7 +275,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     }
     let window = app
         .get_webview_window("buddy")
-        .ok_or("Buddy window unavailable")?;
+        .ok_or("sumi window unavailable")?;
     if mode == inner.buddy.window_mode && window.is_visible().ok() == Some(mode != 0) {
         inner.buddy.view.desktop_visible = mode != 0;
         inner.buddy.view.visibility_reason = (mode == 0)
@@ -285,14 +285,14 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         return Ok(());
     }
     if mode == 0 {
-        window.hide().map_err(|_| "Could not hide Buddy")?;
+        window.hide().map_err(|_| "Could not hide sumi")?;
     } else {
         window
             .set_resizable(false)
-            .map_err(|_| "Could not configure Buddy resizing")?;
+            .map_err(|_| "Could not configure sumi resizing")?;
         window
             .set_min_size(None::<LogicalSize<f64>>)
-            .map_err(|_| "Could not configure Buddy size")?;
+            .map_err(|_| "Could not configure sumi size")?;
         let (width, height) = match mode {
             1 => (160.0, 152.0),
             3 => (440.0, 660.0),
@@ -300,7 +300,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         };
         window
             .set_size(LogicalSize::new(width, height))
-            .map_err(|_| "Could not resize Buddy")?;
+            .map_err(|_| "Could not resize sumi")?;
         let saved_monitor = window.available_monitors().ok().and_then(|monitors| {
             monitors.into_iter().find(|m| {
                 let a = m.work_area();
@@ -314,9 +314,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         });
         if let Some(monitor) = saved_monitor.or_else(|| window.primary_monitor().ok().flatten()) {
             let area = monitor.work_area();
-            let size = window
-                .outer_size()
-                .map_err(|_| "Could not position Buddy")?;
+            let size = window.outer_size().map_err(|_| "Could not position sumi")?;
             let min_x = area.position.x;
             let min_y = area.position.y;
             let max_x = (min_x + area.size.width as i32 - size.width as i32).max(min_x);
@@ -339,10 +337,10 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
                 ));
             window
                 .set_position(position)
-                .map_err(|_| "Could not position Buddy")?;
+                .map_err(|_| "Could not position sumi")?;
             inner.buddy.positioned = true;
         }
-        window.show().map_err(|_| "Could not show Buddy")?;
+        window.show().map_err(|_| "Could not show sumi")?;
         #[cfg(target_os = "macos")]
         crate::macos::pin_window(&window);
     }

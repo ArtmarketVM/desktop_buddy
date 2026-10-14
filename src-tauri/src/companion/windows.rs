@@ -246,7 +246,13 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
                     tauri::async_runtime::spawn_blocking(move || context(window, true)).await;
                 let (text, mut notice) = match result {
                     Ok(Ok(text)) if !text.trim().is_empty() => (text, None),
-                    _ => (String::new(), Some("Selected text is unavailable in this app. Paste it into Buddy instead.".to_string())),
+                    _ => (
+                        String::new(),
+                        Some(
+                            "Selected text is unavailable in this app. Paste it into sumi instead."
+                                .to_string(),
+                        ),
+                    ),
                 };
                 if as_goal && !text.is_empty() {
                     match crate::core_capture::receive(&handle, &text) {

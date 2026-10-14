@@ -167,7 +167,7 @@ export function DesktopBuddy({
       )}
       <button
         className="desktop-character"
-        aria-label="Open Buddy mini chat"
+        aria-label="Open sumi mini chat"
         title="Click to chat · drag to move · right-click for actions"
         onPointerDown={(event) => {
           if (event.button !== 0) return;
@@ -215,10 +215,10 @@ export function DesktopBuddy({
       >
         <Avatar appearance={{ ...appearance, visible: true }} state={state} />
       </button>
-      <div className="buddy-action-bar" aria-label="Buddy actions">
+      <div className="buddy-action-bar" aria-label="sumi actions">
         <button
-          aria-label="Write to Buddy"
-          title="Write to Buddy"
+          aria-label="Write to sumi"
+          title="Write to sumi"
           onClick={() => {
             setMode("text");
             if (desktop) void action(api.openChat);
@@ -227,8 +227,8 @@ export function DesktopBuddy({
           <SquarePen size={17} />
         </button>
         <button
-          aria-label="Talk to Buddy"
-          title="Talk to Buddy"
+          aria-label="Talk to sumi"
+          title="Talk to sumi"
           onClick={() => {
             setMode("voice");
             if (desktop) void action(api.openChat);

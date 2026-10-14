@@ -241,7 +241,7 @@ export default function App() {
                     <Moon size={16} />
                     Quiet mode{data.status.dnd ? ": on" : ""}
                     <span id="quiet-tip" role="tooltip" className="quiet-tip">
-                      Pauses all Buddy nudges and pop-ups until you turn it off.
+                      Pauses all sumi nudges and pop-ups until you turn it off.
                       Chat stays available.
                     </span>
                   </button>

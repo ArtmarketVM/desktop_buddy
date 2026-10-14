@@ -54,7 +54,7 @@ describe("goal activity collection status", () => {
       status: {
         ...dashboard.status,
         tracking: true,
-        tracking_error: "Allow Desktop Buddy in Accessibility settings",
+        tracking_error: "Allow sumi in Accessibility settings",
       },
     });
     expect(html).toContain("tracking is blocked");

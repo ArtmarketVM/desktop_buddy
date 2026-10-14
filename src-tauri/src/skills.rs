@@ -429,7 +429,7 @@ pub fn plan_schema() -> Value {
 #[cfg(test)]
 pub fn parse_plan(response: &Value) -> Result<Plan, String> {
     let plan: Plan = serde_json::from_str(crate::goal_analysis::response_text(response)?)
-        .map_err(|_| "Buddy returned an invalid action plan; nothing was changed")?;
+        .map_err(|_| "sumi returned an invalid action plan; nothing was changed")?;
     if !["chat", "actions", "clarification"].contains(&plan.kind.as_str())
         || plan.state_version.is_empty()
         || plan.actions.len() > 20
@@ -446,7 +446,7 @@ pub fn parse_plan(response: &Value) -> Result<Plan, String> {
         let skill = registry()
             .into_iter()
             .find(|s| s.name == action.name)
-            .ok_or("Unknown Buddy skill")?;
+            .ok_or("Unknown sumi skill")?;
         (skill.validator)(&skill, &action.input)?;
     }
     Ok(plan)

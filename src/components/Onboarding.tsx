@@ -59,7 +59,7 @@ export function Onboarding({
   }
   return (
     <div className="onboarding-shell">
-      <section className="card onboarding-card" aria-label="Welcome to Buddy">
+      <section className="card onboarding-card" aria-label="Welcome to sumi">
         <div className="onboarding-brand">
           buddy<span>•</span>
         </div>
@@ -85,7 +85,7 @@ export function Onboarding({
           {
             [
               "A little company for your work.",
-              "Make Buddy yours.",
+              "Make sumi yours.",
               "What would you like to achieve?",
               "Choose when tracking starts.",
             ][draft.step]
@@ -139,7 +139,7 @@ export function Onboarding({
               Save goal draft
             </button>
             <p className="helper">
-              Your goal uses Buddy's existing goal planner. You can refine it
+              Your goal uses sumi's existing goal planner. You can refine it
               with AI or add steps after setup. Creating it does not start
               monitoring.
             </p>

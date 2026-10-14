@@ -23,7 +23,7 @@ export function MacPermissions() {
         setNote(
           next
             ? "Accessibility access is enabled. Tracking can start."
-            : "Still blocked. If Desktop Buddy is already switched on in System Settings, macOS tied that switch to an older copy of the app. Choose Reset and ask again.",
+            : "Still blocked. If sumi is already switched on in System Settings, macOS tied that switch to an older copy of the app. Choose Reset and ask again.",
         );
     } catch (e) {
       setError(String(e));
@@ -73,7 +73,7 @@ export function MacPermissions() {
                     setNote(
                       next
                         ? "Accessibility access is enabled. Tracking can start."
-                        : "Switch Desktop Buddy on when macOS asks. This page updates by itself.",
+                        : "Switch sumi on when macOS asks. This page updates by itself.",
                     );
                   })
                   .catch((e) => setError(String(e)));
@@ -92,7 +92,7 @@ export function MacPermissions() {
       )}
       {allowed === false && (
         <p className="helper">
-          Turn on Desktop Buddy in System Settings → Privacy &amp; Security →
+          Turn on sumi in System Settings → Privacy &amp; Security →
           Accessibility. If it is already on but access stays blocked, for
           example after an update, choose Reset and ask again. Goals and chat
           work without it. No screenshots are taken.{" "}

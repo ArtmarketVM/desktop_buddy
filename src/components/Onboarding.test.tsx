@@ -106,7 +106,7 @@ describe("onboarding and profiles", () => {
         renderToStaticMarkup(
           <Avatar appearance={{ ...profile.avatar, character }} state="fun" />,
         ),
-      ).toContain(`${character} companion, fun`);
+      ).toContain("sumi companion, fun");
     expect(
       renderToStaticMarkup(
         <Avatar appearance={{ ...profile.avatar, visible: false }} />,

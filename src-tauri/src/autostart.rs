@@ -80,8 +80,8 @@ mod tests {
     #[test]
     fn quotes_the_installed_path_and_rejects_invalid_commands() {
         assert_eq!(
-            command(std::path::Path::new(r"C:\Program Files\Buddy\buddy.exe")).unwrap(),
-            r#""C:\Program Files\Buddy\buddy.exe" --background"#
+            command(std::path::Path::new(r"C:\Program Files\sumi\buddy.exe")).unwrap(),
+            r#""C:\Program Files\sumi\buddy.exe" --background"#
         );
         assert!(command(std::path::Path::new("bad\"path")).is_err());
     }

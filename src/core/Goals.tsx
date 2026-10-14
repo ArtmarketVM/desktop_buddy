@@ -263,7 +263,7 @@ export function GoalRow({
                       );
                     }}
                   >
-                    Ask Buddy about this
+                    Ask sumi about this
                   </button>
                   <button
                     disabled={disabled}

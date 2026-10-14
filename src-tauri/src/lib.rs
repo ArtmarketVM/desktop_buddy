@@ -300,5 +300,5 @@ pub fn run() {
             commands::capture_screenshot_on_demand
         ])
         .run(tauri::generate_context!())
-        .expect("Desktop Buddy could not start");
+        .expect("sumi could not start");
 }

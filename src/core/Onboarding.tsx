@@ -66,9 +66,9 @@ export function CoreOnboarding({
       <h1 ref={heading} tabIndex={-1}>
         {
           [
-            "What should Buddy call you?",
-            "Choose your Buddy",
-            "Let Buddy help you follow through",
+            "What should sumi call you?",
+            "Choose your sumi",
+            "Let sumi help you follow through",
           ][step]
         }
       </h1>

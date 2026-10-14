@@ -50,7 +50,7 @@ fn validate_platform_download(url: &reqwest::Url, extension: &str) -> Result<(),
             .starts_with("/ArtmarketVM/desktop_buddy/releases/download/")
         || !url.path().ends_with(extension)
     {
-        return Err("The update does not match this platform or Desktop Buddy's repository".into());
+        return Err("The update does not match this platform or sumi's repository".into());
     }
     Ok(())
 }
@@ -232,7 +232,7 @@ mod tests {
     use super::*;
     #[test]
     fn pins_updates_to_the_running_installation_and_rejects_unsafe_paths() {
-        let directory = std::env::temp_dir().join("Buddy install with spaces");
+        let directory = std::env::temp_dir().join("sumi install with spaces");
         assert_eq!(
             installation_argument(&directory.join("desktop-buddy.exe")).unwrap(),
             format!("/D={}", directory.display())

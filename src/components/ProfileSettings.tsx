@@ -87,7 +87,7 @@ export function ProfileSettings({
       </p>
       <label className="toggle-row">
         <span>
-          Start Buddy when I sign in
+          Start sumi when I sign in
           <small>
             Enabled by default for installed desktop builds. Development
             launches do not register for login startup.

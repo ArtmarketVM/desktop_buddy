@@ -1,6 +1,22 @@
 import type { CSSProperties } from "react";
 import type { AvatarPreferences, AvatarState } from "../types";
 
+const INK = "#1E2A23";
+// Eye shapes from the sumi site mascot: sleepy, alert and happy.
+const EYES = {
+  sleepy:
+    "M-5 0.3Q0 -0.5 3.2 -0.6L4.5 -2.1 5.8 0.3 4.7 1.2Q0 1.3-5 1.3Q-5.6 0.8-5 0.3Z",
+  alert: "M-1.5-4.8 1.3-5.4Q1.7 0 1.2 3.9 0 5.8-1.3 3.9-1.7 0-1.5-4.8Z",
+  happy:
+    "M-5.2 1.6Q-2.6-2.8 0-2.6 2.2-2.4 5.4 1.9 5.5 2.8 4.7 2.5 2.1-0.5 0-0.9-2.4-0.9-4.3 2.3-5.1 2.6-5.2 1.6Z",
+};
+function mood(state: AvatarState): keyof typeof EYES {
+  if (state === "sleeping" || state === "paused") return "sleepy";
+  if (state === "completed" || state === "success" || state === "fun")
+    return "happy";
+  return "alert";
+}
+
 export function Avatar({
   appearance,
   state = "working",
@@ -9,103 +25,60 @@ export function Avatar({
   state?: AvatarState;
 }) {
   if (!appearance.visible) return null;
+  const eyes = EYES[mood(state)];
+  const line = {
+    fill: "none",
+    stroke: INK,
+    strokeWidth: 2.4,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
   return (
     <svg
       className={`avatar avatar-${appearance.character} avatar-${state}`}
       style={{ "--avatar-color": appearance.color } as CSSProperties}
-      viewBox="0 0 120 120"
+      viewBox="-10 -12 80 76"
       role="img"
-      aria-label={`${appearance.character} companion, ${state}`}
+      aria-label={`sumi companion, ${state}`}
     >
-      <g
-        fill="var(--avatar-color)"
-        stroke="#344333"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      >
-        {appearance.character === "cat" && (
-          <>
-            <path d="M27 49 23 16 47 31M73 31 97 16 93 49" />
-            <ellipse cx="60" cy="66" rx="39" ry="37" />
-          </>
-        )}
-        {appearance.character === "dog" && (
-          <>
-            <ellipse cx="60" cy="65" rx="35" ry="36" />
-            <path d="M29 35C5 24 6 77 24 78L36 40M91 35C115 24 114 77 96 78L84 40" />
-          </>
-        )}
-        {appearance.character === "seal" && (
-          <>
-            <ellipse cx="60" cy="64" rx="38" ry="37" />
-            <path d="M27 78 7 99 38 94M93 78 113 99 82 94" />
-          </>
-        )}
-        {appearance.character === "bird" && (
-          <>
-            <ellipse cx="60" cy="62" rx="35" ry="40" />
-            <path d="M29 54 13 79 32 87M91 54 107 79 88 87M54 25 60 10 66 25" />
-          </>
-        )}
-      </g>
-      {state === "sleeping" || state === "paused" ? (
-        <g stroke="#344333" strokeWidth="3" fill="none">
-          <path d="M39 57q6 7 12 0M69 57q6 7 12 0" />
-        </g>
-      ) : (
-        <g className="avatar-eyes" fill="#344333">
-          <ellipse cx="45" cy="58" rx="4" ry="6" />
-          <ellipse cx="75" cy="58" rx="4" ry="6" />
-        </g>
-      )}
-      {appearance.character === "bird" ? (
+      <g className="pet__body">
         <path
-          d="m53 70 14 0-7 12z"
-          fill="#D8A459"
-          stroke="#344333"
-          strokeWidth="2"
+          className="pet__fill"
+          d="M6 6C20 4 40 4 54 6 56 20 56 40 54 54 40 56 20 56 6 54 4 40 4 20 6 6Z"
+          fill="var(--avatar-color)"
         />
-      ) : (
-        <g stroke="#344333" strokeWidth="2" fill="none">
-          <path d="M56 70h8l-4 5z" fill="#344333" />
-          <path d="M49 79q11 10 22 0" />
-          {appearance.character === "cat" && (
-            <path d="M37 71 21 68M36 77 20 80M83 71 99 68M84 77 100 80" />
-          )}
+        <g className="avatar-eyes pet__eyes" fill={INK}>
+          <path transform="translate(22 31)" d={eyes} />
+          <path transform="translate(38 31)" d={eyes} />
         </g>
-      )}
+      </g>
       {(state === "completed" || state === "success") && (
         <path
-          d="m86 12 8 8 15-17"
-          stroke="#497044"
-          strokeWidth="6"
+          d="m47 -8 5 5 10-11"
+          stroke="#3E6B48"
+          strokeWidth={4}
           fill="none"
+          strokeLinecap="round"
         />
       )}
       {state === "sleeping" && (
-        <text x="89" y="23" fill="#344333" fontSize="14">
+        <text x="52" y="-2" fill={INK} fontSize="11">
           z
         </text>
       )}
       {(state === "thinking" || state === "attention") && (
-        <text x="92" y="23" fill="#344333" fontSize="19" fontWeight="600">
+        <text x="52" y="0" fill={INK} fontSize="14" fontWeight="700">
           {state === "thinking" ? "…" : "?"}
         </text>
       )}
       {state === "stretching" && (
-        <g
-          className="avatar-stretch-arms"
-          fill="none"
-          stroke="#344333"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-        >
-          <path d="M25 77 10 69 5 56M95 77 110 69 115 56" />
+        <g className="avatar-stretch-arms" {...line}>
+          <path d="M4 46 -6 40 -8 30M56 46 66 40 68 30" />
         </g>
       )}
       {state === "listening" && (
-        <g fill="none" stroke="#344333" strokeWidth="2">
-          <path d="M14 47q-8 13 0 26M8 42q-12 19 0 36" />
+        <g {...line} strokeWidth={1.8}>
+          <path d="M-2 22q-6 8 0 16M-7 18q-9 12 0 24" />
         </g>
       )}
     </svg>

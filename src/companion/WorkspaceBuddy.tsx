@@ -89,7 +89,7 @@ export function WorkspaceBuddy({
         <>
           <button
             className="workspace-buddy-avatar"
-            aria-label="Open Buddy chat"
+            aria-label="Open sumi chat"
             onClick={() => setMode(mode === "idle" ? "text" : "idle")}
           >
             <Avatar
@@ -97,17 +97,17 @@ export function WorkspaceBuddy({
               state={state}
             />
           </button>
-          <div className="buddy-action-bar" aria-label="Buddy actions">
+          <div className="buddy-action-bar" aria-label="sumi actions">
             <button
-              aria-label="Write to Buddy"
-              title="Write to Buddy"
+              aria-label="Write to sumi"
+              title="Write to sumi"
               onClick={() => setMode("text")}
             >
               <SquarePen size={17} />
             </button>
             <button
-              aria-label="Talk to Buddy"
-              title="Talk to Buddy"
+              aria-label="Talk to sumi"
+              title="Talk to sumi"
               onClick={() => setMode("voice")}
             >
               <Mic size={17} />

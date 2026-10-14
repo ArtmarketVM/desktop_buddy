@@ -24,7 +24,7 @@ describe("compact workspace boundaries", () => {
     expect(html).toContain("Attach text or PDF");
     expect(html).toContain("Close chat");
     expect(html).toContain('role="log"');
-    expect(html).toContain("Ask Buddy anything");
+    expect(html).toContain("Ask sumi anything");
     expect(html).not.toContain("Clear conversation");
     expect(html).not.toContain("conversation-context");
   });
@@ -88,8 +88,8 @@ describe("compact workspace boundaries", () => {
         onDnd={() => {}}
       />,
     );
-    expect(html).toContain("Write to Buddy");
-    expect(html).toContain("Talk to Buddy");
+    expect(html).toContain("Write to sumi");
+    expect(html).toContain("Talk to sumi");
     expect(html).toContain("desktop-compact-input");
     expect(html).not.toContain("floating-chat-card");
     expect(html).not.toContain("Move chat card");

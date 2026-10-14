@@ -134,7 +134,7 @@ export function Composer({
   return (
     <section
       className="core-composer"
-      aria-label={importMode ? "Import goals" : "Talk to Buddy"}
+      aria-label={importMode ? "Import goals" : "Talk to sumi"}
     >
       <div className="composer-heading">
         <span className="buddy-dot">b.</span>
@@ -147,7 +147,7 @@ export function Composer({
           <p>
             {importMode
               ? "Paste notes, upload a PDF or screenshot, or record a voice dump."
-              : "Add a goal directly, or ask Buddy to organize your thoughts."}
+              : "Add a goal directly, or ask sumi to organize your thoughts."}
           </p>
         </div>
       </div>
@@ -255,7 +255,7 @@ export function Composer({
           }
         >
           <ArrowUp size={15} />
-          {busy ? "Working…" : "Ask Buddy"}
+          {busy ? "Working…" : "Ask sumi"}
         </button>
       </div>
       {importMode && (
@@ -281,12 +281,12 @@ export function Composer({
             {isMac
               ? "Recognition stays on this Mac; language availability depends on installed Dictation support."
               : "Mixed speech needs both Russian and English speech packs."}{" "}
-            Review the transcript before asking Buddy.
+            Review the transcript before asking sumi.
           </span>
         </label>
       )}
       <p className="helper">
-        Ask Buddy sends this draft to Nebius when AI assistance is enabled in
+        Ask sumi sends this draft to Nebius when AI assistance is enabled in
         Settings. Review attachments before asking; suggestions need your
         acceptance.
         {mock ? " AI_MOCK is enabled: no provider request is sent." : ""}

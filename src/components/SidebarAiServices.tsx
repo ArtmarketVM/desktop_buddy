@@ -17,7 +17,7 @@ const services = [
     name: "Nebius",
     icon: Cloud,
     description:
-      "Hosts Buddy's AI requests in the cloud and provides access to the configured language model.",
+      "Hosts sumi's AI requests in the cloud and provides access to the configured language model.",
   },
   {
     id: "nvidia",

@@ -253,19 +253,19 @@ mod tests {
     #[test]
     fn matching_is_conservative_and_rejects_ties() {
         let activity = ActivitySnapshot {
-            window_title: "Buddy onboarding · Visual Studio Code".into(),
+            window_title: "sumi onboarding · Visual Studio Code".into(),
             ..Default::default()
         };
         assert_eq!(
-            classify(&[(1, "Build Buddy onboarding".into(), false)], &activity)
+            classify(&[(1, "Build sumi onboarding".into(), false)], &activity)
                 .goal_id
                 .as_deref(),
             Some("1")
         );
         assert!(classify(
             &[
-                (1, "Build Buddy onboarding".into(), false),
-                (2, "Review Buddy onboarding".into(), false)
+                (1, "Build sumi onboarding".into(), false),
+                (2, "Review sumi onboarding".into(), false)
             ],
             &activity
         )

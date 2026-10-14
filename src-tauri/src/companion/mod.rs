@@ -394,7 +394,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
                             )
                         })
                         .unwrap_or_else(|| {
-                            "What is getting in the way? Buddy can help choose a small next step."
+                            "What is getting in the way? sumi can help choose a small next step."
                                 .into()
                         })
                 } else {
@@ -462,9 +462,9 @@ fn progress_status(inner: &Inner, _minute: u32) -> String {
     } else if progress_suppressed(inner) {
         "Automatic progress checks are paused by Do not disturb, snooze, or your companion settings.".into()
     } else if let Some(error) = &inner.companion.progress_error {
-        format!("Last progress check failed: {error}. Buddy will retry when activity is available.")
+        format!("Last progress check failed: {error}. sumi will retry when activity is available.")
     } else {
-        "Automatic progress checks are on. Review completion proposals in Buddy chat; notifications follow your quiet hours.".into()
+        "Automatic progress checks are on. Review completion proposals in sumi chat; notifications follow your quiet hours.".into()
     }
 }
 pub fn detection_due(inner: &Inner) -> bool {
@@ -618,7 +618,7 @@ pub async fn detect(app: &AppHandle, state: &AppState) -> Result<(), String> {
     let _guard = state
         .companion_request
         .try_lock()
-        .map_err(|_| "Buddy is busy")?;
+        .map_err(|_| "sumi is busy")?;
     let (goal, plan, activity, privacy_revision) = {
         let mut inner = state
             .inner
@@ -834,7 +834,7 @@ pub fn open_companion_chat(
         crate::buddy::sync(&app, &mut inner)?;
     }
     if let Some(window) = app.get_webview_window("buddy") {
-        window.set_focus().map_err(|_| "Could not focus Buddy")?;
+        window.set_focus().map_err(|_| "Could not focus sumi")?;
     }
     Ok(())
 }
@@ -854,9 +854,9 @@ pub fn open_companion_context(app: AppHandle) -> Result<(), String> {
     let actions = [
         ("goal", "Add selected text as goal"),
         ("task", "Add task"),
-        ("ask", "Ask Buddy"),
+        ("ask", "Ask sumi"),
         ("research", "Research selected topic"),
-        ("hide", "Hide Buddy"),
+        ("hide", "Hide sumi"),
         ("open", "Open full app"),
     ];
     let items: Vec<_> = actions
@@ -865,16 +865,16 @@ pub fn open_companion_context(app: AppHandle) -> Result<(), String> {
             MenuItem::with_id(&app, format!("companion-{id}"), text, true, None::<&str>)
         })
         .collect::<Result<_, _>>()
-        .map_err(|_| "Could not create Buddy menu")?;
+        .map_err(|_| "Could not create sumi menu")?;
     let refs: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = items
         .iter()
         .map(|i| i as &dyn tauri::menu::IsMenuItem<tauri::Wry>)
         .collect();
-    let menu = Menu::with_items(&app, &refs).map_err(|_| "Could not create Buddy menu")?;
+    let menu = Menu::with_items(&app, &refs).map_err(|_| "Could not create sumi menu")?;
     app.get_webview_window("buddy")
-        .ok_or("Buddy unavailable")?
+        .ok_or("sumi unavailable")?
         .popup_menu(&menu)
-        .map_err(|_| "Could not open Buddy menu".into())
+        .map_err(|_| "Could not open sumi menu".into())
 }
 #[tauri::command(async)]
 pub fn companion_voice_input(window: tauri::WebviewWindow) -> Result<(), String> {
@@ -882,7 +882,7 @@ pub fn companion_voice_input(window: tauri::WebviewWindow) -> Result<(), String>
         return Err("Open the companion chat first".into());
     }
     if !window.is_focused().unwrap_or(false) {
-        return Err("Focus the Buddy text field before starting voice typing".into());
+        return Err("Focus the sumi text field before starting voice typing".into());
     }
     #[cfg(windows)]
     {
@@ -890,7 +890,7 @@ pub fn companion_voice_input(window: tauri::WebviewWindow) -> Result<(), String>
     }
     #[cfg(target_os = "macos")]
     {
-        Err("Use the Dictation shortcut configured in System Settings > Keyboard while the Buddy text field is focused.".into())
+        Err("Use the Dictation shortcut configured in System Settings > Keyboard while the sumi text field is focused.".into())
     }
     #[cfg(not(any(windows, target_os = "macos")))]
     {
@@ -909,10 +909,10 @@ fn append_task(
         let goal = storage
             .goal()?
             .filter(|g| g.id == id)
-            .ok_or("The active goal changed. Reload Buddy before adding the task.")?;
+            .ok_or("The active goal changed. Reload sumi before adding the task.")?;
         let mut plan = storage.goal_plan(id)?;
         if Some(plan.revision) != revision {
-            return Err("The plan changed. Reload Buddy before adding the task.".into());
+            return Err("The plan changed. Reload sumi before adding the task.".into());
         }
         if plan
             .steps
@@ -931,12 +931,12 @@ fn append_task(
         Ok(step_id)
     } else {
         if storage.goal()?.is_some() {
-            return Err("The active goal changed. Reload Buddy before saving.".into());
+            return Err("The active goal changed. Reload sumi before saving.".into());
         }
         let mut inbox: Vec<InboxTask> =
             storage.read_setting("companion_inbox")?.unwrap_or_default();
         if inbox.len() >= 100 {
-            return Err("The Buddy inbox is full. Remove finished items first.".into());
+            return Err("The sumi inbox is full. Remove finished items first.".into());
         }
         if inbox
             .iter()
@@ -1042,7 +1042,7 @@ pub async fn companion_submit(
                 .read_setting("companion_inbox")?
                 .unwrap_or_default();
             if notes.len() >= 100 {
-                return Err("The Buddy inbox is full".into());
+                return Err("The sumi inbox is full".into());
             }
             notes.push(InboxTask {
                 id: format!("inbox-{}", chrono::Utc::now().timestamp_micros()),
@@ -1069,7 +1069,7 @@ pub async fn companion_submit(
             message: if action == "task" && goal_id.is_some() {
                 "Added to your current goal."
             } else {
-                "Saved in your Buddy inbox."
+                "Saved in your sumi inbox."
             }
             .into(),
             resources: vec![],
@@ -1108,7 +1108,7 @@ pub fn respond_companion_intervention(
         .intervention
         .clone()
         .filter(|p| p.id == id && p.expires_at > chrono::Utc::now().timestamp())
-        .ok_or("This suggestion expired. Buddy will wait for another good moment.")?;
+        .ok_or("This suggestion expired. sumi will wait for another good moment.")?;
     let now = chrono::Utc::now().timestamp();
     let research_job = if prompt.kind == Kind::Research {
         if !["accept", "ignore"].contains(&action.as_str()) {
@@ -1232,7 +1232,7 @@ pub fn respond_companion_intervention(
         crate::buddy::open_workspace(app)?;
     } else if action == "accept" && prompt.kind == Kind::Midday {
         if let Some(window) = app.get_webview_window("buddy") {
-            window.set_focus().map_err(|_| "Could not focus Buddy")?;
+            window.set_focus().map_err(|_| "Could not focus sumi")?;
         }
     }
     Ok(())
@@ -1274,7 +1274,7 @@ mod tests {
     #[test]
     fn quick_tasks_preserve_other_developers_plan_and_reject_stale_updates() {
         let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
-        let goal = storage.set_goal("Create Buddy").unwrap();
+        let goal = storage.set_goal("Create sumi").unwrap();
         let id = append_task(&mut storage, Some(goal.id), Some(0), "Send deck").unwrap();
         let plan = storage.goal_plan(goal.id).unwrap();
         assert_eq!(plan.revision, 1);

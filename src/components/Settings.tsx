@@ -127,7 +127,7 @@ export function Settings({
           disabled={!desktop || busy}
           onClick={() => void run(() => api.snooze(!snoozed))}
         >
-          {snoozed ? "Resume Buddy" : "Snooze Buddy for 1 hour"}
+          {snoozed ? "Resume sumi" : "Snooze sumi for 1 hour"}
         </button>
         {snoozed && (
           <p role="status">
@@ -140,7 +140,7 @@ export function Settings({
           </p>
         )}
         <p className="helper">
-          Snooze hides Buddy and pauses automatic check-ins and recommendations.
+          Snooze hides sumi and pauses automatic check-ins and recommendations.
           Tracking is unchanged. Resuming does not turn off DND or resume paused
           tracking.
         </p>
@@ -161,7 +161,7 @@ export function Settings({
           />
         </label>
         <label htmlFor="nudge-interval">
-          Minimum time between all Buddy cards
+          Minimum time between all sumi cards
         </label>
         <select
           id="nudge-interval"
@@ -177,7 +177,7 @@ export function Settings({
             </option>
           ))}
         </select>
-        <label htmlFor="daily-nudge-limit">Daily Buddy card limit</label>
+        <label htmlFor="daily-nudge-limit">Daily sumi card limit</label>
         <select
           id="daily-nudge-limit"
           value={preferences.daily_nudge_limit}
@@ -200,9 +200,9 @@ export function Settings({
         </p>
         <label className="toggle-row">
           <span>
-            Show Buddy only with suggestions
+            Show sumi only with suggestions
             <small>
-              When off, Buddy stays on your desktop during a session. Drag the
+              When off, sumi stays on your desktop during a session. Drag the
               character to move it.
             </small>
           </span>
@@ -225,7 +225,7 @@ export function Settings({
               receives search result snippets to select a resource. Both query
               planning and selection use up to ten rated titles and ten recently
               offered titles for this goal. The current step takes priority;
-              Buddy may skip a search or suggestion when nothing is useful.
+              sumi may skip a search or suggestion when nothing is useful.
               Disabled while paused or in DND.
             </small>
           </span>
@@ -238,7 +238,7 @@ export function Settings({
         </label>
         <p className="helper">
           Both provider keys are needed for suggestions. No automatic browser
-          opening. Closing the workspace keeps Buddy running in the system tray.
+          opening. Closing the workspace keeps sumi running in the system tray.
           Choose Quit to stop it.
         </p>
         {error && <p role="alert">{error}</p>}

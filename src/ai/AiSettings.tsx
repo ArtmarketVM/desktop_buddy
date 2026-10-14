@@ -27,10 +27,10 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
     }
   }
   return (
-    <section aria-label="Buddy AI sharing">
+    <section aria-label="sumi AI sharing">
       <label className="toggle-row">
         <span>
-          Allow Buddy AI assistance
+          Allow sumi AI assistance
           <small>
             Automatically analyze new goals; send requests, conversation history
             and attachments you choose to Nebius. Goal suggestions stay separate
@@ -46,7 +46,7 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
       </label>
       <label className="toggle-row">
         <span>
-          Include Today goals in Buddy chat
+          Include Today goals in sumi chat
           <small>
             Share their titles, steps, deadlines and relevant activity totals
             and app names. Your profile, screen contents and window titles are
@@ -64,7 +64,7 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
         <span>
           Allow Tavily web research
           <small>
-            Buddy searches only when current information or an official workflow
+            sumi searches only when current information or an official workflow
             is useful. Tavily receives the search query; Nebius receives
             returned source snippets.
           </small>

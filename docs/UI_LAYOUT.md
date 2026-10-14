@@ -13,3 +13,6 @@ Every screen in the workspace uses the same column. Do not add per-screen widths
   right edges line up with the title row.
 - **Notices:** warnings and notices use the shared callout strip (see `.callout` in `src/core/core.css`).
 - **Switches:** use `.toggle-row` with a checkbox; the track is 40 x 24 and the knob stays inside it.
+- **Type and color:** fonts and colors come only from the `:root` variables in `src/workspace.css`
+  (`--serif` Shippori Mincho for headings and the brand, `--sans` Zen Maru Gothic for text, the sumi
+  moss-green accent on sky-blue and white, deep green in dark mode). Do not add hard-coded hex colors or other font families.

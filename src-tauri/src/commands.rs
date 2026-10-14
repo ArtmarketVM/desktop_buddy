@@ -487,7 +487,7 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
             || inner.status.dnd
             || !inner.status.tracking)
     {
-        return Err("Focus check discarded while Buddy is quiet".into());
+        return Err("Focus check discarded while sumi is quiet".into());
     }
     let mut decision = match result {
         Ok(d) => d,

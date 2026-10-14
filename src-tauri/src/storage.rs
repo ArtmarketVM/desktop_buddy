@@ -256,7 +256,7 @@ impl Storage {
             .optional()
             .map_err(|e| e.to_string())?;
         value
-            .map(|v| serde_json::from_str(&v).map_err(|_| "Invalid Buddy preferences".into()))
+            .map(|v| serde_json::from_str(&v).map_err(|_| "Invalid sumi preferences".into()))
             .unwrap_or_else(|| Ok(BuddyPreferences::default()))
     }
     pub fn save_buddy_preferences(&self, value: &BuddyPreferences) -> Result<(), String> {

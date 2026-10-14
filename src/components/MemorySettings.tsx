@@ -166,7 +166,7 @@ export function MemorySettings({
               />
             </label>
           ))}
-          <h3>View what Buddy remembers</h3>
+          <h3>View what sumi remembers</h3>
           <button
             type="button"
             disabled={blocked}

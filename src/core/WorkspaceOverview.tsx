@@ -19,7 +19,7 @@ export function WorkspaceOverview({ close }: { close: () => void }) {
         <span>Add what matters, edit steps and arrange your day.</span>
       </div>
       <div>
-        <strong>Buddy</strong>
+        <strong>sumi</strong>
         <span>
           Chat here or click your desktop companion. Both share one history.
         </span>
