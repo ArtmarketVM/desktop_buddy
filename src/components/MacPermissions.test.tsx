@@ -31,13 +31,13 @@ describe("macOS Accessibility state", () => {
       await screen.findByRole("button", { name: "Reset and ask again" }),
     );
     expect(
-      await screen.findByText(/Switch Desktop Buddy on when macOS asks/),
+      await screen.findByText(/Switch sumi on when macOS asks/),
     ).toBeTruthy();
     allowed = true;
     fireEvent.focus(window);
     await waitFor(() =>
       expect(
-        screen.queryByText(/Switch Desktop Buddy on when macOS asks/),
+        screen.queryByText(/Switch sumi on when macOS asks/),
       ).toBeNull(),
     );
     expect(screen.queryByRole("button", { name: "Allow access" })).toBeNull();

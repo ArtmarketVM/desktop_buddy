@@ -70,7 +70,7 @@ export const pages = [
     id: "feedback",
     label: "Feedback",
     icon: MessageSquare,
-    description: "Tell us what would make Buddy more useful.",
+    description: "Tell us what would make sumi more useful.",
   },
 ] as const;
 
@@ -180,7 +180,7 @@ export function AppShell({
           </button>
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>
-              Buddy<span>Personal workspace</span>
+              sumi<span>Personal workspace</span>
             </div>
           </div>
         </div>

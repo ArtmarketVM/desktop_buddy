@@ -182,7 +182,7 @@ export function CoreSettings({
             }}
           />
           <label className="toggle-row">
-            <span>Show Buddy on desktop</span>
+            <span>Show sumi on desktop</span>
             <input
               type="checkbox"
               checked={
@@ -204,7 +204,7 @@ export function CoreSettings({
           </label>
           <p className="helper" role="status">
             {data.buddy.desktop_visible
-              ? "Buddy is visible on your desktop. Click to chat or drag to move."
+              ? "sumi is visible on your desktop. Click to chat or drag to move."
               : (data.buddy.visibility_reason ??
                 "Desktop visibility is being checked.")}
           </p>
@@ -213,7 +213,7 @@ export function CoreSettings({
             disabled={blocked || !desktop}
             onClick={() => void run(api.resetBuddyPosition)}
           >
-            Reset Buddy position
+            Reset sumi position
           </button>
           <label className="toggle-row">
             <span>Start when I sign in</span>
@@ -491,7 +491,7 @@ export function CoreSettings({
         </details>
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>
-          <p>Desktop Buddy · v{data.version}</p>
+          <p>sumi · v{data.version}</p>
           <p className="helper">
             Local profile · {settings.profile.name || "Your workspace"}
           </p>

@@ -1,4 +1,4 @@
-import type { UserProfile, Character } from "../types";
+import type { UserProfile } from "../types";
 import { roles, roleApplications } from "../data/profile";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -19,24 +19,8 @@ export function AvatarPicker({
   return (
     <fieldset disabled={disabled}>
       <legend>Choose your companion</legend>
-      <div className="avatar-options">
-        {(["cat", "dog", "seal", "bird"] as Character[]).map((character) => (
-          <button
-            type="button"
-            className="avatar-option"
-            aria-pressed={profile.avatar.character === character}
-            key={character}
-            onClick={() =>
-              onChange({ ...profile, avatar: { ...profile.avatar, character } })
-            }
-          >
-            <Avatar
-              appearance={{ ...profile.avatar, visible: true, character }}
-              state="fun"
-            />
-            <span>{character[0].toUpperCase() + character.slice(1)}</span>
-          </button>
-        ))}
+      <div className="avatar-preview">
+        <Avatar appearance={{ ...profile.avatar, visible: true }} state="fun" />
       </div>
       <span className="field-label">Companion color</span>
       <div className="color-options" role="group" aria-label="Companion color">

@@ -305,7 +305,7 @@ mod tests {
                 .is_empty());
             storage
                 .core_create_goal(
-                    "Buddy onboarding",
+                    "Sumi onboarding",
                     "new",
                     &chrono::Local::now().date_naive().to_string(),
                 )
@@ -315,7 +315,7 @@ mod tests {
                 .unwrap()
                 .goals
                 .iter()
-                .find(|g| g.title == "Buddy onboarding")
+                .find(|g| g.title == "Sumi onboarding")
                 .unwrap()
                 .id;
             storage

@@ -37,21 +37,11 @@ export function Avatar({
     <svg
       className={`avatar avatar-${appearance.character} avatar-${state}`}
       style={{ "--avatar-color": appearance.color } as CSSProperties}
-      viewBox="-10 -14 80 80"
+      viewBox="-10 -12 80 76"
       role="img"
-      aria-label={`${appearance.character} companion, ${state}`}
+      aria-label={`sumi companion, ${state}`}
     >
       <g className="pet__body">
-        {appearance.character === "cat" && (
-          <path
-            {...line}
-            d="M9 9 11 -6 21 5ZM51 9 49 -6 39 5Z"
-            fill="var(--avatar-color)"
-          />
-        )}
-        {appearance.character === "dog" && (
-          <path d="M7 10C-4 14 -4 32 6 36M53 10C64 14 64 32 54 36" {...line} />
-        )}
         <path
           className="pet__fill"
           d="M6 6C20 4 40 4 54 6 56 20 56 40 54 54 40 56 20 56 6 54 4 40 4 20 6 6Z"
@@ -61,21 +51,6 @@ export function Avatar({
           <path transform="translate(22 31)" d={eyes} />
           <path transform="translate(38 31)" d={eyes} />
         </g>
-        {appearance.character === "seal" && (
-          <path
-            d="M2 36 -8 34M2 40 -8 42M58 36 68 34M58 40 68 42"
-            {...line}
-            strokeWidth={1.6}
-          />
-        )}
-        {appearance.character === "bird" && (
-          <path
-            d="M27 40h6l-3 5z"
-            fill="#D8A459"
-            stroke={INK}
-            strokeWidth={1.5}
-          />
-        )}
       </g>
       {(state === "completed" || state === "success") && (
         <path

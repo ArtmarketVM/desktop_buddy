@@ -5,7 +5,7 @@ fn store() -> (Storage, i64) {
     let mut store = Storage::open(std::path::Path::new(":memory:")).unwrap();
     store
         .core_create_goal(
-            "Build Buddy onboarding",
+            "Build sumi onboarding",
             "buddy",
             &chrono::Local::now().date_naive().to_string(),
         )
@@ -80,7 +80,7 @@ fn relevant_totals_and_browser_sequence_exclude_idle_unrelated_and_completed_wor
             id,
             &interval(
                 start,
-                "Buddy onboarding documentation",
+                "sumi onboarding documentation",
                 ActivityState::Focused,
             ),
         )
@@ -100,7 +100,7 @@ fn relevant_totals_and_browser_sequence_exclude_idle_unrelated_and_completed_wor
             id,
             &interval(
                 start + Duration::seconds(6),
-                "Buddy onboarding documentation",
+                "sumi onboarding documentation",
                 ActivityState::Paused,
             ),
         )
@@ -131,7 +131,7 @@ fn relevant_totals_and_browser_sequence_exclude_idle_unrelated_and_completed_wor
             id,
             &interval(
                 start + Duration::seconds(9),
-                "Buddy onboarding",
+                "sumi onboarding",
                 ActivityState::Focused
             )
         )
@@ -141,7 +141,7 @@ fn relevant_totals_and_browser_sequence_exclude_idle_unrelated_and_completed_wor
 #[test]
 fn ambiguous_goals_and_distraction_rules_do_not_inflate_relevant_time() {
     let (mut store, id) = store();
-    let activity = interval(Utc::now(), "Buddy onboarding", ActivityState::Focused).activity;
+    let activity = interval(Utc::now(), "sumi onboarding", ActivityState::Focused).activity;
     store
         .save_app_rule(
             id,
@@ -153,7 +153,7 @@ fn ambiguous_goals_and_distraction_rules_do_not_inflate_relevant_time() {
     store.save_app_rule(id, "chrome.exe", None).unwrap();
     store
         .core_create_goal(
-            "Review Buddy onboarding",
+            "Review sumi onboarding",
             "review",
             &chrono::Local::now().date_naive().to_string(),
         )
@@ -162,7 +162,7 @@ fn ambiguous_goals_and_distraction_rules_do_not_inflate_relevant_time() {
     store
         .record_interval(
             id,
-            &interval(Utc::now(), "Buddy onboarding", ActivityState::Focused),
+            &interval(Utc::now(), "sumi onboarding", ActivityState::Focused),
         )
         .unwrap();
     assert_eq!(store.relevant_seconds(id, None).unwrap(), 0);
@@ -177,7 +177,7 @@ fn relevant_daily_totals_split_at_local_midnight_and_reject_overlaps() {
         .with_timezone(&Utc);
     let sample = interval(
         midnight - Duration::seconds(1),
-        "Buddy onboarding",
+        "sumi onboarding",
         ActivityState::Focused,
     );
     store.record_interval(id, &sample).unwrap();
@@ -252,7 +252,7 @@ fn hourly_time_splits_relevant_intervals_at_local_hour_boundaries() {
         .single()
         .unwrap()
         .with_timezone(&Utc);
-    let sample = interval(start, "Buddy onboarding", ActivityState::Focused);
+    let sample = interval(start, "sumi onboarding", ActivityState::Focused);
     store.record_interval(id, &sample).unwrap();
     let hours = store.core_hourly("2026-10-07").unwrap();
     let seconds = |hour: u8| {

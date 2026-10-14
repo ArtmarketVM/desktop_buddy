@@ -12,7 +12,7 @@ export function textGoals(text: string) {
     lines.some((line) => line.length > 500)
   )
     throw new Error(
-      "Use 1–20 lines, each up to 500 characters, or ask Buddy to organize longer notes.",
+      "Use 1–20 lines, each up to 500 characters, or ask sumi to organize longer notes.",
     );
   return lines.map((title) => ({
     title,

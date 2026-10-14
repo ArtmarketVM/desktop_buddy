@@ -60,7 +60,7 @@ describe("automatic AI and relevant progress", () => {
     const snapshot = emptyCore();
     const goal: CoreGoal = {
       id: 1,
-      title: "Build Buddy",
+      title: "Build sumi",
       status: "open",
       area_id: 1,
       focused_seconds: 0,
@@ -75,7 +75,7 @@ describe("automatic AI and relevant progress", () => {
         state: "ready",
         message: null,
         result: {
-          improvedTitle: "Ship Buddy onboarding",
+          improvedTitle: "Ship sumi onboarding",
           suggestedSteps: [
             { title: "Outline" },
             { title: "Draft" },
@@ -99,7 +99,7 @@ describe("automatic AI and relevant progress", () => {
     expect(html).toContain("Outline");
     expect(html).toContain("Draft");
     expect(html).toContain("Ideas");
-    expect(html).not.toContain("Ship Buddy onboarding");
+    expect(html).not.toContain("Ship sumi onboarding");
     expect(html).not.toContain("Improve / Research");
     expect(html).not.toContain("Focus timer");
     expect(html).not.toContain("Timer running");

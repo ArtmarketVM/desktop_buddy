@@ -38,7 +38,7 @@ pub fn languages() -> Result<Vec<String>, String> {
 #[cfg(target_os = "macos")]
 pub fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
     // Apple recognition owns callbacks and permission state. Serialize concurrent
-    // requests from the workspace and desktop Buddy without locking app state.
+    // requests from the workspace and desktop sumi without locking app state.
     static RECOGNITION: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _guard = RECOGNITION
         .try_lock()

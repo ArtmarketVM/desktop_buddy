@@ -257,7 +257,7 @@ export function Conversation({
       setBusy(false);
     }
   }
-  // A message leaves the field and appears in the chat right away. While Buddy is still answering,
+  // A message leaves the field and appears in the chat right away. While sumi is still answering,
   // further messages are queued and sent one after another, so typing never has to wait.
   async function submit(prefix = "", override?: string) {
     const body = (override ?? text).trim();
@@ -354,11 +354,11 @@ export function Conversation({
   return (
     <section
       className={`companion-chat ${embedded ? "workspace-chat" : ""} ${compact ? "compact-conversation" : ""} ${compact && mode === "voice" ? "voice-mode" : ""}`}
-      aria-label={embedded ? "Buddy chat" : "Buddy mini chat"}
+      aria-label={embedded ? "sumi chat" : "sumi mini chat"}
     >
       {!compact && !headerless && (
         <header onPointerDown={onMove}>
-          <div>{!embedded && <strong>Buddy</strong>}</div>
+          <div>{!embedded && <strong>sumi</strong>}</div>
           <button
             className="companion-icon"
             aria-label="Clear conversation"
@@ -390,7 +390,7 @@ export function Conversation({
       )}
       {compact && (
         <header className="compact-header">
-          <strong>Buddy</strong>
+          <strong>sumi</strong>
           <button
             type="button"
             className="companion-icon"
@@ -430,8 +430,8 @@ export function Conversation({
           {!messages.length && (
             <p className="conversation-empty">
               {compact
-                ? "Ask Buddy anything, or tell it what to add."
-                : "What is getting in the way? Tell Buddy what you need."}
+                ? "Ask sumi anything, or tell it what to add."
+                : "What is getting in the way? Tell sumi what you need."}
             </p>
           )}
           {messages.map((message) => (
@@ -440,7 +440,7 @@ export function Conversation({
               key={message.id}
             >
               <span className="sr-only">
-                {message.role === "user" ? "You" : "Buddy"}
+                {message.role === "user" ? "You" : "sumi"}
               </span>
               {message.role === "assistant" ? (
                 <Markdown text={message.text} />
@@ -456,7 +456,7 @@ export function Conversation({
             </article>
           ))}
           {(busy || waiting) && (
-            <p role="status">{waiting ? "Buddy is thinking…" : "Working…"}</p>
+            <p role="status">{waiting ? "sumi is thinking…" : "Working…"}</p>
           )}
         </div>
       }
@@ -563,7 +563,7 @@ export function Conversation({
           maxLength={4000}
           rows={compact ? 2 : 3}
           disabled={busy}
-          placeholder="Message Buddy…"
+          placeholder="Message sumi…"
           onChange={(e) => {
             setText(e.target.value);
             if (!e.target.value.trim()) voiceDraft.current = false;
@@ -760,7 +760,7 @@ export function Conversation({
       {onResize && (
         <button
           className="chat-resize-handle text-button"
-          aria-label="Resize Buddy chat"
+          aria-label="Resize sumi chat"
           onPointerDown={(event) => {
             event.preventDefault();
             onResize();

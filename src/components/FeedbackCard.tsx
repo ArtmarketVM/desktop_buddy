@@ -20,7 +20,7 @@ export function FeedbackCard() {
         <MessageSquare size={16} />
         Share an idea
       </summary>
-      <p className="helper">What would make Buddy better for you?</p>
+      <p className="helper">What would make sumi better for you?</p>
       <form
         onSubmit={(event) => {
           event.preventDefault();

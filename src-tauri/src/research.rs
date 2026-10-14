@@ -516,7 +516,7 @@ pub fn receipt(result: &Attachment) -> String {
         })
         .collect::<Vec<_>>()
         .join("\n");
-    format!("{}\n\nNext action: {}\n\n{}\n\nSaved to this goal's work context. Research #{}. Tell Buddy whether this research helped.",result.summary,result.next_action,sources,result.research_id)
+    format!("{}\n\nNext action: {}\n\n{}\n\nSaved to this goal's work context. Research #{}. Tell sumi whether this research helped.",result.summary,result.next_action,sources,result.research_id)
 }
 
 /// A stuck observation creates an offer only. The offer itself is never search consent.

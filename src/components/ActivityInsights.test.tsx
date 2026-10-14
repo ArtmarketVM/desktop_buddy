@@ -84,7 +84,7 @@ describe("local activity insights", () => {
       />,
     );
     expect(html).toContain("Local distraction reminders");
-    expect(html).toContain("Daily Buddy card limit");
+    expect(html).toContain("Daily sumi card limit");
     expect(html).toContain("No cards");
     expect(html).toContain("No AI or API key needed");
   });
@@ -133,7 +133,7 @@ describe("local activity insights", () => {
     );
     expect(html).toContain("AI check-ins");
     expect(html).toContain("titles to Nebius");
-    expect(html).toContain("Resume Buddy");
+    expect(html).toContain("Resume sumi");
     expect(html).toContain("Nebius configured");
     expect(html).toContain("Tavily not configured");
     expect(html).not.toContain("Do not disturb");

@@ -3,11 +3,11 @@
   /* sumi palette and type: shared with the marketing site. */
   --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
   --sans: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif;
-  --canvas: #f5f7f4;
-  --sidebar: #edf1ee;
+  --canvas: #eef4f6;
+  --sidebar: #dcebf0;
   --surface: #ffffff;
-  --raised: #e9efea;
-  --line: #dfe5df;
+  --raised: #e1ecef;
+  --line: #d6e1e5;
   --text: #1e2a23;
   --muted: #5f6b63;
   --accent: #3e6b48;

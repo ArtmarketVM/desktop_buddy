@@ -2,8 +2,9 @@
 
 ## 0.28.1 — sumi look
 
-- Adopt the sumi site design across the app: Shippori Mincho for headings and the brand, Zen Maru Gothic for text, the moss-green and paper palette (light and dark), pill buttons and a subtle paper grain.
-- The companion is now the square kaku-mochi mascot from the site, with sleepy, alert and happy eyes for its states and three new colors (Matcha, Mist, Cloud); saved colors migrate to the nearest one.
+- Adopt the sumi site design across the app: Shippori Mincho for headings and the brand, Zen Maru Gothic for text, the moss-green accent on a sky-blue and white light theme and a deep-green dark theme, pill buttons and a subtle paper grain.
+- The app is now called sumi in the window, Dock, menu bar and all texts, with a new app icon (the mochi on sky blue). The bundle file name stays "Desktop Buddy.app" so updates keep working.
+- The companion is now the square kaku-mochi mascot from the site (no animal variants), with sleepy, alert and happy eyes for its states and three colors (Matcha, Mist, Cloud); saved colors migrate to the nearest one.
 
 ## 0.27.5 — goal time on macOS counts again
 

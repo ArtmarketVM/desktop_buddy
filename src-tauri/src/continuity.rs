@@ -284,7 +284,7 @@ impl Report {
                     .is_some_and(|c| c.waiting_for.is_some())
             })
             .count();
-        format!("Today: {completions} recorded completions, {open} open goals, {waiting} waiting. Ask Buddy for an end-of-day summary with saved next actions.{}",if self.omitted_lanes>0 {" Additional lanes are available in a goal-specific summary."}else{""})
+        format!("Today: {completions} recorded completions, {open} open goals, {waiting} waiting. Ask sumi for an end-of-day summary with saved next actions.{}",if self.omitted_lanes>0 {" Additional lanes are available in a goal-specific summary."}else{""})
     }
     /// The answer bypasses free-form generation: a model cannot add accomplishments.
     pub fn render(&self) -> String {

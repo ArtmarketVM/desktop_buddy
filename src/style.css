@@ -1286,3 +1286,12 @@ footer span {
   font-size: 12px;
   line-height: 1.6;
 }
+.avatar-preview {
+  display: flex;
+  justify-content: center;
+  margin: 4px 0 18px;
+}
+.avatar-preview .avatar {
+  width: 120px;
+  height: 120px;
+}

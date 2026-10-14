@@ -70,7 +70,7 @@ export function TrackingStatus({
     >
       <div className="tracking-status-heading">
         <span className="tracking-health-dot" aria-hidden="true" />
-        <strong>Buddy is running</strong>
+        <strong>sumi is running</strong>
         <span className="tracking-health-label">
           {!status.tracking
             ? "Tracking paused"
@@ -119,7 +119,7 @@ export function TrackingStatus({
               .
             </>
           ) : (
-            "No activity sample received since Buddy started."
+            "No activity sample received since sumi started."
           )}
         </p>
         {dashboard.buddy?.companion?.progress_status && (

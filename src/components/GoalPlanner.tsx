@@ -157,7 +157,7 @@ export function GoalPlanner({
         <div className="plan-editor">
           <p className="helper">
             Choose what done looks like and the step you are working on. Save
-            changes to update Buddy's context. Time spent in an app never
+            changes to update sumi's context. Time spent in an app never
             completes a goal automatically.
           </p>
           <label htmlFor="plan-title">Goal</label>
@@ -329,7 +329,7 @@ export function GoalPlanner({
           </div>
           {dirty && (
             <p role="status">
-              Unsaved changes — Buddy still uses the saved plan.
+              Unsaved changes — sumi still uses the saved plan.
             </p>
           )}
         </div>

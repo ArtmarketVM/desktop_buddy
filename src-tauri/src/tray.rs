@@ -26,7 +26,7 @@ pub fn sync(app: &tauri::AppHandle, inner: &commands::Inner) {
     }
 }
 pub fn install(app: &tauri::App) -> tauri::Result<()> {
-    let open = MenuItem::with_id(app, "open", "Open Buddy", true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", "Open sumi", true, None::<&str>)?;
     let visibility = MenuItem::with_id(app, "visibility", "Show companion", true, None::<&str>)?;
     let tracking = MenuItem::with_id(app, "tracking", "Resume tracking", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
@@ -38,7 +38,7 @@ pub fn install(app: &tauri::App) -> tauri::Result<()> {
     });
     let mut builder = TrayIconBuilder::with_id("desktop-buddy-tray")
         .menu(&menu)
-        .tooltip("Buddy — your desktop companion")
+        .tooltip("sumi — your desktop companion")
         .show_menu_on_left_click(true);
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());

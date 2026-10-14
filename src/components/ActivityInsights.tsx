@@ -51,7 +51,7 @@ export function DailySummary({
         </p>
         <p>
           <strong>{today.nudges}</strong>
-          <span>Buddy cards today</span>
+          <span>sumi cards today</span>
         </p>
       </div>
       <p className="helper">
@@ -107,7 +107,7 @@ export function DailySummary({
         )}
         <p className="helper">
           Approximate foreground time while tracking: excludes pauses, excluded
-          apps, Buddy itself, gaps and detected idle periods (5 minutes by
+          apps, sumi itself, gaps and detected idle periods (5 minutes by
           default, without input). This is not total computer usage. No
           historical backfill. This summary groups browser time by application;
           per-site and tab totals are available in the goal-history API. Days

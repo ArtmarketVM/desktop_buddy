@@ -984,7 +984,7 @@ fn chat_changes_need_a_quoted_instruction_and_questions_are_not_commands() {
 fn an_answer_is_saved_in_the_chat_it_was_asked_in_even_after_a_new_chat_is_started() {
     let mut storage = store();
     let first = storage.current_conversation().unwrap();
-    // The user asks in the first chat and, while Buddy is still answering, starts another chat.
+    // The user asks in the first chat and, while sumi is still answering, starts another chat.
     let second = storage.create_conversation().unwrap();
     assert_eq!(storage.current_conversation().unwrap(), second);
     let reply = ChatReply {

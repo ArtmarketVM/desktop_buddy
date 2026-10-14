@@ -14,7 +14,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "Desktop Buddy",
+        "title": "sumi",
         "width": 1280,
         "height": 900,
         "minWidth": 760,
@@ -24,7 +24,7 @@
       {
         "label": "buddy",
         "create": false,
-        "title": "Buddy",
+        "title": "sumi",
         "url": "index.html?buddy",
         "width": 120,
         "height": 120,

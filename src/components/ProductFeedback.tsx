@@ -29,7 +29,7 @@ export function ProductFeedback({ goalId = null }: { goalId?: number | null }) {
     <section className="product-feedback" aria-label="Share feedback">
       <h3>
         {goalId === null
-          ? "How is Buddy working for you?"
+          ? "How is sumi working for you?"
           : "How did this goal feel?"}
       </h3>
       {saved ? (

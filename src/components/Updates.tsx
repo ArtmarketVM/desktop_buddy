@@ -14,7 +14,7 @@ export function StartupUpdate({ snapshot }: { snapshot: UpdateSnapshot }) {
   return (
     <div className="startup-update" role="status" aria-live="polite">
       <LoaderCircle className="spin" size={26} />
-      <h1>{updating ? "Updating Buddy" : "Getting Buddy ready"}</h1>
+      <h1>{updating ? "Updating sumi" : "Getting sumi ready"}</h1>
       <p>
         {updating
           ? "Installing the latest signed release before opening your workspace."
@@ -28,7 +28,7 @@ export function StartupUpdate({ snapshot }: { snapshot: UpdateSnapshot }) {
         />
       )}
       <p className="helper">
-        Your saved work stays on this device. If an update is unavailable, Buddy
+        Your saved work stays on this device. If an update is unavailable, sumi
         opens the installed version.
       </p>
     </div>
@@ -66,7 +66,7 @@ export function UpdateEntry({
         <small>
           {available
             ? `Version ${snapshot.info?.version}`
-            : "Keep Buddy up to date"}
+            : "Keep sumi up to date"}
         </small>
       </span>
     </button>
@@ -154,7 +154,7 @@ export function UpdateDialog({
         <span className="eyebrow">DESKTOP BUDDY</span>
         <h2 id="update-title">
           {busy
-            ? "Updating Buddy"
+            ? "Updating sumi"
             : available
               ? "A new version is ready"
               : snapshot.info?.status === "current" && !snapshot.error
@@ -187,7 +187,7 @@ export function UpdateDialog({
         {available && !busy && (
           <>
             <p>
-              Download the signed update and restart Buddy. Your saved goals,
+              Download the signed update and restart sumi. Your saved goals,
               profile and API keys stay on this device.
             </p>
             {snapshot.info?.notes && (

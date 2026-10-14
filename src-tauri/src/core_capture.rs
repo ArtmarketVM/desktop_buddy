@@ -11,7 +11,7 @@ pub struct CapturedDraft {
 pub fn capture_text(value: &str) -> Result<String, String> {
     let text = value.trim();
     if text.is_empty() || text.chars().count() > 4000 || text.contains('\0') {
-        return Err("Select between 1 and 4,000 characters, or paste your goal into Buddy".into());
+        return Err("Select between 1 and 4,000 characters, or paste your goal into sumi".into());
     }
     Ok(text.into())
 }

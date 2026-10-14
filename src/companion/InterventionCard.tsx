@@ -36,7 +36,7 @@ export function InterventionCard({
               : prompt.kind === "movement"
                 ? "Done"
                 : prompt.kind === "midday"
-                  ? "Ask Buddy"
+                  ? "Ask sumi"
                   : "Review progress";
   return (
     <section

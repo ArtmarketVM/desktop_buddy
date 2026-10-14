@@ -108,7 +108,7 @@ pub fn request_accessibility_permission(window: WebviewWindow) -> Result<bool, S
     Ok(unsafe { buddy_accessibility(true) })
 }
 /// Legacy ad-hoc builds identify an exact binary hash, so their grants may become stale after an
-/// update or signing-identity transition. This explicit repair removes only Buddy's old grant.
+/// update or signing-identity transition. This explicit repair removes only sumi's old grant.
 /// Normal updates signed with the same stable identity must not invoke this reset.
 pub fn reset_accessibility_permission(
     app: &tauri::AppHandle,
@@ -162,7 +162,7 @@ extern "C" fn selected_shortcut(kind: u32) {
         .await;
         let (text, mut notice) = match result {
             Ok(Ok(text)) if !text.trim().is_empty() => (text, None),
-            _ => (String::new(), Some("Selected text is unavailable. Allow Accessibility access or paste it into Buddy.".to_string())),
+            _ => (String::new(), Some("Selected text is unavailable. Allow Accessibility access or paste it into sumi.".to_string())),
         };
         if kind == 2 && !text.is_empty() {
             match crate::core_capture::receive(&app, &text) {

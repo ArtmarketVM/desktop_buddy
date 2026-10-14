@@ -16,7 +16,7 @@ describe("desktop companion", () => {
     const html = renderToStaticMarkup(
       <DesktopBuddy view={view} onDismiss={noop} onDnd={noop} />,
     );
-    expect(html).toContain("Open Buddy mini chat");
+    expect(html).toContain("Open sumi mini chat");
     expect(html).toContain("drag to move");
     expect(html).not.toContain("Open resource");
     expect(html).not.toContain("Workspace");

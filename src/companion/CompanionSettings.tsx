@@ -72,7 +72,7 @@ export function CompanionSettings({
           [
             "hide_fullscreen",
             "Hide companion in full-screen apps",
-            "Buddy returns to its saved position after full-screen ends. Suggestions remain suppressed in meetings and full-screen apps.",
+            "sumi returns to its saved position after full-screen ends. Suggestions remain suppressed in meetings and full-screen apps.",
           ],
           [
             "movement_reminder",
