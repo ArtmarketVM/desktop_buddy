@@ -3,6 +3,7 @@
 use crate::skills::{Action, Plan};
 use serde_json::{json, Value};
 
+#[cfg(test)]
 fn words_outside_quotes(text: &str) -> String {
     let mut closing = None;
     text.chars()
@@ -37,6 +38,7 @@ pub struct Contract {
     quoted: Vec<String>,
 }
 impl Contract {
+    #[cfg(test)]
     pub fn from_request(latest: &str) -> Self {
         let text = words_outside_quotes(latest);
         let has = |patterns: &[&str]| patterns.iter().any(|p| text.contains(p));

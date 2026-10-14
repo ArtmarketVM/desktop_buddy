@@ -33,7 +33,7 @@ async fn send(
         )
     };
     let result = crate::agent_runtime::handle_explicit_actions(
-        &json!({"latest_request":text,"conversation":[],"event_type":"user_message"}),
+        &json!({"latest_request":text,"conversation":[],"event_type":"user_message","natural_reply":true}),
         conversation,
         state,
         revision,

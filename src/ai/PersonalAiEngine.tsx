@@ -138,6 +138,19 @@ export function PersonalAiEnginePanel({
             <dd>{data.provider}</dd>
             <dt>Configured model</dt>
             <dd>{data.configured_model ?? "Not configured"}</dd>
+            <dt>Configured reasoning model</dt>
+            <dd>
+              {data.configured_reasoning_model &&
+              data.configured_reasoning_model !== data.configured_model
+                ? data.configured_reasoning_model
+                : "Same as configured model"}
+            </dd>
+            <dt>Last inference mode</dt>
+            <dd>
+              {data.inference_mode
+                ? readable(data.inference_mode)
+                : "No inference yet"}
+            </dd>
             {reported && (
               <>
                 <dt>Provider-reported model</dt>

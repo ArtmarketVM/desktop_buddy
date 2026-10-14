@@ -19,6 +19,8 @@ export interface PersonalAiEngine {
   configuration?: Record<string, boolean>;
   provider: string;
   configured_model: string | null;
+  configured_reasoning_model?: string | null;
+  inference_mode?: "fast" | "deliberate" | null;
   active_goal: { id: number; label: string } | null;
   active_step: { id: string; label: string } | null;
   work_state: string;

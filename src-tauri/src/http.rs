@@ -58,8 +58,9 @@ pub(crate) fn constrained_payload(payload: &Value) -> Value {
     let mut result = payload.clone();
     if payload["model"]
         .as_str()
-        .is_some_and(|m| m.contains("nemotron"))
+        .is_some_and(|m| m.to_ascii_lowercase().contains("nemotron"))
         && payload["response_format"]["type"] == "json_schema"
+        && payload["chat_template_kwargs"]["enable_thinking"].is_null()
     {
         result["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
     }

@@ -330,11 +330,46 @@ impl<'a> Service<'a> {
         name: &str,
         schema: Value,
     ) -> Result<Value, String> {
+        if matches!(
+            name,
+            "buddy_skill_plan"
+                | "buddy_dialogue_confirmation"
+                | "buddy_dialogue_response"
+                | "buddy_dialogue_authorization"
+                | "buddy_dialogue_review"
+        ) && context.to_string().len() > 96 * 1024
+        {
+            return Err(
+                "Dialogue context exceeds the safe budget; narrow the request or attachment".into(),
+            );
+        }
         let instructions = format!("{system}\nRequired JSON Schema: {schema}");
-        http::post_json(self.client, &self.endpoint, &self.key, &json!({"model":self.model,"temperature":0.2,"max_tokens":6144,
-
+        let deliberate = matches!(
+            name,
+            "buddy_dialogue_response"
+                | "buddy_research_synthesis"
+                | "buddy_park_checkpoint"
+                | "buddy_dialogue_authorization"
+                | "buddy_dialogue_review"
+        );
+        let model = if deliberate {
+            std::env::var("NEBIUS_REASONING_MODEL_ID")
+                .ok()
+                .filter(|m| !m.trim().is_empty())
+                .unwrap_or_else(|| self.model.clone())
+        } else {
+            self.model.clone()
+        };
+        let mut payload = json!({"model":model,"temperature":if deliberate {1.0}else{0.2},"max_tokens":if deliberate {8192}else{6144},
             "response_format":{"type":"json_schema","json_schema":{"name":name,"strict":true,"schema":schema}},
-            "messages":[{"role":"system","content":instructions},{"role":"user","content":context.to_string()}]})).await
+            "messages":[{"role":"system","content":instructions},{"role":"user","content":context.to_string()}]});
+        if model.to_ascii_lowercase().contains("nemotron") {
+            payload["chat_template_kwargs"] = json!({"enable_thinking":deliberate});
+            if deliberate {
+                payload["top_p"] = json!(0.95);
+            }
+        }
+        http::post_json(self.client, &self.endpoint, &self.key, &payload).await
     }
     pub async fn request_validated<T>(
         &self,
@@ -349,7 +384,7 @@ impl<'a> Service<'a> {
             let instructions = if attempt == 0 {
                 system.to_string()
             } else {
-                format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Match request_contract.allowed_operations exactly; never substitute a mutation for a read request. Copy instruction verbatim from latest_request. Keep field values concise. Do not invent evidence or sources.")
+                format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Classify the trusted latest request semantically; read questions never authorize mutations. Use only registered skills and preserve the requested operation. Copy instruction verbatim from latest_request. Keep field values concise. Do not invent evidence or sources.")
             };
             let value = self
                 .request(&instructions, context.clone(), name, schema.clone())
