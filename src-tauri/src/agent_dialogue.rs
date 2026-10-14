@@ -405,7 +405,7 @@ async fn review(
     let modes = json!({"type":"string","enum":["answer","read","change","clarification"]});
     let branch = |verdict: &str, message: Value| {
         json!({"type":"object","additionalProperties":false,"properties":{
-        "verdict":{"type":"string","const":verdict},"request_mode":modes,"message":message},"required":["verdict","request_mode","message"]})
+        "verdict":{"type":"string","const":verdict},"request_mode":if mutation && verdict=="approved" {json!({"type":"string","const":"change"})}else{modes.clone()},"message":message},"required":["verdict","request_mode","message"]})
     };
     let schema = json!({"type":"object","additionalProperties":false,"properties":{"review":{"anyOf":[branch("approved",json!({"type":"string","const":""})),
         branch("repair",json!({"type":"string","minLength":1,"maxLength":500,"description":"A correction instruction for the answer or plan, not a new answer to the user."})),
@@ -433,6 +433,117 @@ async fn review(
     Ok(result)
 }
 
+enum CheckedReply {
+    Reply(ChatReply),
+    NeedsAction(String),
+}
+impl CheckedReply {
+    fn into_reply(self, fallback: ChatReply) -> ChatReply {
+        match self {
+            Self::Reply(reply) => reply,
+            Self::NeedsAction(_) => fallback,
+        }
+    }
+}
+
+fn duplicate_target(
+    plan: &skills::Plan,
+    original: &Snapshot,
+    selected: Option<i64>,
+) -> Option<Vec<Value>> {
+    let goals = original.data["goals"].as_array()?;
+    let mut previous = None;
+    let mut created_in_batch = false;
+    for action in &plan.actions {
+        if action.name == "create_goal" {
+            created_in_batch = true;
+            previous = None;
+            continue;
+        }
+        let target = &action.input["goal"];
+        let id = target["goal_id"]
+            .as_i64()
+            .or_else(|| match target["reference"].as_str() {
+                Some("last_referenced") => original.references.last_referenced_goal_id,
+                Some("active_goal") => original.data["focused_goal_id"].as_i64(),
+                Some("previous_action") => previous,
+                Some("last_created") if !created_in_batch => {
+                    original.references.last_created_goal_id
+                }
+                _ => None,
+            });
+        previous = id;
+        if skills::registry()
+            .iter()
+            .any(|s| s.name == action.name && s.safety == Safety::ReadOnly)
+        {
+            continue;
+        }
+        let Some(id) = id else {
+            continue;
+        };
+        if selected == Some(id) || original.references.last_referenced_goal_id == Some(id) {
+            continue;
+        }
+        let goal = goals.iter().find(|g| g["goal_id"] == id)?;
+        let title = goal["title"].as_str()?.trim().to_lowercase();
+        let candidates:Vec<_>=goals.iter().filter(|g|g["title"].as_str().is_some_and(|t|t.trim().to_lowercase()==title)).map(|g|json!({
+            "title":g["title"],"step_count":g["plan"]["steps"].as_array().map(Vec::len),
+            "first_step":g["plan"]["steps"].as_array().and_then(|s|s.first()).map(|s|s["text"].as_str().unwrap_or_default().chars().take(200).collect::<String>())
+        })).take(20).collect();
+        if candidates.len() > 1 {
+            return Some(candidates);
+        }
+    }
+    None
+}
+
+async fn duplicate_question(
+    state: &AppState,
+    service: &Service<'_>,
+    request: &Value,
+    original: &Snapshot,
+    revision: u64,
+    candidates: Vec<Value>,
+) -> Result<ChatReply, String> {
+    let snapshot = {
+        let mut inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        if inner.privacy_revision != revision {
+            return Err("Sharing changed; nothing was changed".into());
+        }
+        inner
+            .storage
+            .save_references(original.conversation, &original.references)?;
+        inner.agent.diagnostics.last_decision = Some(Decision::RequestClarification);
+        crate::engine_observability::record(
+            &mut inner,
+            "validation",
+            "duplicate_goal_target",
+            "clarification",
+            None,
+            None,
+        );
+        drop(inner);
+        fresh(state, original.conversation, revision)?
+    };
+    let message=tokio::time::timeout(Duration::from_secs(25),crate::engine_observability::request_validated(state,service,
+        "The backend blocked an ambiguous mutation because several goals share a title and no explicit UI selection or original goal reference identifies one. Ask one concise question in the language of latest_request. Explain the distinguishing saved first steps/counts and ask the user to select the intended goal using the chat goal selector, then repeat the command. No goal was changed. Do not guess a target, expose internal IDs, invent missing steps or claim execution. Return question only.",
+        json!({"latest_request":request["latest_request"],"candidates":candidates}),"buddy_target_clarification",
+        json!({"type":"object","additionalProperties":false,"properties":{"question":{"type":"string","minLength":1,"maxLength":600}},"required":["question"]}),|v| {
+            let raw:Value=serde_json::from_str(goal_analysis::response_text(v)?).map_err(|_|"Invalid clarification")?;
+            let q=raw["question"].as_str().filter(|q|q.chars().count()<=600 && q.chars().any(char::is_alphanumeric)).ok_or("Invalid clarification")?;
+            Ok(q.to_string())
+        })).await.ok().and_then(Result::ok).unwrap_or_else(||"Several goals share this title. Select the intended goal in the chat goal selector and repeat the command. Nothing was changed.".into());
+    verify_current(state, &snapshot, revision)?;
+    Ok(ChatReply {
+        message,
+        ..Default::default()
+    })
+}
+
 async fn reviewed_answer(
     mut reply: ChatReply,
     state: &AppState,
@@ -445,17 +556,27 @@ async fn reviewed_answer(
     execution: Option<&skills::Execution>,
     sources: &[crate::models::SearchResult],
     revision: u64,
-) -> Result<ChatReply, String> {
+) -> Result<CheckedReply, String> {
     for attempt in 0..2 {
         let checked = review(state, service, request, original, current, share, tools,
             json!({"message":reply.message,"resources":reply.resources,"verified_execution":execution,"sources":sources}), false, revision).await?;
+        if checked.request_mode == "change"
+            && checked.verdict != "clarify"
+            && !execution.is_some_and(|e| e.committed_changes())
+        {
+            return Ok(CheckedReply::NeedsAction(if checked.message.is_empty() {
+                "The human request requires a registered skill to execute. No mutation has been performed. Plan the requested action using the real target IDs, or clarify a genuinely ambiguous target.".into()
+            } else {
+                checked.message
+            }));
+        }
         match checked.verdict.as_str() {
-            "approved" => return Ok(reply),
+            "approved" => return Ok(CheckedReply::Reply(reply)),
             "clarify" => {
-                return Ok(ChatReply {
+                return Ok(CheckedReply::Reply(ChatReply {
                     message: checked.message,
                     ..Default::default()
-                })
+                }))
             }
             _ if attempt == 0 => {
                 let mut corrected = request.clone();
@@ -468,12 +589,12 @@ async fn reviewed_answer(
             _ => break,
         }
     }
-    Ok(ChatReply {
+    Ok(CheckedReply::Reply(ChatReply {
         message: execution.map(|e| e.fallback_message()).unwrap_or_else(|| {
             "I could not verify a reliable answer. No app changes were made.".into()
         }),
         ..Default::default()
-    })
+    }))
 }
 
 pub async fn run(
@@ -607,6 +728,7 @@ pub async fn run(
                 revision,
             )
             .await
+            .map(|checked| checked.into_reply(fallback.clone()))
             .unwrap_or(fallback)
         } else {
             reply
@@ -715,7 +837,9 @@ pub async fn run(
                     reply.message.push_str(&format!("\n\n{notice}"));
                 }
                 reply_sources = sources;
-            } else if turn.compose {
+            } else if turn.compose
+                || (natural && crate::http::response_model(&service.model) != service.model)
+            {
                 match present(
                     state,
                     service,
@@ -736,7 +860,7 @@ pub async fn run(
                 }
             }
             if natural {
-                reply = reviewed_answer(
+                let checked = reviewed_answer(
                     reply,
                     state,
                     service,
@@ -750,6 +874,17 @@ pub async fn run(
                     revision,
                 )
                 .await?;
+                match checked {
+                    CheckedReply::Reply(body) => reply = body,
+                    CheckedReply::NeedsAction(correction) => {
+                        authorized = Some(Intent {
+                            mode: "change".into(),
+                            operations: vec![],
+                        });
+                        feedback = json!({"request_mode":"change","correction":correction});
+                        continue;
+                    }
+                }
             }
             return Ok(Outcome {
                 reply,
@@ -763,7 +898,7 @@ pub async fn run(
                 ..Default::default()
             };
             if natural {
-                reply = reviewed_answer(
+                let checked = reviewed_answer(
                     reply,
                     state,
                     service,
@@ -777,6 +912,17 @@ pub async fn run(
                     revision,
                 )
                 .await?;
+                match checked {
+                    CheckedReply::Reply(body) => reply = body,
+                    CheckedReply::NeedsAction(correction) => {
+                        authorized = Some(Intent {
+                            mode: "change".into(),
+                            operations: vec![],
+                        });
+                        feedback = json!({"request_mode":"change","correction":correction});
+                        continue;
+                    }
+                }
             }
             return Ok(Outcome {
                 reply,
@@ -800,6 +946,20 @@ pub async fn run(
                 .iter()
                 .any(|s| s.name == a.name && s.safety == Safety::ReadOnly)
         });
+        if !read_only && natural && share {
+            if let Some(candidates) =
+                duplicate_target(&plan, &original, request["selected_goal_id"].as_i64())
+            {
+                return Ok(Outcome {
+                    reply: duplicate_question(
+                        state, service, request, &original, revision, candidates,
+                    )
+                    .await?,
+                    revision,
+                    committed: false,
+                });
+            }
+        }
         if !read_only && natural {
             let checked = review(
                 state,
@@ -859,7 +1019,7 @@ pub async fn run(
                 ..Default::default()
             });
             if natural {
-                reply = reviewed_answer(
+                let checked = reviewed_answer(
                     reply,
                     state,
                     service,
@@ -873,6 +1033,17 @@ pub async fn run(
                     revision,
                 )
                 .await?;
+                match checked {
+                    CheckedReply::Reply(body) => reply = body,
+                    CheckedReply::NeedsAction(correction) => {
+                        authorized = Some(Intent {
+                            mode: "change".into(),
+                            operations: vec![],
+                        });
+                        feedback = json!({"request_mode":"change","correction":correction});
+                        continue;
+                    }
+                }
             }
             return Ok(Outcome {
                 reply,
@@ -1017,6 +1188,7 @@ pub async fn run(
                     revision,
                 )
                 .await
+                .map(|checked| checked.into_reply(fallback.clone()))
                 .unwrap_or(fallback);
             }
             return Ok(Outcome {
@@ -1064,6 +1236,7 @@ pub async fn run(
                     revision,
                 )
                 .await
+                .map(|checked| checked.into_reply(fallback.clone()))
                 .unwrap_or(fallback);
             }
             return Ok(Outcome {

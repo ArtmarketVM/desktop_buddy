@@ -323,6 +323,17 @@ pub(crate) fn deliberate_operation(name: &str) -> bool {
             | "buddy_park_checkpoint"
             | "buddy_dialogue_authorization"
             | "buddy_dialogue_review"
+            | "buddy_target_clarification"
+    )
+}
+pub(crate) fn response_operation(name: &str) -> bool {
+    matches!(
+        name,
+        "buddy_dialogue_response"
+            | "buddy_dialogue_review"
+            | "buddy_research_synthesis"
+            | "buddy_park_checkpoint"
+            | "buddy_target_clarification"
     )
 }
 impl<'a> Service<'a> {
@@ -389,11 +400,8 @@ impl<'a> Service<'a> {
             messages.push(json!({"role":"user","content":latest}));
         }
         let deliberate = deliberate_operation(name);
-        let model = if deliberate {
-            std::env::var("NEBIUS_REASONING_MODEL_ID")
-                .ok()
-                .filter(|m| !m.trim().is_empty())
-                .unwrap_or_else(|| self.model.clone())
+        let model = if response_operation(name) {
+            http::response_model(&self.model)
         } else {
             self.model.clone()
         };

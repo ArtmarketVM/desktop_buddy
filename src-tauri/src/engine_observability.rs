@@ -280,7 +280,7 @@ fn service_status_view(inner: &Inner) -> Value {
         json!({"id":id,"status":status,"checked_at":check.map(|c|c.checked_at.as_str())})
     })
     .collect();
-    json!({"configured_model":configured_model,"services":services})
+    json!({"configured_model":configured_model,"configured_response_model":http::secret("NEBIUS_MODEL_ID").ok().map(|m|http::response_model(&m)).as_deref().and_then(model_label),"services":services})
 }
 #[tauri::command(async)]
 pub fn get_ai_service_status(
@@ -564,7 +564,7 @@ pub(crate) fn view(inner: &Inner) -> Result<Value, String> {
     };
     Ok(
         json!({"provider":"Nebius Token Factory","configured_model":http::secret("NEBIUS_MODEL_ID").ok().as_deref().and_then(model_label),
-        "configured_reasoning_model":std::env::var("NEBIUS_REASONING_MODEL_ID").ok().or_else(||http::secret("NEBIUS_MODEL_ID").ok()).as_deref().and_then(model_label),
+        "configured_reasoning_model":http::secret("NEBIUS_MODEL_ID").ok().map(|m|http::response_model(&m)).as_deref().and_then(model_label),
         "inference_mode":if inner.engine.privacy==inner.privacy_revision {inner.engine.last.as_ref().map(|i|if goal_analysis::deliberate_operation(&i.operation){"deliberate"}else{"fast"})}else{None},
         "active_goal":goal.as_ref().map(|g|json!({"id":g.id,"label":label(&g.text)})),"active_step":step.map(|s|json!({"id":s.id,"label":label(&s.text)})),
         "work_state":crate::work_state::compute(inner)?.state,"retrieval":retrieval,"last_decision":inner.agent.diagnostics.last_decision,

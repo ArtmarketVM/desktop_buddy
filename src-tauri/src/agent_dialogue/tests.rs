@@ -342,10 +342,8 @@ fn shared_context_limits_details_and_preserves_saved_queue_order() {
         .unwrap()
         .iter()
         .find(|g| g["title"] == "Physics reading")
-        .unwrap()["plan"]["steps"]
-        .as_array()
-        .unwrap()
-        .is_empty());
+        .unwrap()["plan"]
+        .is_null());
     assert!(workspace.to_string().len() < 24000);
     assert!(dialogue_context::workspace(&snap, false, None)["goals"]
         .as_array()
@@ -771,4 +769,130 @@ fn ordered_schema_selects_decision_and_skill_before_arguments() {
     a.sort_all_objects();
     b.sort_all_objects();
     assert_eq!(a.to_string(), b.to_string());
+}
+
+#[tokio::test]
+async fn recognized_action_replans_instead_of_answering_or_asking_again() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    for initial_clarification in [true, false] {
+        let (state, ids) = fixture(&case()).unwrap();
+        let goal = ids["Psychology assignment"];
+        let c = state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .current_conversation()
+            .unwrap();
+        let server = MockServer::start().await;
+        let plans = Arc::new(AtomicUsize::new(0));
+        let reviews = Arc::new(AtomicUsize::new(0));
+        Mock::given(method("POST")).respond_with(move |r:&Request| {
+            let (b,ctx)=body(r);
+            match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+                "buddy_skill_plan" if plans.fetch_add(1,Ordering::SeqCst)==0=>{
+                    response(json!({"state_version":ctx["state"]["state_version"],"response":if initial_clarification {
+                        json!({"decision":"clarification","question":"Do you want to focus Psychology assignment?"})
+                    }else{json!({"decision":"answer","message":"Focus switched to Psychology assignment.","web_query":null,"compose_response":false})}}))
+                },
+                "buddy_skill_plan"=>{
+                    assert_eq!(ctx["validation_feedback"]["request_mode"],"change");
+                    response(action(&ctx,"set_focus_goal",json!({"goal":{"goal_id":goal,"reference":null}}),"change",true))
+                },
+                "buddy_dialogue_authorization"=>response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+                "buddy_dialogue_response"=>{
+                    assert_eq!(ctx["verified_execution"]["status"],"executed");
+                    response(json!({"message":"Psychology assignment is now in focus.","resources":[],"memory_update":null,"verified_result_indices":[0]}))
+                },
+                "buddy_dialogue_review" if reviews.fetch_add(1,Ordering::SeqCst)==0=>response(json!({"review":{"verdict":if initial_clarification {"repair"}else{"approved"},"request_mode":"change","message":if initial_clarification {"The user explicitly requested set_focus_goal. Execute it instead of asking again."}else{""}}})),
+                "buddy_dialogue_review"=>response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+                name=>panic!("Unexpected request {name}"),
+            }
+        }).expect(6).mount(&server).await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let out=run(&json!({"latest_request":"Focus Psychology assignment","natural_reply":true,"conversation":case().history}),c,&state,0,true,&service).await.unwrap();
+        assert!(out.committed);
+        assert_eq!(out.revision, 1);
+        assert_eq!(
+            state
+                .inner
+                .lock()
+                .unwrap()
+                .storage
+                .core_snapshot(None)
+                .unwrap()
+                .focused_goal_id,
+            Some(goal)
+        );
+    }
+}
+
+#[test]
+fn duplicate_names_require_a_stable_selection_even_if_model_guesses() {
+    let mut c = case();
+    c.kind = "ambiguous_goal".into();
+    let (state, ids) = fixture(&c).unwrap();
+    let i = state.inner.lock().unwrap();
+    let snap = skills::snapshot(&i.storage, i.storage.current_conversation().unwrap()).unwrap();
+    let goal = ids["Psychology assignment"];
+    let plan:skills::Plan=serde_json::from_value(json!({"kind":"actions","state_version":snap.version,"actions":[{"name":"set_focus_goal","input":{"goal":{"goal_id":goal,"reference":null}},"instruction":"Focus Psychology assignment"}],"clarification":null})).unwrap();
+    let candidates = duplicate_target(&plan, &snap, None).unwrap();
+    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates[1]["step_count"], 1);
+    assert!(duplicate_target(&plan, &snap, Some(goal)).is_none());
+    let mut referenced = snap.clone();
+    referenced.references.last_referenced_goal_id = Some(goal);
+    assert!(duplicate_target(&plan, &referenced, None).is_none());
+}
+
+#[tokio::test]
+async fn duplicate_mutation_is_blocked_before_authorization_or_execution() {
+    let mut c = case();
+    c.kind = "ambiguous_goal".into();
+    let (state, ids) = fixture(&c).unwrap();
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let before = skills::snapshot(&state.inner.lock().unwrap().storage, conversation).unwrap();
+    let goal = ids["Psychology assignment"];
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |r: &Request| {
+        let (b, ctx) = body(r);
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+            "buddy_skill_plan" => response(action(&ctx,"set_focus_goal",json!({"goal":{"goal_id":goal,"reference":null}}),"change",true)),
+            "buddy_target_clarification" => response(json!({"question":"Two goals share this title. Which do you mean? Select it in the chat goal selector."})),
+            name => panic!("Ambiguous mutation must never reach {name}"),
+        }
+    }).expect(2).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let out = run(&json!({"latest_request":"Focus Psychology assignment","natural_reply":true,"conversation":c.history}),conversation,&state,0,true,&service).await.unwrap();
+    assert!(!out.committed);
+    assert!(out.reply.message.contains("Two goals"));
+    let after = skills::snapshot(&state.inner.lock().unwrap().storage, conversation).unwrap();
+    assert_eq!(before.data, after.data);
+    assert_eq!(
+        before.data["focused_goal_id"],
+        after.data["focused_goal_id"]
+    );
+    assert_eq!(
+        before.references.last_referenced_goal_id,
+        after.references.last_referenced_goal_id
+    );
 }

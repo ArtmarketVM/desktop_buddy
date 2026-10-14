@@ -313,7 +313,10 @@ fn sidebar_status_is_content_free_and_configuration_does_not_claim_connectivity(
         .keys()
         .map(String::as_str)
         .collect();
-    assert_eq!(keys, ["configured_model", "services"]);
+    assert_eq!(
+        keys,
+        ["configured_model", "configured_response_model", "services"]
+    );
     let serialized = status.to_string();
     for private in [
         "api_key",

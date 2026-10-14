@@ -21,6 +21,7 @@ vi.mock("../ai/serviceStatus", async (importOriginal) => ({
 }));
 const fixture: ServiceSnapshot = {
   configured_model: "nvidia/nemotron-3-super-120b-a12b",
+  configured_response_model: "Qwen/Qwen3.5-397B-A17B",
   services: ["nebius", "nvidia", "tavily"].map((id) => ({
     id: id as "nebius" | "nvidia" | "tavily",
     status: "not_checked",
@@ -53,6 +54,9 @@ it("hover details explain the cloud model and preserve configured-model provenan
   );
   expect(tooltip.textContent).toContain(
     "Configured model: nvidia/nemotron-3-super-120b-a12b",
+  );
+  expect(tooltip.textContent).toContain(
+    "Configured response model: Qwen/Qwen3.5-397B-A17B",
   );
   expect(tooltip.textContent).toContain("generation is checked separately");
   await user.keyboard("{Escape}");

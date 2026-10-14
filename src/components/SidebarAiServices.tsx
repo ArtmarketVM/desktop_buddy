@@ -24,7 +24,7 @@ const services = [
     name: "AI model",
     icon: Sparkles,
     description:
-      "Plans goal and step actions, interprets context and drafts checkpoints. Runs through Nebius, not on this computer.",
+      "Plans and validates goal actions and interprets background activity. The response model writes natural replies and checkpoints. Runs through Nebius, not on this computer.",
   },
   {
     id: "tavily",
@@ -225,6 +225,11 @@ export function SidebarAiServices({
               <p className="service-model">
                 Configured model:{" "}
                 {snapshot?.configured_model ?? "Not available"}
+                <br />
+                Configured response model:{" "}
+                {snapshot?.configured_response_model ??
+                  snapshot?.configured_model ??
+                  "Not available"}
               </p>
             )}
             <div className="service-state">

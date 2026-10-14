@@ -49,8 +49,13 @@ lock. Existing expiration, stale-state and privacy checks remain authoritative.
 - Sharing off hides saved goals, references, work queue, memory and tracking insight.
 - API keys stay runtime-only. The developer panel shows configuration and safe
   inference metadata, never keys, raw prompts or hidden model reasoning.
-- Optional `NEBIUS_REASONING_MODEL_ID` selects the deliberate role; otherwise it
-  uses the configured primary model. No personal setting is silently changed.
+- The default primary model is NVIDIA Nemotron 3 Super for planning, mutation
+  authorization and background analysis. Qwen3.5-397B-A17B writes and reviews
+  natural responses, synthesizes research and drafts checkpoints, through the
+  same Nebius account. `NEBIUS_MODEL_ID` explicitly overrides the primary model;
+  when set without a response override, all roles use that model. The optional
+  `NEBIUS_REASONING_MODEL_ID` explicitly overrides the response role. Existing
+  custom model configurations are preserved. Neither model runs locally.
 - Tavily remains consent-bound for goal research, with existing source validation.
 
 ## Evaluation
@@ -64,27 +69,33 @@ and script-based language detection are separate measurements, not GPT parity.
 The first experimental candidate failed: 39/60 mechanical passes and 45/60
 language matches, including guessed targets and false change claims. It was not
 published. That result motivated the single-decision schema and semantic reviews.
-The earlier waits exhausted the live audit deadline. After authorization, an
-intermediate Ultra candidate passed only 41/60 mechanical checks and 48/60
-language checks; generic clarification and missed mutations remained. Native
-conversation roles, mutually exclusive responses and semantic reasoning are
-being re-evaluated before selecting a model.
-No best-model claim or production model change is justified yet. The latest
-operation-first candidate is again waiting for macOS Keychain access. Keeping
-the internal signing identity did not eliminate prompts for changing test builds.
+On the same intermediate pipeline, Super passed 60/60 mechanical checks and
+57/60 language checks, Qwen passed 59/60 and 59/60, and Ultra passed 46/60 and
+40/60. Median turn latency was 7.99, 11.38 and 8.13 seconds respectively.
+Manual review found Qwen's drafts more useful and readable. Its ambiguous-goal
+failure demonstrated that model-based authorization alone is insufficient.
 
-Current local automated evidence: 432 Rust tests passed, 2 existing opt-in tests
-ignored; 160 frontend tests passed; 15 release-verification tests and 8 acceptance
-runner tests passed; frontend build and changed-file formatting passed.
-Both native CI builds passed the initial draft commit. A signed Apple Silicon
-candidate is rebuilt for each live evaluation. Final exact-source native builds,
-live comparison and installer publication remain required.
+The final candidate adds a deterministic Rust guard for duplicate goal names:
+without an original conversational target or explicit chat goal selection, it
+asks the user to select the goal before executing. A model cannot bypass this
+check by guessing an ID or reading a goal first. Non-detailed goals include
+step counts/previews and `plan: null`, rather than misleading empty step lists.
+When a response reviewer recognizes an unexecuted explicit action, the bounded
+loop replans instead of answering as if it executed. Product facts describe
+actual user-facing controls instead of asking users to invoke internal skills.
+
+Final hybrid validation and exact-source native builds are pending. The
+installed 0.29.0 application remains unchanged during candidate evaluation.
+Keychain prompts remain possible for changing test binaries despite the
+preserved internal signing identity; this is not claimed to be resolved.
 
 No database migrations, updater key changes or macOS signing identity changes.
 
 ## Limitations
 
 Model reviews add latency and inference cost and can share correlated errors.
+Duplicate names currently require a stable conversational target or explicit
+chat goal selection; arbitrary descriptive disambiguation is not guaranteed.
 Language fixtures are finite; unseen phrasing still needs evaluation. A hard
 timeout after a committed action can require checking actual app state before
 retrying. Deterministic fallback receipts remain English. No claim that the

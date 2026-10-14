@@ -2,7 +2,7 @@
 use crate::skills::Snapshot;
 use serde_json::{json, Value};
 
-pub const PRODUCT_FACTS: &str = "sumi is the user's personal goals workspace. Today has one In focus goal and a saved, ordered Later today queue. Up next is the first open goal in that queue, not a separate service. A goal can be discussed while another is in focus. Reading or discussing a goal never changes focus. Focus now changes it explicitly; opening details does not. Goals and steps have stable IDs; the circle completes an item. Park stores a checkpoint; Resume restores it. Progress distinguishes observed time, relevant goal time and confirmed completions; time alone never proves completion. Settings controls AI sharing, tracking, memory, quiet mode and provider connections. Accessibility permission is needed for activity collection. You can read local goal facts and use registered skills, but cannot inspect arbitrary files, send messages, or act in other apps. OS permissions and provider outages cannot be fixed by claiming success.";
+pub const PRODUCT_FACTS: &str = "sumi is the user's personal goals workspace. Today has one In focus goal and a saved, ordered Later today queue. Up next is the first open goal in that queue, not a separate service. A goal can be discussed while another is in focus. Reading or discussing a goal never changes focus. Focus now changes it explicitly; opening details does not. Users can choose the discussed goal using the chat goal selector. Goal row menus provide Edit goal, Add/Remove from Today, Focus on this goal and Delete goal. UI Delete permanently requires confirmation and has no undo; chat deletion is reversible using the returned backup. Explain these user-facing controls, not internal skill names or IDs, unless the user asks for developer details. Goals and steps have stable IDs; the circle completes an item. Park stores a checkpoint; Resume restores it. Progress distinguishes observed time, relevant goal time and confirmed completions; time alone never proves completion. Settings controls AI sharing, tracking, memory, quiet mode and provider connections. Accessibility permission is needed for activity collection. You can read local goal facts and use registered skills, but cannot inspect arbitrary files, send messages, or act in other apps. OS permissions and provider outages cannot be fixed by claiming success.";
 
 fn clip(value: &mut Value, limit: usize) {
     if let Some(text) = value.as_str() {
@@ -30,6 +30,17 @@ pub fn workspace(snapshot: &Snapshot, share: bool, selected: Option<i64>) -> Val
     goals.truncate(40);
     for goal in &mut goals {
         let id = goal["goal_id"].as_i64();
+        let steps = goal["plan"]["steps"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        goal["step_count"] = json!(steps.len());
+        goal["next_step_preview"] = steps
+            .iter()
+            .find(|s| s["done"] == false)
+            .map(|s| s["text"].clone())
+            .unwrap_or(Value::Null);
+        clip(&mut goal["next_step_preview"], 200);
         clip(&mut goal["title"], 200);
         let detailed = [selected, referenced, focus, next]
             .into_iter()
@@ -45,7 +56,8 @@ pub fn workspace(snapshot: &Snapshot, share: bool, selected: Option<i64>) -> Val
             }
         } else {
             goal["description"] = Value::Null;
-            goal["plan"] = json!({"details_available_via":"inspect_goal","steps":[]});
+            goal["plan"] = Value::Null;
+            goal["details_available_via"] = json!("inspect_goal");
         }
     }
     let mut queue = snapshot.data["work_queue"].clone();

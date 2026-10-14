@@ -138,7 +138,7 @@ export function PersonalAiEnginePanel({
             <dd>{data.provider}</dd>
             <dt>Configured model</dt>
             <dd>{data.configured_model ?? "Not configured"}</dd>
-            <dt>Configured reasoning model</dt>
+            <dt>Configured response model</dt>
             <dd>
               {data.configured_reasoning_model &&
               data.configured_reasoning_model !== data.configured_model

@@ -482,7 +482,7 @@ fn today_drag_order_survives_database_reopen_without_changing_today_membership()
     ));
     let expected;
     let today;
-    let date = Utc::now().date_naive().to_string();
+    let date = chrono::Local::now().date_naive().to_string();
     {
         let mut storage = Storage::open(&path).unwrap();
         storage

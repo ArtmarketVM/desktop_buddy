@@ -249,7 +249,7 @@ pub async fn run() -> Result<Value, String> {
     }
     let language_passed = rows.iter().filter(|r| r.language_matched).count();
     Ok(
-        json!({"configured_model":service.model,"passed":passed,"language_matched":language_passed,"total":rows.len(),"mechanical_accuracy":passed as f64/rows.len() as f64,
+        json!({"configured_model":service.model,"configured_response_model":crate::http::response_model(&service.model),"passed":passed,"language_matched":language_passed,"total":rows.len(),"mechanical_accuracy":passed as f64/rows.len() as f64,
         "rubric":"Mechanical state/target correctness only. Natural-response usefulness and factuality require blind review of the saved synthetic replies.","cases":rows}),
     )
 }
