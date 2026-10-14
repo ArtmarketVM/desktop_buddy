@@ -10,6 +10,7 @@ impl Storage {
         let store = Self { connection };
         store.initialize()?;
         store.initialize_tracking()?;
+        store.initialize_window_history()?;
         store.initialize_profile()?;
         store.initialize_core()?;
         store.initialize_skills()?;
@@ -153,6 +154,7 @@ impl Storage {
             ("buddy_messages", "created_at"),
             ("resource_views", "created_at"),
             ("usage_intervals", "ended_at"),
+            ("window_activity", "ended_at"),
             ("tracking_events", "timestamp"),
             ("decisions", "timestamp"),
             ("activity", "timestamp"),

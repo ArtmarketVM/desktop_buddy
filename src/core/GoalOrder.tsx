@@ -36,7 +36,7 @@ export function moveVisibleGoal(
 const HOLD_MS = 250;
 const MOVE_TOLERANCE = 6;
 const IGNORED =
-  "input, textarea, select, a, .goal-overflow, .goal-menu, .goal-expanded, .goal-work-context, .checkpoint-popover, .goal-status-icon";
+  "input, textarea, select, a, .goal-overflow, .goal-menu, .goal-expanded, .goal-work-context, .checkpoint-popover, .goal-status-icon, .today-queue-heading";
 type Bounds = { top: number; bottom: number };
 type Drag = { from: number; to: number; dy: number; height: number };
 type Press = {

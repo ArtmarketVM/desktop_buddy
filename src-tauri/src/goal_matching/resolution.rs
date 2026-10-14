@@ -13,6 +13,15 @@ impl Storage {
             .into_iter()
             .find(|g| g.id == id && g.status == "open")
             .ok_or("Choose an open goal")?;
+        let mut order: Vec<i64> = self
+            .core_snapshot(None)?
+            .goals
+            .iter()
+            .map(|g| g.id)
+            .collect();
+        order.retain(|other| *other != id);
+        order.insert(0, id);
+        self.write_setting("core_goal_order", &order)?;
         self.write_setting(
             "explicit_focus_goal",
             &Some(ExplicitFocus {

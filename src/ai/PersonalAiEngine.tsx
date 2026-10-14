@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktop } from "../api/tauri";
 import {
   engineApi,
@@ -11,26 +11,61 @@ const readable = (value: string) => value.replaceAll("_", " ");
 const latency = (value: number | null | undefined) =>
   value == null ? "Not measured" : `${value} ms`;
 
-export function PersonalAiEnginePanel() {
+export function PersonalAiEnginePanel({
+  initiallyOpen = false,
+}: {
+  initiallyOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initiallyOpen);
+  const [live, setLive] = useState(true);
+  const inFlight = useRef(false);
+  const mounted = useRef(true);
   const [data, setData] = useState<PersonalAiEngine | null>(null);
   const [health, setHealth] = useState<InferenceHealth | null>(null);
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [actionChecks, setActionChecks] = useState<
+    Array<{ name: string; status: string; latency_ms: number }>
+  >([]);
+  const [checkingActions, setCheckingActions] = useState(false);
   const [error, setError] = useState("");
   async function refresh() {
-    if (!desktop) return;
+    if (!desktop || inFlight.current || !mounted.current) return;
+    inFlight.current = true;
     setLoading(true);
     setError("");
     try {
       const result = await engineApi.status();
-      setData(result);
-      setHealth(result.health);
+      if (mounted.current) {
+        setData(result);
+        setHealth(result.health);
+      }
     } catch {
       setError("Engine diagnostics are unavailable. Try refreshing.");
     } finally {
-      setLoading(false);
+      inFlight.current = false;
+      if (mounted.current) setLoading(false);
     }
   }
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!open || !live || !desktop) return;
+    const poll = () => {
+      if (document.visibilityState !== "hidden") void refresh();
+    };
+    poll();
+    const timer = setInterval(poll, 5000);
+    document.addEventListener("visibilitychange", poll);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", poll);
+    };
+  }, [open, live]);
   async function check() {
     setTesting(true);
     setError("");
@@ -45,21 +80,45 @@ export function PersonalAiEnginePanel() {
       setTesting(false);
     }
   }
+  async function checkActions() {
+    setCheckingActions(true);
+    setError("");
+    setActionChecks([]);
+    try {
+      setActionChecks(await engineApi.actions());
+    } catch {
+      setError(
+        "Agent check could not finish. Enable AI, check the connection and wait 60 seconds before retrying. No user goals were changed.",
+      );
+    } finally {
+      setCheckingActions(false);
+    }
+  }
   const reported =
     health?.provider_reported_model ??
     data?.last_inference?.provider_reported_model;
   return (
     <details
       className="inline-details personal-ai-engine"
+      open={open}
       onToggle={(event) => {
-        if (event.currentTarget.open && !data && !loading) void refresh();
+        setOpen(event.currentTarget.open);
       }}
     >
       <summary>Personal AI Engine</summary>
       <p className="helper">
-        Developer and demo diagnostics. Refresh reads local state only; no
-        automatic inference checks.
+        Developer and demo diagnostics. Shows events, decisions and verified
+        actions; no private reasoning, prompts, keys or screen text. Live
+        refresh reads local state only.
       </p>
+      <label className="engine-live-switch">
+        <input
+          type="checkbox"
+          checked={live}
+          onChange={(event) => setLive(event.target.checked)}
+        />
+        Live monitor · refresh every 5 seconds while open
+      </label>
       <button
         type="button"
         className="secondary"
@@ -97,6 +156,20 @@ export function PersonalAiEnginePanel() {
                 ? `${data.retrieval.passed} passed / ${data.retrieval.found} found · ${data.retrieval.context_bytes} context bytes`
                 : "No retrieval or memory disabled"}
             </dd>
+            <dt>Last input / background event</dt>
+            <dd>
+              {readable(data.runtime.diagnostics.last_input ?? "none")} /{" "}
+              {readable(data.runtime.diagnostics.last_event ?? "none")}
+            </dd>
+            <dt>Enabled features and quiet mode</dt>
+            <dd>
+              {Object.entries(data.configuration ?? {})
+                .map(
+                  ([name, enabled]) =>
+                    `${readable(name)}: ${enabled ? "on" : "off"}`,
+                )
+                .join(" · ") || "Not reported"}
+            </dd>
             <dt>Last decision</dt>
             <dd>
               {data.last_decision
@@ -110,6 +183,16 @@ export function PersonalAiEnginePanel() {
               {latency(data.last_inference?.latency_ms)}
               {data.last_inference &&
                 ` · ${data.last_inference.operation} · ${data.last_inference.status}`}
+            </dd>
+            <dt>Last response diagnostics</dt>
+            <dd>
+              {data.last_inference?.finish_reason ??
+                "No finish reason reported"}{" "}
+              · {data.last_inference?.prompt_tokens ?? "?"} input /{" "}
+              {data.last_inference?.completion_tokens ?? "?"} output tokens
+              {data.last_inference?.validation_error
+                ? ` · ${readable(data.last_inference.validation_error)}`
+                : ""}
             </dd>
             <dt>Tavily status</dt>
             <dd>{readable(data.tavily_status)}</dd>
@@ -144,7 +227,7 @@ export function PersonalAiEnginePanel() {
             <p className="helper">
               Sends one small synthetic request to Nebius with a strict JSON
               Schema. No goals, memory, audio or window contents are sent.
-              Provider charges may apply. Manual only, with a 10-second timeout
+              Provider charges may apply. Manual only, with a 20-second timeout
               and at least 60 seconds between checks.
             </p>
             <button
@@ -165,6 +248,63 @@ export function PersonalAiEnginePanel() {
             {health?.error && <p role="alert">{health.error}</p>}
             {health?.checked_at && (
               <p className="helper">Last check: {health.checked_at}</p>
+            )}
+          </section>
+          <section aria-label="Live agent action check">
+            <h4>Test the complete action pipeline</h4>
+            <p className="helper">
+              Runs nine real AI checks on disposable goals in an isolated
+              in-memory database: create, steps, confirmation, completion,
+              rename, Park, Resume and remaining work. No personal goals, chats
+              or window text are sent. Provider charges may apply. Stops at the
+              first failure; maximum 3 minutes.
+            </p>
+            <button
+              className="secondary"
+              disabled={!desktop || checkingActions || testing}
+              onClick={() => void checkActions()}
+            >
+              {checkingActions
+                ? "Checking agent actions…"
+                : "Run isolated agent check"}
+            </button>
+            <ul aria-live="polite">
+              {actionChecks.map((check) => (
+                <li key={check.name}>
+                  {readable(check.name)} · {check.status} · {check.latency_ms}{" "}
+                  ms
+                </li>
+              ))}
+            </ul>
+          </section>
+          <section aria-label="Agent event journal">
+            <h4>Agent event journal</h4>
+            <p className="helper">
+              Latest 200 events this session. Observe → reason → decide → skill
+              → verify. Waiting or staying silent can be the correct decision.
+            </p>
+            {(data.events ?? []).length === 0 ? (
+              <p className="helper">No instrumented events yet this session.</p>
+            ) : (
+              <ol className="engine-events">
+                {(data.events ?? []).map((event, index) => (
+                  <li key={`${event.at}-${index}`}>
+                    <time dateTime={event.at}>
+                      {new Date(event.at).toLocaleTimeString()}
+                    </time>
+                    <div>
+                      <strong>{readable(event.operation)}</strong>
+                      <span>
+                        {event.stage} · {readable(event.status)}
+                        {event.goal_id ? ` · goal #${event.goal_id}` : ""}
+                        {event.latency_ms != null
+                          ? ` · ${event.latency_ms} ms`
+                          : ""}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ol>
             )}
           </section>
           <h4>Available skills</h4>

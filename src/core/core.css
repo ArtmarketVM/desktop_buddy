@@ -818,7 +818,7 @@
   display: flex;
   gap: 20px;
   padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line, var(--accent-soft));
 }
 .activity-timeline time {
   font-size: 12px;
@@ -1747,3 +1747,97 @@ p.error .text-button {
 .work-context-checkpoint { font-size: 13px; overflow-wrap: anywhere; }
 .work-context-checkpoint p { margin: 6px 0; }
 .work-context-receipt { white-space: pre-line; font-size: 13px; }
+
+/* Explicit focus and a separate, reorderable queue. */
+.today-lane-heading,
+.today-queue-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.today-lane-heading {
+  margin: 20px 0 8px;
+}
+.today-lane-heading h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.today-lane-heading > span:last-child {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.focus-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent, #79a7b8);
+}
+.today-focus-lane {
+  border-left: 2px solid var(--accent, #79a7b8);
+  padding-left: 14px;
+}
+.today-queue-heading {
+  font-size: 11px;
+  color: var(--muted);
+  padding: 8px 0 0;
+}
+.today-queue-heading button {
+  margin-left: auto;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.today-finished {
+  margin-top: 20px;
+}
+
+.window-activity {
+  margin-top: 24px;
+}
+.window-activity .helper {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.observed-apps {
+  list-style: none;
+  padding: 0;
+}
+.observed-apps li {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(60px, 2fr) 55px;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  padding: 5px 0;
+}
+.observed-apps meter {
+  width: 100%;
+  height: 5px;
+  accent-color: var(--accent);
+}
+.window-session-list {
+  list-style: none;
+  padding: 0;
+  max-height: 400px;
+  overflow: auto;
+}
+.window-session-list li {
+  display: grid;
+  grid-template-columns: 65px minmax(0, 1fr) 40px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line, var(--accent-soft));
+  padding: 10px 0;
+  font-size: 12px;
+}
+.window-session-list time,
+.window-session-list small {
+  color: var(--muted);
+}
+.window-session-list li div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}

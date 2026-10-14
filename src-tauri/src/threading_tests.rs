@@ -38,6 +38,7 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("insights", include_str!("insights.rs")),
         ("tracking", include_str!("tracking.rs")),
         ("history", include_str!("history.rs")),
+        ("window_history", include_str!("window_history.rs")),
         ("profile", include_str!("profile.rs")),
         ("product_feedback", include_str!("product_feedback.rs")),
         ("installed_apps", include_str!("installed_apps.rs")),

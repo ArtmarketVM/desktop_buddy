@@ -1,6 +1,74 @@
 use super::*;
 
 #[tokio::test]
+async fn audit_regression_repairs_wrong_operation_and_missing_quote_without_model_receipts() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+    let server = MockServer::start().await;
+    let renamed = Arc::new(AtomicUsize::new(0));
+    let attempt = renamed.clone();
+    Mock::given(method("POST")).respond_with(move |r:&Request| {
+        let body:Value=serde_json::from_slice(&r.body).unwrap();
+        assert_eq!(body["response_format"]["json_schema"]["name"],"buddy_skill_plan");
+        let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let latest=context["latest_request"].as_str().unwrap();
+        let goal=json!({"goal_id":context["state"]["goals"][0]["goal_id"],"reference":null});
+        let (name,input)=match latest {
+            "Create an interview goal" => ("create_goal",json!({"title":"Interview","steps":["Read vacancy","Practice"]})),
+            "Первый отметь готовым." => ("complete_step",json!({"goal":goal,"step":{"step_id":null,"ordinal":1,"reference":null}})),
+            "Переименуй цель «Interview» в «Ready»." if attempt.fetch_add(1,Ordering::SeqCst)==0 => ("reopen_goal",json!({"goal":goal})),
+            "Переименуй цель «Interview» в «Ready»." => ("rename_goal",json!({"goal":goal,"title":"Ready"})),
+            _=>panic!("Unexpected synthetic request"),
+        };
+        let plan=json!({"kind":"actions","actions":[{"name":name,"input":input,"instruction":null}],"state_version":context["state"]["state_version"],"clarification":null});
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(plan).to_string()}}]}))
+    }).expect(4).mount(&server).await;
+    let s = AppState::new(store()).unwrap();
+    let service = Service {
+        client: &s.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    for text in [
+        "Create an interview goal",
+        "Первый отметь готовым.",
+        "Переименуй цель «Interview» в «Ready».",
+    ] {
+        let (c, v) = {
+            let i = s.inner.lock().unwrap();
+            (
+                i.storage.current_conversation().unwrap(),
+                i.privacy_revision,
+            )
+        };
+        let result = structured_chat_actions_with_service(
+            &json!({"latest_request":text,"conversation":[]}),
+            c,
+            &s,
+            v,
+            true,
+            &service,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(result.2);
+        if text.starts_with("Переименуй") {
+            assert_eq!(result.0, "Renamed the goal to \"Ready\".");
+        }
+    }
+    let i = s.inner.lock().unwrap();
+    let g = &i.storage.core_snapshot(None).unwrap().goals[0];
+    assert_eq!(g.title, "Ready");
+    assert!(g.plan.steps[0].done);
+    assert!(!g.plan.steps[1].done);
+}
+
+#[tokio::test]
 async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
     use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
     let server = MockServer::start().await;
@@ -16,7 +84,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
             json!({"message":"Created your interview goal."})
         };
         ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
-    }).expect(2).mount(&server).await;
+    }).expect(1).mount(&server).await;
     let storage = store();
     let conversation = storage.current_conversation().unwrap();
     let state = AppState::new(storage).unwrap();
@@ -37,7 +105,10 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
     .await
     .unwrap()
     .unwrap();
-    assert_eq!(reply.0, "Created your interview goal.");
+    assert_eq!(
+        reply.0,
+        "Created \"Prepare for interview\" and added it to Today."
+    );
     assert_eq!(reply.1, 1);
     assert_eq!(
         state
@@ -158,7 +229,7 @@ async fn committed_action_keeps_authoritative_receipt_when_reply_sharing_changes
             json!({"message":"This stale wording must be discarded"})
         };
         ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(response).to_string()}}]}))
-    }).expect(2).mount(&server).await;
+    }).expect(1).mount(&server).await;
     let service = Service {
         client: &state.client,
         endpoint: server.uri(),
@@ -1218,7 +1289,7 @@ async fn inspect_skill_uses_validated_goal_id_to_retrieve_checkpoint_for_memory_
             json!({"message":"The outline is finished. Next: write the pitch."})
         };
         ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
-    }).expect(2).mount(&server).await;
+    }).expect(1).mount(&server).await;
     let conversation = storage.current_conversation().unwrap();
     let state = AppState::new(storage).unwrap();
     let service = Service {
@@ -1238,8 +1309,9 @@ async fn inspect_skill_uses_validated_goal_id_to_retrieve_checkpoint_for_memory_
     .await
     .unwrap()
     .unwrap();
-    assert!(reply.0.contains("write the pitch"));
+    assert!(reply.0.contains("Write the pitch"));
     assert!(!reply.2);
+    assert!(!reply.0.contains("Other confidential"));
 }
 
 #[tokio::test]
@@ -1280,7 +1352,7 @@ async fn park_chat_commands_generate_then_validate_then_save_checkpoint() {
                 _ => panic!("Unexpected provider operation"),
             };
             ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
-        }).expect(3).mount(&server).await;
+        }).expect(2).mount(&server).await;
         let service = Service {
             client: &state.client,
             endpoint: server.uri(),
@@ -1366,7 +1438,7 @@ async fn resume_and_inspect_chat_use_exact_context_and_never_other_lanes() {
                 json!({"message":"Outline saved. Next: review requirements. Waiting for team feedback."})
             };
             ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":crate::agent_runtime::reasoning::fixture_plan(output).to_string()}}]}))
-        }).expect(2).mount(&server).await;
+        }).expect(1).mount(&server).await;
         let service = Service {
             client: &state.client,
             endpoint: server.uri(),
@@ -1385,6 +1457,7 @@ async fn resume_and_inspect_chat_use_exact_context_and_never_other_lanes() {
         .unwrap()
         .unwrap();
         assert_eq!(reply.2, focuses);
+        assert!(!reply.0.contains("UNRELATED PROJECT CHECKPOINT"));
         let inner = state.inner.lock().unwrap();
         assert_eq!(
             inner.storage.goal().unwrap().map(|g| g.id),
@@ -1784,23 +1857,15 @@ mod voice_agent {
             "execute_explicit_user_action",
         )
         .await;
-        assert!(
-            !run(&state, &server, "Что я сегодня сделал?", true)
-                .await
-                .unwrap()
-                .2
-        );
-        let requests = server.received_requests().await.unwrap();
-        let body: Value = serde_json::from_slice(&requests[1].body).unwrap();
-        let data: Value =
-            serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
-        let result = &data["result"]["results"][0]["data"];
-        assert!(result["confirmed_results"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("Practice answers")));
-        assert_eq!(result["timer_seconds"], 0);
-        assert_eq!(result["relevant_seconds"], 0);
+        let reply = run(&state, &server, "Что я сегодня сделал?", true)
+            .await
+            .unwrap();
+        assert!(!reply.2);
+        assert!(reply.0.contains("Practice answers"));
+        assert!(reply
+            .0
+            .contains("Relevant activity: 0 min. Observed activity: 0 min. Manual timer: 0 min."));
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
     #[tokio::test]
     async fn spoken_step_delete_cancel_and_stale_confirmation_are_safe() {

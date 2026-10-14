@@ -21,9 +21,16 @@ pub async fn post_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
+    let payload = constrained_payload(payload);
     let mut last = "Service unavailable".to_string();
     for attempt in 0..3 {
-        match client.post(url).bearer_auth(key).json(payload).send().await {
+        match client
+            .post(url)
+            .bearer_auth(key)
+            .json(&payload)
+            .send()
+            .await
+        {
             Ok(response) if response.status().is_success() => {
                 return response
                     .json()
@@ -44,6 +51,19 @@ pub async fn post_json(
         }
     }
     Err(last)
+}
+/// Nemotron's reasoning tokens otherwise consume the budget intended for strict action JSON.
+/// Other models and non-inference tools retain their existing request contract.
+pub(crate) fn constrained_payload(payload: &Value) -> Value {
+    let mut result = payload.clone();
+    if payload["model"]
+        .as_str()
+        .is_some_and(|m| m.contains("nemotron"))
+        && payload["response_format"]["type"] == "json_schema"
+    {
+        result["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
+    }
+    result
 }
 pub fn endpoint(name: &str) -> Result<String, String> {
     let value = secret(name)?;
@@ -95,6 +115,18 @@ pub fn enabled(name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn constrained_nemotron_does_not_spend_action_budget_on_hidden_reasoning() {
+        let payload = serde_json::json!({"model":"nvidia/nemotron-3-super-120b-a12b","response_format":{"type":"json_schema"},"max_tokens":1024});
+        assert_eq!(
+            constrained_payload(&payload)["chat_template_kwargs"]["enable_thinking"],
+            false
+        );
+        let other = serde_json::json!({"model":"other","response_format":{"type":"json_schema"}});
+        assert_eq!(constrained_payload(&other), other);
+        let search = serde_json::json!({"query":"public docs"});
+        assert_eq!(constrained_payload(&search), search);
+    }
     use wiremock::{
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,

@@ -193,6 +193,18 @@ pub fn begin_explicit(inner: &mut Inner, kind: EventKind) {
     inner.agent.cancel();
     inner.agent.pending.clear();
     inner.agent.diagnostics.last_input = Some(kind);
+    crate::engine_observability::record(
+        inner,
+        "input",
+        if kind == EventKind::VoiceMessage {
+            "voice_message"
+        } else {
+            "user_message"
+        },
+        "received",
+        None,
+        None,
+    );
 }
 /// Shared post-transcript action entry. Audio is accepted only by the local STT IPC.
 pub fn explicit_event_kind(request: &Value) -> Result<EventKind, String> {
@@ -343,8 +355,20 @@ fn prepare(inner: &mut Inner, now: i64) -> Result<Option<Job>, String> {
         _ => None,
     };
     let policy = inner.storage.adaptive_policy(event.goal_id, Utc::now())?;
-    let source = json!({"daily_continuity":continuity,"adaptive_policy":policy,"observation":understanding,"event":event,"state_version":snapshot.version,"goal":goal,"current_app":app,"personal_memory":memory,"registry":skills::catalog()});
+    let source = json!({"daily_continuity":continuity,"adaptive_policy":policy,"observation":understanding,"event":event,"state_version":snapshot.version,"goal":goal,"current_app":app,"personal_memory":memory,"registry":skills::planning_catalog()});
     let (cancel, receiver) = watch::channel(false);
+    crate::engine_observability::record(
+        inner,
+        "reason",
+        &serde_json::to_value(event.kind)
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string(),
+        "scheduled",
+        None,
+        event.goal_id,
+    );
     inner.agent.saved.last_attempt = now;
     inner
         .storage
@@ -404,7 +428,15 @@ fn apply(inner: &mut Inner, job: &Job, result: &Reasoning) -> Result<Option<Stri
     }
     let mut message = match result.decision {
         Decision::StaySilent | Decision::UpdateMemoryOnly => None,
-        Decision::OfferHelp | Decision::OfferSkill => Some(result.situation.clone()),
+        Decision::OfferHelp | Decision::OfferSkill => Some(
+            if let Some(next) =
+                job.source["personal_memory"]["work_context"]["next_action"].as_str()
+            {
+                format!("Ready to continue? Your saved next action: {next}")
+            } else {
+                "Would you like help choosing the next action for this goal?".into()
+            },
+        ),
         Decision::RequestClarification => result.clarification.clone(),
         Decision::ExecuteExplicitUserAction => {
             return Err("Background events cannot authorize skill execution".into())
@@ -416,6 +448,17 @@ fn apply(inner: &mut Inner, job: &Job, result: &Reasoning) -> Result<Option<Stri
     }
     // Verified domain events, not model prose, own episodic memory identities and content.
     reasoning::remember_verified(&inner.storage, &job.event, &result.memory_updates)?;
+    crate::engine_observability::record(
+        inner,
+        "decision",
+        serde_json::to_value(result.decision)
+            .unwrap()
+            .as_str()
+            .unwrap(),
+        "verified",
+        None,
+        job.event.goal_id,
+    );
     inner.agent.diagnostics.last_decision = Some(result.decision);
     inner.agent.diagnostics.verified = inner.agent.diagnostics.verified.saturating_add(1);
     // Absorb any state changed by our own memory write. No memory-created event is emitted.

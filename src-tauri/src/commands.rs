@@ -13,6 +13,7 @@ pub struct Inner {
     pub tracking_settings: crate::tracking::TrackingSettings,
     pub activity_state: crate::tracking::StateTracker,
     pub usage: crate::insights::UsageTracker,
+    pub window_history: crate::window_history::Recorder,
     pub retention_days: u32,
     pub last_cleanup: Instant,
     pub privacy_revision: u64,
@@ -60,6 +61,7 @@ impl AppState {
                 tracking_settings: storage.tracking_settings()?,
                 activity_state: Default::default(),
                 usage: Default::default(),
+                window_history: Default::default(),
                 retention_days,
                 last_cleanup: Instant::now(),
                 privacy_revision: 0,
@@ -358,6 +360,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             }
             Err(error) => {
                 inner.usage = Default::default();
+                inner.window_history.clear();
                 if error == collector::CONTEXT_CHANGED {
                     return Ok(());
                 }
@@ -379,6 +382,29 @@ pub fn collect(state: &AppState) -> Result<(), String> {
         crate::goal_matching::observe_inner(&mut inner, &snapshot, allowed)?;
         inner.buddy.foreground = allowed.then(|| snapshot.clone());
         crate::companion::observe(&mut inner, &snapshot, allowed);
+        let selected_goal = inner.storage.goal()?.map(|g| g.id);
+        let crate::commands::Inner {
+            window_history,
+            storage,
+            ..
+        } = &mut *inner;
+        let changed = window_history.observe(
+            storage,
+            &snapshot,
+            selected_goal,
+            allowed,
+            settings.idle_seconds,
+        )?;
+        if changed {
+            crate::engine_observability::record(
+                &mut inner,
+                "observe",
+                "foreground_changed",
+                "observed",
+                None,
+                selected_goal,
+            );
+        }
         let Some(goal) = inner.storage.goal()? else {
             inner.usage = Default::default();
             inner.activity_state.stop(false);
@@ -469,7 +495,12 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
     let result = if mock {
         Ok(nebius::mock(&activity))
     } else {
-        nebius::analyze(&state.client, &context, &activity).await
+        crate::engine_observability::observe_specialist(
+            state,
+            "focus_check",
+            nebius::analyze(&state.client, &context, &activity),
+        )
+        .await
     };
     let mut inner = state
         .inner
@@ -552,6 +583,62 @@ fn should_nudge(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn collection_records_unassigned_windows_on_both_platform_contexts() {
+        struct Fixture(ActivitySnapshot);
+        impl collector::ActivityCollector for Fixture {
+            fn collect(&mut self) -> Result<ActivitySnapshot, String> {
+                Ok(self.0.clone())
+            }
+        }
+        for process in ["Editor.app", "editor.exe"] {
+            let state =
+                AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+            {
+                let mut inner = state.inner.lock().unwrap();
+                inner.status.tracking = true;
+                inner.status.demo = true;
+                inner.collector = Box::new(Fixture(ActivitySnapshot {
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                    process_name: process.into(),
+                    window_title: "First window".into(),
+                    window_id: Some(1),
+                    ..Default::default()
+                }));
+            }
+            collect(&state).unwrap();
+            {
+                let mut inner = state.inner.lock().unwrap();
+                assert!(inner.storage.goal().unwrap().is_none());
+                assert_eq!(
+                    inner
+                        .storage
+                        .connection
+                        .query_row(
+                            "SELECT count(*) FROM window_activity WHERE goal_id IS NULL",
+                            [],
+                            |r| r.get::<_, i64>(0)
+                        )
+                        .unwrap(),
+                    1
+                );
+                inner.buddy.view.preferences.excluded_apps = vec![process.into()];
+            }
+            collect(&state).unwrap();
+            assert_eq!(
+                state
+                    .inner
+                    .lock()
+                    .unwrap()
+                    .storage
+                    .connection
+                    .query_row("SELECT count(*) FROM window_activity", [], |r| r
+                        .get::<_, i64>(0))
+                    .unwrap(),
+                1
+            );
+        }
+    }
     #[test]
     fn nudges_respect_consent_pause_dnd_idle_and_confidence() {
         let mut status = Status {

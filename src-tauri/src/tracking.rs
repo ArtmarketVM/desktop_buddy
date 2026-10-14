@@ -16,6 +16,7 @@ pub fn configure_goal_monitoring(
         settings.onboarding.tracking_consent = true;
         let mut ai = inner.storage.ai_preferences()?;
         ai.enabled = true;
+        ai.automatic_goal_matching = ai.share_goal_context;
         inner
             .storage
             .write_setting("ai_assistance_preferences", &ai)?;
@@ -37,6 +38,7 @@ pub fn configure_goal_monitoring(
     inner.status.tracking_error = None;
     inner.collector = crate::collector::create(inner.status.demo);
     inner.usage = Default::default();
+    inner.window_history.clear();
     inner.activity_state.stop(false);
     inner.goal_matching.clear();
     inner.companion.invalidate();
@@ -264,6 +266,7 @@ pub fn set_tracking_settings(
     inner.tracking_settings = settings;
     inner.privacy_revision += 1;
     inner.usage = Default::default();
+    inner.window_history.clear();
     inner.activity_state.stop(false);
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)

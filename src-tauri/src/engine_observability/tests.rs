@@ -23,7 +23,7 @@ async fn manual_health_is_one_real_bounded_schema_request_without_user_context()
         .respond_with(|req: &Request| {
             let body: Value = serde_json::from_slice(&req.body).unwrap();
             assert_eq!(body["model"], "configured-fixture");
-            assert_eq!(body["max_tokens"], 256);
+            assert_eq!(body["max_tokens"], 1024);
             assert_eq!(body["response_format"]["json_schema"]["strict"], true);
             assert_eq!(
                 body["response_format"]["json_schema"]["schema"]["additionalProperties"],

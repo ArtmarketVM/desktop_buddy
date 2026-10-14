@@ -27,6 +27,7 @@ const sections = [
   "Appearance",
   "Updates",
   "Integrations / AI",
+  "AI Monitor",
   "About",
 ] as const;
 const time = (value: number) =>
@@ -308,8 +309,9 @@ export function CoreSettings({
             <span>
               Track goals and suggest completed work
               <small>
-                Record app activity and time locally. Send a limited sample of
-                visible text with your goal and steps to Nebius to suggest
+                Record active windows and time locally, even before choosing a
+                goal. Use app context to match goals and send a limited sample
+                of visible text with your goal and steps to Nebius to suggest
                 completed work. Every completion needs your confirmation.
               </small>
             </span>
@@ -487,8 +489,12 @@ export function CoreSettings({
               : "Not configured"}
           </p>
           <AiSettings onChanged={onChanged} />
-          <PersonalAiEnginePanel />
         </details>
+        {section === "AI Monitor" && (
+          <section className="core-section" aria-label="AI Monitor">
+            <PersonalAiEnginePanel initiallyOpen />
+          </section>
+        )}
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>
           <p>sumi · v{data.version}</p>

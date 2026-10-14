@@ -12,7 +12,7 @@ import { PersonalAiEnginePanel } from "./PersonalAiEngine";
 import { engineApi, type PersonalAiEngine } from "./engineApi";
 vi.mock("../api/tauri", () => ({ desktop: true }));
 vi.mock("./engineApi", () => ({
-  engineApi: { status: vi.fn(), health: vi.fn() },
+  engineApi: { status: vi.fn(), health: vi.fn(), actions: vi.fn() },
 }));
 const fixture: PersonalAiEngine = {
   provider: "Nebius Token Factory",
@@ -63,6 +63,33 @@ beforeEach(() => {
   vi.mocked(engineApi.status).mockResolvedValue(fixture);
 });
 afterEach(cleanup);
+it("renders the local event journal and runs isolated actions only on request", async () => {
+  vi.mocked(engineApi.status).mockResolvedValue({
+    ...fixture,
+    events: [
+      {
+        at: "2026-10-14T10:00:00Z",
+        stage: "decision",
+        operation: "stay_silent",
+        status: "verified",
+        latency_ms: null,
+        goal_id: 1,
+      },
+    ],
+  });
+  vi.mocked(engineApi.actions).mockResolvedValue([
+    { name: "rename_goal", status: "passed", latency_ms: 20 },
+  ]);
+  const user = await open();
+  expect(screen.getByText(/decision · verified · goal #1/)).toBeTruthy();
+  expect(engineApi.actions).not.toHaveBeenCalled();
+  await user.click(
+    screen.getByRole("button", { name: "Run isolated agent check" }),
+  );
+  await screen.findByText("rename goal · passed · 20 ms");
+  expect(engineApi.actions).toHaveBeenCalledTimes(1);
+  expect(engineApi.health).not.toHaveBeenCalled();
+});
 async function open() {
   render(<PersonalAiEnginePanel />);
   const details = screen.getByText("Personal AI Engine").parentElement!;

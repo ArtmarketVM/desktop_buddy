@@ -320,7 +320,7 @@ async fn hackathon_hero_two_lanes_voice_park_receipt_resume_research_summary_res
         assert!(!summary.contains("CLIENT_PRIVATE_CANARY"));
         println!("Hero fixture grounded summary:\n{summary}");
         let calls = nebius.received_requests().await.unwrap();
-        assert_eq!(calls.len(), 17); // 7 plans + 6 result replies + 2 checkpoints + 2 research calls.
+        assert_eq!(calls.len(), 11); // 7 plans + 2 checkpoints + 2 research calls; action receipts are local.
         let panel = view(&state.inner.lock().unwrap()).unwrap();
         assert_eq!(panel["last_skill"], "inspect_continuity");
         assert_eq!(panel["last_inference"]["status"], "success");
