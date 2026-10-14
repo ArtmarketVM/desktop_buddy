@@ -1,46 +1,65 @@
 :root {
   color-scheme: light;
-  --canvas: #fafafa;
-  --sidebar: #f3f3f5;
+  /* sumi palette and type: shared with the marketing site. */
+  --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
+  --sans: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif;
+  --canvas: #f5f7f4;
+  --sidebar: #edf1ee;
   --surface: #ffffff;
-  --raised: #f2f3f6;
-  --line: #dcdfe5;
-  --text: #22232a;
-  --muted: #616574;
-  --accent: #52785a;
-  --accent-text: #42664b;
-  --accent-soft: #eaf3ed;
-  --input: #fbfcfe;
-  --inverse: #ffffff;
-  --positive: #39714b;
-  --positive-soft: #eaf3ed;
+  --raised: #e9efea;
+  --line: #dfe5df;
+  --text: #1e2a23;
+  --muted: #5f6b63;
+  --accent: #3e6b48;
+  --accent-text: #3e6b48;
+  --accent-soft: #e4ede6;
+  --input: #ffffff;
+  --inverse: #f5f7f4;
+  --positive: #3e6b48;
+  --positive-soft: #e4ede6;
   --accent-fill: var(--accent);
-  --accent-fill-hover: #42674b;
+  --accent-fill-hover: #386040;
   --field-line: var(--line);
-  font-family: "DM Sans Variable", "Segoe UI", sans-serif;
+  --hill: #a9c5b0;
+  --sky: #dcebf0;
+  --cloud: #e1ecef;
+  --danger: #c8432b;
+  --danger-soft: #f7e6e1;
+  --mochi-sleepy: #a8d8c8;
+  --mochi-alert: #c9d3d8;
+  --mochi-happy: #e8eef0;
+  --radius-card: 8px;
+  --radius-pill: 999px;
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .32 0 0 0 0 .28 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  font-family: var(--sans);
   font-size: 14px;
   color: var(--text);
   background: var(--canvas);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #181818;
-  --sidebar: #131313;
-  --surface: #202022;
-  --raised: #2a2a2e;
-  --line: #45454d;
-  --text: #eeeef0;
-  --muted: #a6a6b2;
-  --accent: #668d6f;
-  --accent-text: #aad8b5;
-  --accent-soft: #263c2c;
-  --input: #1b1b1d;
-  --inverse: #ffffff;
+  --canvas: #17211b;
+  --sidebar: #121a15;
+  --surface: #1d2922;
+  --raised: #27352c;
+  --line: #35463b;
+  --text: #eef3ee;
+  --muted: #a9b8ad;
+  --accent: #7fae8b;
+  --accent-text: #a9d1b4;
+  --accent-soft: #26392d;
+  --input: #19231d;
+  --inverse: #f5f7f4;
   --positive: #99cfaa;
   --positive-soft: #23372a;
-  --accent-fill: #4f7858;
-  --accent-fill-hover: #5a8363;
-  --field-line: #74747e;
+  --accent-fill: #4f7a5a;
+  --accent-fill-hover: #5a8766;
+  --field-line: #4a5d50;
+  --hill: #35543f;
+  --sky: #1f2d33;
+  --cloud: #243036;
+  --danger: #e0664f;
+  --danger-soft: #3c2520;
 }
 
 * {
@@ -50,8 +69,10 @@
   display: none !important;
 }
 body {
-  background: var(--canvas);
+  background: var(--canvas) var(--grain);
   color: var(--text);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 button,
 input,
@@ -62,7 +83,7 @@ textarea {
 button {
   background: var(--accent-fill);
   border: 1px solid transparent;
-  border-radius: 7px;
+  border-radius: var(--radius-pill);
   font-size: 13px;
   min-height: 34px;
   padding: 8px 12px;
@@ -84,7 +105,7 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 2px solid #73a8ff;
+  outline: 2px solid var(--accent-text);
   outline-offset: 3px;
 }
 input:not([type="checkbox"]):not([type="radio"]),
@@ -149,7 +170,7 @@ p {
   line-height: 1.6;
 }
 a {
-  color: #8db8ff;
+  color: var(--accent-text);
 }
 .eyebrow,
 .section-label {
@@ -335,7 +356,7 @@ a {
   height: 32px;
   flex-shrink: 0;
   font-size: 11px;
-  background: #76539b;
+  background: var(--accent);
   color: white;
 }
 .profile-entry > svg {
@@ -432,7 +453,7 @@ a {
   background: var(--muted);
 }
 .status-pill i.live {
-  background: #83b895;
+  background: var(--accent);
 }
 .workspace-grid {
   grid-template-columns: minmax(0, 1fr) 274px;
@@ -647,7 +668,7 @@ a {
   font-size: 13px;
 }
 .result a {
-  color: #98bdfc;
+  color: var(--accent-text);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -796,8 +817,8 @@ summary {
 .error,
 .update-error {
   background: var(--line);
-  color: #efb5ba;
-  border: 1px solid #64363b;
+  color: var(--danger-soft);
+  border: 1px solid var(--danger);
   border-radius: 7px;
   padding: 12px;
   font-size: 12px;
@@ -905,7 +926,7 @@ footer > span {
   gap: 12px;
 }
 .goal-history-item > summary > svg {
-  color: #86b099;
+  color: var(--accent);
   flex-shrink: 0;
 }
 .goal-history-item > summary > span:nth-child(2) {
@@ -967,20 +988,20 @@ footer > span {
   flex-shrink: 0;
 }
 .update-available .update-icon {
-  background: #2563eb;
+  background: var(--accent);
   color: white;
 }
 .update-available {
-  color: #1d4ed8;
+  color: var(--accent);
 }
 .update-available small {
-  color: #31588b;
+  color: var(--accent);
 }
 :root[data-theme="dark"] .update-available {
-  color: #cbdcff;
+  color: var(--accent-soft);
 }
 :root[data-theme="dark"] .update-available small {
-  color: #8dabd9;
+  color: var(--accent-text);
 }
 .dialog-backdrop {
   position: fixed;
@@ -1040,9 +1061,9 @@ footer > span {
   background: var(--line);
 }
 .dialog-update-icon.available {
-  border-color: #457ec9;
-  background: #213855;
-  color: #88b5fb;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-text);
 }
 .dialog-actions {
   display: flex;
@@ -1073,7 +1094,7 @@ footer > span {
   align-items: center;
 }
 .update-current svg {
-  color: #84b79d;
+  color: var(--accent);
 }
 .update-dialog progress {
   width: 100%;
@@ -1610,9 +1631,9 @@ a,
 }
 :root[data-theme="light"] .error,
 :root[data-theme="light"] .update-error {
-  background: #fff1f2;
-  color: #9d2436;
-  border-color: #f4bbc3;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: var(--danger-soft);
 }
 :root[data-theme="light"] .avatar-option[aria-pressed="true"] {
   background: var(--accent-soft);
@@ -1663,4 +1684,41 @@ a,
   .theme-toggle {
     font-size: 0;
   }
+}
+
+/* sumi typography: serif for headings and the brand, rounded sans for everything else. */
+h1,
+h2,
+h3,
+legend,
+.workspace-brand > div,
+.onboarding-brand,
+.chat-pane-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.workspace-brand > div {
+  font-size: 20px;
+  line-height: 1.1;
+}
+.workspace-brand > div::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+.workspace-brand > div > span {
+  font-family: var(--sans);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.callout,
+.companion-card,
+.card {
+  border-radius: var(--radius-card);
 }

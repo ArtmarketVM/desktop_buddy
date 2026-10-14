@@ -14,7 +14,7 @@ impl Default for AvatarPreferences {
     fn default() -> Self {
         Self {
             character: "cat".into(),
-            color: "#4B8EF5".into(),
+            color: "#A8D8C8".into(),
             visible: true,
         }
     }
@@ -116,9 +116,12 @@ pub fn validate_profile(profile: &mut UserProfile, require_identity: bool) -> Re
         .map(|app| app.trim().to_string())
         .collect();
     if !["cat", "dog", "seal", "bird"].contains(&profile.avatar.character.as_str())
-        || !["#EF6B6B", "#F2C94C", "#4B8EF5"].contains(&profile.avatar.color.as_str())
+        || ![
+            "#A8D8C8", "#C9D3D8", "#E8EEF0", "#EF6B6B", "#F2C94C", "#4B8EF5",
+        ]
+        .contains(&profile.avatar.color.as_str())
     {
-        return Err("Choose a supported character and a red, yellow or blue color".into());
+        return Err("Choose a supported character and color".into());
     }
     if profile.name.chars().count() > 120 || profile.name.chars().any(char::is_control) {
         return Err("Use at most 120 characters for your name".into());
@@ -297,9 +300,9 @@ impl Storage {
 
 pub fn palette_color(color: &str) -> &'static str {
     let palette = [
-        ("#EF6B6B", [239_i32, 107, 107]),
-        ("#F2C94C", [242, 201, 76]),
-        ("#4B8EF5", [75, 142, 245]),
+        ("#A8D8C8", [168_i32, 216, 200]),
+        ("#C9D3D8", [201, 211, 216]),
+        ("#E8EEF0", [232, 238, 240]),
     ];
     let rgb = color
         .strip_prefix('#')
@@ -318,7 +321,7 @@ pub fn palette_color(color: &str) -> &'static str {
             .unwrap()
             .0
     })
-    .unwrap_or("#4B8EF5")
+    .unwrap_or("#A8D8C8")
 }
 
 pub fn apply_theme(app: &tauri::AppHandle, theme: &str) -> Result<(), String> {

@@ -41,9 +41,9 @@ export function AvatarPicker({
       <span className="field-label">Companion color</span>
       <div className="color-options" role="group" aria-label="Companion color">
         {[
-          { name: "Red", value: "#EF6B6B" },
-          { name: "Yellow", value: "#F2C94C" },
-          { name: "Blue", value: "#4B8EF5" },
+          { name: "Matcha", value: "#A8D8C8" },
+          { name: "Mist", value: "#C9D3D8" },
+          { name: "Cloud", value: "#E8EEF0" },
         ].map((color) => (
           <button
             type="button"

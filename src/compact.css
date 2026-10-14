@@ -449,7 +449,7 @@
 }
 .chat-menu .danger,
 .chat-confirm .danger {
-  color: #d9534f;
+  color: var(--danger);
 }
 .chat-confirm {
   display: flex;
@@ -510,7 +510,7 @@
   gap: 0;
   padding: 3px 6px;
   border-radius: 22px;
-  background: #202020;
+  background: var(--text);
   box-shadow: 0 3px 12px #0002;
 }
 .buddy-action-bar > button {
@@ -522,10 +522,10 @@
   width: 34px;
   min-height: 30px;
   padding: 5px;
-  color: #eee;
+  color: var(--canvas);
 }
 .buddy-action-bar > button:hover:not(:disabled) {
-  background: #3d3d3d;
+  background: var(--text);
   border-radius: 16px;
 }
 .companion-chat.compact-conversation {
@@ -634,7 +634,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 80%, #e6f0ff, #387cf5 70%);
+  background: radial-gradient(circle at 30% 80%, var(--accent-soft), var(--accent-text) 70%);
 }
 .voice-indicator.listening {
   animation: voice-pulse 1.3s ease-in-out infinite;
@@ -843,7 +843,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--surface);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   transform: none;
   transition: transform 0.18s ease;
@@ -854,7 +854,7 @@
 }
 .toggle-row input[type="checkbox"]:checked::before,
 .core-workspace .toggle-row input[type="checkbox"]:checked::before {
-  background: #fff;
+  background: var(--surface);
   transform: translateX(16px);
 }
 .toggle-row input[type="checkbox"]:focus-visible {
@@ -1088,7 +1088,7 @@ main.desktop-buddy.chatting > .companion-error {
 .service-dot.service-unavailable,
 .service-dot.service-not_configured,
 .service-dot.service-offline {
-  background: var(--danger, #c34f56);
+  background: var(--danger, var(--danger));
 }
 .service-dot.service-checking {
   background: var(--muted);

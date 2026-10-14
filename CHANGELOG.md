@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.28.1 — sumi look
+
+- Adopt the sumi site design across the app: Shippori Mincho for headings and the brand, Zen Maru Gothic for text, the moss-green and paper palette (light and dark), pill buttons and a subtle paper grain.
+- The companion is now the square kaku-mochi mascot from the site, with sleepy, alert and happy eyes for its states and three new colors (Matcha, Mist, Cloud); saved colors migrate to the nearest one.
+
 ## 0.27.5 — goal time on macOS counts again
 
 - Count focused time for the goal you selected, including meetings, mail and other windows that name no goal. Since 0.27.0 only windows whose title matched the goal's keywords were counted, so Progress stayed empty.

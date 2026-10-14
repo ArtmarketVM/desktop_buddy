@@ -41,7 +41,7 @@
 }
 .core-workspace .helper,
 .empty-copy {
-  color: var(--muted, #7b8580);
+  color: var(--muted, var(--muted));
   font-size: 13px;
 }
 .section-heading {
@@ -126,7 +126,7 @@
 .core-workspace input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  accent-color: #608261;
+  accent-color: var(--muted);
   flex-shrink: 0;
 }
 .core-workspace fieldset {
@@ -272,7 +272,7 @@
 }
 .goal-menu button.danger-text,
 .overdue {
-  color: var(--danger, #c34f56);
+  color: var(--danger, var(--danger));
 }
 .quick-goal,
 .inline-step,
@@ -381,7 +381,7 @@
 .goal-status-icon > span {
   width: 14px;
   height: 14px;
-  border: 1px solid #bcc8bb;
+  border: 1px solid var(--line);
   border-radius: 50%;
 }
 .goal-time {
@@ -570,7 +570,7 @@
   max-width: 34px;
   min-height: 4px;
   border-radius: 6px 6px 0 0;
-  background: var(--accent, #608261);
+  background: var(--accent, var(--muted));
 }
 .progress-bar-day strong,
 .progress-bar-day em {
@@ -670,7 +670,7 @@
   font-size: 13px;
 }
 .core-dialog {
-  background: var(--surface, #fff);
+  background: var(--surface, var(--surface));
   border-radius: 16px;
   max-width: 580px;
   width: calc(100vw - 36px);
@@ -711,7 +711,7 @@
   margin-top: 16px;
 }
 .danger-text {
-  color: #a35151;
+  color: var(--danger);
 }
 .core-settings details > summary {
   cursor: pointer;
@@ -756,7 +756,7 @@
   gap: 14px;
 }
 .intent-options .selected {
-  border-color: #769871;
+  border-color: var(--muted);
 }
 .setup-goals p {
   display: flex;
@@ -882,13 +882,13 @@
   width: auto;
 }
 :root[data-theme="dark"] .priority-high {
-  color: #efaa99;
+  color: var(--danger-soft);
 }
 :root[data-theme="dark"] .priority-medium {
   color: #dec783;
 }
 :root[data-theme="dark"] .priority-low {
-  color: #b5d7b1;
+  color: var(--hill);
 }
 .ordered-goal {
   position: relative;
@@ -924,7 +924,7 @@
   font-weight: 600;
 }
 .priority-high {
-  color: #9b4534;
+  color: var(--danger);
   background: #c8544012;
 }
 .priority-medium {
@@ -932,7 +932,7 @@
   background: #c0a34312;
 }
 .priority-low {
-  color: #547548;
+  color: var(--accent);
   background: #54754812;
 }
 .workspace-overview {
@@ -1155,7 +1155,7 @@
   width: 4px;
   height: 8px;
   margin-bottom: 2px;
-  border: solid var(--surface, #fff);
+  border: solid var(--surface, var(--line));
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
 }
@@ -1340,7 +1340,7 @@
   line-height: 20px;
 }
 .day-summary.has-progress > svg {
-  color: var(--accent, #547548);
+  color: var(--accent, var(--accent));
 }
 .day-summary strong {
   font-weight: 600;
@@ -1389,8 +1389,8 @@
   box-sizing: content-box;
   padding: 3px;
   border-radius: 50%;
-  background: var(--accent, #547548);
-  color: #fff;
+  background: var(--accent, var(--accent));
+  color: var(--surface);
 }
 .goal-expand-toggle .goal-chevron {
   margin-left: auto;
@@ -1659,7 +1659,7 @@ textarea:focus {
 }
 .period-cell.selected {
   background: var(--accent-fill);
-  color: #fff;
+  color: var(--surface);
 }
 .period-cell:disabled {
   opacity: 0.3;
@@ -1733,17 +1733,17 @@ p.error .text-button {
 
 /* Memory settings follow the shared settings column and toggle geometry. */
 .memory-items { list-style: none; padding: 0; }
-.memory-items > li { border-bottom: 1px solid var(--line, #d8dce3); padding: 16px 0; overflow-wrap: anywhere; }
+.memory-items > li { border-bottom: 1px solid var(--line, var(--accent-soft)); padding: 16px 0; overflow-wrap: anywhere; }
 .memory-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .memory-settings form { display: grid; gap: 12px; }
 .memory-settings label:not(.toggle-row) { display: grid; gap: 6px; }
 .memory-settings textarea { min-height: 80px; resize: vertical; }
-.memory-settings [role="alertdialog"] { border: 1px solid var(--line, #d8dce3); border-radius: 10px; padding: 16px; margin-top: 16px; }
+.memory-settings [role="alertdialog"] { border: 1px solid var(--line, var(--accent-soft)); border-radius: 10px; padding: 16px; margin-top: 16px; }
 
 /* Checkpoints stay within the existing goal column. */
 .goal-work-context { margin: 0 0 8px 32px; }
 .work-context-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.work-context-status { font-size: 12px; font-weight: 600; color: var(--muted, #646979); }
+.work-context-status { font-size: 12px; font-weight: 600; color: var(--muted, var(--text)); }
 .work-context-checkpoint { font-size: 13px; overflow-wrap: anywhere; }
 .work-context-checkpoint p { margin: 6px 0; }
 .work-context-receipt { white-space: pre-line; font-size: 13px; }
