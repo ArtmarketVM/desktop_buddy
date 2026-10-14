@@ -726,3 +726,49 @@ fn punctuation_only_provider_responses_are_not_displayable_answers() {
     )
     .is_err());
 }
+
+#[test]
+fn ordered_schema_selects_decision_and_skill_before_arguments() {
+    let (state, _) = fixture(&case()).unwrap();
+    let i = state.inner.lock().unwrap();
+    let snap = skills::snapshot(&i.storage, i.storage.current_conversation().unwrap()).unwrap();
+    let context = dialogue_context::packet(
+        &json!({"latest_request":"Focus the goal"}),
+        &snap,
+        true,
+        &[],
+    );
+    let format = schema(&snap, true, &context);
+    let change = &format["properties"]["response"]["anyOf"][2];
+    assert_eq!(
+        change["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap(),
+        "decision"
+    );
+    let action = &change["properties"]["actions"]["items"]["anyOf"][0];
+    assert_eq!(
+        action["properties"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .next()
+            .unwrap(),
+        "name"
+    );
+    let approved = json!({"review":{"verdict":"approved","request_mode":"change","message":""}});
+    assert!(parse_review(&envelope(approved), true).is_ok());
+    let bad = json!({"review":{"verdict":"approved","request_mode":"answer","message":"I changed your focus."}});
+    assert!(parse_review(&envelope(bad), false).is_err());
+    let mut a = json!({"name":"inspect_goal","input":{"goal":{"goal_id":1,"reference":null}}});
+    let mut b: Value = serde_json::from_str(
+        r#"{"input":{"goal":{"reference":null,"goal_id":1}},"name":"inspect_goal"}"#,
+    )
+    .unwrap();
+    a.sort_all_objects();
+    b.sort_all_objects();
+    assert_eq!(a.to_string(), b.to_string());
+}

@@ -8,7 +8,10 @@ Text and local speech transcripts enter `AgentRuntime::handle_dialogue` and the
 same dialogue loop. The model selects an answer, read, change, clarification or
 preference decision through mutually exclusive JSON Schema variants. The actual
 conversation uses native user/assistant roles; the latest human message is last,
-while workspace data is clearly separated from instructions. Production does not use the historical phrase-based chat
+while workspace data is clearly separated from instructions. Critics receive
+a validation task instead of a repeated direct human request. JSON insertion
+order places the decision before details and the skill name before arguments;
+repeated-read detection still canonicalizes object order. Production does not use the historical phrase-based chat
 contract to classify the request. That adapter remains only for old mock tests.
 
 The shared, permission-filtered packet includes recent conversation, selectively
@@ -66,9 +69,11 @@ intermediate Ultra candidate passed only 41/60 mechanical checks and 48/60
 language checks; generic clarification and missed mutations remained. Native
 conversation roles, mutually exclusive responses and semantic reasoning are
 being re-evaluated before selecting a model.
-No best-model claim or production model change is justified yet.
+No best-model claim or production model change is justified yet. The latest
+operation-first candidate is again waiting for macOS Keychain access. Keeping
+the internal signing identity did not eliminate prompts for changing test builds.
 
-Current local automated evidence: 431 Rust tests passed, 2 existing opt-in tests
+Current local automated evidence: 432 Rust tests passed, 2 existing opt-in tests
 ignored; 160 frontend tests passed; 15 release-verification tests and 8 acceptance
 runner tests passed; frontend build and changed-file formatting passed.
 Both native CI builds passed the initial draft commit. A signed Apple Silicon

@@ -354,6 +354,31 @@ struct Review {
     message: String,
 }
 
+fn parse_review(value: &Value, mutation: bool) -> Result<Review, String> {
+    let mut raw: Value = serde_json::from_str(goal_analysis::response_text(value)?)
+        .map_err(|_| "Invalid dialogue review")?;
+    if raw.get("review").is_some() {
+        if raw.as_object().is_none_or(|o| o.len() != 1) {
+            return Err("Invalid dialogue review envelope".into());
+        }
+        raw = raw["review"].clone();
+    } else {
+        #[cfg(not(test))]
+        return Err("Missing structured dialogue review".into());
+    }
+    let r: Review = serde_json::from_value(raw).map_err(|_| "Invalid dialogue review")?;
+    if !["approved", "repair", "clarify"].contains(&r.verdict.as_str())
+        || !["answer", "read", "change", "clarification"].contains(&r.request_mode.as_str())
+        || r.message.chars().count() > 500
+        || (r.verdict == "approved" && !r.message.is_empty())
+        || (r.verdict != "approved" && r.message.trim().is_empty())
+        || (mutation && r.verdict == "approved" && r.request_mode != "change")
+    {
+        return Err("Invalid dialogue review decision".into());
+    }
+    Ok(r)
+}
+
 async fn review(
     state: &AppState,
     service: &Service<'_>,
@@ -377,10 +402,14 @@ async fn review(
     } else {
         "Independently check the proposed answer against the latest user request, conversation, shared workspace and validated tool results. It must answer helpfully in the user's language, use the correct discussed goal, avoid asking for facts already supplied, and avoid internal IDs. Do not approve a generic offer when the user already requested help with an available concrete task. Draft requests require actual usable text, not an offer. Reject internal goal/step IDs in user-facing prose. Only proposal.verified_execution proves app changes; never approve claims of additional or unexecuted changes. General drafting and established knowledge are allowed without web search; current external facts need supplied sources. Return approved if grounded and useful, repair with a concise correction otherwise, or clarify with a focused question only when genuinely missing facts are necessary. Do not invent assignment facts. No hidden reasoning."
     };
-    let schema = json!({"type":"object","additionalProperties":false,"properties":{
-        "verdict":{"type":"string","enum":["approved","repair","clarify"]},
-        "request_mode":{"type":"string","enum":["answer","read","change","clarification"]},
-        "message":{"type":"string","maxLength":500}},"required":["verdict","request_mode","message"]});
+    let modes = json!({"type":"string","enum":["answer","read","change","clarification"]});
+    let branch = |verdict: &str, message: Value| {
+        json!({"type":"object","additionalProperties":false,"properties":{
+        "verdict":{"type":"string","const":verdict},"request_mode":modes,"message":message},"required":["verdict","request_mode","message"]})
+    };
+    let schema = json!({"type":"object","additionalProperties":false,"properties":{"review":{"anyOf":[branch("approved",json!({"type":"string","const":""})),
+        branch("repair",json!({"type":"string","minLength":1,"maxLength":500,"description":"A correction instruction for the answer or plan, not a new answer to the user."})),
+        branch("clarify",json!({"type":"string","minLength":1,"maxLength":500,"description":"A question needed to resolve genuinely missing or ambiguous information, in the user's language."}))]}},"required":["review"]});
     let name = if mutation {
         "buddy_dialogue_authorization"
     } else {
@@ -395,20 +424,7 @@ async fn review(
             context,
             name,
             schema,
-            |v| {
-                let r: Review = serde_json::from_str(goal_analysis::response_text(v)?)
-                    .map_err(|_| "Invalid dialogue review")?;
-                if !["approved", "repair", "clarify"].contains(&r.verdict.as_str())
-                    || !["answer", "read", "change", "clarification"]
-                        .contains(&r.request_mode.as_str())
-                    || r.message.chars().count() > 500
-                    || (r.verdict != "approved" && r.message.trim().is_empty())
-                    || (mutation && r.verdict == "approved" && r.request_mode != "change")
-                {
-                    return Err("Invalid dialogue review decision".into());
-                }
-                Ok(r)
-            },
+            |v| parse_review(v, mutation),
         ),
     )
     .await
@@ -820,8 +836,11 @@ pub async fn run(
             }
         }
         if read_only
-            && !read_requests
-                .insert(serde_json::to_string(&plan.actions).map_err(|e| e.to_string())?)
+            && !read_requests.insert({
+                let mut key = json!(plan.actions);
+                key.sort_all_objects();
+                key.to_string()
+            })
         {
             let mut reply = present(
                 state,

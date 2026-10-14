@@ -354,7 +354,7 @@ impl<'a> Service<'a> {
                 "Dialogue context exceeds the safe budget; narrow the request or attachment".into(),
             );
         }
-        let dialogue = (name == "buddy_skill_plan" || name.starts_with("buddy_dialogue_"))
+        let dialogue = matches!(name, "buddy_skill_plan" | "buddy_dialogue_response")
             && context["latest_request"].is_string();
         let instructions = format!(
             "{system}\n{}\nRequired JSON Schema: {schema}",
