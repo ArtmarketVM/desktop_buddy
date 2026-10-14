@@ -172,6 +172,14 @@ pub(super) fn observe(inner: &mut Inner, now: i64) -> Result<(), String> {
     observed.day = snapshot.date;
     inner.agent.observation = observed;
     for event in events {
+        crate::engine_observability::record(
+            inner,
+            "event",
+            serde_json::to_value(event.kind).unwrap().as_str().unwrap(),
+            "queued",
+            None,
+            event.goal_id,
+        );
         inner.agent.enqueue(event);
     }
     Ok(())

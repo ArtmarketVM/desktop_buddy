@@ -131,6 +131,13 @@ export function Experience({
   const today = snapshot.goals.filter((goal) =>
     snapshot.today.includes(goal.id),
   );
+  const focusGoal = today.find(
+    (goal) => goal.id === snapshot.focused_goal_id && goal.status === "open",
+  );
+  const laterToday = today.filter(
+    (goal) => goal.id !== focusGoal?.id && goal.status !== "completed",
+  );
+  const finishedToday = today.filter((goal) => goal.status === "completed");
   const focusedSeconds = snapshot.summary.goals.reduce(
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
@@ -263,25 +270,84 @@ export function Experience({
                   Choose a saved goal, or add a new one above.
                 </p>
               )}
-              <GoalOrder
-                goals={today}
-                showHandles
-                allGoals={snapshot.goals}
-                disabled={busy}
-                reorder={(ids) => run(() => coreApi.reorder(ids))}
-              >
-                {(goal) => (
+              {focusGoal && (
+                <section className="today-focus-lane" aria-label="In focus">
+                  <div className="today-lane-heading">
+                    <span className="focus-dot" />
+                    <h3>In focus</h3>
+                    <span>One goal at a time</span>
+                  </div>
                   <GoalRow
-                    key={goal.id}
-                    goal={goal}
+                    goal={focusGoal}
                     snapshot={snapshot}
                     busy={busy}
                     run={run}
                     edit={setEditor}
                     enhancement={enhancement}
                   />
-                )}
-              </GoalOrder>
+                </section>
+              )}
+              {laterToday.length > 0 && (
+                <section aria-label="Later today">
+                  <div className="today-lane-heading">
+                    <h3>{focusGoal ? "Later today" : "Your next goals"}</h3>
+                    <span>Drag to set your order</span>
+                  </div>
+                  <GoalOrder
+                    goals={laterToday}
+                    showHandles
+                    allGoals={snapshot.goals}
+                    disabled={busy}
+                    reorder={(ids) => run(() => coreApi.reorder(ids))}
+                  >
+                    {(goal) => (
+                      <div className="today-queue-item">
+                        <div className="today-queue-heading">
+                          <span>
+                            {laterToday.indexOf(goal) + 1}.{" "}
+                            {laterToday[0].id === goal.id ? "Up next" : "Later"}
+                          </span>
+                          {goal.status === "open" && (
+                            <button
+                              className="text-button"
+                              disabled={busy || !desktop}
+                              onClick={() =>
+                                void run(() => coreApi.focus(goal.id))
+                              }
+                            >
+                              Focus now
+                            </button>
+                          )}
+                        </div>
+                        <GoalRow
+                          goal={goal}
+                          snapshot={snapshot}
+                          busy={busy}
+                          run={run}
+                          edit={setEditor}
+                          enhancement={enhancement}
+                        />
+                      </div>
+                    )}
+                  </GoalOrder>
+                </section>
+              )}
+              {finishedToday.length > 0 && (
+                <details className="inline-details today-finished">
+                  <summary>Completed · {finishedToday.length}</summary>
+                  {finishedToday.map((goal) => (
+                    <GoalRow
+                      key={goal.id}
+                      goal={goal}
+                      snapshot={snapshot}
+                      busy={busy}
+                      run={run}
+                      edit={setEditor}
+                      enhancement={enhancement}
+                    />
+                  ))}
+                </details>
+              )}
               {picking && (
                 <div className="today-picker">
                   <h3>Choose goals for Today</h3>

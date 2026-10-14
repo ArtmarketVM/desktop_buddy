@@ -345,8 +345,6 @@ export function GoalRow({
           aria-expanded={expanded}
           onClick={() => {
             setExpanded(!expanded);
-            if (today && goal.status === "open" && !active && !disabled)
-              void run(() => coreApi.focus(goal.id));
           }}
         >
           {sentenceCase(goal.title)}

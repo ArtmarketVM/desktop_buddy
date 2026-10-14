@@ -331,7 +331,8 @@ impl<'a> Service<'a> {
         schema: Value,
     ) -> Result<Value, String> {
         let instructions = format!("{system}\nRequired JSON Schema: {schema}");
-        http::post_json(self.client, &self.endpoint, &self.key, &json!({"model":self.model,"temperature":0.2,"max_tokens":4096,
+        http::post_json(self.client, &self.endpoint, &self.key, &json!({"model":self.model,"temperature":0.2,"max_tokens":6144,
+
             "response_format":{"type":"json_schema","json_schema":{"name":name,"strict":true,"schema":schema}},
             "messages":[{"role":"system","content":instructions},{"role":"user","content":context.to_string()}]})).await
     }
@@ -348,7 +349,7 @@ impl<'a> Service<'a> {
             let instructions = if attempt == 0 {
                 system.to_string()
             } else {
-                format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Keep field values concise. Do not invent evidence or sources.")
+                format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Match request_contract.allowed_operations exactly; never substitute a mutation for a read request. Copy instruction verbatim from latest_request. Keep field values concise. Do not invent evidence or sources.")
             };
             let value = self
                 .request(&instructions, context.clone(), name, schema.clone())

@@ -575,7 +575,7 @@ fn offers_require_explicit_chat_and_clarification_displays_the_actual_question()
     }];
     assert_eq!(
         apply(&mut inner, &job, &result).unwrap(),
-        Some(result.situation)
+        Some("Would you like help choosing the next action for this goal?".into())
     );
     assert_eq!(
         inner.storage.goal_plan(id).unwrap().revision,

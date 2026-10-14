@@ -5,6 +5,7 @@ mod automatic_goals;
 mod autostart;
 mod browser;
 mod buddy;
+mod chat_contract;
 mod collector;
 mod commands;
 mod companion;
@@ -43,6 +44,7 @@ mod tavily;
 mod tracking;
 mod tray;
 mod updates;
+mod window_history;
 mod work_context;
 mod work_state;
 use tauri::Manager;
@@ -56,6 +58,24 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    // Explicit developer CLI check: synthetic context only; no UI or production database.
+    if std::env::args().any(|arg| arg == "--check-agent-actions") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(engine_observability::headless_action_check());
+        match result {
+            Ok(checks) => {
+                let passed =
+                    checks.len() == 9 && checks.iter().all(|check| check.status == "passed");
+                println!("{}", serde_json::to_string(&checks).unwrap());
+                std::process::exit(if passed { 0 } else { 1 });
+            }
+            Err(_) => {
+                eprintln!("Live agent check could not finish. No user data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
     // Development convenience only. Release uses saved credentials or environment fallback.
     #[cfg(debug_assertions)]
     {
@@ -206,6 +226,7 @@ pub fn run() {
             ai_chat::set_goal_expected_minutes,
             ai_chat::get_buddy_coaching,
             history::get_activity_segments,
+            window_history::get_window_activity,
             companion::companion_submit,
             companion::respond_companion_intervention,
             companion::update_companion_inbox,
@@ -285,6 +306,7 @@ pub fn run() {
             engine_observability::get_personal_ai_engine,
             engine_observability::get_ai_service_status,
             engine_observability::test_nebius_inference,
+            engine_observability::test_agent_actions,
             commands::set_provider_key,
             commands::set_goal,
             commands::get_current_goal,

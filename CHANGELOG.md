@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.29.0
+
+- Constrain structured agent operations and render authoritative Rust action/read receipts.
+- Add live AI monitoring and isolated action diagnostics without sensitive content.
+- Restore local foreground-window history independent of goal selection and show observed activity in Progress.
+- Separate Today focus from the reorderable queue and follow saved goal order.
+
+
 ## 0.28.1 — sumi look
 
 - Adopt the sumi site design across the app: Shippori Mincho for headings and the brand, Zen Maru Gothic for text, the moss-green accent on a sky-blue and white light theme and a deep-green dark theme, pill buttons and a subtle paper grain.

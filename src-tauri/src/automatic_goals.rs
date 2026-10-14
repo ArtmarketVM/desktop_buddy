@@ -78,6 +78,16 @@ impl Storage {
                 .map_err(|_| "Could not change focus")?;
         }
         let next:Option<i64> = self.connection.query_row("SELECT g.id FROM core_day_items d JOIN core_goals c ON c.goal_id=d.goal_id JOIN goals g ON g.id=c.goal_id LEFT JOIN core_goal_details m ON m.goal_id=g.id WHERE d.day=?1 AND c.state='open' AND g.status!='completed' AND NOT EXISTS(SELECT 1 FROM core_days WHERE day=?1 AND mode='no_plan') ORDER BY CASE m.priority WHEN 'high' THEN 3 WHEN 'medium' THEN 2 WHEN 'low' THEN 1 ELSE 0 END DESC,d.rowid LIMIT 1",[day],|r|r.get(0)).optional().map_err(|_| "Today goals unavailable")?;
+        let next = if self.read_setting::<Vec<i64>>("core_goal_order")?.is_some() {
+            let snapshot = self.core_snapshot(None)?;
+            snapshot
+                .goals
+                .iter()
+                .find(|g| snapshot.today.contains(&g.id) && g.status == "open")
+                .map(|g| g.id)
+        } else {
+            next
+        };
         if let Some(id) = next {
             self.transition_goal(id, "resume")?;
         }
@@ -235,6 +245,39 @@ pub fn retry_core_goal_analysis(id: i64, state: State<AppState>) -> Result<(), S
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn explicit_focus_moves_first_and_next_goal_follows_the_saved_queue() {
+        let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        s.core_add_goals(
+            (1..=5)
+                .map(|i| crate::core::GoalDraft {
+                    title: format!("Goal {i}"),
+                    area: "Work".into(),
+                    steps: vec![],
+                })
+                .collect(),
+            "queue-test",
+        )
+        .unwrap();
+        let ids: Vec<_> = s
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+            .iter()
+            .map(|g| g.id)
+            .collect();
+        for id in &ids {
+            s.core_today(*id, true, &chrono::Local::now().date_naive().to_string())
+                .unwrap();
+        }
+        s.core_reorder(vec![ids[4], ids[2], ids[0], ids[1], ids[3]])
+            .unwrap();
+        s.transition_goal(ids[2], "resume").unwrap();
+        s.mark_explicit_focus(ids[2]).unwrap();
+        assert_eq!(s.core_snapshot(None).unwrap().goals[0].id, ids[2]);
+        s.core_transition(ids[2], "complete").unwrap();
+        assert_eq!(s.ensure_today_focus().unwrap(), Some(ids[4]));
+    }
     #[test]
     fn new_goals_queue_once_and_focus_without_starting_a_timer() {
         let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();

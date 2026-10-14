@@ -479,7 +479,12 @@ pub async fn identify(app: &AppHandle, state: &AppState) {
             reason: "Mock AI: activity remains unassigned.".into(),
         })
     } else {
-        request(&state.client, &job.goals, &job.sample).await
+        crate::engine_observability::observe_specialist(
+            state,
+            "goal_matching",
+            request(&state.client, &job.goals, &job.sample),
+        )
+        .await
     };
     if let Ok(mut inner) = state.inner.lock() {
         if let Err(error) = finish(&mut inner, &job, result, Instant::now()) {

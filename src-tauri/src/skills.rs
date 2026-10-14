@@ -156,7 +156,7 @@ impl Execution {
                 "remove_goal_from_today"=>format!("Removed \"{title}\" from Today."),
                 "set_focus_goal"=>format!("Selected \"{title}\" for activity tracking."),
                 "park_context" | "resume_context" | "inspect_work_context" => crate::work_context::receipt(&r.skill,title,&r.data["checkpoint"]),
-                "inspect_goal"=>format!("{title}\n{}",r.data["steps"].as_array().unwrap().iter().enumerate().map(|(i,s)|format!("{}. {}{}",i+1,s["text"].as_str().unwrap_or_default(),if s["done"]==true {" (complete)"} else {""})).collect::<Vec<_>>().join("\n")),
+                "inspect_goal"=>format!("{title}\n{}\n{}",r.data["steps"].as_array().unwrap().iter().enumerate().map(|(i,s)|format!("{}. {}{}",i+1,s["text"].as_str().unwrap_or_default(),if s["done"]==true {" (complete)"} else {""})).collect::<Vec<_>>().join("\n"), crate::work_context::receipt("inspect_work_context",title,&r.data["checkpoint"])),
                 "inspect_today"=>format!("Today ({})\n{}\nRelevant activity: {} min. Observed activity: {} min. Manual timer: {} min. Time alone does not confirm completion.",
                     r.data["day"].as_str().unwrap_or_default(),
                     if r.data["confirmed_results"].as_array().unwrap().is_empty() { "No confirmed completion is recorded today.".into() }
@@ -228,7 +228,7 @@ fn result_schema(name: &str) -> Value {
             json!({"title":{"type":"string"},"backup_id":{"type":"integer"},"undo":{"type":"string","const":"restore_goal"},"undo_days":{"type":"integer","const":30}}),
         ),
         _ => shape(
-            json!({"title":{"type":"string"},"status":{"type":"string"},"revision":{"type":"integer"},"created_at":{"type":"string"},"steps":{"type":"array","items":step},"on_today":{"type":"boolean"},"focused":{"type":"boolean"},"removed_step":{"anyOf":[step,{"type":"null"}]}}),
+            json!({"title":{"type":"string"},"status":{"type":"string"},"revision":{"type":"integer"},"created_at":{"type":"string"},"steps":{"type":"array","items":step},"on_today":{"type":"boolean"},"focused":{"type":"boolean"},"removed_step":{"anyOf":[step,{"type":"null"}]},"checkpoint":{"anyOf":[crate::work_context::public_checkpoint_schema(),{"type":"null"}]}}),
         ),
     };
     shape(
@@ -286,14 +286,18 @@ fn shape(properties: Value) -> Value {
     object(properties, keys)
 }
 fn goal_schema() -> Value {
-    shape(
-        json!({"goal_id":{"type":["integer","null"],"minimum":1},"reference":{"type":["string","null"],"enum":[null,"last_referenced","last_created","previous_action","only_goal","active_goal","only_parked"]}}),
-    )
+    let reference = json!({"type":"string","enum":["last_referenced","last_created","previous_action","only_goal","active_goal","only_parked"]});
+    json!({"anyOf":[
+        shape(json!({"goal_id":{"type":"integer","minimum":1},"reference":{"type":"null"}})),
+        shape(json!({"goal_id":{"type":"null"},"reference":reference}))
+    ]})
 }
 fn step_schema() -> Value {
-    shape(
-        json!({"step_id":{"type":["string","null"],"minLength":1,"maxLength":80},"ordinal":{"type":["integer","null"],"minimum":1,"maximum":20},"reference":{"type":["string","null"],"enum":[null,"last_referenced","last_created","previous_action"]}}),
-    )
+    json!({"anyOf":[
+        shape(json!({"step_id":{"type":"string","minLength":1,"maxLength":80},"ordinal":{"type":"null"},"reference":{"type":"null"}})),
+        shape(json!({"step_id":{"type":"null"},"ordinal":{"type":"integer","minimum":1,"maximum":20},"reference":{"type":"null"}})),
+        shape(json!({"step_id":{"type":"null"},"ordinal":{"type":"null"},"reference":{"type":"string","enum":["last_referenced","last_created","previous_action"]}}))
+    ]})
 }
 pub fn registry() -> Vec<Skill> {
     let text = json!({"type":"string","minLength":1,"maxLength":500});
@@ -419,6 +423,14 @@ pub fn registry() -> Vec<Skill> {
 }
 pub fn catalog() -> Value {
     json!(registry().into_iter().map(|s|json!({"name":s.name,"description":s.description,"input_schema":s.input_schema,"permission":s.safety,"result_schema":s.result_schema})).collect::<Vec<_>>())
+}
+/// Argument/result contracts already exist in the response schema and Rust registry.
+/// Avoid duplicating their full schemas in every user message to the planner.
+pub fn planning_catalog() -> Value {
+    json!(registry()
+        .into_iter()
+        .map(|s| json!({"name":s.name,"description":s.description,"permission":s.safety}))
+        .collect::<Vec<_>>())
 }
 pub fn plan_schema() -> Value {
     let alternatives: Vec<_> = registry().into_iter().map(|s|shape(json!({"name":{"type":"string","const":s.name},"input":s.input_schema,"instruction":{"type":["string","null"],"maxLength":4000}}))).collect();
@@ -988,7 +1000,7 @@ fn execute_one(
         .find(|g| g.id == id)
         .ok_or("Goal no longer exists")?;
     let removed = result.data["removed_step"].clone();
-    result.data = json!({"title":goal.title,"status":goal.status,"revision":goal.plan.revision,"created_at":goal.created_at,"steps":goal.plan.steps,"on_today":core.today.contains(&id),"focused":core.focused_goal_id==Some(id),"removed_step":removed});
+    result.data = json!({"title":goal.title,"status":goal.status,"revision":goal.plan.revision,"created_at":goal.created_at,"steps":goal.plan.steps,"on_today":core.today.contains(&id),"focused":core.focused_goal_id==Some(id),"removed_step":removed,"checkpoint":storage.inspect_work_context(id)?.map(|c|crate::work_context::public_checkpoint(&c))});
     if ["park_context", "resume_context", "inspect_work_context"].contains(&skill.name) {
         result.data = json!({"title":goal.title,"status":goal.status,"created_at":goal.created_at,"checkpoint":storage.inspect_work_context(id)?.map(|c|crate::work_context::public_checkpoint(&c))});
     }

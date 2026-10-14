@@ -8,10 +8,27 @@ use rusqlite::OptionalExtension;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
+    collections::VecDeque,
     sync::Mutex,
     time::{Duration, Instant},
 };
 use tauri::{State, WebviewWindow};
+mod action_check;
+pub(crate) async fn headless_action_check() -> Result<Vec<action_check::CheckResult>, String> {
+    let state = AppState::new(crate::storage::Storage::open(std::path::Path::new(
+        ":memory:",
+    ))?)?;
+    if state.inner.lock().unwrap().status.mock_ai {
+        return Err("Live check requires real provider responses".into());
+    }
+    let service = Service::configured(&state.client)?;
+    tokio::time::timeout(
+        Duration::from_secs(180),
+        action_check::run(&service, &state, 0),
+    )
+    .await
+    .map_err(|_| "Agent check timed out")?
+}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Inference {
@@ -19,6 +36,27 @@ pub struct Inference {
     status: &'static str,
     latency_ms: u64,
     provider_reported_model: Option<String>,
+    finish_reason: Option<String>,
+    prompt_tokens: Option<u64>,
+    completion_tokens: Option<u64>,
+    validation_error: Option<&'static str>,
+}
+pub(crate) fn error_category(error: &str) -> &'static str {
+    if error.contains("does not match") {
+        "operation_mismatch"
+    } else if error.contains("read-only") {
+        "read_only_request"
+    } else if error.contains("instruction") {
+        "instruction_required"
+    } else if error.contains("stale") || error.contains("changed") {
+        "stale_context"
+    } else if error.contains("incomplete") {
+        "incomplete_output"
+    } else if error.contains("goal") || error.contains("step") {
+        "target_validation"
+    } else {
+        "schema_or_provider_error"
+    }
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Health {
@@ -41,6 +79,8 @@ impl Default for Health {
 }
 #[derive(Default)]
 pub struct Telemetry {
+    action_check_started: Option<Instant>,
+    events: VecDeque<EngineEvent>,
     connections: [Option<ConnectionHealth>; 2],
     checking_connections: [bool; 2],
     sequence: u64,
@@ -51,6 +91,106 @@ pub struct Telemetry {
     health_privacy: u64,
     health_started: Option<Instant>,
     health_running: bool,
+}
+#[tauri::command(async)]
+pub async fn test_agent_actions(
+    window: WebviewWindow,
+    state: State<'_, AppState>,
+) -> Result<Vec<action_check::CheckResult>, String> {
+    main_window(window.label())?;
+    let _guard = state
+        .analysis
+        .try_lock()
+        .map_err(|_| "An AI check is already running")?;
+    let revision = {
+        let mut inner = state.inner.lock().map_err(|_| "Engine state unavailable")?;
+        if inner.status.mock_ai || !inner.storage.ai_preferences()?.enabled {
+            return Err("Enable real AI assistance before testing agent actions".into());
+        }
+        if inner
+            .engine
+            .action_check_started
+            .is_some_and(|last| last.elapsed() < Duration::from_secs(60))
+        {
+            return Err("Wait 60 seconds between agent checks".into());
+        }
+        inner.engine.action_check_started = Some(Instant::now());
+        record(
+            &mut inner,
+            "check",
+            "synthetic_agent_actions",
+            "started",
+            None,
+            None,
+        );
+        inner.privacy_revision
+    };
+    let service = Service::configured(&state.client)?;
+    let result = tokio::time::timeout(
+        Duration::from_secs(180),
+        action_check::run(&service, &state, revision),
+    )
+    .await;
+    let mut inner = state.inner.lock().map_err(|_| "Engine state unavailable")?;
+    record(
+        &mut inner,
+        "check",
+        "synthetic_agent_actions",
+        if matches!(&result,Ok(Ok(results)) if results.len()==9 && results.iter().all(|r|r.status=="passed"))
+        {
+            "passed"
+        } else {
+            "failed"
+        },
+        None,
+        None,
+    );
+    result.map_err(|_| "Agent check timed out; no user data was changed")?
+}
+#[derive(Clone, Serialize)]
+pub struct EngineEvent {
+    at: String,
+    stage: &'static str,
+    operation: String,
+    status: &'static str,
+    latency_ms: Option<u64>,
+    goal_id: Option<i64>,
+}
+/// Bounded, session-only journal. Never store prompts, model reasoning or collected text.
+pub(crate) fn record(
+    inner: &mut Inner,
+    stage: &'static str,
+    operation: &str,
+    status: &'static str,
+    latency_ms: Option<u64>,
+    goal_id: Option<i64>,
+) {
+    let safe = operation.len() <= 100
+        && operation
+            .bytes()
+            .all(|c| c.is_ascii_alphanumeric() || b"_:-".contains(&c));
+    if !safe {
+        return;
+    }
+    if inner.engine.events.len() == 200 {
+        inner.engine.events.pop_front();
+    }
+    inner.engine.events.push_back(EngineEvent {
+        at: chrono::Utc::now().to_rfc3339(),
+        stage,
+        operation: operation.into(),
+        status,
+        latency_ms,
+        goal_id,
+    });
+}
+impl Telemetry {
+    pub(crate) fn privacy_revision_matches(&self, revision: u64) -> bool {
+        self.privacy == revision
+    }
+    pub(crate) fn advance_domain_revision(&mut self, revision: u64) {
+        self.privacy = revision;
+    }
 }
 #[derive(Clone)]
 struct ConnectionHealth {
@@ -177,6 +317,7 @@ impl<'a> InferenceGuard<'a> {
     fn start(state: &'a AppState, operation: &str) -> Result<Self, String> {
         let mut inner = state.inner.lock().map_err(|_| "Engine state unavailable")?;
         inner.engine.sequence = inner.engine.sequence.wrapping_add(1);
+        record(&mut inner, "inference", operation, "started", None, None);
         Ok(Self {
             state,
             sequence: inner.engine.sequence,
@@ -188,6 +329,16 @@ impl<'a> InferenceGuard<'a> {
     }
     fn finish(&mut self, status: &'static str, model: Option<String>) {
         if let Ok(mut inner) = self.state.inner.lock() {
+            if inner.privacy_revision == self.privacy {
+                record(
+                    &mut inner,
+                    "inference",
+                    &self.operation,
+                    status,
+                    Some(elapsed(self.start)),
+                    None,
+                );
+            }
             if inner.engine.sequence == self.sequence && inner.privacy_revision == self.privacy {
                 inner.engine.privacy = self.privacy;
                 inner.engine.last = Some(Inference {
@@ -195,6 +346,10 @@ impl<'a> InferenceGuard<'a> {
                     status,
                     latency_ms: elapsed(self.start),
                     provider_reported_model: model,
+                    finish_reason: None,
+                    prompt_tokens: None,
+                    completion_tokens: None,
+                    validation_error: None,
                 });
             }
         }
@@ -208,6 +363,31 @@ impl Drop for InferenceGuard<'_> {
         }
     }
 }
+/// Instrument existing specialist adapters without changing their validation/retry rules.
+pub(crate) async fn observe_specialist<T>(
+    state: &AppState,
+    name: &str,
+    request: impl std::future::Future<Output = Result<T, String>>,
+) -> Result<T, String> {
+    let mut guard = InferenceGuard::start(state, name)?;
+    let result = request.await;
+    guard.finish(if result.is_ok() { "success" } else { "error" }, None);
+    if let Err(error) = &result {
+        if let Ok(mut inner) = state.inner.lock() {
+            if inner.privacy_revision == guard.privacy {
+                record(
+                    &mut inner,
+                    "validation",
+                    error_category(error),
+                    "rejected",
+                    None,
+                    None,
+                );
+            }
+        }
+    }
+    result
+}
 /// Existing retry/validation logic stays authoritative. Dropped requests are recorded as cancelled.
 pub async fn request_validated<T>(
     state: &AppState,
@@ -219,23 +399,59 @@ pub async fn request_validated<T>(
     parse: impl Fn(&Value) -> Result<T, String>,
 ) -> Result<T, String> {
     let mut guard = InferenceGuard::start(state, name)?;
-    let reported = Mutex::new(None);
+    let reported = Mutex::new((None, None, None, None));
     let result = service
         .request_validated(system, context, name, schema, |value| {
-            let parsed = parse(value)?;
-            if let Ok(mut model) = reported.lock() {
-                *model = value["model"].as_str().and_then(model_label);
+            if let Ok(mut metadata) = reported.lock() {
+                *metadata = (
+                    value["model"].as_str().and_then(model_label),
+                    value
+                        .pointer("/choices/0/finish_reason")
+                        .and_then(Value::as_str)
+                        .filter(|s| ["stop", "length", "tool_calls", "content_filter"].contains(s))
+                        .map(str::to_string),
+                    value["usage"]["prompt_tokens"].as_u64(),
+                    value["usage"]["completion_tokens"].as_u64(),
+                );
             }
-            Ok(parsed)
+            parse(value)
         })
         .await;
-    guard.finish(
-        if result.is_ok() { "success" } else { "error" },
-        reported.into_inner().unwrap_or_default(),
-    );
+    let metadata = reported.into_inner().unwrap_or_default();
+    guard.finish(if result.is_ok() { "success" } else { "error" }, metadata.0);
+    if let Ok(mut inner) = state.inner.lock() {
+        if inner.privacy_revision == guard.privacy && inner.engine.sequence == guard.sequence {
+            if let Some(last) = &mut inner.engine.last {
+                last.finish_reason = metadata.1;
+                last.prompt_tokens = metadata.2;
+                last.completion_tokens = metadata.3;
+                last.validation_error = result.as_ref().err().map(|e| error_category(e));
+            }
+            if let Err(error) = &result {
+                record(
+                    &mut inner,
+                    "validation",
+                    error_category(error),
+                    "rejected",
+                    None,
+                    None,
+                );
+            }
+        }
+    }
     result
 }
 pub(crate) fn record_execution(inner: &mut Inner, execution: &skills::Execution) {
+    for result in &execution.results {
+        record(
+            inner,
+            "skill",
+            &result.skill,
+            execution.status,
+            None,
+            result.goal_id,
+        );
+    }
     if execution.status == "executed" {
         inner.engine.last_skill = execution.results.last().map(|r| r.skill.clone());
     }
@@ -351,7 +567,7 @@ pub(crate) fn view(inner: &Inner) -> Result<Value, String> {
         "work_state":crate::work_state::compute(inner)?.state,"retrieval":retrieval,"last_decision":inner.agent.diagnostics.last_decision,
         "last_skill":last_skill,"last_inference":if inner.engine.privacy==inner.privacy_revision {inner.engine.last.as_ref()}else{None},
         "tavily_status":tavily,"runtime":crate::agent_runtime::diagnostics_view(inner),"health":if inner.engine.health_privacy==inner.privacy_revision {inner.engine.health.clone()}else{Health::default()},
-        "skills":skill_groups(),"demo_mode":inner.status.demo,"ai_mock":inner.status.mock_ai}),
+        "configuration":{"tracking":inner.status.tracking,"ai_assistance":ai.enabled,"goal_context_sharing":ai.share_goal_context,"automatic_goal_matching":ai.automatic_goal_matching,"completion_detection":inner.companion.view.preferences.screen_task_detection,"dnd":inner.status.dnd,"paused":inner.companion.view.preferences.paused},"skills":skill_groups(),"events":inner.engine.events.iter().rev().collect::<Vec<_>>(),"demo_mode":inner.status.demo,"ai_mock":inner.status.mock_ai}),
     )
 }
 fn main_window(label: &str) -> Result<(), String> {
@@ -388,7 +604,8 @@ fn failure(status: &'static str, error: &'static str, start: Instant) -> Health 
 async fn health_call(service: &Service<'_>, timeout: Duration) -> Health {
     let start = Instant::now();
     let schema = json!({"type":"object","additionalProperties":false,"properties":{"ok":{"type":"boolean","const":true}},"required":["ok"]});
-    let payload = json!({"model":service.model,"temperature":0,"max_tokens":256,
+    let payload = json!({"model":service.model,"temperature":0,"max_tokens":1024,
+
         "response_format":{"type":"json_schema","json_schema":{"name":"buddy_safe_inference_health","strict":true,"schema":schema}},
         "messages":[{"role":"system","content":"Return exactly the JSON object {\"ok\":true}. No explanation or user data is needed."},{"role":"user","content":"Check structured inference."}]});
     let result = tokio::time::timeout(timeout, async {
@@ -396,7 +613,7 @@ async fn health_call(service: &Service<'_>, timeout: Duration) -> Health {
             .client
             .post(&service.endpoint)
             .bearer_auth(&service.key)
-            .json(&payload)
+            .json(&http::constrained_payload(&payload))
             .send()
             .await
             .map_err(|_| ("network_error", "Nebius could not be reached."))?;
@@ -518,7 +735,7 @@ pub async fn test_nebius_inference(
         finished: false,
     };
     let result = match Service::configured(&state.client) {
-        Ok(service) => health_call(&service, Duration::from_secs(10)).await,
+        Ok(service) => health_call(&service, Duration::from_secs(20)).await,
         Err(_) => failure(
             "not_configured",
             "Configure Nebius before testing inference.",
