@@ -1341,7 +1341,7 @@ pub fn parse_chat(
             );
         }
     }
-    if answer.message.trim().is_empty() || answer.message.chars().count() > 6000 {
+    if !answer.message.chars().any(char::is_alphanumeric) || answer.message.chars().count() > 6000 {
         return Err("The AI returned invalid chat fields".into());
     }
     Ok(ChatReply {

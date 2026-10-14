@@ -66,7 +66,17 @@ async fn conversational_answer_sees_queue_and_uses_one_request_for_text_and_voic
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .respond_with(move |r: &Request| {
-                let (_, c) = body(r);
+                let (b, c) = body(r);
+                assert_eq!(
+                    b["messages"].as_array().unwrap().last().unwrap()["content"],
+                    "It is in Up next"
+                );
+                assert_eq!(b["messages"][2]["role"], "user");
+                assert_eq!(
+                    b["messages"][2]["content"],
+                    "Help me with Psychology assignment"
+                );
+                assert!(c.get("conversation").is_none());
                 assert_eq!(
                     c["state"]["work_queue"]["in_focus"]["title"],
                     "Client reply"
@@ -669,4 +679,50 @@ async fn privacy_change_during_authorization_blocks_execution() {
             .focused_goal_id,
         Some(ids["Client reply"])
     );
+}
+
+#[test]
+fn exclusive_response_schema_removes_conflicting_decisions_and_memory_fields() {
+    let (state, _) = fixture(&case()).unwrap();
+    let i = state.inner.lock().unwrap();
+    let snapshot = skills::snapshot(&i.storage, i.storage.current_conversation().unwrap()).unwrap();
+    let context = dialogue_context::packet(
+        &json!({"latest_request":"What remains?"}),
+        &snapshot,
+        true,
+        &[],
+    );
+    let format = schema(&snapshot, true, &context);
+    let variants = format["properties"]["response"]["anyOf"]
+        .as_array()
+        .unwrap();
+    assert_eq!(variants.len(), 5);
+    let read = &variants[1];
+    assert_eq!(read["properties"]["decision"]["const"], "read");
+    assert!(read["properties"].get("updates").is_none());
+    assert!(!read["properties"]["actions"]["items"]["anyOf"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v["properties"]["name"]["const"] == "delete_goal"));
+    let raw = json!({"state_version":snapshot.version,"response":{"decision":"answer","message":"Three saved steps remain.","web_query":null,"compose_response":false}});
+    assert_eq!(
+        parse(&envelope(raw), "What remains?").unwrap().intent.mode,
+        "answer"
+    );
+    let invalid = json!({"state_version":snapshot.version,"response":{"decision":"answer","message":"Done","web_query":null,"compose_response":false,"actions":[]}});
+    assert!(parse(&envelope(invalid), "What remains?").is_err());
+    let invalid = json!({"state_version":snapshot.version,"response":{"decision":"read","actions":[],"compose_response":true}});
+    assert!(parse(&envelope(invalid), "What remains?").is_err());
+}
+
+#[test]
+fn punctuation_only_provider_responses_are_not_displayable_answers() {
+    let raw = json!({"state_version":"v","response":{"decision":"answer","message":"...","web_query":null,"compose_response":false}});
+    assert!(parse(&envelope(raw), "Help me").is_err());
+    assert!(crate::ai_chat::parse_chat(
+        &envelope(json!({"message":"...","resources":[],"memory_update":null})),
+        &[]
+    )
+    .is_err());
 }

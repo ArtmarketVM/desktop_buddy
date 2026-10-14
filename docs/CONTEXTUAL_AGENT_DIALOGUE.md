@@ -6,7 +6,9 @@ Status: implementation under validation; not a published installer update.
 
 Text and local speech transcripts enter `AgentRuntime::handle_dialogue` and the
 same dialogue loop. The model selects an answer, read, change, clarification or
-preference decision. Production does not use the historical phrase-based chat
+preference decision through mutually exclusive JSON Schema variants. The actual
+conversation uses native user/assistant roles; the latest human message is last,
+while workspace data is clearly separated from instructions. Production does not use the historical phrase-based chat
 contract to classify the request. That adapter remains only for old mock tests.
 
 The shared, permission-filtered packet includes recent conversation, selectively
@@ -59,15 +61,19 @@ and script-based language detection are separate measurements, not GPT parity.
 The first experimental candidate failed: 39/60 mechanical passes and 45/60
 language matches, including guessed targets and false change claims. It was not
 published. That result motivated the single-decision schema and semantic reviews.
-The revised real-provider comparison is pending macOS Keychain authorization.
+The earlier waits exhausted the live audit deadline. After authorization, an
+intermediate Ultra candidate passed only 41/60 mechanical checks and 48/60
+language checks; generic clarification and missed mutations remained. Native
+conversation roles, mutually exclusive responses and semantic reasoning are
+being re-evaluated before selecting a model.
 No best-model claim or production model change is justified yet.
 
-Current local automated evidence: 429 Rust tests passed, 2 existing opt-in tests
+Current local automated evidence: 431 Rust tests passed, 2 existing opt-in tests
 ignored; 160 frontend tests passed; 15 release-verification tests and 8 acceptance
 runner tests passed; frontend build and changed-file formatting passed.
-The signed Apple Silicon candidate built successfully before the final pending-
-confirmation/privacy additions. Final exact-source native Windows and macOS
-builds, live comparison and installer publication remain required.
+Both native CI builds passed the initial draft commit. A signed Apple Silicon
+candidate is rebuilt for each live evaluation. Final exact-source native builds,
+live comparison and installer publication remain required.
 
 No database migrations, updater key changes or macOS signing identity changes.
 
