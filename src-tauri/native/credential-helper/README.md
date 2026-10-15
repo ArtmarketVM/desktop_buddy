@@ -1,6 +1,6 @@
 # Immutable macOS credential bridge
 
-`BuddyCredentialAccess` is a small Apple Silicon executable signed with the repository's reviewed internal identity. It contains no API keys. It is intentionally committed and copied byte for byte into `Contents/Helpers` for every release. Normal builds **must not rebuild or re-sign it**. `manifest.json` pins its SHA-256 and the reviewed source hash; release checks reject changes.
+`BuddyCredentialAccess` is a small Apple Silicon executable signed with the repository's reviewed internal identity. It contains no API keys. It is intentionally committed and copied byte for byte into `Contents/Helpers` for every release. Normal builds **must not rebuild or re-sign it**. `manifest.json` pins its SHA-256 and the reviewed source hash (canonical LF line endings); release checks reject changes.
 
 Why this exists: internal code-signing certificates receive a `cdhash:` partition in the file-based macOS Keychain. The app's hash changes on every update even when its designated requirement is stable. Data Protection Keychain returns `errSecMissingEntitlement` for our internally signed app; it is not a working migration destination. An unchanged bridge retains its partition across different parent app builds and installation paths.
 
