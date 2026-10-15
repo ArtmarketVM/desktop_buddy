@@ -322,8 +322,8 @@ export function PersonalAiEnginePanel({
           </section>
           <h4>Available skills</h4>
           <p className="helper">
-            Nemotron proposes actions; Rust validates permissions, IDs, scope
-            and state before execution. Goal and step completion still requires
+            The configured chat model proposes actions; Rust validates permissions,
+            IDs, scope and state before execution. Goal and step completion still requires
             an explicit action or confirmation.
           </p>
           {data.skills.map((group) => (

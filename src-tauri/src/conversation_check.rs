@@ -98,12 +98,69 @@ async fn one(case: &Case, service: &Service<'_>) -> Result<Value, String> {
     result
 }
 
+async fn web_research_check(service: &Service<'_>) -> Result<Value, String> {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:"))?)?;
+    let conversation = {
+        let mut inner = state.inner.lock().unwrap();
+        let conversation = inner.storage.current_conversation()?;
+        inner.storage.save_chat_turn(
+            "Synthetic earlier topic: Mayak is an order-tracking app. Presentation: 5 minutes, budget: 18000 rubles. Never change goals, steps or memory in this test.",
+            &ChatReply {message:"Understood: this is a synthetic chat only.".into(), ..Default::default()},None)?;
+        conversation
+    };
+    let history: Vec<_> = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .chat_history_of(conversation)?
+        .iter()
+        .map(|m| json!({"id":m.id,"role":m.role,"text":m.text}))
+        .collect();
+    let start = Instant::now();
+    let outcome=crate::agent_runtime::handle_dialogue(&json!({"latest_request":"AI AUDIT: find through web search the official Tauri 2 documentation about the minimum macOS deployment target. Briefly explain where the minimum macOS version is configured and cite official sources. Do not change goals, steps, settings or memory.","conversation":history,"natural_reply":true,"event_type":"user_message"}),conversation,&state,0,false,service).await;
+    let unchanged = {
+        let inner = state.inner.lock().unwrap();
+        inner.storage.core_snapshot(None)?.goals.is_empty()
+            && inner.storage.memory_overview(0)?.memories.is_empty()
+    };
+    let (reply, resources, error) = match outcome {
+        Ok(o) => (o.reply.message, o.reply.resources, None),
+        Err(e) => (String::new(), vec![], Some(e)),
+    };
+    let official_source = resources
+        .iter()
+        .any(|r| reqwest::Url::parse(&r.url).is_ok_and(|u| u.host_str() == Some("v2.tauri.app")));
+    let passed =
+        error.is_none() && unchanged && official_source && reply.contains("minimumSystemVersion");
+    Ok(
+        json!({"passed":passed,"latency_ms":start.elapsed().as_millis(),"workspace_unchanged":unchanged,"official_source":official_source,"reply":reply,"resources":resources,"error":error}),
+    )
+}
+
 pub async fn run() -> Result<Value, String> {
     let root = AppState::new(Storage::open(std::path::Path::new(":memory:"))?)?;
     if root.inner.lock().unwrap().status.mock_ai {
         return Err("Real provider required".into());
     }
     let service = Service::configured(&root.client)?;
+    let research = if std::env::args().any(|arg| arg == "--check-web-research") {
+        let result = web_research_check(&service).await;
+        let row = result.unwrap_or_else(
+            |_| json!({"passed":false,"error":"The bounded web research check did not finish"}),
+        );
+        eprintln!(
+            "Web research check: {}",
+            if row["passed"] == true {
+                "passed"
+            } else {
+                "failed"
+            }
+        );
+        Some(row)
+    } else {
+        None
+    };
     let mut rows = Vec::new();
     for case in cases() {
         let row = one(&case, &service).await?;
@@ -122,13 +179,17 @@ pub async fn run() -> Result<Value, String> {
     let mut report = json!({"passed":passed,"total":rows.len(),"all_passed":passed==rows.len(),"configured_model":service.model,
         "configured_response_model":crate::http::response_model(&service.model),
         "rubric":"Persisted synthetic chats reopened before inference; exact required facts, scope/state checks and a separate model quality review. Saved replies still require human review. This is not a GPT-parity or universal reliability claim.","cases":rows});
+    if let Some(research) = research {
+        report["all_passed"] = json!(report["all_passed"] == true && research["passed"] == true);
+        report["web_research_check"] = research;
+    }
     if std::env::args().any(|arg| arg == "--check-agent-actions") {
         // Reuse the already authorized runtime key. Separate processes can trigger
         // another native Keychain request even when they use the same candidate.
         match crate::engine_observability::action_check_with_service(&service, &root).await {
             Ok(actions) => {
                 report["all_passed"] = json!(
-                    passed == rows.len()
+                    report["all_passed"] == true
                         && actions.len() == 9
                         && actions.iter().all(|c| c.status == "passed")
                 );
