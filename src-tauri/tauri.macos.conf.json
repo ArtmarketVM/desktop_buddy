@@ -15,7 +15,10 @@
       "minimumSystemVersion": "14.5",
       "infoPlist": "Info.macos.plist",
       "entitlements": "Entitlements.macos.plist",
-      "signingIdentity": "-"
+      "signingIdentity": "-",
+      "files": {
+        "Helpers/BuddyCredentialAccess": "native/credential-helper/BuddyCredentialAccess"
+      }
     }
   },
   "plugins": {

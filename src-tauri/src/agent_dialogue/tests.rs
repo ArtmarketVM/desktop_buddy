@@ -198,7 +198,7 @@ async fn research_disabled_after_a_history_read_sends_no_search_and_reports_the_
             "buddy_dialogue_review" => response(json!({"verdict":"approved","request_mode":"answer","message":""})),
             name => panic!("Unexpected external request: {name}"),
         }
-    }).expect(4).mount(&server).await;
+    }).expect(2).mount(&server).await;
     let service = Service {
         client: &state.client,
         endpoint: server.uri(),
@@ -1452,4 +1452,63 @@ async fn duplicate_mutation_is_blocked_before_authorization_or_execution() {
         before.references.last_referenced_goal_id,
         after.references.last_referenced_goal_id
     );
+}
+
+#[tokio::test]
+async fn mixed_version_configuration_path_is_repaired_before_review_can_approve_it() {
+    let (state, _) = fixture(&case()).unwrap();
+    let snapshot = {
+        let inner = state.inner.lock().unwrap();
+        skills::snapshot(
+            &inner.storage,
+            inner.storage.current_conversation().unwrap(),
+        )
+        .unwrap()
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|r:&Request| {
+        let (body,context)=body(r);
+        match body["response_format"]["json_schema"]["name"].as_str() {
+            None=> {
+                assert!(context["reply_correction"].as_str().unwrap().contains("not present"));
+                ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":"Use bundle.macOS.minimumSystemVersion in the v2 configuration."}}]}))
+            },
+            Some("buddy_dialogue_review")=>response(json!({"verdict":"approved","request_mode":"answer","message":""})),
+            other=>panic!("Unexpected operation {other:?}"),
+        }
+    }).expect(2).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let sources = vec![crate::models::SearchResult {
+        title: "Version 2 reference".into(),
+        url: "https://example.org/v2/config".into(),
+        content: "v2: bundle.macOS.minimumSystemVersion sets the minimum version.".into(),
+    }];
+    let result = reviewed_answer(
+        ChatReply {
+            message: "Use tauri.bundle.macOS.minimumSystemVersion.".into(),
+            ..Default::default()
+        },
+        &state,
+        &service,
+        &json!({"latest_request":"Explain the version 2 configuration","conversation":[]}),
+        &snapshot,
+        &snapshot,
+        true,
+        &[],
+        None,
+        &sources,
+        0,
+    )
+    .await
+    .unwrap();
+    let CheckedReply::Reply(reply) = result else {
+        panic!("Unexpected mutation")
+    };
+    assert!(reply.message.contains("bundle.macOS.minimumSystemVersion"));
+    assert!(!reply.message.contains("tauri.bundle"));
 }

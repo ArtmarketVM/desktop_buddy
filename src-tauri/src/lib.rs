@@ -40,6 +40,7 @@ mod profile;
 mod recommendations;
 mod relevance;
 mod research;
+mod research_evidence;
 mod signing_trust;
 mod skills;
 mod startup;
