@@ -72,6 +72,7 @@ pub async fn run(
                 .map_err(|_| "Engine state unavailable")?;
             super::record(&mut inner, "check", name, "started", None, None);
         }
+        let before = goal(&isolated);
         let start = Instant::now();
         let received = send(&isolated, service, text, &history).await;
         history.push(json!({"role":"user","text":text}));
@@ -97,7 +98,23 @@ pub async fn run(
                         .is_some()
                 }
                 "delete_step_confirm" => g.as_ref().is_some_and(|g| {
-                    g.plan.steps.len() == 3 && g.plan.steps[1].text != "Написать ответы"
+                    before.as_ref().is_some_and(|old| {
+                        let expected: Vec<_> = old
+                            .plan
+                            .steps
+                            .iter()
+                            .enumerate()
+                            .filter(|(i, _)| *i != 1)
+                            .map(|(_, s)| s.id.as_str())
+                            .collect();
+                        old.plan.steps.len() == 4
+                            && g.plan
+                                .steps
+                                .iter()
+                                .map(|s| s.id.as_str())
+                                .collect::<Vec<_>>()
+                                == expected
+                    })
                 }),
                 "complete_step" => g
                     .as_ref()
@@ -118,16 +135,24 @@ pub async fn run(
                             .is_some_and(|c| c.resumed_at.is_some())
                 }),
                 "inspect_remaining" => {
-                    let inner = isolated.inner.lock().unwrap();
-                    inner
-                        .storage
-                        .action_references(inner.storage.current_conversation().unwrap())
+                    let message = received
+                        .as_ref()
                         .ok()
-                        .is_some_and(|r| {
-                            r.last_action.is_some_and(|a| {
-                                ["inspect_goal", "inspect_continuity"]
-                                    .contains(&a["skill"].as_str().unwrap_or_default())
-                            })
+                        .and_then(|r| r.as_ref())
+                        .map(|r| r.0.to_lowercase())
+                        .unwrap_or_default();
+                    before
+                        .as_ref()
+                        .zip(g.as_ref())
+                        .is_some_and(|(old, current)| {
+                            json!(old) == json!(current)
+                                && current.plan.steps.iter().any(|s| !s.done)
+                                && current
+                                    .plan
+                                    .steps
+                                    .iter()
+                                    .filter(|s| !s.done)
+                                    .all(|s| message.contains(&s.text.to_lowercase()))
                         })
                 }
                 _ => false,
