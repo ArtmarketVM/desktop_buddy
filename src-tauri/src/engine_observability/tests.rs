@@ -388,3 +388,37 @@ fn sidebar_invalidates_checks_and_discards_results_when_credentials_or_privacy_c
     inner.status.mock_ai = true;
     assert_eq!(service_status_view(&inner)["services"][0]["status"], "mock");
 }
+
+#[test]
+fn successful_probe_refreshes_stale_startup_configuration_flags() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.mock_ai = false;
+    inner.status.nebius_configured = false;
+    inner.status.tavily_configured = false;
+    let revision = inner.privacy_revision;
+    finish_connection_check(&mut inner, "nebius", revision, true, Some(true));
+    finish_connection_check(&mut inner, "tavily", revision, true, None);
+    assert!(inner.status.nebius_configured && inner.status.tavily_configured);
+    for service in service_status_view(&inner)["services"].as_array().unwrap() {
+        assert_eq!(service["status"], "verified");
+    }
+}
+
+#[test]
+fn failed_or_stale_probe_cannot_restore_removed_credential_status() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.mock_ai = false;
+    inner.status.nebius_configured = false;
+    inner.status.tavily_configured = false;
+    let revision = inner.privacy_revision;
+    finish_connection_check(&mut inner, "nebius", revision, false, None);
+    inner.privacy_revision += 1;
+    finish_connection_check(&mut inner, "tavily", revision, true, None);
+    assert!(!inner.status.nebius_configured && !inner.status.tavily_configured);
+    assert_eq!(
+        service_status_view(&inner)["services"][2]["status"],
+        "not_configured"
+    );
+}
