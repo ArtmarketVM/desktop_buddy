@@ -2,6 +2,8 @@
 
 Status: repository audit and proposed implementation scope, 2026-10-15.
 This document does not indicate that coaching workflows have been implemented.
+See `AI_COACHING_FOUNDATION.md` for the first backend implementation stage and
+the remaining UI, chat and provider integration work.
 The supplied AI Coaching Engine brief is a discussion draft rather than an
 approved specification. Its proposed infrastructure must be adapted to the app.
 

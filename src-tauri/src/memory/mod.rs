@@ -546,7 +546,14 @@ impl Storage {
     }
     pub fn clear_memory_scope(&mut self, scope: &Scope) -> Result<(), String> {
         scope.validate(&self.connection)?;
+        // Use the same transaction for scoped coaching state and existing memory.
+        let coaching_goal = scope.goal_id();
+        let coaching_conversation = scope.conversation_id();
         let tx = self.connection.savepoint().map_err(db_error)?;
+        let coaching_ready: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='coaching_sessions')", [], |r| r.get(0)).map_err(db_error)?;
+        if coaching_ready && (coaching_goal.is_some() || coaching_conversation.is_some()) {
+            tx.execute("DELETE FROM coaching_sessions WHERE (?1 IS NULL OR goal_id=?1) AND (?2 IS NULL OR conversation_id=?2)", params![coaching_goal,coaching_conversation]).map_err(db_error)?;
+        }
         tx.execute(
             "DELETE FROM memory_evidence WHERE scope_type=?1 AND scope_key=?2",
             params![scope.scope_type.name(), scope.scope_id.unwrap_or(0)],
