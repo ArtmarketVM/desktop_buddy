@@ -173,8 +173,15 @@ mod tests {
             DEFAULT_RESPONSE_MODEL
         );
         assert_eq!(resolve_response_model("custom", None, Some("")), "custom");
+        assert!(crate::goal_analysis::response_operation("buddy_skill_plan"));
+        assert!(crate::goal_analysis::response_operation(
+            "buddy_chat_research_authorization"
+        ));
         assert!(!crate::goal_analysis::response_operation(
-            "buddy_skill_plan"
+            "buddy_agent_reasoning"
+        ));
+        assert!(!crate::goal_analysis::response_operation(
+            "completion_detection"
         ));
         assert!(crate::goal_analysis::response_operation(
             "buddy_dialogue_authorization"

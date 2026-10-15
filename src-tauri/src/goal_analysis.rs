@@ -329,7 +329,9 @@ pub(crate) fn deliberate_operation(name: &str) -> bool {
 pub(crate) fn response_operation(name: &str) -> bool {
     matches!(
         name,
-        "buddy_dialogue_response"
+        "buddy_skill_plan"
+            | "buddy_chat_research_authorization"
+            | "buddy_dialogue_response"
             | "buddy_dialogue_review"
             | "buddy_dialogue_authorization"
             | "buddy_research_synthesis"

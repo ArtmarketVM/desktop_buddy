@@ -1,6 +1,215 @@
 use super::*;
 use crate::dialogue_benchmark::{fixture, Case};
 use wiremock::{matchers::method, Mock, MockServer, Request, ResponseTemplate};
+
+#[test]
+fn unverified_read_receipt_is_not_a_user_answer_but_mutation_receipts_are_preserved() {
+    let mut execution = skills::Execution {
+        status: "executed",
+        results: vec![skills::SkillResult {
+            skill: "inspect_conversation".into(),
+            goal_id: None,
+            step_id: None,
+            data: json!({}),
+        }],
+        message: None,
+    };
+    assert!(execution
+        .fallback_message()
+        .contains("Read retained messages"));
+    assert!(unverified_reply(Some(&execution))
+        .message
+        .contains("could not verify"));
+    execution.results[0].skill = "create_goal".into();
+    execution.results[0].data = json!({"title":"Synthetic goal"});
+    assert!(unverified_reply(Some(&execution))
+        .message
+        .contains("Created"));
+    execution.status = "confirmation_required";
+    assert!(unverified_reply(Some(&execution))
+        .message
+        .contains("Proposed changes only"));
+}
+
+#[tokio::test]
+async fn web_search_authorization_checks_the_request_without_sending_workspace_or_memory() {
+    for authorized in [true, false] {
+        let (state, _) = fixture(&case()).unwrap();
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(move |r: &Request| {
+                let (b, c) = body(r);
+                assert_eq!(
+                    b["response_format"]["json_schema"]["name"],
+                    "buddy_chat_research_authorization"
+                );
+                assert_eq!(c.as_object().unwrap().len(), 3);
+                assert!(!c.to_string().contains("PRIVATE WORKSPACE"));
+                assert!(!c.to_string().contains("PRIVATE MEMORY"));
+                response(json!({"authorized":authorized}))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let context = json!({"latest_request":"Find the official Tauri deployment documentation", "conversation":[],
+            "state":"PRIVATE WORKSPACE", "personal_memory":"PRIVATE MEMORY"});
+        assert_eq!(
+            authorize_web_query(
+                &state,
+                &service,
+                &context,
+                "Tauri 2 macOS deployment target official documentation"
+            )
+            .await
+            .is_ok(),
+            authorized
+        );
+    }
+}
+
+#[tokio::test]
+async fn malformed_web_authorization_fails_closed() {
+    let (state, _) = fixture(&case()).unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(response(json!({"authorized":"yes"})))
+        .expect(2)
+        .mount(&server)
+        .await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    assert!(authorize_web_query(
+        &state,
+        &service,
+        &json!({"latest_request":"Read my goal","conversation":[]}),
+        "unrequested search"
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn history_read_does_not_itself_authorize_web_search() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let (state, _) = fixture(&case()).unwrap();
+    state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .write_setting(
+            "ai_assistance_preferences",
+            &goal_analysis::AiPreferences {
+                web_research: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let server = MockServer::start().await;
+    let plans = Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST"))
+        .respond_with(move |r: &Request| {
+            let (b, c) = body(r);
+            match b["response_format"]["json_schema"]["name"]
+                .as_str()
+                .unwrap()
+            {
+                "buddy_skill_plan" if plans.fetch_add(1, Ordering::SeqCst) == 0 => {
+                    response(action(
+                        &c,
+                        "inspect_conversation",
+                        json!({"query":"","before_message_id":null}),
+                        "read",
+                        true,
+                    ))
+                }
+                "buddy_skill_plan" => {
+                    let mut a = answer(&c, "I will search.");
+                    a["web_query"] = json!("unrequested search");
+                    response(a)
+                }
+                "buddy_chat_research_authorization" => response(json!({"authorized":false})),
+                name => panic!("Unexpected request: {name}"),
+            }
+        })
+        .expect(3)
+        .mount(&server)
+        .await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let error=run(&json!({"latest_request":"Read what we said here. Do not search.","conversation":[],"natural_reply":true}),conversation,&state,0,false,&service).await.err().unwrap();
+    assert!(error.contains("No search was sent"), "{error}");
+}
+
+#[tokio::test]
+async fn research_disabled_after_a_history_read_sends_no_search_and_reports_the_setting() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let (state, _) = fixture(&case()).unwrap();
+    let conversation = {
+        let inner = state.inner.lock().unwrap();
+        inner
+            .storage
+            .write_setting(
+                "ai_assistance_preferences",
+                &goal_analysis::AiPreferences {
+                    web_research: false,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        inner.storage.current_conversation().unwrap()
+    };
+    let server = MockServer::start().await;
+    let plans = Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST")).respond_with(move |r: &Request| {
+        let (b,c)=body(r);
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("prose") {
+            "buddy_skill_plan" if plans.fetch_add(1,Ordering::SeqCst)==0 =>
+                response(action(&c,"inspect_conversation",json!({"query":"Tauri","before_message_id":null}),"read",true)),
+            "buddy_skill_plan" => { let mut a=answer(&c,"Search requested.");a["web_query"]=json!("Tauri macOS deployment documentation");response(a) },
+            "prose" => ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":"Web research is off; I have no retrieved sources."}}]})),
+            "buddy_dialogue_review" => response(json!({"verdict":"approved","request_mode":"answer","message":""})),
+            name => panic!("Unexpected external request: {name}"),
+        }
+    }).expect(4).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let result=run(&json!({"latest_request":"Find official documentation for that topic","conversation":[],"natural_reply":true}),conversation,&state,0,false,&service).await.unwrap();
+    assert!(!result.committed);
+    assert!(result.reply.message.contains("Web research is off"));
+    assert!(result.reply.resources.is_empty());
+}
 fn case() -> Case {
     Case {
         id: "fixture-en".into(),
