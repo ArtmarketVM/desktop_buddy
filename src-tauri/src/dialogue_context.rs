@@ -99,18 +99,25 @@ pub fn workspace(snapshot: &Snapshot, share: bool, selected: Option<i64>) -> Val
 }
 
 pub fn packet(request: &Value, snapshot: &Snapshot, share: bool, tools: &[Value]) -> Value {
+    let available = request["conversation"].as_array().map_or(0, Vec::len);
+    let mut clipped_messages = 0;
     let history: Vec<_> = request["conversation"]
         .as_array()
         .into_iter()
         .flatten()
         .rev()
-        .take(12)
+        .take(100)
         .cloned()
         .collect::<Vec<_>>()
         .into_iter()
         .rev()
         .map(|mut message| {
-            clip(&mut message["text"], 2000);
+            let clipped = message["text"]
+                .as_str()
+                .is_some_and(|t| t.chars().count() > 6000);
+            clip(&mut message["text"], 6000);
+            message["clipped"] = json!(clipped);
+            clipped_messages += usize::from(clipped);
             message
         })
         .collect();
@@ -122,8 +129,13 @@ pub fn packet(request: &Value, snapshot: &Snapshot, share: bool, tools: &[Value]
         "registry":crate::skills::planning_catalog(),"tool_results":tools,"product_facts":PRODUCT_FACTS,
         "tracking_insight":if share {request["goal_context"]["tracking_insight"].clone()}else{Value::Null},
         "avoidResourceUrls":if share {request["avoidResourceUrls"].clone()}else{Value::Null}});
-    let mut omitted_history = 0;
+    let mut omitted_history = available.saturating_sub(100);
     let mut omitted_tools = 0;
+    // Keep a useful recent conversation without letting long drafts crowd out app facts.
+    while packet["conversation"].to_string().len() > 48 * 1024 {
+        packet["conversation"].as_array_mut().unwrap().remove(0);
+        omitted_history += 1;
+    }
     while packet.to_string().len() > 80 * 1024 {
         if packet["conversation"]
             .as_array()
@@ -141,6 +153,9 @@ pub fn packet(request: &Value, snapshot: &Snapshot, share: bool, tools: &[Value]
             break;
         }
     }
-    packet["context_budget"] = json!({"maximum_bytes":98304,"omitted_older_messages":omitted_history,"omitted_older_tool_results":omitted_tools,"rule":"Omitted or clipped data is not evidence. Do not invent missing facts."});
+    packet["context_budget"] = json!({"maximum_bytes":98304,"conversation_maximum_bytes":49152,"omitted_older_messages":omitted_history,"clipped_messages":clipped_messages,"omitted_older_tool_results":omitted_tools,
+        "oldest_message_id":packet["conversation"].as_array().and_then(|a|a.first()).and_then(|m|m["id"].as_i64()),
+        "history_tool":"inspect_conversation",
+        "rule":"History is scoped to this chat. Older retained messages can be read with inspect_conversation. Omitted or clipped data is not evidence. Latest user corrections override older statements and assistant guesses. A draft's numbered items are not saved goal steps. Do not invent missing facts."});
     packet
 }

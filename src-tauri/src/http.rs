@@ -2,7 +2,7 @@ use serde_json::Value;
 use std::time::Duration;
 
 pub const DEFAULT_PRIMARY_MODEL: &str = "nvidia/nemotron-3-super-120b-a12b";
-pub const DEFAULT_RESPONSE_MODEL: &str = "Qwen/Qwen3.5-397B-A17B";
+pub const DEFAULT_RESPONSE_MODEL: &str = "moonshotai/Kimi-K3";
 fn resolve_response_model(
     primary: &str,
     primary_override: Option<&str>,
@@ -176,13 +176,13 @@ mod tests {
         assert!(!crate::goal_analysis::response_operation(
             "buddy_skill_plan"
         ));
-        assert!(!crate::goal_analysis::response_operation(
+        assert!(crate::goal_analysis::response_operation(
             "buddy_dialogue_authorization"
         ));
         assert!(crate::goal_analysis::response_operation(
             "buddy_dialogue_response"
         ));
-        assert!(!crate::goal_analysis::response_operation(
+        assert!(crate::goal_analysis::response_operation(
             "buddy_dialogue_review"
         ));
     }

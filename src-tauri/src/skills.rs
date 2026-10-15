@@ -19,7 +19,8 @@ pub struct Skill {
     pub input_schema: Value,
     pub result_schema: Value,
     pub validator: fn(&Skill, &Value) -> Result<Input, String>,
-    pub executor: fn(&Skill, &mut Storage, Input, &mut References) -> Result<SkillResult, String>,
+    pub executor:
+        fn(&Skill, &mut Storage, Input, &mut References, i64) -> Result<SkillResult, String>,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, PartialEq)]
@@ -63,6 +64,8 @@ pub struct Input {
     pub research_id: Option<i64>,
     pub helpful: Option<bool>,
     pub view: Option<crate::continuity::View>,
+    pub query: Option<String>,
+    pub before_message_id: Option<i64>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -137,6 +140,7 @@ impl Execution {
                 })
                 .unwrap_or("step");
             let line=match r.skill.as_str() {
+                "inspect_conversation" => "Read retained messages from this conversation.".into(),
                 "inspect_work_queue" => work_queue_receipt(&r.data),
                 "inspect_continuity" => r.data["report"].as_str().unwrap_or_default().to_string(),
                 "search_web" => format!("Search the web for \"{}\"{} after confirmation.",r.data["title"].as_str().unwrap_or("this goal"),r.data["step_text"].as_str().map(|s|format!(" — step: {s}")).unwrap_or_default()),
@@ -212,6 +216,11 @@ fn result_schema(name: &str) -> Value {
         "next_step":{"anyOf":[shape(json!({"step_id":{"type":"string"},"text":{"type":"string"}})),{"type":"null"}]}}),
     );
     let data = match name {
+        "inspect_conversation" => shape(
+            json!({"messages":{"type":"array","maxItems":8,"items":shape(json!({
+            "id":{"type":"integer"},"role":{"type":"string"},"text":{"type":"string"},"clipped":{"type":"boolean"}}))},
+            "next_before_message_id":{"type":["integer","null"]},"has_more":{"type":"boolean"},"scanned_messages":{"type":"integer"}}),
+        ),
         "inspect_continuity" => shape(
             json!({"day":{"type":"string"},"report":{"type":"string"},"omitted_lanes":{"type":"integer"}}),
         ),
@@ -314,6 +323,7 @@ pub fn registry() -> Vec<Skill> {
     let goal = goal_schema();
     let step = step_schema();
     [
+        ("inspect_conversation", "Read older retained messages ONLY from this chat. Use a short literal query (Unicode case insensitive), or empty query for a page; before_message_id is a pagination cursor or null. Results may be clipped; never treat assistant guesses as user facts.", Safety::ReadOnly, json!({"query":{"type":"string","maxLength":200},"before_message_id":{"type":["integer","null"],"minimum":1}})),
         ("search_web", "Search for information for this goal and optional step; requires explicit web-search confirmation before any provider call", Safety::Confirmation, json!({"goal":goal,"step":{"anyOf":[step,{"type":"null"}]},"text":text})),
         ("attach_research_to_context", "Attach an existing validated research receipt to its original goal checkpoint; never invent research content", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1}})),
         ("record_research_feedback", "Record whether this exact goal research helped; no completion is implied", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1},"helpful":{"type":"boolean"}})),
@@ -485,12 +495,19 @@ fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
                     && ["checkpoint", "current_app"].contains(&key.as_str()))
                 && !(skill.name == "search_web" && key == "step")
                 && !(skill.name == "inspect_continuity" && key == "goal")
+                && !(skill.name == "inspect_conversation" && key == "before_message_id")
         })
     {
         return Err("Skill input does not match its schema".into());
     }
     let input: Input =
         serde_json::from_value(value.clone()).map_err(|_| "Invalid skill arguments")?;
+    if skill.name == "inspect_conversation"
+        && (input.query.as_ref().is_none_or(|s| s.chars().count() > 200)
+            || input.before_message_id.is_some_and(|id| id <= 0))
+    {
+        return Err("Invalid conversation history query".into());
+    }
     for value in [&input.title, &input.text].into_iter().flatten() {
         crate::goals::text(value, true)?;
     }
@@ -825,6 +842,7 @@ fn execute_one(
     storage: &mut Storage,
     input: Input,
     refs: &mut References,
+    conversation: i64,
 ) -> Result<SkillResult, String> {
     let mut result = SkillResult {
         skill: skill.name.into(),
@@ -832,6 +850,14 @@ fn execute_one(
         step_id: None,
         data: json!({}),
     };
+    if skill.name == "inspect_conversation" {
+        result.data = storage.inspect_conversation(
+            conversation,
+            input.query.as_deref().unwrap_or_default(),
+            input.before_message_id,
+        )?;
+        return Ok(result);
+    }
     if skill.name == "inspect_continuity" {
         let goal_id = input
             .goal
@@ -1220,7 +1246,7 @@ fn batch(
                 .find(|s| s.name == action.name)
                 .ok_or("Unknown skill")?;
             let input = (skill.validator)(&skill, &action.input)?;
-            let result = (skill.executor)(&skill, storage, input, &mut refs)?;
+            let result = (skill.executor)(&skill, storage, input, &mut refs, snap.conversation)?;
             if !valid_result(
                 &skill.result_schema,
                 &serde_json::to_value(&result).map_err(|e| e.to_string())?,
@@ -1310,7 +1336,7 @@ pub fn execute_for_event(
             .find(|s| s.name == action.name)
             .ok_or("Unknown skill")?;
         (skill.validator)(&skill, &action.input)?;
-        if !share && skill.name != "create_goal" {
+        if !share && !["create_goal", "inspect_conversation"].contains(&skill.name) {
             return Err("Enable goal context sharing before acting on existing goals.".into());
         }
         if skill.safety != Safety::ReadOnly && !confirmed {

@@ -270,7 +270,7 @@ export function PersonalAiEnginePanel({
               in-memory database: create, steps, confirmation, completion,
               rename, Park, Resume and remaining work. No personal goals, chats
               or window text are sent. Provider charges may apply. Stops at the
-              first failure; maximum 3 minutes.
+              first failure; maximum 6 minutes.
             </p>
             <button
               className="secondary"
