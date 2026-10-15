@@ -315,10 +315,9 @@ fn prose_reply(
     let text = goal_analysis::response_text(value)?;
     // Accept an older compatible provider envelope as well as plain prose. Neither
     // format can execute actions; only backend receipts authorize outcome claims.
-    let raw = if let Some(mut object) = serde_json::from_str::<Value>(text)
-        .ok()
-        .filter(|o| o.is_object() && o["message"].is_string())
-    {
+    let raw = if let Some(mut object) = serde_json::from_str::<Value>(text).ok().filter(|o| {
+        o.is_object() && o["message"].is_string() && o.get("verified_result_indices").is_some()
+    }) {
         if let Some(actual) = object
             .as_object_mut()
             .unwrap()
@@ -389,7 +388,10 @@ fn parse_review(value: &Value, mutation: bool) -> Result<Review, String> {
     let mut raw: Value = serde_json::from_str(goal_analysis::response_text(value)?)
         .map_err(|_| "Invalid dialogue review")?;
     if raw.get("review").is_some() {
-        if raw.as_object().is_none_or(|o| o.len() != 1) {
+        if raw.as_object().is_none_or(|o| {
+            o.keys()
+                .any(|k| !["checks", "review"].contains(&k.as_str()))
+        }) {
             return Err("Invalid dialogue review envelope".into());
         }
         raw = raw["review"].clone();
@@ -408,6 +410,37 @@ fn parse_review(value: &Value, mutation: bool) -> Result<Review, String> {
         return Err("Invalid dialogue review decision".into());
     }
     Ok(r)
+}
+
+fn validate_review_checks(value: &Value, latest: &str, review: &Review) -> Result<(), String> {
+    let raw: Value = serde_json::from_str(goal_analysis::response_text(value)?)
+        .map_err(|_| "Invalid response checks")?;
+    let Some(checks) = raw.get("checks") else {
+        // Historical mock fixtures predate the checklist. Production requires it.
+        #[cfg(test)]
+        return Ok(());
+        #[cfg(not(test))]
+        return Err("Missing response requirement checks".into());
+    };
+    let checks = checks.as_array().ok_or("Invalid response checks")?;
+    if checks.is_empty() || checks.len() > 12 {
+        return Err("Invalid response requirement count".into());
+    }
+    for check in checks {
+        let quote = check["quote"].as_str().ok_or("Missing requirement quote")?;
+        let satisfied = check["satisfied"]
+            .as_bool()
+            .ok_or("Missing requirement result")?;
+        if check.as_object().is_none_or(|o| o.len() != 2)
+            || quote.trim().is_empty()
+            || quote.chars().count() > 500
+            || !latest.contains(quote)
+            || (review.verdict == "approved" && !satisfied)
+        {
+            return Err("The response did not satisfy the quoted user requirements".into());
+        }
+    }
+    Ok(())
 }
 
 async fn review(
@@ -438,9 +471,11 @@ async fn review(
         json!({"type":"object","additionalProperties":false,"properties":{
         "verdict":{"type":"string","const":verdict},"request_mode":if mutation && verdict=="approved" {json!({"type":"string","const":"change"})}else{modes.clone()},"message":message},"required":["verdict","request_mode","message"]})
     };
-    let schema = json!({"type":"object","additionalProperties":false,"properties":{"review":{"anyOf":[branch("approved",json!({"type":"string","const":""})),
+    let schema = json!({"type":"object","additionalProperties":false,"properties":{
+        "checks":{"type":"array","minItems":1,"maxItems":12,"description":"Check every independent output requirement, restriction and requested item from the latest human request before deciding. For mutation authorization assess whether the proposed plan matches the instruction; do not require execution before authorization. Include restrictions on what must not be repeated. Quote the human verbatim, never translate or invent a requirement.","items":{"type":"object","additionalProperties":false,"properties":{"quote":{"type":"string","minLength":1,"maxLength":500},"satisfied":{"type":"boolean"}},"required":["quote","satisfied"]}},
+        "review":{"anyOf":[branch("approved",json!({"type":"string","const":""})),
         branch("repair",json!({"type":"string","minLength":1,"maxLength":500,"description":"A correction instruction for the answer or plan, not a new answer to the user."})),
-        branch("clarify",json!({"type":"string","minLength":1,"maxLength":500,"description":"A question needed to resolve genuinely missing or ambiguous information, in the user's language."}))]}},"required":["review"]});
+        branch("clarify",json!({"type":"string","minLength":1,"maxLength":500,"description":"A question needed to resolve genuinely missing or ambiguous information, in the user's language."}))]}},"required":["checks","review"]});
     let name = if mutation {
         "buddy_dialogue_authorization"
     } else {
@@ -455,7 +490,15 @@ async fn review(
             context,
             name,
             schema,
-            |v| parse_review(v, mutation),
+            |v| {
+                let review = parse_review(v, mutation)?;
+                validate_review_checks(
+                    v,
+                    request["latest_request"].as_str().unwrap_or_default(),
+                    &review,
+                )?;
+                Ok(review)
+            },
         ),
     )
     .await

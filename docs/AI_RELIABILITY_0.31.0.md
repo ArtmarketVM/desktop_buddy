@@ -14,6 +14,20 @@ and changing the budget still produced invented included services. This was a
 factual grounding failure, despite successful HTTP and valid structured JSON.
 The pre-existing mechanical action rubric did not detect this type of error.
 
+An initial 0.31.0 candidate improved history handling but still passed only three
+of six stricter conversation checks: it repeated unrequested draft sections or
+returned an introduction without the requested body. Using Qwen for every role
+on that same candidate also passed only three of six; it additionally missed an
+older retained fact. The hybrid action series stopped at verbal deletion
+confirmation without a backend pending action; the all-Qwen action series did
+not finish within its bounded timeout. These failed candidates were not released.
+A later candidate fixed multiline formatting and passed four of six checks with
+Qwen. On the same candidate, Kimi K3 passed all six, including editing only the
+requested slide. Human inspection of the saved replies confirmed the original
+constraints, corrected budgets, scoped older history, Russian/Hebrew responses
+and neutral placeholders for unknown product details. The final candidate also
+adds explicit requirement checks and a safe network-outage checkpoint path.
+
 ## Implemented changes
 
 1. `companion/mod.rs` resumes the current conversation when opening the mascot
@@ -39,11 +53,20 @@ The pre-existing mechanical action rubric did not detect this type of error.
    JSON string; structured JSON remains mandatory for planning, authorization,
    tool results and review. Complete multiline output, length/source checks and
    content-free inference metrics are tested.
-7. Qwen handles response review and independent mutation authorization as well
+7. Kimi K3 handles response review and independent mutation authorization as well
    as writing. Nemotron retains structured planning and background reasoning.
    Non-Nemotron sampling uses temperature 0.2; deliberate Nemotron parameters,
    configured model IDs and real HTTP integration are preserved.
-8. An unambiguous destructive request must create a backend confirmation
+8. Response review enumerates verbatim requirements from the current user
+   message before deciding. The backend rejects invented requirement quotes
+   and an approval with an unsatisfied requirement. These transient checks are
+   not written to memory or content-free diagnostic logs.
+9. Park checkpoint generation has a 15-second deadline. A transport/provider
+   outage can use the saved unfinished step and a neutral local checkpoint;
+   additional progress remains unknown. Unsafe/malformed generated output and
+   stale state still fail closed. An existing waiting item is reused only for
+   the same saved step.
+10. An unambiguous destructive request must create a backend confirmation
    preview. A conversational are-you-sure question alone is insufficient;
    response review can send the request back to planning.
 
@@ -63,18 +86,20 @@ cargo fmt --manifest-path src-tauri/Cargo.toml --check
 The signed application also exposes an explicit developer-only CLI check:
 
 ```sh
-desktop-buddy --check-conversation-reliability
-desktop-buddy --check-agent-actions
+desktop-buddy --check-conversation-reliability --check-agent-actions
 ```
 
 The conversation check creates disposable SQLite files with synthetic chats,
 closes and reopens them before inference, and selects an unrelated second chat
 to test isolation. It tests required facts and unchanged workspace state, then
 uses a separate model request to review quality against known fixture facts.
+The combined command reuses one runtime credential read for both series. The
+nine-action check has a six-minute overall deadline; individual dialogue
+requests and checkpoint generation retain their own bounded deadlines.
 Reports contain synthetic replies for human inspection. No production database,
 screen text, provider key or hidden provider reasoning is included.
 
-Local regression: 448 Rust tests passed, two existing opt-in tests ignored;
+Local regression: 451 Rust tests passed, two existing opt-in tests ignored;
 160 frontend tests passed; 15 release/signing tests passed; frontend production
 build passed. Native platform and real-provider results are recorded below
 after completion.
@@ -105,3 +130,17 @@ after completion.
 No migrations. Existing tables, retention settings and stored data are reused.
 Updater trusted keys, Windows signing channel and reviewed macOS code-signing
 identity are unchanged. macOS installers target Apple Silicon only.
+
+## Response-model choice and cost
+
+The default response/review model is `moonshotai/Kimi-K3`; the primary planning
+and background model remains `nvidia/nemotron-3-super-120b-a12b`. Explicit runtime
+model overrides retain their existing behavior.
+
+Nebius lists Kimi K3 at $3 input / $15 output per million tokens, versus
+$0.60 / $3.60 for Qwen3.5-397B-A17B at the time of this audit: roughly four to
+five times the token price. Total cost depends on the number of calls, context,
+output and retries; it is not a flat price per chat message.
+
+Sources: [Nebius Kimi pricing](https://nebius.com/services/token-factory/models/kimi-models-inference),
+[Nebius Qwen pricing](https://nebius.com/services/token-factory/models/qwen-models-inference).

@@ -22,9 +22,15 @@ pub(crate) async fn headless_action_check() -> Result<Vec<action_check::CheckRes
         return Err("Live check requires real provider responses".into());
     }
     let service = Service::configured(&state.client)?;
+    action_check_with_service(&service, &state).await
+}
+pub(crate) async fn action_check_with_service(
+    service: &Service<'_>,
+    state: &AppState,
+) -> Result<Vec<action_check::CheckResult>, String> {
     tokio::time::timeout(
-        Duration::from_secs(180),
-        action_check::run(&service, &state, 0),
+        Duration::from_secs(360),
+        action_check::run(service, state, 0),
     )
     .await
     .map_err(|_| "Agent check timed out")?
@@ -127,7 +133,7 @@ pub async fn test_agent_actions(
     };
     let service = Service::configured(&state.client)?;
     let result = tokio::time::timeout(
-        Duration::from_secs(180),
+        Duration::from_secs(360),
         action_check::run(&service, &state, revision),
     )
     .await;

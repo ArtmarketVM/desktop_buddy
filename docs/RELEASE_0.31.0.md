@@ -14,8 +14,10 @@ Available for Windows x64 and Apple Silicon Macs running macOS 14.5 or later.
   features, pilot results, prices and payback claims. Proposed assumptions must
   be identified as proposals.
 - Natural answers use plain text, while actions and validation retain strict
-  structured JSON. Qwen writes and reviews responses and checks mutation intent;
+  structured JSON. Kimi K3 writes and reviews responses and checks mutation intent;
   Nemotron continues structured planning and background reasoning.
+- Park can save known local state after a provider outage, without inventing
+  progress. Unsafe AI output and stale state remain rejected.
 - Clear destructive requests create a backend confirmation preview rather than
   stopping at an untracked verbal confirmation.
 - Natural-response models use lower sampling temperature; Nemotron retains its

@@ -3,6 +3,94 @@ use crate::{core::GoalDraft, models::ActivitySnapshot};
 fn db() -> Storage {
     Storage::open(std::path::Path::new(":memory:")).unwrap()
 }
+
+#[test]
+fn local_checkpoint_uses_saved_steps_without_claiming_unverified_progress() {
+    let source = json!({"goal":{"current_step_id":"b","steps":[{"id":"a","text":"Already completed","done":true},{"id":"b","text":"Review draft","done":false}]},"raw_accessibility_text":"Never persist this raw screen text","existing_checkpoint":{"step_id":"b","next_action":"Check for the client response","waiting_for":"Client response"}});
+    let checkpoint = local_checkpoint(&source).unwrap();
+    assert!(checkpoint.summary.contains("unknown"));
+    assert_eq!(checkpoint.waiting_for.as_deref(), Some("Client response"));
+    assert_eq!(checkpoint.next_action, "Check for the client response");
+    assert!(!serde_json::to_string(&checkpoint)
+        .unwrap()
+        .contains("raw screen"));
+    let mut changed = source;
+    changed["existing_checkpoint"]["step_id"] = json!("old-step");
+    let checkpoint = local_checkpoint(&changed).unwrap();
+    assert_eq!(checkpoint.next_action, "Review draft");
+    assert!(checkpoint.waiting_for.is_none());
+    changed["goal"]["steps"][1]["text"] = json!("password: my-secret-password");
+    assert!(local_checkpoint(&changed).is_err());
+}
+
+#[tokio::test]
+async fn provider_failure_still_parks_known_state_without_bypassing_privacy_or_execution() {
+    use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
+    let mut storage = db();
+    let id = goal(&mut storage, "Fallback checkpoint", true);
+    let state = AppState::new(storage).unwrap();
+    let snap = {
+        let inner = state.inner.lock().unwrap();
+        skills::snapshot(
+            &inner.storage,
+            inner.storage.current_conversation().unwrap(),
+        )
+        .unwrap()
+    };
+    let mut plan = Plan {
+        kind: "actions".into(),
+        state_version: snap.version.clone(),
+        actions: vec![skills::Action {
+            name: "park_context".into(),
+            input: json!({"goal":{"goal_id":id,"reference":null},"checkpoint":null,"current_app":null}),
+            instruction: Some("Park this goal".into()),
+        }],
+        clarification: None,
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(ResponseTemplate::new(400))
+        .expect(1)
+        .mount(&server)
+        .await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    prepare_park_actions(&mut plan, &snap, &state, &service, "Park this goal", 0)
+        .await
+        .unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    assert!(
+        inner.storage.work_context(id).unwrap().is_none(),
+        "Generation alone must never park work"
+    );
+    let execution = skills::execute(
+        &mut inner.storage,
+        &snap,
+        &plan,
+        "Park this goal",
+        true,
+        false,
+    )
+    .unwrap();
+    assert!(execution.committed_changes());
+    let checkpoint = inner.storage.work_context(id).unwrap().unwrap();
+    assert_eq!(
+        checkpoint.context.next_action.as_deref(),
+        Some("Write outline")
+    );
+    assert!(checkpoint.context.summary.contains("unknown"));
+    assert!(inner
+        .storage
+        .goal_plan(id)
+        .unwrap()
+        .steps
+        .iter()
+        .all(|s| !s.done));
+}
 fn goal(s: &mut Storage, title: &str, with_step: bool) -> i64 {
     s.core_add_goals(
         vec![GoalDraft {

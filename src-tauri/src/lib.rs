@@ -69,11 +69,7 @@ pub fn run() {
         match result {
             Ok(report) => {
                 println!("{report}");
-                std::process::exit(if report["passed"] == report["total"] {
-                    0
-                } else {
-                    1
-                });
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
             }
             Err(_) => {
                 eprintln!("Conversation checks could not finish. No personal data was changed.");

@@ -119,11 +119,28 @@ pub async fn run() -> Result<Value, String> {
         rows.push(row);
     }
     let passed = rows.iter().filter(|r| r["passed"] == true).count();
-    Ok(
-        json!({"passed":passed,"total":rows.len(),"configured_model":service.model,
+    let mut report = json!({"passed":passed,"total":rows.len(),"all_passed":passed==rows.len(),"configured_model":service.model,
         "configured_response_model":crate::http::response_model(&service.model),
-        "rubric":"Persisted synthetic chats reopened before inference; exact required facts, scope/state checks and a separate model quality review. Saved replies still require human review. This is not a GPT-parity or universal reliability claim.","cases":rows}),
-    )
+        "rubric":"Persisted synthetic chats reopened before inference; exact required facts, scope/state checks and a separate model quality review. Saved replies still require human review. This is not a GPT-parity or universal reliability claim.","cases":rows});
+    if std::env::args().any(|arg| arg == "--check-agent-actions") {
+        // Reuse the already authorized runtime key. Separate processes can trigger
+        // another native Keychain request even when they use the same candidate.
+        match crate::engine_observability::action_check_with_service(&service, &root).await {
+            Ok(actions) => {
+                report["all_passed"] = json!(
+                    passed == rows.len()
+                        && actions.len() == 9
+                        && actions.iter().all(|c| c.status == "passed")
+                );
+                report["action_checks"] = json!(actions);
+            }
+            Err(_) => {
+                report["all_passed"] = json!(false);
+                report["action_check_error"] = json!("The bounded action check did not finish");
+            }
+        }
+    }
+    Ok(report)
 }
 pub async fn bounded_run() -> Result<Value, String> {
     tokio::time::timeout(Duration::from_secs(900), run())

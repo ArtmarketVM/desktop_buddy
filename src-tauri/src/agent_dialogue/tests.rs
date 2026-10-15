@@ -690,10 +690,42 @@ fn natural_prose_keeps_complete_multiline_answers_and_cannot_execute_json_drafts
     let draft = "{\"name\":\"create_goal\",\"input\":{\"title\":\"Example JSON\"}}";
     let value = json!({"choices":[{"finish_reason":"stop","message":{"content":draft}}]});
     assert_eq!(prose_reply(&value, &[], &[]).unwrap().message, draft);
+    let draft = "{\"message\":\"A user-requested JSON example\"}";
+    let value = json!({"choices":[{"finish_reason":"stop","message":{"content":draft}}]});
+    assert_eq!(prose_reply(&value, &[], &[]).unwrap().message, draft);
     let bad = json!({"choices":[{"finish_reason":"stop","message":{"content":"Read https://invented.example/results"}}]});
     assert!(prose_reply(&bad, &[], &[]).is_err());
     let incomplete = json!({"choices":[{"finish_reason":"length","message":{"content":text}}]});
     assert!(prose_reply(&incomplete, &[], &[]).is_err());
+}
+
+#[test]
+fn response_review_cannot_approve_failed_or_invented_user_requirements() {
+    let latest = "Rewrite only slide two. Do not repeat the other slides.";
+    let approved = Review {
+        verdict: "approved".into(),
+        request_mode: "answer".into(),
+        message: String::new(),
+    };
+    let value = |checks: Value| {
+        envelope(
+            json!({"checks":checks,"review":{"verdict":"approved","request_mode":"answer","message":""}}),
+        )
+    };
+    assert!(validate_review_checks(
+        &value(json!([{"quote":"Do not repeat the other slides.","satisfied":false}])),
+        latest,
+        &approved
+    )
+    .is_err());
+    assert!(validate_review_checks(
+        &value(json!([{"quote":"Create a goal","satisfied":true}])),
+        latest,
+        &approved
+    )
+    .is_err());
+    assert!(validate_review_checks(&value(json!([])), latest, &approved).is_err());
+    assert!(validate_review_checks(&value(json!([{"quote":"Rewrite only slide two.","satisfied":true},{"quote":"Do not repeat the other slides.","satisfied":true}])),latest,&approved).is_ok());
 }
 
 #[tokio::test]
