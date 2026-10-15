@@ -330,7 +330,6 @@ pub(crate) fn response_operation(name: &str) -> bool {
     matches!(
         name,
         "buddy_dialogue_response"
-            | "buddy_dialogue_review"
             | "buddy_research_synthesis"
             | "buddy_park_checkpoint"
             | "buddy_target_clarification"

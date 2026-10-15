@@ -28,8 +28,9 @@ uses the historical phrase-based chat adapter.
 Nebius Token Factory hosts both default model roles:
 
 - NVIDIA Nemotron 3 Super (`nvidia/nemotron-3-super-120b-a12b`): action planning,
-  mutation authorization and existing background goal/completion analysis.
-- Qwen3.5-397B-A17B: natural responses and response review, research synthesis,
+  mutation authorization, independent response review and existing background
+  goal/completion analysis.
+- Qwen3.5-397B-A17B: natural responses, research synthesis,
   checkpoints and duplicate-target clarification.
 
 An explicit primary model environment override keeps the single-model behavior

@@ -50,7 +50,7 @@ lock. Existing expiration, stale-state and privacy checks remain authoritative.
 - API keys stay runtime-only. The developer panel shows configuration and safe
   inference metadata, never keys, raw prompts or hidden model reasoning.
 - The default primary model is NVIDIA Nemotron 3 Super for planning, mutation
-  authorization and background analysis. Qwen3.5-397B-A17B writes and reviews
+  authorization, independent response review and background analysis. Qwen3.5-397B-A17B writes
   natural responses, synthesizes research and drafts checkpoints, through the
   same Nebius account. `NEBIUS_MODEL_ID` explicitly overrides the primary model;
   when set without a response override, all roles use that model. The optional
@@ -84,7 +84,12 @@ When a response reviewer recognizes an unexecuted explicit action, the bounded
 loop replans instead of answering as if it executed. Product facts describe
 actual user-facing controls instead of asking users to invoke internal skills.
 
-Final hybrid validation and exact-source native builds are pending. The
+A self-reviewing hybrid candidate was stopped after repeated response-review
+timeouts and unhelpful rejection of drafts. It is not being released. The final
+role split keeps response review with Nemotron, independent of Qwen presentation.
+The live nine-action check now includes the actual preceding conversation and
+requires a persisted deletion proposal before treating a preview as passed.
+Final candidate live validation and exact-source native builds are pending. The
 installed 0.29.0 application remains unchanged during candidate evaluation.
 Keychain prompts remain possible for changing test binaries despite the
 preserved internal signing identity; this is not claimed to be resolved.

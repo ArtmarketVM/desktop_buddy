@@ -182,7 +182,7 @@ mod tests {
         assert!(crate::goal_analysis::response_operation(
             "buddy_dialogue_response"
         ));
-        assert!(crate::goal_analysis::response_operation(
+        assert!(!crate::goal_analysis::response_operation(
             "buddy_dialogue_review"
         ));
     }
