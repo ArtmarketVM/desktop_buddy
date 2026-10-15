@@ -329,7 +329,8 @@ pub(crate) fn deliberate_operation(name: &str) -> bool {
 pub(crate) fn response_operation(name: &str) -> bool {
     matches!(
         name,
-        "buddy_skill_plan"
+        "buddy_research_evidence"
+            | "buddy_skill_plan"
             | "buddy_chat_research_authorization"
             | "buddy_dialogue_response"
             | "buddy_dialogue_review"
@@ -598,6 +599,14 @@ pub async fn analyze_goal(
         .await?;
     ensure_revision(&state, revision)?;
     let (mut sources, notice) = research(&state.client, &plan, preferences.web_research).await;
+    sources = crate::research_evidence::select(
+        &state,
+        &service,
+        plan.query.as_deref().unwrap_or_default(),
+        &sources,
+    )
+    .await?;
+    ensure_revision(&state, revision)?;
     let viewed = state
         .inner
         .lock()

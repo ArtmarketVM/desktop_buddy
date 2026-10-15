@@ -131,8 +131,14 @@ async fn web_research_check(service: &Service<'_>) -> Result<Value, String> {
     let official_source = resources
         .iter()
         .any(|r| reqwest::Url::parse(&r.url).is_ok_and(|u| u.host_str() == Some("v2.tauri.app")));
-    let passed =
-        error.is_none() && unchanged && official_source && reply.contains("minimumSystemVersion");
+    let passed = error.is_none()
+        && unchanged
+        && official_source
+        && reply.contains("minimumSystemVersion")
+        && !reply.contains("tauri.bundle")
+        && !resources
+            .iter()
+            .any(|r| r.url.contains("/v1/") || r.url.contains("tauri-docs-wip"));
     Ok(
         json!({"passed":passed,"latency_ms":start.elapsed().as_millis(),"workspace_unchanged":unchanged,"official_source":official_source,"reply":reply,"resources":resources,"error":error}),
     )

@@ -195,7 +195,8 @@ pub async fn test_provider_connection(
     if window.label() != "main" {
         return Err("Open Settings in the main window".into());
     }
-    crate::credentials::provider_name(&provider)?;
+    let credential = crate::credentials::provider_name(&provider)?;
+    crate::credentials::retry_failed_read(credential);
     let revision = {
         let mut inner = state
             .inner

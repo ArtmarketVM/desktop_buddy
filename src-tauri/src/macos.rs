@@ -274,30 +274,14 @@ mod tests {
         assert!(idle_seconds().is_some());
     }
     #[test]
-    #[ignore = "Writes an isolated test credential to macOS Keychain"]
+    #[ignore = "Uses the reviewed local signing identity for an isolated cross-build Keychain test"]
     fn keychain_round_trip() {
-        let name = format!(
-            "test-{}-{}",
-            std::process::id(),
-            chrono::Utc::now().timestamp_nanos_opt().unwrap()
-        );
-        struct Cleanup(String);
-        impl Drop for Cleanup {
-            fn drop(&mut self) {
-                let _ = write_key(&self.0, None);
-            }
-        }
-        let _cleanup = Cleanup(name.clone());
-        assert!(read_key(&name).unwrap().is_none());
-        write_key(&name, Some("test-key-only")).unwrap();
-        assert_eq!(read_key(&name).unwrap().as_deref(), Some("test-key-only"));
-        write_key(&name, Some("replacement-test-key")).unwrap();
-        assert_eq!(
-            read_key(&name).unwrap().as_deref(),
-            Some("replacement-test-key")
-        );
-        write_key(&name, None).unwrap();
-        assert!(read_key(&name).unwrap().is_none());
-        write_key(&name, None).unwrap();
+        let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../scripts/test-credential-helper.sh");
+        assert!(std::process::Command::new("bash")
+            .arg(script)
+            .status()
+            .unwrap()
+            .success());
     }
 }

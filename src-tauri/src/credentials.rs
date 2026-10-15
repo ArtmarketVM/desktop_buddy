@@ -92,7 +92,42 @@ mod vault {
 #[cfg(target_os = "macos")]
 mod vault {
     pub use crate::macos::has_key as exists;
-    pub use crate::macos::{read_key as read, write_key as write};
+    use std::{
+        collections::HashMap,
+        sync::{Mutex, OnceLock},
+    };
+    type Entry = Result<Option<String>, String>;
+    fn cache() -> &'static Mutex<HashMap<String, Entry>> {
+        static CACHE: OnceLock<Mutex<HashMap<String, Entry>>> = OnceLock::new();
+        CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+    }
+    pub fn read(name: &str) -> Result<Option<String>, String> {
+        // Serialize first reads: background tasks must not open concurrent authorization dialogs.
+        let mut cache = cache()
+            .lock()
+            .map_err(|_| "Credential access unavailable")?;
+        if let Some(result) = cache.get(name) {
+            return result.clone();
+        }
+        let result = crate::macos::read_key(name);
+        cache.insert(name.into(), result.clone());
+        result
+    }
+    pub fn retry_failed(name: &str) {
+        if let Ok(mut entries) = cache().lock() {
+            if entries.get(name).is_some_and(|result| result.is_err()) {
+                entries.remove(name);
+            }
+        }
+    }
+    pub fn write(name: &str, key: Option<&str>) -> Result<(), String> {
+        let mut cache = cache()
+            .lock()
+            .map_err(|_| "Credential access unavailable")?;
+        crate::macos::write_key(name, key)?;
+        cache.insert(name.into(), Ok(key.map(str::to_string)));
+        Ok(())
+    }
 }
 #[cfg(not(any(windows, target_os = "macos")))]
 mod vault {
@@ -107,6 +142,12 @@ mod vault {
     }
 }
 pub use vault::{exists, read, write};
+pub fn retry_failed_read(name: &str) {
+    #[cfg(target_os = "macos")]
+    vault::retry_failed(name);
+    #[cfg(not(target_os = "macos"))]
+    let _ = name;
+}
 
 #[cfg(test)]
 mod tests {

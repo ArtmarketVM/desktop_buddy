@@ -54,6 +54,16 @@ fn response(v: Value) -> ResponseTemplate {
     )
 }
 async fn intent(server: &MockServer, n: u64) {
+    Mock::given(method("POST")).and(body_partial_json(json!({"response_format":{"json_schema":{"name":"buddy_research_evidence"}}})))
+        .respond_with(|r:&wiremock::Request| {
+            let request:Value=serde_json::from_slice(&r.body).unwrap();
+            let context:Value=serde_json::from_str(request["messages"][1]["content"].as_str().unwrap()).unwrap();
+            let sources=context["sources"].as_array().unwrap().iter().enumerate().map(|(index,s)| {
+                let quote:String=s["content"].as_str().unwrap().chars().take(900).collect();
+                json!({"source_index":index,"applicability":if quote.len()>=8 {"applicable"}else{"unverified"},"reason":"Synthetic source","quotes":if quote.len()>=8 {vec![quote]}else{vec![]}})
+            }).collect::<Vec<_>>();
+            response(json!({"sources":sources}))
+        }).mount(server).await;
     Mock::given(method("POST"))
         .and(body_partial_json(
             json!({"response_format":{"json_schema":{"name":"buddy_contextual_search_intent"}}}),
@@ -206,7 +216,7 @@ async fn confirmation_to_tavily_to_work_context_mocked_end_to_end() {
         .any(|m| m.event_kind == Some(memory::EventKind::ResearchAccepted)));
     println!(
         "RESEARCH_E2E {}",
-        json!({"flow":"stuck -> offer -> explicit consent -> intent -> Tavily -> synthesis -> WorkContext -> helpful feedback","goal_id":goal,"step_id":step,"nebius_calls":2,"tavily_calls":1,"attached_sources":result.sources.len(),"completed_step":false})
+        json!({"flow":"stuck -> offer -> explicit consent -> intent -> Tavily -> synthesis -> WorkContext -> helpful feedback","goal_id":goal,"step_id":step,"nebius_calls":3,"tavily_calls":1,"attached_sources":result.sources.len(),"completed_step":false})
     );
 }
 #[tokio::test]
@@ -258,6 +268,10 @@ async fn correct_goal_step_and_only_relevant_memory_reach_nemotron() {
         let body: Value = serde_json::from_slice(&r.body).unwrap();
         let text = body["messages"][1]["content"].as_str().unwrap();
         assert!(!text.contains("payroll"));
+        if body["response_format"]["json_schema"]["name"] == "buddy_research_evidence" {
+            assert!(!text.contains("Use owned Rust values") && !text.contains(&step));
+            continue;
+        }
         assert!(text.contains("Use owned Rust values"));
         assert!(text.contains(&step));
         assert!(text.contains("Rust workspace"));
@@ -382,7 +396,7 @@ async fn source_validation_and_duplicate_resources_preserve_real_destinations() 
         {"title":"Old guide","url":"https://rust-lang.org/old?utm_source=mail","content":"old"},
         {"title":"Unsafe","url":"javascript:alert(1)","content":"bad"},
         {"title":"Credentials","url":"https://name:pass@example.com/","content":"bad"},
-        {"title":"New guide","url":"https://rust-lang.org/new?id=2&utm_source=web","content":"new"},
+        {"title":"New guide","url":"https://rust-lang.org/new?id=2&utm_source=web","content":"New guide: move owned values into the async task."},
         {"title":"Duplicate","url":"https://rust-lang.org/new?id=2#part","content":"duplicate"}
     ]),1).await;
     let id = authorize(&state, goal, &step);

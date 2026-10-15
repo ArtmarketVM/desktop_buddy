@@ -27,6 +27,7 @@ case "$target" in
   aarch64-apple-darwin) ;;
   *) echo "macOS releases support Apple Silicon only (aarch64-apple-darwin)." >&2; exit 1 ;;
 esac
+node --test scripts/credential-helper.verify.mjs
 command -v cargo >/dev/null || { echo "Install Rust using rustup first." >&2; exit 1; }
 rustup target add "$target"
 config=(--config src-tauri/tauri.macos.conf.json)
@@ -61,6 +62,10 @@ version="$(node -p "JSON.parse(require('fs').readFileSync('package.json')).versi
 bundle="src-tauri/target/$target/release/bundle"
 if [[ "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
   app="$bundle/macos/Desktop Buddy.app"
+  node --input-type=module - "$app/Contents/Helpers/BuddyCredentialAccess" <<'JS'
+import {verifyHelper} from "./scripts/credential-helper.verify.mjs";
+verifyHelper(process.argv[2]);
+JS
   if [[ "$code_signing_mode" == internal ]]; then
     node scripts/macos-code-signing.mjs "$app"
   else
