@@ -700,9 +700,8 @@ fn natural_prose_keeps_complete_multiline_answers_and_cannot_execute_json_drafts
 }
 
 #[test]
-fn response_review_cannot_approve_failed_or_invented_user_requirements() {
-    let latest = "Rewrite only slide two. Do not repeat the other slides.";
-    let approved = Review {
+fn response_review_repairs_unmet_requirements_and_accepts_contextual_paraphrases() {
+    let mut review = Review {
         verdict: "approved".into(),
         request_mode: "answer".into(),
         message: String::new(),
@@ -712,20 +711,23 @@ fn response_review_cannot_approve_failed_or_invented_user_requirements() {
             json!({"checks":checks,"review":{"verdict":"approved","request_mode":"answer","message":""}}),
         )
     };
+    validate_review_checks(&value(json!([{"requirement":"Return only the edited second slide; omit unchanged slides", "satisfied":false}])),&mut review).unwrap();
+    assert_eq!(review.verdict, "repair");
+    assert!(review.message.contains("omit unchanged slides"));
+    assert!(review.message.chars().count() <= 500);
+    let mut approved = Review {
+        verdict: "approved".into(),
+        request_mode: "answer".into(),
+        message: String::new(),
+    };
+    validate_review_checks(&value(json!([{"requirement":"Recall the corrected budget from the preceding conversation", "satisfied":true}])),&mut approved).unwrap();
+    assert_eq!(approved.verdict, "approved");
+    assert!(validate_review_checks(&value(json!([])), &mut approved).is_err());
     assert!(validate_review_checks(
-        &value(json!([{"quote":"Do not repeat the other slides.","satisfied":false}])),
-        latest,
-        &approved
+        &value(json!([{"requirement":"", "satisfied":true}])),
+        &mut approved
     )
     .is_err());
-    assert!(validate_review_checks(
-        &value(json!([{"quote":"Create a goal","satisfied":true}])),
-        latest,
-        &approved
-    )
-    .is_err());
-    assert!(validate_review_checks(&value(json!([])), latest, &approved).is_err());
-    assert!(validate_review_checks(&value(json!([{"quote":"Rewrite only slide two.","satisfied":true},{"quote":"Do not repeat the other slides.","satisfied":true}])),latest,&approved).is_ok());
 }
 
 #[tokio::test]

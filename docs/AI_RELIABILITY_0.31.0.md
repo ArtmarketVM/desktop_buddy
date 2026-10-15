@@ -57,9 +57,9 @@ adds explicit requirement checks and a safe network-outage checkpoint path.
    as writing. Nemotron retains structured planning and background reasoning.
    Non-Nemotron sampling uses temperature 0.2; deliberate Nemotron parameters,
    configured model IDs and real HTTP integration are preserved.
-8. Response review enumerates verbatim requirements from the current user
-   message before deciding. The backend rejects invented requirement quotes
-   and an approval with an unsatisfied requirement. These transient checks are
+8. Response review enumerates semantic requirements from the current request
+   and relevant preceding context. An unsatisfied requirement turns an approval
+   into a repair request; paraphrases do not need to match the latest text literally. These transient checks are
    not written to memory or content-free diagnostic logs.
 9. Park checkpoint generation has a 15-second deadline. A transport/provider
    outage can use the saved unfinished step and a neutral local checkpoint;

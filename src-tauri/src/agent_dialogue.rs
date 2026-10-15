@@ -412,7 +412,7 @@ fn parse_review(value: &Value, mutation: bool) -> Result<Review, String> {
     Ok(r)
 }
 
-fn validate_review_checks(value: &Value, latest: &str, review: &Review) -> Result<(), String> {
+fn validate_review_checks(value: &Value, review: &mut Review) -> Result<(), String> {
     let raw: Value = serde_json::from_str(goal_analysis::response_text(value)?)
         .map_err(|_| "Invalid response checks")?;
     let Some(checks) = raw.get("checks") else {
@@ -426,19 +426,27 @@ fn validate_review_checks(value: &Value, latest: &str, review: &Review) -> Resul
     if checks.is_empty() || checks.len() > 12 {
         return Err("Invalid response requirement count".into());
     }
+    let mut unmet = Vec::new();
     for check in checks {
-        let quote = check["quote"].as_str().ok_or("Missing requirement quote")?;
+        let requirement = check["requirement"]
+            .as_str()
+            .ok_or("Missing response requirement")?;
         let satisfied = check["satisfied"]
             .as_bool()
             .ok_or("Missing requirement result")?;
         if check.as_object().is_none_or(|o| o.len() != 2)
-            || quote.trim().is_empty()
-            || quote.chars().count() > 500
-            || !latest.contains(quote)
-            || (review.verdict == "approved" && !satisfied)
+            || requirement.trim().is_empty()
+            || requirement.chars().count() > 500
         {
-            return Err("The response did not satisfy the quoted user requirements".into());
+            return Err("Invalid response requirement check".into());
         }
+        if !satisfied {
+            unmet.push(requirement);
+        }
+    }
+    if review.verdict == "approved" && !unmet.is_empty() {
+        review.verdict = "repair".into();
+        review.message = format!("Correct these unmet requirements from the user's request and relevant conversation: {}",unmet.join("; ")).chars().take(500).collect();
     }
     Ok(())
 }
@@ -472,7 +480,7 @@ async fn review(
         "verdict":{"type":"string","const":verdict},"request_mode":if mutation && verdict=="approved" {json!({"type":"string","const":"change"})}else{modes.clone()},"message":message},"required":["verdict","request_mode","message"]})
     };
     let schema = json!({"type":"object","additionalProperties":false,"properties":{
-        "checks":{"type":"array","minItems":1,"maxItems":12,"description":"Check every independent output requirement, restriction and requested item from the latest human request before deciding. For mutation authorization assess whether the proposed plan matches the instruction; do not require execution before authorization. Include restrictions on what must not be repeated. Quote the human verbatim, never translate or invent a requirement.","items":{"type":"object","additionalProperties":false,"properties":{"quote":{"type":"string","minLength":1,"maxLength":500},"satisfied":{"type":"boolean"}},"required":["quote","satisfied"]}},
+        "checks":{"type":"array","minItems":1,"maxItems":12,"description":"Check every independent output requirement, restriction and requested item using the latest human request and relevant preceding conversation before deciding. For mutation authorization assess whether the proposed plan matches the instruction; do not require execution before authorization. Include restrictions on what must not be repeated. Summarize each requirement semantically; do not require the human to repeat facts or use exact wording. Do not invent requirements.","items":{"type":"object","additionalProperties":false,"properties":{"requirement":{"type":"string","minLength":1,"maxLength":500},"satisfied":{"type":"boolean"}},"required":["requirement","satisfied"]}},
         "review":{"anyOf":[branch("approved",json!({"type":"string","const":""})),
         branch("repair",json!({"type":"string","minLength":1,"maxLength":500,"description":"A correction instruction for the answer or plan, not a new answer to the user."})),
         branch("clarify",json!({"type":"string","minLength":1,"maxLength":500,"description":"A question needed to resolve genuinely missing or ambiguous information, in the user's language."}))]}},"required":["checks","review"]});
@@ -491,12 +499,8 @@ async fn review(
             name,
             schema,
             |v| {
-                let review = parse_review(v, mutation)?;
-                validate_review_checks(
-                    v,
-                    request["latest_request"].as_str().unwrap_or_default(),
-                    &review,
-                )?;
+                let mut review = parse_review(v, mutation)?;
+                validate_review_checks(v, &mut review)?;
                 Ok(review)
             },
         ),
