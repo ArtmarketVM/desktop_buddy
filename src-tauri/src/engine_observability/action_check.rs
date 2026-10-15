@@ -203,7 +203,7 @@ mod tests {
         Mock::given(method("POST")).respond_with(|r: &Request| {
             let b: Value = serde_json::from_slice(&r.body).unwrap();
             let ctx: Value = serde_json::from_str(b["messages"][1]["content"].as_str().unwrap()).unwrap();
-            let name = b["response_format"]["json_schema"]["name"].as_str().unwrap();
+            let name = b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response");
             let raw = match name {
                 "buddy_skill_plan" => {
                     let (skill,input)=if ctx["latest_request"]=="Create Interview with two steps" {

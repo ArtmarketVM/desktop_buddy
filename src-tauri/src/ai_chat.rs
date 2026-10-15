@@ -189,6 +189,74 @@ impl Storage {
             )
             .unwrap_or(false)
     }
+    /// A bounded read of the request's chat, never the mutable UI selection. History stays
+    /// separate from personal memory and is removed by the existing retention controls.
+    pub fn inspect_conversation(
+        &self,
+        conversation: i64,
+        query: &str,
+        before: Option<i64>,
+    ) -> Result<Value, String> {
+        if !self.conversation_exists(conversation) {
+            return Err("This conversation is no longer available".into());
+        }
+        if query.chars().count() > 200 || before.is_some_and(|id| id <= 0) {
+            return Err("Invalid conversation history query".into());
+        }
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT m.id,m.role,substr(m.text,1,20000),length(m.text) FROM buddy_messages m
+             JOIN buddy_conversation_messages c ON c.message_id=m.id
+             WHERE c.conversation_id=?1 AND (?2 IS NULL OR m.id<?2)
+             ORDER BY m.id DESC LIMIT 501",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = statement
+            .query_map(params![conversation, before], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, usize>(3)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let query = query.trim().to_lowercase();
+        let mut messages = Vec::new();
+        let mut bytes = 0;
+        let mut scanned = 0;
+        let mut cursor = None;
+        for (id, role, text, length) in rows.iter().take(500) {
+            scanned += 1;
+            cursor = Some(*id);
+            if !query.is_empty() && !text.to_lowercase().contains(&query) {
+                continue;
+            }
+            let excerpt: String = text.chars().take(6000).collect();
+            let message = json!({"id":id,"role":role,"text":excerpt,"clipped":*length>6000});
+            let size = message.to_string().len();
+            if bytes + size > 24 * 1024 && !messages.is_empty() {
+                // This row was not returned: include it on the next page.
+                cursor = Some(id.saturating_add(1));
+                scanned -= 1;
+                break;
+            }
+            bytes += size;
+            messages.push(message);
+            if messages.len() == 8 {
+                break;
+            }
+        }
+        messages.reverse();
+        let has_more = rows.len() > scanned;
+        Ok(
+            json!({"messages":messages,"next_before_message_id":if has_more {cursor}else{None},
+            "has_more":has_more,"scanned_messages":scanned}),
+        )
+    }
     pub fn chat_history_of(&self, conversation: i64) -> Result<Vec<ChatMessage>, String> {
         let mut query = self.connection.prepare("SELECT id,role,text,created_at,goal_id,resources FROM (SELECT m.* FROM buddy_messages m JOIN buddy_conversation_messages c ON c.message_id=m.id WHERE c.conversation_id=?1 ORDER BY m.id DESC LIMIT 100) ORDER BY id").map_err(|e| e.to_string())?;
         let rows = query
@@ -281,8 +349,8 @@ impl Storage {
             params![now, conversation],
         )
         .map_err(|e| e.to_string())?;
-        // Bound retained history; the newest complete turns remain together.
-        tx.execute("DELETE FROM buddy_messages WHERE id IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1) AND id NOT IN (SELECT message_id FROM buddy_conversation_messages WHERE conversation_id=?1 ORDER BY message_id DESC LIMIT 100)", [conversation]).map_err(|e|e.to_string())?;
+        // Display/context budgets must not delete history. The user's history-retention
+        // setting and explicit deletion remain the only retention policy.
         tx.commit().map_err(|e| e.to_string())
     }
     pub fn viewed_resource_urls(&self, goal: i64) -> Result<Vec<String>, String> {
@@ -1495,12 +1563,7 @@ async fn send_message(
     };
     let history: Vec<_> = history
         .iter()
-        .rev()
-        .take(12)
-        .collect::<Vec<_>>()
-        .into_iter()
-        .rev()
-        .map(|m| json!({"role":m.role,"text":m.text.chars().take(4000).collect::<String>()}))
+        .map(|m| json!({"id":m.id,"role":m.role,"text":m.text}))
         .collect();
     let request = json!({"latest_request":text,"event_type":if voice_message {"voice_message"} else {"user_message"},"selected_goal_id":selected_goal_id,"attachment_text":attachment,"goal_context":context,"conversation":history,"personal_memory":memory_context,"avoidResourceUrls":viewed,"natural_reply":true});
     let (mut reply, committed_actions) = if mock {

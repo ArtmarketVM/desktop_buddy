@@ -427,7 +427,7 @@ async fn unexecuted_mutation_claim_is_repaired_before_display() {
     let server = MockServer::start().await;
     Mock::given(method("POST")).respond_with(|r:&Request| {
         let (b,ctx)=body(r);
-        match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
             "buddy_skill_plan"=>response(answer(&ctx,"I switched your focus to Psychology assignment.")),
             "buddy_dialogue_review" if ctx["proposal"]["message"].as_str().unwrap().contains("switched") => {
                 assert!(ctx["proposal"]["verified_execution"].is_null());
@@ -461,6 +461,141 @@ async fn unexecuted_mutation_claim_is_repaired_before_display() {
             .focused_goal_id,
         Some(1)
     );
+}
+
+#[tokio::test]
+async fn unsupported_pilot_claim_is_repaired_without_mutating_saved_steps() {
+    let (state, _) = fixture(&case()).unwrap();
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|r:&Request| {
+        let (b,c)=body(r);
+        let system=b["messages"][0]["content"].as_str().unwrap();
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
+            "buddy_skill_plan"=>response(answer(&c,"The pilot proved a 15% revenue increase.")),
+            "buddy_dialogue_review" if c["proposal"]["message"].as_str().unwrap().contains("15%")=>{
+                assert!(system.contains("pilot results"));
+                assert!(system.contains("Earlier assistant drafts"));
+                response(json!({"verdict":"repair","request_mode":"answer","message":"There are no pilot results. Rewrite only slide two as a proposed pilot within the stated budget."}))
+            },
+            "buddy_dialogue_response"=>{
+                assert!(system.contains("Never invent product capabilities"));
+                assert!(c["reply_correction"].as_str().unwrap().contains("no pilot results"));
+                response(json!({"message":"Pilot proposal: test the order queue within the 18000-ruble budget; results are not yet known.","resources":[],"memory_update":null,"verified_result_indices":[]}))
+            },
+            "buddy_dialogue_review"=>response(json!({"verdict":"approved","request_mode":"answer","message":""})),
+            name=>panic!("Unexpected operation {name}"),
+        }
+    }).expect(4).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let before = json!(
+        state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .core_snapshot(None)
+            .unwrap()
+            .goals
+    );
+    let result=run(&json!({"latest_request":"Rewrite only the second slide. Budget 18000. No invented pilot results or saved step changes.","conversation":[],"natural_reply":true}),conversation,&state,0,true,&service).await.unwrap();
+    assert!(!result.committed);
+    assert!(result.reply.message.contains("results are not yet known"));
+    assert!(!result.reply.message.contains("15%"));
+    assert_eq!(
+        json!(
+            state
+                .inner
+                .lock()
+                .unwrap()
+                .storage
+                .core_snapshot(None)
+                .unwrap()
+                .goals
+        ),
+        before
+    );
+}
+
+#[tokio::test]
+async fn dialogue_recovers_older_chat_fact_through_read_skill_with_goal_sharing_off() {
+    let (state, _) = fixture(&case()).unwrap();
+    let conversation = {
+        let mut inner = state.inner.lock().unwrap();
+        let conversation = inner.storage.current_conversation().unwrap();
+        inner
+            .storage
+            .save_chat_turn(
+                "Laguna reference ORBIT-472",
+                &ChatReply {
+                    message: "Understood".into(),
+                    ..Default::default()
+                },
+                None,
+            )
+            .unwrap();
+        inner.storage.create_conversation().unwrap();
+        inner
+            .storage
+            .save_chat_turn(
+                "Other chat reference WRONG-999",
+                &ChatReply {
+                    message: "Understood".into(),
+                    ..Default::default()
+                },
+                None,
+            )
+            .unwrap();
+        conversation
+    };
+    let server = MockServer::start().await;
+    Mock::given(method("POST"))
+        .respond_with(|r: &Request| {
+            let (b, c) = body(r);
+            let name = b["response_format"]["json_schema"]["name"]
+                .as_str()
+                .unwrap();
+            assert!(c["state"]["goals"].as_array().unwrap().is_empty());
+            assert!(!c.to_string().contains("WRONG-999"));
+            if name == "buddy_skill_plan" && c["tool_results"].as_array().unwrap().is_empty() {
+                response(action(
+                    &c,
+                    "inspect_conversation",
+                    json!({"query":"LAGUNA","before_message_id":null}),
+                    "read",
+                    false,
+                ))
+            } else if name == "buddy_skill_plan" {
+                assert!(c["tool_results"].to_string().contains("ORBIT-472"));
+                response(answer(&c, "ORBIT-472"))
+            } else {
+                assert_eq!(name, "buddy_dialogue_review");
+                response(json!({"verdict":"approved","request_mode":"read","message":""}))
+            }
+        })
+        .expect(3)
+        .mount(&server)
+        .await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let result=run(&json!({"latest_request":"Read our old Laguna reference from this chat","conversation":[],"natural_reply":true}),conversation,&state,0,false,&service).await.unwrap();
+    assert_eq!(result.reply.message, "ORBIT-472");
+    assert!(!result.committed);
 }
 
 #[tokio::test]
@@ -545,6 +680,185 @@ fn context_budget_omissions_are_explicit_and_latest_request_is_preserved() {
     assert!(packet.to_string().len() <= 96 * 1024);
 }
 
+#[test]
+fn natural_prose_keeps_complete_multiline_answers_and_cannot_execute_json_drafts() {
+    let text = "1. Problem\nDescribe lost orders.\n\n2. Proposed solution\nTest an order queue.\n\n3. Budget\nStay within 18000 rubles.";
+    let value = json!({"choices":[{"finish_reason":"stop","message":{"content":text}}]});
+    let reply = prose_reply(&value, &[], &[]).unwrap();
+    assert_eq!(reply.message, text);
+    assert!(reply.resources.is_empty());
+    let draft = "{\"name\":\"create_goal\",\"input\":{\"title\":\"Example JSON\"}}";
+    let value = json!({"choices":[{"finish_reason":"stop","message":{"content":draft}}]});
+    assert_eq!(prose_reply(&value, &[], &[]).unwrap().message, draft);
+    let bad = json!({"choices":[{"finish_reason":"stop","message":{"content":"Read https://invented.example/results"}}]});
+    assert!(prose_reply(&bad, &[], &[]).is_err());
+    let incomplete = json!({"choices":[{"finish_reason":"length","message":{"content":text}}]});
+    assert!(prose_reply(&incomplete, &[], &[]).is_err());
+}
+
+#[tokio::test]
+async fn writer_uses_plain_text_while_actions_and_review_keep_structured_json() {
+    let (state, _) = fixture(&case()).unwrap();
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let snapshot = fresh(&state, conversation, 0).unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|r:&Request| {
+        let (b,_) = body(r);
+        assert!(b["response_format"].is_null());
+        assert_eq!(b["temperature"],0.2);
+        assert!(b["messages"][0]["content"].as_str().unwrap().contains("without a JSON envelope"));
+        ResponseTemplate::new(200).set_body_json(json!({"model":"fixture","choices":[{"finish_reason":"stop","message":{"content":"Slide 1: Problem\nSlide 2: Proposed pilot\nSlide 3: Budget"}}],"usage":{"prompt_tokens":10,"completion_tokens":20}}))
+    }).expect(1).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let reply = present(
+        &state,
+        &service,
+        &json!({"latest_request":"Write three slides", "conversation":[]}),
+        &snapshot,
+        true,
+        &[],
+        None,
+        &[],
+        0,
+    )
+    .await
+    .unwrap();
+    assert_eq!(reply.message.lines().count(), 3);
+    let inner = state.inner.lock().unwrap();
+    let view = crate::engine_observability::view(&inner).unwrap();
+    assert_eq!(view["last_inference"]["provider_reported_model"], "fixture");
+    assert_eq!(view["last_inference"]["completion_tokens"], 20);
+    assert!(skills::plan_schema()["properties"]["actions"].is_object());
+}
+
+#[tokio::test]
+async fn verbal_delete_confirmation_is_repaired_into_backend_pending_preview() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let (state, ids) = fixture(&case()).unwrap();
+    let target = ids["Psychology assignment"];
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let server = MockServer::start().await;
+    let plans = Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST")).respond_with(move |r:&Request|{
+        let (b,c)=body(r);
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+            "buddy_skill_plan" if plans.fetch_add(1,Ordering::SeqCst)==0 => response(json!({"state_version":c["state"]["state_version"],"response":{"decision":"clarification","question":"Are you sure you want to delete the second step?"}})),
+            "buddy_dialogue_review" => {
+                assert!(b["messages"][0]["content"].as_str().unwrap().contains("backend can create its preview"));
+                response(json!({"review":{"verdict":"repair","request_mode":"change","message":"The step is unambiguous. Plan delete_step so the backend creates a confirmation preview, not a verbal question."}}))
+            },
+            "buddy_skill_plan" => response(action(&c,"delete_step",json!({"goal":{"goal_id":target,"reference":null},"step":{"step_id":null,"ordinal":2,"reference":null}}),"change",false)),
+            "buddy_dialogue_authorization" => response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+            operation => panic!("Unexpected operation {operation}"),
+        }
+    }).expect(4).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let result=run(&json!({"latest_request":"Delete the second step of Psychology assignment", "natural_reply":true,"conversation":[]}),conversation,&state,0,true,&service).await.unwrap();
+    assert!(!result.committed);
+    let inner = state.inner.lock().unwrap();
+    assert_eq!(inner.storage.goal_plan(target).unwrap().steps.len(), 3);
+    assert!(skills::pending_confirmation(&inner.storage, conversation)
+        .unwrap()
+        .is_some());
+}
+
+#[test]
+fn conversation_context_preserves_earlier_constraints_corrections_and_full_recent_drafts() {
+    let (state, _) = fixture(&case()).unwrap();
+    let inner = state.inner.lock().unwrap();
+    let snap = skills::snapshot(
+        &inner.storage,
+        inner.storage.current_conversation().unwrap(),
+    )
+    .unwrap();
+    let mut history =
+        vec![json!({"id":1,"role":"user","text":"Mayak: 5 minutes, cafe owners, budget 30000"})];
+    history.extend(
+        (2..=25).map(|id| json!({"id":id,"role":"assistant","text":"A short synthetic exchange"})),
+    );
+    history.push(json!({"id":26,"role":"user","text":"Correction: budget is 18000"}));
+    let draft = format!("{} THE_FINAL_SENTENCE", "a".repeat(5500));
+    history.push(json!({"id":27,"role":"assistant","text":draft}));
+    let packet = dialogue_context::packet(
+        &json!({"latest_request":"Shorten the second section", "conversation":history}),
+        &snap,
+        false,
+        &[],
+    );
+    assert_eq!(packet["conversation"].as_array().unwrap().len(), 27);
+    assert!(packet["conversation"].to_string().contains("cafe owners"));
+    assert!(packet["conversation"]
+        .to_string()
+        .contains("Correction: budget is 18000"));
+    assert!(packet["conversation"]
+        .to_string()
+        .contains("THE_FINAL_SENTENCE"));
+    assert_eq!(packet["context_budget"]["omitted_older_messages"], 0);
+    assert_eq!(packet["context_budget"]["clipped_messages"], 0);
+    assert!(packet["state"]["goals"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn history_clipping_and_count_limits_are_visible_and_utf8_safe() {
+    let (state, _) = fixture(&case()).unwrap();
+    let inner = state.inner.lock().unwrap();
+    let snap = skills::snapshot(
+        &inner.storage,
+        inner.storage.current_conversation().unwrap(),
+    )
+    .unwrap();
+    let mut history: Vec<_> = (1..=119)
+        .map(|id| json!({"id":id,"role":"user","text":"short"}))
+        .collect();
+    history.push(json!({"id":120,"role":"assistant","text":"🙂".repeat(7000)}));
+    let packet = dialogue_context::packet(
+        &json!({"latest_request":"Continue", "conversation":history}),
+        &snap,
+        true,
+        &[],
+    );
+    assert_eq!(packet["context_budget"]["omitted_older_messages"], 20);
+    assert_eq!(packet["context_budget"]["clipped_messages"], 1);
+    assert_eq!(
+        packet["conversation"].as_array().unwrap().last().unwrap()["text"]
+            .as_str()
+            .unwrap()
+            .chars()
+            .count(),
+        6000
+    );
+    assert_eq!(
+        packet["conversation"].as_array().unwrap().last().unwrap()["clipped"],
+        true
+    );
+    assert!(packet.to_string().len() <= 96 * 1024);
+}
+
 #[tokio::test]
 async fn confirmation_in_another_language_executes_only_saved_proposal() {
     let (state, ids) = fixture(&case()).unwrap();
@@ -576,7 +890,7 @@ async fn confirmation_in_another_language_executes_only_saved_proposal() {
     let server = MockServer::start().await;
     Mock::given(method("POST")).respond_with(move |r:&Request| {
         let (b,ctx)=body(r);
-        match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
             "buddy_dialogue_confirmation"=>{
                 assert_eq!(ctx["pending_proposal"]["actions"][0]["input"]["goal"]["goal_id"],target);
                 response(json!({"decision":"confirm"}))
@@ -792,7 +1106,7 @@ async fn recognized_action_replans_instead_of_answering_or_asking_again() {
         let reviews = Arc::new(AtomicUsize::new(0));
         Mock::given(method("POST")).respond_with(move |r:&Request| {
             let (b,ctx)=body(r);
-            match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+            match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
                 "buddy_skill_plan" if plans.fetch_add(1,Ordering::SeqCst)==0=>{
                     response(json!({"state_version":ctx["state"]["state_version"],"response":if initial_clarification {
                         json!({"decision":"clarification","question":"Do you want to focus Psychology assignment?"})
@@ -870,7 +1184,7 @@ async fn duplicate_mutation_is_blocked_before_authorization_or_execution() {
     let server = MockServer::start().await;
     Mock::given(method("POST")).respond_with(move |r: &Request| {
         let (b, ctx) = body(r);
-        match b["response_format"]["json_schema"]["name"].as_str().unwrap() {
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
             "buddy_skill_plan" => response(action(&ctx,"set_focus_goal",json!({"goal":{"goal_id":goal,"reference":null}}),"change",true)),
             "buddy_target_clarification" => response(json!({"question":"Two goals share this title. Which do you mean? Select it in the chat goal selector."})),
             name => panic!("Ambiguous mutation must never reach {name}"),

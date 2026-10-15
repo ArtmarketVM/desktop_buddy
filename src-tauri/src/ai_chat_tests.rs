@@ -76,7 +76,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),25);
+            assert_eq!(context["registry"].as_array().unwrap().len(),26);
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
@@ -358,6 +358,117 @@ fn conversation_survives_reopening_the_database_without_an_active_goal() {
         assert_eq!(messages[1].text, "A helpful answer");
     }
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn older_chat_facts_survive_display_limits_and_database_reopen() {
+    let path = std::env::temp_dir().join(format!(
+        "buddy-retained-{}.sqlite",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    let first;
+    {
+        let mut storage = Storage::open(&path).unwrap();
+        first = storage.current_conversation().unwrap();
+        let reply = ChatReply {
+            message: "Understood".into(),
+            ..Default::default()
+        };
+        storage
+            .save_chat_turn(
+                "Маяк: бюджет 18000, аудитория — владельцы кафе",
+                &reply,
+                None,
+            )
+            .unwrap();
+        for index in 0..65 {
+            storage
+                .save_chat_turn(&format!("Synthetic turn {index}"), &reply, None)
+                .unwrap();
+        }
+        let second = storage.create_conversation().unwrap();
+        storage
+            .save_chat_turn("A different chat has a different budget", &reply, None)
+            .unwrap();
+        assert_ne!(first, second);
+    }
+    {
+        let storage = Storage::open(&path).unwrap();
+        assert_eq!(storage.chat_history_of(first).unwrap().len(), 100);
+        let count: i64 = storage
+            .connection
+            .query_row(
+                "SELECT COUNT(*) FROM buddy_conversation_messages WHERE conversation_id=?1",
+                [first],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            count, 132,
+            "The UI budget must never purge retained messages"
+        );
+        let page = storage.inspect_conversation(first, "МАЯК", None).unwrap();
+        assert_eq!(page["messages"].as_array().unwrap().len(), 1);
+        assert!(page["messages"][0]["text"]
+            .as_str()
+            .unwrap()
+            .contains("18000"));
+        assert!(storage
+            .inspect_conversation(first, "different budget", None)
+            .unwrap()["messages"]
+            .as_array()
+            .unwrap()
+            .is_empty());
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn retained_chat_pages_are_bounded_ordered_and_do_not_skip_messages() {
+    let mut storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    let reply = ChatReply {
+        message: "🙂".repeat(6000),
+        ..Default::default()
+    };
+    for index in 0..12 {
+        storage
+            .save_chat_turn(&format!("Turn {index}"), &reply, None)
+            .unwrap();
+    }
+    let mut before = None;
+    let mut seen = std::collections::HashSet::new();
+    loop {
+        let page = storage
+            .inspect_conversation(conversation, "", before)
+            .unwrap();
+        assert!(page["messages"].to_string().len() < 25 * 1024);
+        let mut previous = 0;
+        for message in page["messages"].as_array().unwrap() {
+            let id = message["id"].as_i64().unwrap();
+            assert!(id > previous);
+            assert!(seen.insert(id));
+            previous = id;
+        }
+        if page["has_more"] == false {
+            break;
+        }
+        let next = page["next_before_message_id"].as_i64().unwrap();
+        assert!(before.is_none_or(|old| next < old));
+        before = Some(next);
+    }
+    assert_eq!(seen.len(), 24);
+    assert!(storage
+        .inspect_conversation(conversation, "", Some(-1))
+        .is_err());
+    assert!(storage
+        .inspect_conversation(conversation, &"x".repeat(201), None)
+        .is_err());
+    storage.purge_history(None).unwrap();
+    assert!(storage
+        .inspect_conversation(conversation, "", None)
+        .is_err());
+    assert!(storage.chat_history().unwrap().is_empty());
 }
 #[test]
 fn unknown_duration_does_not_trigger_coaching_and_completed_goals_are_suppressed() {
@@ -991,7 +1102,7 @@ fn chat_titles_name_the_topic_and_are_cleaned_up() {
     assert_eq!(titles, vec!["Fixing chat phrasing".to_string()]);
 }
 #[test]
-fn opening_the_mascot_chat_starts_a_new_conversation_only_when_the_current_one_has_messages() {
+fn explicit_new_chat_starts_a_conversation_only_when_the_current_one_has_messages() {
     let mut storage = store();
     let first = storage.current_conversation().unwrap();
     assert!(!storage.start_fresh_conversation().unwrap());

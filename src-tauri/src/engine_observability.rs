@@ -389,6 +389,56 @@ pub(crate) async fn observe_specialist<T>(
     result
 }
 /// Existing retry/validation logic stays authoritative. Dropped requests are recorded as cancelled.
+pub async fn request_prose<T>(
+    state: &AppState,
+    service: &Service<'_>,
+    system: &str,
+    context: Value,
+    parse: impl Fn(&Value) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut guard = InferenceGuard::start(state, "buddy_dialogue_response")?;
+    let mut last_error = "Invalid natural response".to_string();
+    for attempt in 0..2 {
+        let instructions = if attempt == 0 {
+            system.to_string()
+        } else {
+            format!("{system} The previous response failed validation. Return complete plain text within 6000 characters, using only supplied source URLs.")
+        };
+        let value = match service.request_prose(&instructions, context.clone()).await {
+            Ok(value) => value,
+            Err(error) => {
+                guard.finish("error", None);
+                return Err(error);
+            }
+        };
+        let result = parse(&value);
+        if result.is_ok() || attempt == 1 {
+            guard.finish(
+                if result.is_ok() { "success" } else { "error" },
+                value["model"].as_str().and_then(model_label),
+            );
+            if let Ok(mut inner) = state.inner.lock() {
+                if inner.privacy_revision == guard.privacy
+                    && inner.engine.sequence == guard.sequence
+                {
+                    if let Some(last) = &mut inner.engine.last {
+                        last.finish_reason = value["choices"][0]["finish_reason"]
+                            .as_str()
+                            .filter(|s| ["stop", "length", "content_filter"].contains(s))
+                            .map(str::to_string);
+                        last.prompt_tokens = value["usage"]["prompt_tokens"].as_u64();
+                        last.completion_tokens = value["usage"]["completion_tokens"].as_u64();
+                        last.validation_error = result.as_ref().err().map(|e| error_category(e));
+                    }
+                }
+            }
+            return result;
+        }
+        last_error = result.err().unwrap();
+    }
+    Err(last_error)
+}
+
 pub async fn request_validated<T>(
     state: &AppState,
     service: &Service<'_>,
@@ -474,7 +524,7 @@ fn skill_groups() -> Value {
             ],
         ),
         ("Steps", vec!["create_step", "rename_step", "delete_step"]),
-        ("Memory", vec![]),
+        ("Memory", vec!["inspect_conversation"]),
         (
             "Work Context",
             vec!["park_context", "resume_context", "inspect_work_context"],

@@ -12,6 +12,7 @@ mod commands;
 mod companion;
 mod contact;
 mod continuity;
+mod conversation_check;
 mod core;
 mod core_capture;
 mod core_import;
@@ -61,6 +62,25 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--check-conversation-reliability") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(conversation_check::bounded_run());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["passed"] == report["total"] {
+                    0
+                } else {
+                    1
+                });
+            }
+            Err(_) => {
+                eprintln!("Conversation checks could not finish. No personal data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
     if std::env::args().any(|arg| arg == "--check-agent-dialogue") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()

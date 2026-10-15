@@ -823,12 +823,9 @@ pub fn open_companion_chat(
         if !inner.storage.user_settings()?.onboarding.completed {
             return Err("Finish setup first".into());
         }
-        // Every time the mascot chat is opened it starts its own conversation, which then shows up
-        // in the app's Chats. An empty conversation is reused instead of piling up blank chats.
-        let fresh = !inner.companion.view.chat_open && inner.storage.start_fresh_conversation()?;
-        if fresh {
-            let _ = tauri::Emitter::emit(&app, "buddy://chat-updated", ());
-        }
+        // Closing a window does not end the conversation. Only the explicit New chat action
+        // starts another one; the mascot and main window resume the same selected chat.
+        inner.storage.current_conversation()?;
         inner.companion.view.chat_open = true;
         inner.companion.view.intent = intent;
         inner.companion.view.seed.clear();

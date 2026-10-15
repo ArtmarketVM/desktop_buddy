@@ -3,6 +3,58 @@ use super::*;
 fn store() -> Storage {
     Storage::open(std::path::Path::new(":memory:")).unwrap()
 }
+
+#[test]
+fn conversation_read_uses_request_scope_even_after_ui_switch_and_without_goal_sharing() {
+    let mut storage = store();
+    let conversation = storage.current_conversation().unwrap();
+    let reply = ai_chat::ChatReply {
+        message: "Understood".into(),
+        ..Default::default()
+    };
+    storage
+        .save_chat_turn("Original chat fact", &reply, None)
+        .unwrap();
+    let snap = snapshot(&storage, conversation).unwrap();
+    let other = storage.create_conversation().unwrap();
+    storage
+        .save_chat_turn("Private other chat", &reply, None)
+        .unwrap();
+    let plan = Plan {
+        kind: "actions".into(),
+        state_version: snap.version.clone(),
+        actions: vec![action(
+            "inspect_conversation",
+            json!({"query":"", "before_message_id":null}),
+        )],
+        clarification: None,
+    };
+    let result = execute(
+        &mut storage,
+        &snap,
+        &plan,
+        "Read our earlier conversation",
+        false,
+        false,
+    )
+    .unwrap();
+    assert!(!result.committed_changes());
+    let messages = result.results[0].data["messages"].to_string();
+    assert!(messages.contains("Original chat fact"));
+    assert!(!messages.contains("Private other chat"));
+    assert_eq!(storage.current_conversation().unwrap(), other);
+    for input in [
+        json!({"query":"", "before_message_id":0}),
+        json!({"query":"", "before_message_id":null,"conversation_id":other}),
+        json!({"query":"x".repeat(201),"before_message_id":null}),
+    ] {
+        let skill = registry()
+            .into_iter()
+            .find(|s| s.name == "inspect_conversation")
+            .unwrap();
+        assert!((skill.validator)(&skill, &input).is_err());
+    }
+}
 fn action(name: &str, input: Value) -> Action {
     Action {
         name: name.into(),
