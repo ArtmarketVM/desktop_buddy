@@ -101,8 +101,43 @@ screen text, provider key or hidden provider reasoning is included.
 
 Local regression: 451 Rust tests passed, two existing opt-in tests ignored;
 160 frontend tests passed; 15 release/signing tests passed; frontend production
-build passed. Native platform and real-provider results are recorded below
-after completion.
+build passed.
+
+### Final real-provider run
+
+The frozen product commit `6ca8073` passed all six persisted-conversation
+checks and all nine action checks with real Nebius HTTP requests. The signed
+Apple Silicon executable used for this run had SHA-256
+`833e41922fff435d8ad4699f9587b53e77785423981d8e96d3f577a246840141`.
+This identifies the local test executable, not a later CI-built installer.
+
+| Conversation case | Result | Dialogue latency |
+| --- | --- | --- |
+| Corrected facts after restart and 18 turns | Passed | 8.2 s |
+| Fact older than the 100-message display window | Passed | 14.6 s |
+| Edit only slide two without changing saved steps | Passed | 12.3 s |
+| Unknown product without fabricated pilot or ROI claims | Passed | 12.2 s |
+| Current-chat context with Personal Memory OFF | Passed | 6.1 s |
+| Hebrew context after restart | Passed | 7.1 s |
+
+The nine action checks passed: create goal, create four steps, deletion preview,
+deletion confirmation, complete step, rename goal, Park, Resume and inspect
+remaining work. Each checked resulting database state, not just response text.
+Action latency ranged from 5.0 to 18.6 seconds. Provider response metadata
+reported `moonshotai/Kimi-K3` for the review/authorization requests.
+
+Human inspection confirmed the expected facts, corrected amounts, scoped
+history, unchanged workspace in read-only cases and actual pending deletion
+before confirmation. This is a finite synthetic regression set. For example,
+the edited slide still introduced minor draft phrasing about updating status
+with one click; that interaction detail was not independently established.
+Factual grounding remains probabilistic, even when all acceptance checks pass.
+
+Native platform validation runs for this product commit:
+[Apple Silicon validation](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/38720251293)
+and [Windows x64 validation](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/38720251067).
+The release workflow independently requires both signed platform builds and
+signature verification before publishing one shared update.
 
 ## Limits and interpretation
 
