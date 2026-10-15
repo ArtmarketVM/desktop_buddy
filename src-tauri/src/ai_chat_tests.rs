@@ -76,7 +76,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),26);
+            assert_eq!(context["registry"].as_array().unwrap().len(),crate::skills::registry().len());
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
@@ -105,10 +105,11 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
     .await
     .unwrap()
     .unwrap();
-    assert_eq!(
-        reply.0,
-        "Created \"Prepare for interview\" and added it to Today."
-    );
+    assert!(reply
+        .0
+        .starts_with("Created \"Prepare for interview\" and added it to Today."));
+    assert!(reply.0.contains("- Status: open"));
+    assert!(reply.0.contains("- Area: General"));
     assert_eq!(reply.1, 1);
     assert_eq!(
         state
@@ -1973,9 +1974,14 @@ mod voice_agent {
             .unwrap();
         assert!(!reply.2);
         assert!(reply.0.contains("Practice answers"));
-        assert!(reply
-            .0
-            .contains("Relevant activity: 0 min. Observed activity: 0 min. Manual timer: 0 min."));
+        for expected in [
+            "- Relevant activity: 0 min",
+            "- Observed activity: 0 min",
+            "- Manual timer: 0 min",
+            "Time alone does not confirm completion.",
+        ] {
+            assert!(reply.0.contains(expected));
+        }
         assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
     #[tokio::test]

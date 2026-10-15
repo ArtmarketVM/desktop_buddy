@@ -3,6 +3,8 @@ use crate::{ai_chat, core::GoalDraft, goals::Step, storage::Storage};
 use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+mod enhancements;
+pub const WORKFLOW_PROMPT: &str = "For new goals prefer create_planned_goal: date=null keeps a backlog goal; an explicit local YYYY-MM-DD date schedules it. Use state.date and local_timezone_offset for relative dates and clarify ambiguity. update_goal changes only explicitly requested fields; null keeps a field and clear_fields removes it. Scheduling is distinct from deadlines and focus. reopen_goal preserves progress; restart_goal resets all steps only when starting over was explicitly requested and requires backend confirmation. complete_goal also creates a backend confirmation preview. find_goals searches all goals beyond the bounded workspace: use filters and pagination instead of requesting an unbounded index. Retain last_goal_search filters and advance offset for the next page. reorder_steps must include every real step ID exactly once; set_current_step selects an unfinished step without a timer. update_work_context records explicit user facts without completion, parking or focus. A reported result is not verified completion. inspect_research reads a saved ready receipt; add_research_step requires explicit approval to add its next action as unfinished. undo_last_goal_edit undoes the latest supported single edit in this chat; reads do not grant mutation permission or invalidate that journal. It is a separate operation; deletes use restore_goal. Goal sharing off allows only creation from the user's supplied content and conversation reads. Preserve existing scope, duplicate-target, authorization, state and response review guards. Never infer object IDs or completion.";
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -52,6 +54,8 @@ pub struct StepTarget {
 #[derive(Clone, Default, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Input {
+    #[serde(skip)]
+    pub extension: Option<enhancements::Input>,
     pub goal: Option<GoalTarget>,
     pub step: Option<StepTarget>,
     pub title: Option<String>,
@@ -139,7 +143,7 @@ impl Execution {
                         .and_then(|s| s["text"].as_str())
                 })
                 .unwrap_or("step");
-            let line=match r.skill.as_str() {
+            let line=enhancements::receipt(r, self.status).unwrap_or_else(|| match r.skill.as_str() {
                 "inspect_conversation" => "Read retained messages from this conversation.".into(),
                 "inspect_work_queue" => work_queue_receipt(&r.data),
                 "inspect_continuity" => r.data["report"].as_str().unwrap_or_default().to_string(),
@@ -171,7 +175,7 @@ impl Execution {
                     r.data["timer_seconds"].as_u64().unwrap_or_default()/60),
                 "list_goals"=>r.data["goals"].as_array().unwrap().iter().map(|g|g["title"].as_str().unwrap_or_default()).collect::<Vec<_>>().join("\n"),
                 _=>"Completed the requested action.".into(),
-            };
+            });
             let line = if self.status == "confirmation_required" {
                 let mut proposed = line.clone();
                 for (past, future) in [
@@ -185,6 +189,14 @@ impl Execution {
                     ("Completed ", "Complete "),
                     ("Removed ", "Remove "),
                     ("Selected ", "Select "),
+                    ("Updated ", "Update "),
+                    ("Reordered ", "Reorder "),
+                    ("Restarted ", "Restart "),
+                    ("Undid ", "Undo "),
+                    ("Cleared ", "Clear "),
+                    ("Saved ", "Save "),
+                    ("Parked ", "Park "),
+                    ("Resumed ", "Resume "),
                 ] {
                     if let Some(rest) = line.strip_prefix(past) {
                         proposed = format!("{future}{rest}");
@@ -203,14 +215,12 @@ impl Execution {
         if lines.iter().all(String::is_empty) {
             "No goals found.".into()
         } else {
-            lines.join("\n")
+            lines.join("\n\n")
         }
     }
 }
 
 fn result_schema(name: &str) -> Value {
-    let step =
-        shape(json!({"id":{"type":"string"},"text":{"type":"string"},"done":{"type":"boolean"}}));
     let queue_item = shape(
         json!({"goal_id":{"type":"integer"},"title":{"type":"string"},"remaining_step_count":{"type":"integer"},
         "next_step":{"anyOf":[shape(json!({"step_id":{"type":"string"},"text":{"type":"string"}})),{"type":"null"}]}}),
@@ -233,7 +243,9 @@ fn result_schema(name: &str) -> Value {
         "inspect_today" => shape(json!({
             "day":{"type":"string"},"confirmed_results":{"type":"array","items":{"type":"string"}},
             "completed_goals":{"type":"array","items":{"type":"string"}},
-            "timer_seconds":{"type":"integer"},"observed_seconds":{"type":"integer"},"relevant_seconds":{"type":"integer"}
+            "timer_seconds":{"type":"integer"},"observed_seconds":{"type":"integer"},"relevant_seconds":{"type":"integer"},
+            "remaining_goals":{"type":"array","items":shape(json!({"title":{"type":"string"},"steps":{"type":"array","items":{"type":"string"}}}))},
+            "waiting_goals":{"type":"array","items":shape(json!({"title":{"type":"string"},"waiting_for":{"type":"string"}}))},"omitted_goals":{"type":"integer"}
         })),
         "inspect_work_queue" => shape(
             json!({"day":{"type":"string"},"in_focus":{"anyOf":[queue_item.clone(),{"type":"null"}]},
@@ -246,9 +258,7 @@ fn result_schema(name: &str) -> Value {
         "delete_goal" => shape(
             json!({"title":{"type":"string"},"backup_id":{"type":"integer"},"undo":{"type":"string","const":"restore_goal"},"undo_days":{"type":"integer","const":30}}),
         ),
-        _ => shape(
-            json!({"title":{"type":"string"},"status":{"type":"string"},"revision":{"type":"integer"},"created_at":{"type":"string"},"steps":{"type":"array","items":step},"on_today":{"type":"boolean"},"focused":{"type":"boolean"},"removed_step":{"anyOf":[step,{"type":"null"}]},"checkpoint":{"anyOf":[crate::work_context::public_checkpoint_schema(),{"type":"null"}]}}),
-        ),
+        _ => enhancements::goal_schema_result(),
     };
     shape(
         json!({"skill":{"type":"string","const":name},"goal_id":{"type":["integer","null"]},"step_id":{"type":["string","null"]},"data":data}),
@@ -322,7 +332,7 @@ pub fn registry() -> Vec<Skill> {
     let text = json!({"type":"string","minLength":1,"maxLength":500});
     let goal = goal_schema();
     let step = step_schema();
-    [
+    let mut skills: Vec<Skill> = [
         ("inspect_conversation", "Read older retained messages ONLY from this chat. Use a short literal query (Unicode case insensitive), or empty query for a page; before_message_id is a pagination cursor or null. Results may be clipped; never treat assistant guesses as user facts.", Safety::ReadOnly, json!({"query":{"type":"string","maxLength":200},"before_message_id":{"type":["integer","null"],"minimum":1}})),
         ("search_web", "Search for information for this goal and optional step; requires explicit web-search confirmation before any provider call", Safety::Confirmation, json!({"goal":goal,"step":{"anyOf":[step,{"type":"null"}]},"text":text})),
         ("attach_research_to_context", "Attach an existing validated research receipt to its original goal checkpoint; never invent research content", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1}})),
@@ -389,13 +399,13 @@ pub fn registry() -> Vec<Skill> {
         ),
         (
             "complete_goal",
-            "Complete a goal and its steps",
-            Safety::Reversible,
+            "Complete a goal and ALL steps; preview consequences and require confirmation",
+            Safety::Confirmation,
             json!({"goal":goal}),
         ),
         (
             "reopen_goal",
-            "Reopen a completed goal using the existing goal rules",
+            "Reopen a goal preserving step progress; use restart_goal for an explicit full reset",
             Safety::Reversible,
             json!({"goal":goal}),
         ),
@@ -440,7 +450,9 @@ pub fn registry() -> Vec<Skill> {
         validator: validate_input,
         executor: execute_one,
     })
-    .collect()
+    .collect();
+    skills.extend(enhancements::registry());
+    skills
 }
 pub fn catalog() -> Value {
     json!(registry().into_iter().map(|s|json!({"name":s.name,"description":s.description,"input_schema":s.input_schema,"permission":s.safety,"result_schema":s.result_schema})).collect::<Vec<_>>())
@@ -485,6 +497,14 @@ pub fn parse_plan(response: &Value) -> Result<Plan, String> {
     Ok(plan)
 }
 fn validate_input(skill: &Skill, value: &Value) -> Result<Input, String> {
+    if enhancements::is_skill(skill.name) {
+        return enhancements::validate(skill, value).map(|extension| Input {
+            goal: extension.goal.clone(),
+            step: extension.step.clone(),
+            extension: Some(extension),
+            ..Input::default()
+        });
+    }
     let fields = value.as_object().ok_or("Skill input must be an object")?;
     let properties = skill.input_schema["properties"].as_object().unwrap();
     if fields.len() != properties.len()
@@ -598,15 +618,32 @@ impl Storage {
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS buddy_action_state(conversation_id INTEGER PRIMARY KEY REFERENCES buddy_conversations(id) ON DELETE CASCADE,references_json TEXT NOT NULL,pending_json TEXT);
             CREATE TABLE IF NOT EXISTS buddy_action_version(id INTEGER PRIMARY KEY CHECK(id=1),revision INTEGER NOT NULL);
             INSERT OR IGNORE INTO buddy_action_version(id,revision) VALUES(1,0);").map_err(|e|e.to_string())?;
+        self.connection.execute_batch("CREATE TABLE IF NOT EXISTS buddy_goal_edit_undo(conversation_id INTEGER PRIMARY KEY REFERENCES buddy_conversations(id) ON DELETE CASCADE,payload TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS buddy_goal_search(conversation_id INTEGER PRIMARY KEY REFERENCES buddy_conversations(id) ON DELETE CASCADE,payload TEXT NOT NULL);").map_err(|e|e.to_string())?;
         // Changes through existing UI/IPC operations must invalidate plans too. Time ticks do not.
         for table in [
             "goals",
             "goal_plans",
             "core_goals",
             "core_day_items",
+            "core_days",
             "core_goal_details",
+            "core_goal_reopen_overrides",
             "deleted_goal_backups",
+            "work_contexts",
+            "contextual_research",
         ] {
+            let exists: bool = self
+                .connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",
+                    [table],
+                    |r| r.get(0),
+                )
+                .map_err(|e| e.to_string())?;
+            if !exists {
+                continue;
+            }
             for event in ["INSERT", "UPDATE", "DELETE"] {
                 self.connection.execute_batch(&format!("CREATE TRIGGER IF NOT EXISTS buddy_version_{table}_{event} AFTER {event} ON {table} BEGIN UPDATE buddy_action_version SET revision=revision+1 WHERE id=1; END;")).map_err(|e|e.to_string())?;
             }
@@ -664,7 +701,7 @@ pub fn snapshot(storage: &Storage, conversation: i64) -> Result<Snapshot, String
             conversation,
             chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
         ),
-        data: json!({"goals":goals,"today":core.today,"focused_goal_id":core.focused_goal_id,"work_queue":work_queue_from_core(&core),"date":core.date,"backups":backups,"references":refs,"database_revision":database_revision}),
+        data: json!({"goals":goals,"today":core.today,"focused_goal_id":core.focused_goal_id,"work_queue":work_queue_from_core(&core),"date":core.date,"backups":backups,"references":refs,"database_revision":database_revision,"last_goal_edit":enhancements::journal_context(storage,conversation)?,"last_goal_search":enhancements::search_context(storage,conversation)?}),
         references: refs,
         conversation,
         privacy_revision: None,
@@ -844,6 +881,9 @@ fn execute_one(
     refs: &mut References,
     conversation: i64,
 ) -> Result<SkillResult, String> {
+    if let Some(extension) = input.extension {
+        return enhancements::execute(skill, storage, extension, refs, conversation);
+    }
     let mut result = SkillResult {
         skill: skill.name.into(),
         goal_id: None,
@@ -875,11 +915,30 @@ fn execute_one(
         return Ok(result);
     }
     if skill.name == "inspect_today" {
-        let summary = storage.core_snapshot(None)?.summary;
+        let core = storage.core_snapshot(None)?;
+        let controls = storage.memory_controls()?;
+        let remaining:Vec<_>=core.goals.iter().filter(|g|g.status!="completed" && core.today.contains(&g.id)).map(|g|json!({"title":g.title,"steps":g.plan.steps.iter().filter(|s|!s.done).map(|s|&s.text).collect::<Vec<_>>()})).collect();
+        let waiting: Vec<_> = if controls.enabled && controls.remember_work_context {
+            core.goals
+                .iter()
+                .filter(|g| g.status != "completed")
+                .filter_map(|g| {
+                    g.work_context
+                        .as_ref()
+                        .and_then(|c| c.context.waiting_for.as_ref())
+                        .map(|w| json!({"title":g.title,"waiting_for":w}))
+                })
+                .collect()
+        } else {
+            vec![]
+        };
+        let omitted = remaining.len().saturating_sub(40) + waiting.len().saturating_sub(40);
+        let summary = core.summary;
         result.data = json!({"day":summary.day,"confirmed_results":summary.completed,"completed_goals":summary.completed_goals,
             "timer_seconds":summary.goals.iter().map(|g|g.seconds).sum::<u64>(),
             "observed_seconds":summary.goals.iter().map(|g|g.tracked_seconds).sum::<u64>(),
-            "relevant_seconds":summary.goals.iter().map(|g|g.relevant_seconds).sum::<u64>()});
+            "relevant_seconds":summary.goals.iter().map(|g|g.relevant_seconds).sum::<u64>(),
+            "remaining_goals":remaining.into_iter().take(40).collect::<Vec<_>>(),"waiting_goals":waiting.into_iter().take(40).collect::<Vec<_>>(),"omitted_goals":omitted});
         return Ok(result);
     }
     if skill.name == "inspect_work_queue" {
@@ -1017,14 +1076,8 @@ fn execute_one(
             "add_goal_to_today" | "remove_goal_from_today" => {
                 storage.core_today(id, skill.name == "add_goal_to_today", &snapshot.date)?
             }
-            "complete_goal" | "reopen_goal" => storage.core_transition(
-                id,
-                if skill.name == "complete_goal" {
-                    "complete"
-                } else {
-                    "resume"
-                },
-            )?,
+            "complete_goal" => storage.core_transition(id, "complete")?,
+            "reopen_goal" => storage.core_reopen_preserving_steps(id)?,
             "set_focus_goal" => {
                 if goal.status != "open" || !snapshot.today.contains(&id) {
                     return Err("Choose an open goal from Today".into());
@@ -1098,7 +1151,8 @@ fn execute_one(
         .find(|g| g.id == id)
         .ok_or("Goal no longer exists")?;
     let removed = result.data["removed_step"].clone();
-    result.data = json!({"title":goal.title,"status":goal.status,"revision":goal.plan.revision,"created_at":goal.created_at,"steps":goal.plan.steps,"on_today":core.today.contains(&id),"focused":core.focused_goal_id==Some(id),"removed_step":removed,"checkpoint":storage.inspect_work_context(id)?.map(|c|crate::work_context::public_checkpoint(&c))});
+    result.data = enhancements::goal_data(storage, id)?;
+    result.data["removed_step"] = removed;
     if ["park_context", "resume_context", "inspect_work_context"].contains(&skill.name) {
         result.data = json!({"title":goal.title,"status":goal.status,"created_at":goal.created_at,"checkpoint":storage.inspect_work_context(id)?.map(|c|crate::work_context::public_checkpoint(&c))});
     }
@@ -1129,10 +1183,11 @@ fn delete(storage: &mut Storage, id: i64) -> Result<i64, String> {
         .find(|g| g.id == id)
         .ok_or("Goal no longer exists")?;
     let mut rows = std::collections::BTreeMap::new();
-    for table in ai_chat::BACKUP_TABLES
-        .into_iter()
-        .chain(["core_goal_details", "app_rules"])
-    {
+    for table in ai_chat::BACKUP_TABLES.into_iter().chain([
+        "core_goal_details",
+        "app_rules",
+        "core_goal_reopen_overrides",
+    ]) {
         rows.insert(table.into(), ai_chat::dump_rows(storage, table, id)?);
     }
     let backup = ai_chat::GoalBackup {
@@ -1194,7 +1249,20 @@ fn restore(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
     let mut plan = backup.plan;
     plan.goal_id = id;
     plan.revision = storage.goal_plan(id)?.revision;
-    storage.core_save_goal_details(&backup.title, &backup.area, plan, None)?;
+    if backup
+        .rows
+        .get("core_goal_reopen_overrides")
+        .is_some_and(|rows| !rows.is_empty())
+    {
+        storage
+            .connection
+            .execute(
+                "INSERT OR IGNORE INTO core_goal_reopen_overrides(goal_id) VALUES(?1)",
+                [id],
+            )
+            .map_err(|e| e.to_string())?;
+    }
+    storage.core_restore_goal_details(&backup.title, &backup.area, plan)?;
     if backup.status == "completed" {
         storage.core_transition(id, "complete")?;
     } else if backup.status == "deferred" {
@@ -1204,10 +1272,11 @@ fn restore(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
         .connection
         .execute("DELETE FROM core_events WHERE goal_id=?1", [id])
         .map_err(|e| e.to_string())?;
-    for table in ai_chat::BACKUP_TABLES
-        .into_iter()
-        .chain(["core_goal_details", "app_rules"])
-    {
+    for table in ai_chat::BACKUP_TABLES.into_iter().chain([
+        "core_goal_details",
+        "app_rules",
+        "core_goal_reopen_overrides",
+    ]) {
         if let Some(rows) = backup.rows.get(table) {
             ai_chat::load_rows(storage, table, id, rows)?;
         }
@@ -1239,6 +1308,7 @@ fn batch(
             return Err("The goals changed. Please retry with the current state.".into());
         }
         let mut refs = snap.references.clone();
+        let undo = enhancements::capture_undo(storage, plan, &refs)?;
         let mut results = Vec::new();
         for action in &plan.actions {
             let skill = registry()
@@ -1271,6 +1341,9 @@ fn batch(
             results.push(result);
         }
         storage.save_references(snap.conversation, &refs)?;
+        if commit {
+            enhancements::save_undo(storage, snap.conversation, plan, undo)?;
+        }
         Ok(results)
     })();
     if outcome.is_err() || !commit {
@@ -1336,7 +1409,9 @@ pub fn execute_for_event(
             .find(|s| s.name == action.name)
             .ok_or("Unknown skill")?;
         (skill.validator)(&skill, &action.input)?;
-        if !share && !["create_goal", "inspect_conversation"].contains(&skill.name) {
+        if !share
+            && !["create_goal", "create_planned_goal", "inspect_conversation"].contains(&skill.name)
+        {
             return Err("Enable goal context sharing before acting on existing goals.".into());
         }
         if skill.safety != Safety::ReadOnly && !confirmed {
@@ -1358,6 +1433,9 @@ pub fn execute_for_event(
                 );
             }
         }
+    }
+    if plan.actions.iter().any(|a| a.name == "undo_last_goal_edit") && plan.actions.len() != 1 {
+        return Err("Undo the last goal edit separately from other changes".into());
     }
     if plan.actions.iter().any(|a| a.name == "search_web") && plan.actions.len() != 1 {
         return Err("Confirm web research separately from other actions".into());
@@ -1411,7 +1489,7 @@ pub fn execute_for_event(
                 ],
             )
             .map_err(|e| e.to_string())?;
-        return Ok(Execution{status:"confirmation_required",results:preview,message:Some(if plan.actions.iter().any(|a|a.name=="search_web") {"Allow web research for this goal and step? Only a short search query goes to Tavily. Reply Confirm or Cancel. No search has run yet."} else {"Confirm this batch of changes? It includes a deletion. Reply Confirm or Cancel. Nothing has changed yet."}.into())});
+        return Ok(Execution{status:"confirmation_required",results:preview,message:Some(if plan.actions.iter().any(|a|a.name=="search_web") {"Allow web research for this goal and step? Only a short search query goes to Tavily. Reply Confirm or Cancel. No search has run yet."} else {"Confirm the proposed changes above? Reply Confirm or Cancel. Nothing has changed yet."}.into())});
     }
     Ok(Execution {
         status: "executed",

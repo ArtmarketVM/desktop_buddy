@@ -237,6 +237,256 @@ fn response(raw: Value) -> ResponseTemplate {
     ResponseTemplate::new(200).set_body_json(envelope(raw))
 }
 
+fn goal_update(target: i64, priority: Value) -> Value {
+    json!({"goal":{"goal_id":target,"reference":null},"title":null,"area":null,"description":null,"due_at":null,"priority":priority,"done_when":null,"clear_fields":[]})
+}
+
+#[test]
+fn verified_search_page_keeps_hidden_goals_addressable_without_widening_workspace() {
+    let (state, _) = fixture(&case()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    for n in 0..45 {
+        inner
+            .storage
+            .core_add_goals(
+                vec![crate::core::GoalDraft {
+                    title: format!("Backlog {n}"),
+                    area: "General".into(),
+                    steps: vec![],
+                }],
+                &format!("search-schema-fixture-{n}"),
+            )
+            .unwrap();
+    }
+    let conversation = inner.storage.current_conversation().unwrap();
+    let before = skills::snapshot(&inner.storage, conversation).unwrap();
+    let target = before.data["goals"].as_array().unwrap().last().unwrap()["goal_id"]
+        .as_i64()
+        .unwrap();
+    let title = before.data["goals"].as_array().unwrap().last().unwrap()["title"].clone();
+    let workspace = dialogue_context::workspace(&before, true, None);
+    assert!(!workspace["goals"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|g| g["goal_id"] == target));
+    let plan = skills::Plan {
+        kind: "actions".into(),
+        state_version: before.version.clone(),
+        actions: vec![skills::Action {
+            name: "find_goals".into(),
+            instruction: None,
+            input: json!({"query":title,"status":null,"area":null,"priority":null,"date":null,"overdue":null,"offset":0,"limit":20}),
+        }],
+        clarification: None,
+    };
+    skills::execute(
+        &mut inner.storage,
+        &before,
+        &plan,
+        "Find that backlog goal",
+        true,
+        false,
+    )
+    .unwrap();
+    let after = skills::snapshot(&inner.storage, conversation).unwrap();
+    let context = json!({"state":dialogue_context::workspace(&after, true, None)});
+    assert_eq!(context["state"]["goals"].as_array().unwrap().len(), 40);
+    assert_eq!(
+        context["state"]["last_goal_search"]["goal_ids"],
+        json!([target])
+    );
+    let schema = schema(&after, true, &context);
+    let read = schema["properties"]["response"]["anyOf"][1]["properties"]["actions"]["items"]
+        ["anyOf"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|v| v["properties"]["name"]["const"] == "inspect_goal")
+        .unwrap();
+    let target_variants = read["properties"]["input"]["properties"]["goal"]["anyOf"]
+        .as_array()
+        .unwrap();
+    assert!(target_variants
+        .iter()
+        .any(|v| v["properties"]["goal_id"]["enum"]
+            .as_array()
+            .is_some_and(|ids| ids.contains(&json!(target)))));
+    assert_eq!(
+        before.data["focused_goal_id"],
+        after.data["focused_goal_id"]
+    );
+}
+
+#[test]
+fn planned_creation_uses_its_own_batch_reference_despite_duplicate_existing_titles() {
+    let mut c = case();
+    c.kind = "ambiguous_goal".into();
+    let (state, ids) = fixture(&c).unwrap();
+    let inner = state.inner.lock().unwrap();
+    let mut original = skills::snapshot(
+        &inner.storage,
+        inner.storage.current_conversation().unwrap(),
+    )
+    .unwrap();
+    original.references.last_created_goal_id = Some(ids["Psychology assignment"]);
+    let plan = skills::Plan {
+        kind: "actions".into(),
+        state_version: original.version.clone(),
+        actions: vec![
+            skills::Action {
+                name: "create_planned_goal".into(),
+                input: json!({"title":"Fresh goal"}),
+                instruction: None,
+            },
+            skills::Action {
+                name: "update_goal".into(),
+                input: json!({"goal":{"goal_id":null,"reference":"last_created"}}),
+                instruction: None,
+            },
+        ],
+        clarification: None,
+    };
+    assert!(duplicate_target(&plan, &original, None).is_none());
+}
+
+#[tokio::test]
+async fn enhanced_goal_edit_keeps_semantic_authorization_review_and_canonical_receipt() {
+    let (state, ids) = fixture(&case()).unwrap();
+    let target = ids["Psychology assignment"];
+    let focus = ids["Client reply"];
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |request:&Request|{
+        let (b,c)=body(request);
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
+            "buddy_skill_plan"=>{
+                assert!(b["messages"][0]["content"].as_str().unwrap().contains("create_planned_goal"));
+                response(action(&c,"update_goal",goal_update(target,json!("high")),"change",true))
+            }
+            "buddy_dialogue_authorization"=>response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+            "buddy_dialogue_response"=>{
+                assert_eq!(c["verified_execution"]["status"],"executed");
+                assert_eq!(c["verified_execution"]["results"][0]["data"]["priority"],"high");
+                assert!(c["verified_execution"]["results"][0]["data"].get("checkpoint").is_some());
+                assert!(c["canonical_receipt"].as_str().unwrap().contains("Priority: high"));
+                response(json!({"message":"Updated Psychology assignment.\n\n- Priority: high","resources":[],"memory_update":null,"verified_result_indices":[0]}))
+            }
+            "buddy_dialogue_review"=>response(json!({"review":{"verdict":"approved","request_mode":"answer","message":""},"checks":[{"requirement":"Report the verified requested priority change","satisfied":true}]})),
+            name=>panic!("Unexpected request {name}")
+        }
+    }).expect(4).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let result=run(&json!({"latest_request":"Set Psychology assignment priority to high","conversation":case().history,"natural_reply":true}),conversation,&state,0,true,&service).await.unwrap();
+    assert!(result.committed);
+    assert!(result.reply.message.contains("Priority: high"));
+    let core = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .core_snapshot(None)
+        .unwrap();
+    assert_eq!(core.focused_goal_id, Some(focus));
+    assert_eq!(
+        core.goals
+            .iter()
+            .find(|g| g.id == target)
+            .unwrap()
+            .priority
+            .as_deref(),
+        Some("high")
+    );
+}
+
+#[tokio::test]
+async fn dialogue_can_read_then_undo_using_original_scoped_journal() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    let (state, ids) = fixture(&case()).unwrap();
+    let target = ids["Psychology assignment"];
+    let conversation;
+    {
+        let mut inner = state.inner.lock().unwrap();
+        conversation = inner.storage.current_conversation().unwrap();
+        let snap = skills::snapshot(&inner.storage, conversation).unwrap();
+        let plan = skills::Plan {
+            kind: "actions".into(),
+            state_version: snap.version.clone(),
+            actions: vec![skills::Action {
+                name: "update_goal".into(),
+                input: goal_update(target, json!("high")),
+                instruction: Some("Set priority high".into()),
+            }],
+            clarification: None,
+        };
+        skills::execute(
+            &mut inner.storage,
+            &snap,
+            &plan,
+            "Set priority high",
+            true,
+            false,
+        )
+        .unwrap();
+    }
+    let server = MockServer::start().await;
+    let rounds = Arc::new(AtomicUsize::new(0));
+    Mock::given(method("POST")).respond_with(move |request:&Request|{
+        let (b,c)=body(request);
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
+            "buddy_skill_plan" if rounds.fetch_add(1,Ordering::SeqCst)==0=>response(action(&c,"inspect_goal",json!({"goal":{"goal_id":target,"reference":null}}),"change",true)),
+            "buddy_skill_plan"=>{
+                assert_eq!(c["state"]["references"]["last_action"]["skill"],"inspect_goal");
+                assert_eq!(c["state"]["last_goal_edit"]["goal_id"],target);
+                response(action(&c,"undo_last_goal_edit",json!({}),"change",true))
+            }
+            "buddy_dialogue_authorization"=>{
+                assert_eq!(c["original_user_context"]["last_goal_edit"]["goal_id"],target);
+                response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}}))
+            }
+            "buddy_dialogue_response"=>response(json!({"message":"Undid the previous priority edit.","resources":[],"memory_update":null,"verified_result_indices":[0]})),
+            "buddy_dialogue_review"=>response(json!({"review":{"verdict":"approved","request_mode":"answer","message":""},"checks":[{"requirement":"Report only the verified undo","satisfied":true}]})),
+            name=>panic!("Unexpected request {name}")
+        }
+    }).expect(5).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let result=run(&json!({"latest_request":"Undo my previous priority edit","conversation":[],"natural_reply":true}),conversation,&state,0,true,&service).await.unwrap();
+    assert!(result.committed);
+    let core = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .core_snapshot(None)
+        .unwrap();
+    assert!(core
+        .goals
+        .iter()
+        .find(|g| g.id == target)
+        .unwrap()
+        .priority
+        .is_none());
+}
+
 #[test]
 fn semantic_validation_rejects_mutation_in_read_intent_and_wrong_operation() {
     let c = json!({"state":{"state_version":"v"},"latest_request":"Read only"});

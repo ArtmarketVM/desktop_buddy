@@ -25,6 +25,32 @@ describe("Markdown", () => {
     expect(html).not.toContain("<img");
     expect(html).toContain("&lt;img");
   });
+  it("renders task completion as read-only checkboxes and safe source links", () => {
+    const html = renderToStaticMarkup(
+      <Markdown
+        text={
+          "- [x] Reviewed outline\n- [ ] Draft slides\n\n[Source](https://example.com/guide)\n\n[Unsafe](javascript:alert)"
+        }
+      />,
+    );
+    expect(html.match(/type="checkbox"/g)).toHaveLength(2);
+    expect(html.match(/checked=""/g)).toHaveLength(1);
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html).toContain('aria-label="Draft slides"');
+    expect(html).toContain('href="https://example.com/guide"');
+    expect(html).not.toContain('href="javascript:');
+  });
+  it("does not activate credential-bearing links or HTML embedded in task text", () => {
+    const html = renderToStaticMarkup(
+      <Markdown
+        text={
+          "- [ ] <script>alert(1)</script>\n\n[Unsafe](https://user:pass@example.com)"
+        }
+      />,
+    );
+    expect(html).not.toContain("<script>");
+    expect(html).not.toContain("<a");
+  });
   it("puts line breaks back into a reply that came back on one line", () => {
     const flat =
       "You are tasked with implementing inline editing for goal titles and step texts on the Today screen. Follow these specifications exactly and produce clean code with tests.## OverviewGoal: allow users to click a title and edit it in place.## Requirements1. **UI Design** - Render each title as a label.2. **Behavior** - Save on Enter or blur and cancel on Escape.";

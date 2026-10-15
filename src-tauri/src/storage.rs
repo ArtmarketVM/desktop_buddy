@@ -13,10 +13,10 @@ impl Storage {
         store.initialize_window_history()?;
         store.initialize_profile()?;
         store.initialize_core()?;
-        store.initialize_skills()?;
         store.initialize_personal_memory()?;
         store.initialize_research()?;
         store.initialize_continuity()?;
+        store.initialize_skills()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {

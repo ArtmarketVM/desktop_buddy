@@ -83,7 +83,20 @@ fn run(store: &mut Storage, actions: Vec<Action>) -> Execution {
         actions,
         clarification: None,
     };
-    execute(store, &snap, &plan, "Do this", true, false).unwrap()
+    let out = execute(store, &snap, &plan, "Do this", true, false).unwrap();
+    if out.status == "confirmation_required"
+        && plan.actions.iter().all(|a| {
+            a.name == "complete_goal"
+                || registry()
+                    .iter()
+                    .any(|s| s.name == a.name && s.safety != Safety::Confirmation)
+        })
+    {
+        return pending_reply(store, conversation, "Confirm", true, 0)
+            .unwrap()
+            .unwrap();
+    }
+    out
 }
 fn create(store: &mut Storage, title: &str, steps: Vec<&str>) -> i64 {
     run(
@@ -751,7 +764,7 @@ fn every_skill_exposes_validator_executor_and_strict_result_contract() {
         &mut s,
         vec![action("reopen_goal", json!({"goal":goal(id)}))],
     );
-    assert!(!s.goal_plan(id).unwrap().steps[0].done);
+    assert!(s.goal_plan(id).unwrap().steps[0].done);
 }
 
 #[test]

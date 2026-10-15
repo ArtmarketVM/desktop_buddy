@@ -272,6 +272,7 @@ impl Storage {
             CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS deleted_goal_backups(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,deleted_at INTEGER NOT NULL,payload TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS core_goal_details(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE,due_at TEXT,priority TEXT,description TEXT NOT NULL DEFAULT '');
+            CREATE TABLE IF NOT EXISTS core_goal_reopen_overrides(goal_id INTEGER PRIMARY KEY REFERENCES goals(id) ON DELETE CASCADE);
             CREATE TABLE IF NOT EXISTS core_carryover_dismissals(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,PRIMARY KEY(day,goal_id));").map_err(db)?;
         self.connection.execute_batch("CREATE TABLE IF NOT EXISTS core_quick_batches(batch_id TEXT PRIMARY KEY,goal_id INTEGER REFERENCES goals(id) ON DELETE SET NULL);").map_err(db)?;
         // A manual timer resumes only after an explicit user action on a new app run.
@@ -384,8 +385,26 @@ impl Storage {
         &mut self,
         title: &str,
         area: &str,
+        plan: GoalPlan,
+        details: Option<GoalDetails>,
+    ) -> Result<(), String> {
+        self.core_save_goal_details_with(title, area, plan, details, false)
+    }
+    pub(crate) fn core_restore_goal_details(
+        &mut self,
+        title: &str,
+        area: &str,
+        plan: GoalPlan,
+    ) -> Result<(), String> {
+        self.core_save_goal_details_with(title, area, plan, None, true)
+    }
+    fn core_save_goal_details_with(
+        &mut self,
+        title: &str,
+        area: &str,
         mut plan: GoalPlan,
         details: Option<GoalDetails>,
+        restoring: bool,
     ) -> Result<(), String> {
         let details = details.map(GoalDetails::validate).transpose()?;
         let title = goals::text(title, true)?;
@@ -421,6 +440,17 @@ impl Storage {
             tx.execute("INSERT INTO core_goal_details(goal_id,due_at,priority,description) VALUES(?1,?2,?3,?4) ON CONFLICT(goal_id) DO UPDATE SET due_at=excluded.due_at,priority=excluded.priority,description=excluded.description", params![plan.goal_id,details.due_at,details.priority,details.description]).map_err(db)?;
         }
         record_step_changes(&tx, &old, &plan)?;
+        let old_progress: std::collections::BTreeMap<_, _> =
+            old.steps.iter().map(|s| (&s.id, s.done)).collect();
+        let new_progress: std::collections::BTreeMap<_, _> =
+            plan.steps.iter().map(|s| (&s.id, s.done)).collect();
+        if !restoring && old_progress != new_progress {
+            tx.execute(
+                "DELETE FROM core_goal_reopen_overrides WHERE goal_id=?1",
+                [plan.goal_id],
+            )
+            .map_err(db)?;
+        }
         plan.revision = plan
             .revision
             .checked_add(1)
@@ -428,7 +458,7 @@ impl Storage {
         tx.execute("INSERT INTO goal_plans(goal_id,revision,payload) VALUES(?1,?2,?3) ON CONFLICT(goal_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload", params![plan.goal_id,plan.revision,serde_json::to_string(&plan).map_err(|_| "Could not save steps")?]).map_err(db)?;
         tx.commit().map_err(db)?;
         // Unticking a step of a completed goal reopens it.
-        if plan.steps.iter().any(|step| !step.done) {
+        if !restoring && plan.steps.iter().any(|step| !step.done) {
             let state: Option<String> = self
                 .connection
                 .query_row(
@@ -443,7 +473,19 @@ impl Storage {
             }
         }
         // When every step is done the goal is done too.
-        if !plan.steps.is_empty() && plan.steps.iter().all(|step| step.done) {
+        let keep_open: bool = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM core_goal_reopen_overrides WHERE goal_id=?1)",
+                [plan.goal_id],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if !restoring
+            && !keep_open
+            && !plan.steps.is_empty()
+            && plan.steps.iter().all(|step| step.done)
+        {
             let state: Option<String> = self
                 .connection
                 .query_row(
@@ -483,7 +525,7 @@ impl Storage {
         let ids: Vec<i64> = {
             let mut q = self
                 .connection
-                .prepare("SELECT goal_id FROM core_goals WHERE state='open'")
+                .prepare("SELECT goal_id FROM core_goals WHERE state='open' AND NOT EXISTS(SELECT 1 FROM core_goal_reopen_overrides r WHERE r.goal_id=core_goals.goal_id)")
                 .map_err(db)?;
             let rows = q
                 .query_map([], |r| r.get::<_, i64>(0))
@@ -503,6 +545,18 @@ impl Storage {
     pub fn core_transition(&mut self, id: i64, action: &str) -> Result<(), String> {
         self.core_transition_with(id, action, true)
     }
+    pub(crate) fn core_reopen_preserving_steps(&mut self, id: i64) -> Result<(), String> {
+        let plan = self.goal_plan(id)?;
+        if !plan.steps.is_empty() && plan.steps.iter().all(|s| s.done) {
+            self.connection
+                .execute(
+                    "INSERT OR IGNORE INTO core_goal_reopen_overrides(goal_id) VALUES(?1)",
+                    [id],
+                )
+                .map_err(db)?;
+        }
+        self.core_transition_with(id, "resume", false)
+    }
     fn core_transition_with(
         &mut self,
         id: i64,
@@ -516,6 +570,14 @@ impl Storage {
             "delete" => "deleted",
             _ => return Err("Unknown goal action".into()),
         };
+        if action == "complete" || (action == "resume" && reset_steps_on_reopen) {
+            self.connection
+                .execute(
+                    "DELETE FROM core_goal_reopen_overrides WHERE goal_id=?1",
+                    [id],
+                )
+                .map_err(db)?;
+        }
         if action == "complete" {
             // Completing a goal completes every step inside it.
             self.core_set_all_steps(id, true)?;
