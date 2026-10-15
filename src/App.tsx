@@ -75,6 +75,12 @@ export default function App() {
   const preview =
     !desktop &&
     new URLSearchParams(location.search).get("preview") === "workspace";
+  const previewProfileName = preview
+    ? new URLSearchParams(location.search)
+        .get("profileName")
+        ?.trim()
+        .slice(0, 120)
+    : undefined;
   const onboarding = !settings.onboarding.completed && !preview;
   useEffect(() => {
     if (quickRequest && page === "focus" && !onboarding)
@@ -192,15 +198,26 @@ export default function App() {
         <AppShell
           page={page}
           onNavigate={setPage}
-          profile={settings.profile}
+          profile={
+            previewProfileName
+              ? { ...settings.profile, name: previewProfileName }
+              : settings.profile
+          }
           version={data.version}
           update={update}
           onUpdates={() => setUpdatesOpen(true)}
           onboarding={onboarding}
           theme={theme}
           quietMode={data.status.dnd}
-          quietModeDisabled={busy || !desktop}
-          onQuietMode={() => void run(() => api.dnd(!data.status.dnd))}
+          quietModeDisabled={busy || (!desktop && !preview)}
+          onQuietMode={() => {
+            if (desktop) void run(() => api.dnd(!data.status.dnd));
+            else if (preview)
+              setData((previous) => ({
+                ...previous,
+                status: { ...previous.status, dnd: !previous.status.dnd },
+              }));
+          }}
           onTheme={(next) => {
             if (desktop) void run(() => api.theme(next));
             else setTheme(next);

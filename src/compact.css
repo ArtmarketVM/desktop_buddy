@@ -65,20 +65,12 @@
 .sidebar .workspace-brand > div {
   min-width: 0;
 }
-.sidebar .workspace-brand > div > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.sidebar .nav-heading {
-  flex: 0 0 14px;
-  height: 14px;
-  margin: 20px 13px 8px;
-  white-space: nowrap;
-  overflow: hidden;
-}
 .sidebar nav {
   margin-top: 0;
   flex-shrink: 0;
+}
+.sidebar > nav {
+  margin-top: 18px;
 }
 .sidebar-bottom {
   flex-shrink: 0;
@@ -145,18 +137,26 @@
 }
 .sidebar .profile-entry {
   height: 60px;
-  padding: 14px 6px 6px;
+  padding: 14px 13.5px 6px;
   justify-content: flex-start;
   overflow: hidden;
 }
-.sidebar .profile-initials {
-  flex-shrink: 0;
+.sidebar .profile-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.sidebar-collapsed .profile-entry {
+  padding-inline: 6px;
+}
+.sidebar-collapsed .profile-name {
+  font-size: 12px;
 }
 .sidebar-collapsed .workspace-brand,
-.sidebar-collapsed .nav-heading,
 .sidebar-collapsed .nav-label,
-.sidebar-collapsed .profile-entry > span:nth-child(2),
-.sidebar-collapsed .profile-entry > svg,
 .sidebar-collapsed .update-entry > span:last-child {
   visibility: hidden;
 }
@@ -1165,8 +1165,8 @@ main.desktop-buddy.chatting > .companion-error {
 }
 
 @media (max-height: 760px) {
-  .sidebar .nav-heading {
-    margin-block: 12px 6px;
+  .sidebar > nav {
+    margin-top: 12px;
   }
   .sidebar nav {
     gap: 2px;

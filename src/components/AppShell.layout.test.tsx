@@ -109,3 +109,21 @@ it("retains sidebar-toggle focus and service controls through collapse and expan
   await user.keyboard("{Enter}");
   expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBe(toggle);
 });
+
+it("keeps the user's name and profile actions accessible in the collapsed sidebar", async () => {
+  const user = userEvent.setup();
+  render(
+    <AppShell {...base} profile={{ ...base.profile, name: "Mark" }}>
+      Today
+    </AppShell>,
+  );
+  const profile = screen.getByRole("button", { name: "Open profile menu" });
+  expect(profile.textContent).toBe("Mark");
+  expect(profile.title).toBe("Mark");
+  await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+  expect(profile.textContent).toBe("Mark");
+  await user.click(profile);
+  expect(screen.getByRole("button", { name: "Edit profile" })).toBeTruthy();
+  await user.keyboard("{Escape}");
+  expect(document.activeElement).toBe(profile);
+});

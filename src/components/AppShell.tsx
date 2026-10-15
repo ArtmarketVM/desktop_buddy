@@ -4,7 +4,6 @@ import {
   BarChart3,
   History,
   Settings,
-  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   Sun,
@@ -154,14 +153,6 @@ export function AppShell({
       document.removeEventListener("keydown", escape);
     };
   }, [menu]);
-  const initials =
-    profile.name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((name) => name[0])
-      .join("")
-      .toUpperCase() || "B";
   return (
     <div
       className={`app-shell page-${page} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
@@ -169,9 +160,7 @@ export function AppShell({
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
-            <div>
-              sumi<span>Personal workspace</span>
-            </div>
+            <div>sumi</div>
           </div>
           <button
             ref={sidebarToggle}
@@ -191,7 +180,6 @@ export function AppShell({
             )}
           </button>
         </div>
-        <span className="eyebrow nav-heading">WORKSPACE</span>
         <nav id="workspace-navigation" aria-label="Workspace pages">
           {pages.slice(0, 4).map((item) => (
             <button
@@ -305,10 +293,11 @@ export function AppShell({
               onClick={() => setMenu(!menu)}
               aria-expanded={menu}
               aria-label="Open profile menu"
+              title={profile.name || "Your profile"}
             >
-              <span className="profile-initials">{initials}</span>
-              <span>{profile.name || "Your workspace"}</span>
-              <ChevronDown size={14} />
+              <span className="profile-name">
+                {profile.name || "Your profile"}
+              </span>
             </button>
           </div>
         </div>
