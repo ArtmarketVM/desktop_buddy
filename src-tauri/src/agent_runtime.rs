@@ -214,6 +214,24 @@ pub fn explicit_event_kind(request: &Value) -> Result<EventKind, String> {
         _ => Err("An explicit text or voice message is required".into()),
     }
 }
+pub async fn handle_dialogue(
+    request: &Value,
+    conversation: i64,
+    state: &AppState,
+    revision: u64,
+    share: bool,
+    service: &Service<'_>,
+) -> Result<crate::agent_dialogue::Outcome, String> {
+    explicit_event_kind(request)?;
+    tokio::time::timeout(
+        std::time::Duration::from_secs(90),
+        crate::agent_dialogue::run(request, conversation, state, revision, share, service),
+    )
+    .await
+    .map_err(|_| {
+        "The agent request timed out. Check the verified app state before retrying.".to_string()
+    })?
+}
 pub async fn handle_explicit_actions(
     request: &Value,
     conversation: i64,

@@ -1,0 +1,881 @@
+[
+  {
+    "id": "01-queue_context-ru",
+    "language": "ru",
+    "kind": "queue_context",
+    "request": "у меня в ап некст",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "01-queue_context-en",
+    "language": "en",
+    "kind": "queue_context",
+    "request": "It is in my Up next",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "01-queue_context-he",
+    "language": "he",
+    "kind": "queue_context",
+    "request": "זה אצלי ב־Up next",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "02-queue-ru",
+    "language": "ru",
+    "kind": "queue",
+    "request": "Что у меня следующее на Today?",
+    "history": []
+  },
+  {
+    "id": "02-queue-en",
+    "language": "en",
+    "kind": "queue",
+    "request": "What is next in my Today queue?",
+    "history": []
+  },
+  {
+    "id": "02-queue-he",
+    "language": "he",
+    "kind": "queue",
+    "request": "מה הבא בתור שלי ב־Today?",
+    "history": []
+  },
+  {
+    "id": "03-remaining-ru",
+    "language": "ru",
+    "kind": "remaining",
+    "request": "Что еще осталось по психологии?",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "03-remaining-en",
+    "language": "en",
+    "kind": "remaining",
+    "request": "What remains on the psychology assignment?",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "03-remaining-he",
+    "language": "he",
+    "kind": "remaining",
+    "request": "מה נשאר במשימת הפסיכולוגיה?",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "04-reference-ru",
+    "language": "ru",
+    "kind": "reference",
+    "request": "А там какой первый шаг?",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "04-reference-en",
+    "language": "en",
+    "kind": "reference",
+    "request": "What is the first step there?",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "04-reference-he",
+    "language": "he",
+    "kind": "reference",
+    "request": "מה הצעד הראשון שם?",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "05-help-ru",
+    "language": "ru",
+    "kind": "help",
+    "request": "Помоги с этой задачей, не спрашивай то, что уже записано.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "05-help-en",
+    "language": "en",
+    "kind": "help",
+    "request": "Help with this task using the details already saved.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "05-help-he",
+    "language": "he",
+    "kind": "help",
+    "request": "עזור לי במשימה הזו לפי הפרטים שכבר שמורים.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "06-focus-ru",
+    "language": "ru",
+    "kind": "focus",
+    "request": "Хочу сейчас сфокусироваться на цели Psychology assignment — выбери ее.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "06-focus-en",
+    "language": "en",
+    "kind": "focus",
+    "request": "I want to work on Psychology assignment now. Make it the focus.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "06-focus-he",
+    "language": "he",
+    "kind": "focus",
+    "request": "בחר עכשיו את Psychology assignment כמטרה שבמיקוד.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "07-complete_step-ru",
+    "language": "ru",
+    "kind": "complete_step",
+    "request": "Отметь первый шаг в обсуждаемой цели выполненным.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "07-complete_step-en",
+    "language": "en",
+    "kind": "complete_step",
+    "request": "Check off the first step of the goal we are discussing.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "07-complete_step-he",
+    "language": "he",
+    "kind": "complete_step",
+    "request": "סמן את הצעד הראשון במטרה שעליה דיברנו כהושלם.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "08-add_step-ru",
+    "language": "ru",
+    "kind": "add_step",
+    "request": "Добавь туда еще шаг: проверить примеры.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "08-add_step-en",
+    "language": "en",
+    "kind": "add_step",
+    "request": "Add another step there: check the examples.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "08-add_step-he",
+    "language": "he",
+    "kind": "add_step",
+    "request": "הוסף לשם עוד צעד: לבדוק את הדוגמאות.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "09-rename-ru",
+    "language": "ru",
+    "kind": "rename",
+    "request": "Пусть цель «Psychology assignment» теперь называется «Psychology draft».",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "09-rename-en",
+    "language": "en",
+    "kind": "rename",
+    "request": "Call the goal \"Psychology assignment\" \"Psychology draft\" from now on.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "09-rename-he",
+    "language": "he",
+    "kind": "rename",
+    "request": "שנה את שם המטרה \"Psychology assignment\" ל־\"Psychology draft\".",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "10-create-ru",
+    "language": "ru",
+    "kind": "create",
+    "request": "Мне нужна новая цель «New audit goal». Создай ее.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "10-create-en",
+    "language": "en",
+    "kind": "create",
+    "request": "I need a new goal called \"New audit goal\". Please create it.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "10-create-he",
+    "language": "he",
+    "kind": "create",
+    "request": "צור לי מטרה חדשה בשם \"New audit goal\".",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "11-advice-ru",
+    "language": "ru",
+    "kind": "advice",
+    "request": "Как удалить цель? Сейчас ничего не меняй.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "11-advice-en",
+    "language": "en",
+    "kind": "advice",
+    "request": "How do I delete a goal? Make no changes now.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "11-advice-he",
+    "language": "he",
+    "kind": "advice",
+    "request": "איך מוחקים מטרה? אל תשנה שום דבר עכשיו.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "12-past-ru",
+    "language": "ru",
+    "kind": "past",
+    "request": "Я уже удалил старую цель, это просто сообщение. Ничего не меняй.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "12-past-en",
+    "language": "en",
+    "kind": "past",
+    "request": "I already deleted an old goal. This is just an update; change nothing.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "12-past-he",
+    "language": "he",
+    "kind": "past",
+    "request": "כבר מחקתי מטרה ישנה. זה רק דיווח; אל תשנה דבר.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "13-negative-ru",
+    "language": "ru",
+    "kind": "negative",
+    "request": "Не меняй фокус. Объясни первый шаг по психологии.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "13-negative-en",
+    "language": "en",
+    "kind": "negative",
+    "request": "Keep the focus unchanged. Explain the first psychology step.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "13-negative-he",
+    "language": "he",
+    "kind": "negative",
+    "request": "אל תשנה את המיקוד. הסבר את הצעד הראשון בפסיכולוגיה.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "14-quoted_instruction-ru",
+    "language": "ru",
+    "kind": "quoted_instruction",
+    "request": "Разбери фразу «удали цель» как пример повелительного наклонения. Никаких действий в приложении.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "14-quoted_instruction-en",
+    "language": "en",
+    "kind": "quoted_instruction",
+    "request": "Analyze \"delete the goal\" as an example of the imperative. No app actions.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "14-quoted_instruction-he",
+    "language": "he",
+    "kind": "quoted_instruction",
+    "request": "נתח את הביטוי \"מחק את המטרה\" כדוגמה לציווי. בלי פעולות באפליקציה.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "15-ambiguous_goal-ru",
+    "language": "ru",
+    "kind": "ambiguous_goal",
+    "request": "Сделай Psychology assignment целью в фокусе.",
+    "history": []
+  },
+  {
+    "id": "15-ambiguous_goal-en",
+    "language": "en",
+    "kind": "ambiguous_goal",
+    "request": "Focus Psychology assignment.",
+    "history": []
+  },
+  {
+    "id": "15-ambiguous_goal-he",
+    "language": "he",
+    "kind": "ambiguous_goal",
+    "request": "שים את Psychology assignment במיקוד.",
+    "history": []
+  },
+  {
+    "id": "16-ambiguous_pronoun-ru",
+    "language": "ru",
+    "kind": "ambiguous_pronoun",
+    "request": "Удали это.",
+    "history": []
+  },
+  {
+    "id": "16-ambiguous_pronoun-en",
+    "language": "en",
+    "kind": "ambiguous_pronoun",
+    "request": "Delete it.",
+    "history": []
+  },
+  {
+    "id": "16-ambiguous_pronoun-he",
+    "language": "he",
+    "kind": "ambiguous_pronoun",
+    "request": "מחק את זה.",
+    "history": []
+  },
+  {
+    "id": "17-time_not_completion-ru",
+    "language": "ru",
+    "kind": "time_not_completion",
+    "request": "Если я потратил полчаса, это доказывает, что цель готова? Ничего не отмечай.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "17-time_not_completion-en",
+    "language": "en",
+    "kind": "time_not_completion",
+    "request": "Does spending half an hour prove the goal is finished? Mark nothing complete.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "17-time_not_completion-he",
+    "language": "he",
+    "kind": "time_not_completion",
+    "request": "האם חצי שעה של עבודה מוכיחה שהמטרה הושלמה? אל תסמן דבר כהושלם.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "18-draft-ru",
+    "language": "ru",
+    "kind": "draft",
+    "request": "Напиши первые два предложения ответа для задания по психологии, используя сохраненное условие.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "18-draft-en",
+    "language": "en",
+    "kind": "draft",
+    "request": "Write the first two sentences of the psychology answer using the saved assignment.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "18-draft-he",
+    "language": "he",
+    "kind": "draft",
+    "request": "כתוב את שני המשפטים הראשונים לתשובה בפסיכולוגיה לפי המשימה השמורה.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "19-multi_action-ru",
+    "language": "ru",
+    "kind": "multi_action",
+    "request": "Создай цель «New audit goal» и добавь туда два шага: прочитать условие; написать черновик.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "19-multi_action-en",
+    "language": "en",
+    "kind": "multi_action",
+    "request": "Create \"New audit goal\" with two steps: read the assignment; write a draft.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "19-multi_action-he",
+    "language": "he",
+    "kind": "multi_action",
+    "request": "צור את \"New audit goal\" והוסף לה שני צעדים: לקרוא את המשימה; לכתוב טיוטה.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "20-read_then_focus-ru",
+    "language": "ru",
+    "kind": "read_then_focus",
+    "request": "Покажи шаги Psychology assignment и поставь эту цель в фокус.",
+    "history": [
+      {
+        "role": "user",
+        "text": "Обсуждаем мою цель Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "20-read_then_focus-en",
+    "language": "en",
+    "kind": "read_then_focus",
+    "request": "Show the steps for Psychology assignment, then focus that goal.",
+    "history": [
+      {
+        "role": "user",
+        "text": "We are discussing my goal Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  },
+  {
+    "id": "20-read_then_focus-he",
+    "language": "he",
+    "kind": "read_then_focus",
+    "request": "הראה את הצעדים של Psychology assignment ואז שים אותה במיקוד.",
+    "history": [
+      {
+        "role": "user",
+        "text": "אנחנו מדברים על המטרה שלי Psychology assignment."
+      },
+      {
+        "role": "assistant",
+        "text": "Psychology assignment has saved steps and is next in Today. Client reply remains in focus."
+      }
+    ]
+  }
+]

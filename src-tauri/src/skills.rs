@@ -137,6 +137,7 @@ impl Execution {
                 })
                 .unwrap_or("step");
             let line=match r.skill.as_str() {
+                "inspect_work_queue" => work_queue_receipt(&r.data),
                 "inspect_continuity" => r.data["report"].as_str().unwrap_or_default().to_string(),
                 "search_web" => format!("Search the web for \"{}\"{} after confirmation.",r.data["title"].as_str().unwrap_or("this goal"),r.data["step_text"].as_str().map(|s|format!(" — step: {s}")).unwrap_or_default()),
                 "attach_research_to_context" => "Attached the validated research to this work context.".into(),
@@ -206,6 +207,10 @@ impl Execution {
 fn result_schema(name: &str) -> Value {
     let step =
         shape(json!({"id":{"type":"string"},"text":{"type":"string"},"done":{"type":"boolean"}}));
+    let queue_item = shape(
+        json!({"goal_id":{"type":"integer"},"title":{"type":"string"},"remaining_step_count":{"type":"integer"},
+        "next_step":{"anyOf":[shape(json!({"step_id":{"type":"string"},"text":{"type":"string"}})),{"type":"null"}]}}),
+    );
     let data = match name {
         "inspect_continuity" => shape(
             json!({"day":{"type":"string"},"report":{"type":"string"},"omitted_lanes":{"type":"integer"}}),
@@ -221,6 +226,11 @@ fn result_schema(name: &str) -> Value {
             "completed_goals":{"type":"array","items":{"type":"string"}},
             "timer_seconds":{"type":"integer"},"observed_seconds":{"type":"integer"},"relevant_seconds":{"type":"integer"}
         })),
+        "inspect_work_queue" => shape(
+            json!({"day":{"type":"string"},"in_focus":{"anyOf":[queue_item.clone(),{"type":"null"}]},
+            "later_today":{"type":"array","maxItems":40,"items":queue_item},
+            "up_next_goal_id":{"type":["integer","null"]},"omitted_goals":{"type":"integer"}}),
+        ),
         "list_goals" => shape(
             json!({"goals":{"type":"array","items":shape(json!({"goal_id":{"type":"integer"},"title":{"type":"string"},"status":{"type":"string"}}))}}),
         ),
@@ -309,6 +319,7 @@ pub fn registry() -> Vec<Skill> {
         ("record_research_feedback", "Record whether this exact goal research helped; no completion is implied", Safety::Reversible, json!({"goal":goal,"research_id":{"type":"integer","minimum":1},"helpful":{"type":"boolean"}})),
         ("inspect_continuity", "Read grounded daily continuity: priorities, yesterday results/checkpoints, waiting items, remaining goal steps or end-of-day summary; optional exact goal target", Safety::ReadOnly, json!({"view":{"type":"string","enum":["priorities","yesterday","waiting","remaining","end_of_day"]},"goal":{"anyOf":[goal,{"type":"null"}]}})),
         ("inspect_today", "Read today's confirmed results and separate timer, observed and relevant time; time alone is not completion", Safety::ReadOnly, json!({})),
+        ("inspect_work_queue", "Read the actual Today queue: In focus, ordered Later today, and Up next; does not change focus", Safety::ReadOnly, json!({})),
         ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
         ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
         ("inspect_work_context","Read where work stopped, the last meaningful result, next action and waiting state",Safety::ReadOnly,json!({"goal":goal})),
@@ -636,7 +647,7 @@ pub fn snapshot(storage: &Storage, conversation: i64) -> Result<Snapshot, String
             conversation,
             chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
         ),
-        data: json!({"goals":goals,"today":core.today,"focused_goal_id":core.focused_goal_id,"date":core.date,"backups":backups,"references":refs,"database_revision":database_revision}),
+        data: json!({"goals":goals,"today":core.today,"focused_goal_id":core.focused_goal_id,"work_queue":work_queue_from_core(&core),"date":core.date,"backups":backups,"references":refs,"database_revision":database_revision}),
         references: refs,
         conversation,
         privacy_revision: None,
@@ -652,7 +663,64 @@ pub fn planning_context(snap: &Snapshot, share: bool) -> Value {
     });
     goals.truncate(40);
     let deleted = &snap.data["backups"];
-    json!({"state_version":snap.version,"sharing":true,"goals":goals,"today":snap.data["today"],"references":snap.references,"deleted_goals":deleted,"focused_goal_id":snap.data["focused_goal_id"],"total_goals":snap.data["goals"].as_array().unwrap().len()})
+    json!({"state_version":snap.version,"sharing":true,"goals":goals,"today":snap.data["today"],"work_queue":snap.data["work_queue"],"references":snap.references,"deleted_goals":deleted,"focused_goal_id":snap.data["focused_goal_id"],"total_goals":snap.data["goals"].as_array().unwrap().len()})
+}
+
+fn work_queue_from_core(core: &crate::core::CoreSnapshot) -> Value {
+    let item = |g: &crate::core::CoreGoal| {
+        json!({"goal_id":g.id,"title":g.title,
+        "remaining_step_count":g.plan.steps.iter().filter(|s| !s.done).count(),
+        "next_step":g.plan.steps.iter().find(|s| !s.done).map(|s| json!({"step_id":s.id,"text":s.text}))})
+    };
+    let open: Vec<_> = core
+        .goals
+        .iter()
+        .filter(|g| g.status == "open" && core.today.contains(&g.id))
+        .collect();
+    let focus = open
+        .iter()
+        .find(|g| Some(g.id) == core.focused_goal_id)
+        .map(|g| item(g));
+    let later: Vec<_> = open
+        .iter()
+        .filter(|g| Some(g.id) != core.focused_goal_id)
+        .collect();
+    json!({"day":core.date,"in_focus":focus,"later_today":later.iter().take(40).map(|g| item(g)).collect::<Vec<_>>(),
+        "up_next_goal_id":later.first().map(|g|g.id),"omitted_goals":later.len().saturating_sub(40)})
+}
+
+fn work_queue_receipt(queue: &Value) -> String {
+    let mut lines = vec![format!(
+        "In focus: {}",
+        queue["in_focus"]["title"]
+            .as_str()
+            .unwrap_or("No open goal is in focus.")
+    )];
+    let later = queue["later_today"].as_array().unwrap();
+    if later.is_empty() {
+        lines.push("Later today: No open goals are queued.".into());
+    } else {
+        lines.push("Later today (Up next is the first goal):".into());
+        for (i, g) in later.iter().enumerate() {
+            lines.push(format!(
+                "{}. {}{}",
+                i + 1,
+                g["title"].as_str().unwrap_or_default(),
+                g["next_step"]["text"]
+                    .as_str()
+                    .map(|s| format!(" — next step: {s}"))
+                    .unwrap_or_default()
+            ));
+        }
+    }
+    if queue["omitted_goals"].as_u64().unwrap_or_default() > 0 {
+        lines.push(format!(
+            "{} additional goals are not shown.",
+            queue["omitted_goals"]
+        ));
+    }
+    lines.push("Focus and goal order are unchanged.".into());
+    lines.join("\n")
 }
 
 fn resolve_goal(storage: &Storage, target: &GoalTarget, refs: &References) -> Result<i64, String> {
@@ -786,6 +854,10 @@ fn execute_one(
             "timer_seconds":summary.goals.iter().map(|g|g.seconds).sum::<u64>(),
             "observed_seconds":summary.goals.iter().map(|g|g.tracked_seconds).sum::<u64>(),
             "relevant_seconds":summary.goals.iter().map(|g|g.relevant_seconds).sum::<u64>()});
+        return Ok(result);
+    }
+    if skill.name == "inspect_work_queue" {
+        result.data = work_queue_from_core(&storage.core_snapshot(None)?);
         return Ok(result);
     }
     if skill.name == "list_goals" {
@@ -1155,6 +1227,21 @@ fn batch(
             ) {
                 return Err("The skill result failed validation; nothing was changed".into());
             }
+            if skill.safety == Safety::ReadOnly {
+                if let Some(id) = result.goal_id {
+                    refs.last_referenced_goal_id = Some(id);
+                    refs.last_referenced_goal_created_at = Some(
+                        storage
+                            .connection
+                            .query_row("SELECT created_at FROM goals WHERE id=?1", [id], |r| {
+                                r.get(0)
+                            })
+                            .map_err(|e| e.to_string())?,
+                    );
+                    refs.last_referenced_step_id = result.step_id.clone();
+                }
+                refs.last_action = Some(serde_json::to_value(&result).map_err(|e| e.to_string())?);
+            }
             results.push(result);
         }
         storage.save_references(snap.conversation, &refs)?;
@@ -1357,6 +1444,32 @@ pub fn pending_reply(
         return Err("That confirmation expired. Please repeat your request.".into());
     }
     execute(storage, &pending.snapshot, &pending.plan, text, share, true).map(Some)
+}
+
+/// The opaque token is compared again under the mutation lock after inference.
+pub fn pending_confirmation(
+    storage: &Storage,
+    conversation: i64,
+) -> Result<Option<(String, Value)>, String> {
+    let raw: Option<String> = storage
+        .connection
+        .query_row(
+            "SELECT pending_json FROM buddy_action_state WHERE conversation_id=?1",
+            [conversation],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .flatten();
+    raw.map(|raw| {
+        let pending: Pending =
+            serde_json::from_str(&raw).map_err(|_| "Invalid pending confirmation")?;
+        Ok((
+            raw,
+            json!({"actions":pending.plan.actions,"expires_at":pending.expires_at}),
+        ))
+    })
+    .transpose()
 }
 
 #[cfg(test)]

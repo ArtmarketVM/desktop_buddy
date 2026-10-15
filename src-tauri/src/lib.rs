@@ -1,3 +1,4 @@
+mod agent_dialogue;
 mod agent_runtime;
 mod ai_chat;
 mod attention;
@@ -15,6 +16,8 @@ mod core;
 mod core_capture;
 mod core_import;
 mod credentials;
+mod dialogue_benchmark;
+mod dialogue_context;
 mod engine_observability;
 mod goal_analysis;
 mod goal_matching;
@@ -58,6 +61,28 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--check-agent-dialogue") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(dialogue_benchmark::bounded_run());
+        match result {
+            Ok(report) => {
+                println!("{}", report);
+                std::process::exit(
+                    if report["mechanical_accuracy"].as_f64().unwrap_or(0.) >= 0.95 {
+                        0
+                    } else {
+                        1
+                    },
+                );
+            }
+            Err(_) => {
+                eprintln!("Dialogue evaluation could not finish. No personal data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
+
     // Explicit developer CLI check: synthetic context only; no UI or production database.
     if std::env::args().any(|arg| arg == "--check-agent-actions") {
         let result = tokio::runtime::Runtime::new()

@@ -11,6 +11,7 @@ export type ServiceState =
   | "offline";
 export type ServiceSnapshot = {
   configured_model: string | null;
+  configured_response_model?: string | null;
   services: {
     id: ServiceId;
     status: ServiceState;

@@ -1,6 +1,32 @@
 use serde_json::Value;
 use std::time::Duration;
 
+pub const DEFAULT_PRIMARY_MODEL: &str = "nvidia/nemotron-3-super-120b-a12b";
+pub const DEFAULT_RESPONSE_MODEL: &str = "Qwen/Qwen3.5-397B-A17B";
+fn resolve_response_model(
+    primary: &str,
+    primary_override: Option<&str>,
+    response_override: Option<&str>,
+) -> String {
+    response_override
+        .filter(|m| !m.trim().is_empty())
+        .unwrap_or_else(|| {
+            if primary == DEFAULT_PRIMARY_MODEL && primary_override.is_none() {
+                DEFAULT_RESPONSE_MODEL
+            } else {
+                primary
+            }
+        })
+        .into()
+}
+pub fn response_model(primary: &str) -> String {
+    resolve_response_model(
+        primary,
+        std::env::var("NEBIUS_MODEL_ID").ok().as_deref(),
+        std::env::var("NEBIUS_REASONING_MODEL_ID").ok().as_deref(),
+    )
+}
+
 pub fn status_error(status: u16) -> String {
     let advice = match status {
         400 => "The provider rejected the request. Check model and endpoint compatibility.",
@@ -58,8 +84,9 @@ pub(crate) fn constrained_payload(payload: &Value) -> Value {
     let mut result = payload.clone();
     if payload["model"]
         .as_str()
-        .is_some_and(|m| m.contains("nemotron"))
+        .is_some_and(|m| m.to_ascii_lowercase().contains("nemotron"))
         && payload["response_format"]["type"] == "json_schema"
+        && payload["chat_template_kwargs"]["enable_thinking"].is_null()
     {
         result["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
     }
@@ -90,7 +117,7 @@ pub fn secret(name: &str) -> Result<String, String> {
             "NEBIUS_API_URL" => {
                 Some("https://api.tokenfactory.nebius.com/v1/chat/completions".into())
             }
-            "NEBIUS_MODEL_ID" => Some("nvidia/nemotron-3-super-120b-a12b".into()),
+            "NEBIUS_MODEL_ID" => Some(DEFAULT_PRIMARY_MODEL.into()),
             "TAVILY_API_URL" => Some("https://api.tavily.com/search".into()),
             _ => None,
         })
@@ -126,6 +153,38 @@ mod tests {
         assert_eq!(constrained_payload(&other), other);
         let search = serde_json::json!({"query":"public docs"});
         assert_eq!(constrained_payload(&search), search);
+    }
+    #[test]
+    fn response_model_defaults_and_explicit_overrides_are_predictable() {
+        assert_eq!(
+            resolve_response_model(DEFAULT_PRIMARY_MODEL, None, None),
+            DEFAULT_RESPONSE_MODEL
+        );
+        assert_eq!(
+            resolve_response_model(DEFAULT_PRIMARY_MODEL, Some(DEFAULT_PRIMARY_MODEL), None),
+            DEFAULT_PRIMARY_MODEL
+        );
+        assert_eq!(
+            resolve_response_model("custom", Some("custom"), None),
+            "custom"
+        );
+        assert_eq!(
+            resolve_response_model("custom", Some("custom"), Some(DEFAULT_RESPONSE_MODEL)),
+            DEFAULT_RESPONSE_MODEL
+        );
+        assert_eq!(resolve_response_model("custom", None, Some("")), "custom");
+        assert!(!crate::goal_analysis::response_operation(
+            "buddy_skill_plan"
+        ));
+        assert!(!crate::goal_analysis::response_operation(
+            "buddy_dialogue_authorization"
+        ));
+        assert!(crate::goal_analysis::response_operation(
+            "buddy_dialogue_response"
+        ));
+        assert!(!crate::goal_analysis::response_operation(
+            "buddy_dialogue_review"
+        ));
     }
     use wiremock::{
         matchers::{method, path},

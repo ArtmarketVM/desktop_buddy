@@ -76,7 +76,7 @@ async fn structured_skill_orchestration_uses_real_backend_result_for_reply() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         let output=if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
-            assert_eq!(context["registry"].as_array().unwrap().len(),24);
+            assert_eq!(context["registry"].as_array().unwrap().len(),25);
             json!({"kind":"actions","state_version":context["state"]["state_version"],"actions":[{"name":"create_goal","input":{"title":"Prepare for interview","steps":[]},"instruction":"Create an interview goal"}],"clarification":null})
         } else {
             assert_eq!(context["result"]["status"],"executed");
