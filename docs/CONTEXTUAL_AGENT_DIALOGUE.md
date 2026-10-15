@@ -1,6 +1,7 @@
 # Contextual agent dialogue candidate
 
-Status: implementation under validation; not a published installer update.
+Status: implemented for 0.30.0. Installer publication is gated by both signed
+platform builds; see the GitHub release page for availability.
 
 ## Changes
 
@@ -89,8 +90,12 @@ timeouts and unhelpful rejection of drafts. It is not being released. The final
 role split keeps response review with Nemotron, independent of Qwen presentation.
 The live nine-action check now includes the actual preceding conversation and
 requires a persisted deletion proposal before treating a preview as passed.
-Final candidate live validation and exact-source native builds are pending. The
-installed 0.29.0 application remains unchanged during candidate evaluation.
+The frozen final candidate passed all 60 mechanical state/target checks and
+58/60 language checks, plus all nine real-provider sequential action checks.
+Russian and English each passed 20/20 for both state and language. Two Hebrew
+cases returned an English safe fallback/clarification without changing state.
+See [validation evidence](AI_VALIDATION_0.30.0.md) for precise limits. The
+installed 0.29.0 application remained unchanged during candidate evaluation.
 Keychain prompts remain possible for changing test binaries despite the
 preserved internal signing identity; this is not claimed to be resolved.
 
