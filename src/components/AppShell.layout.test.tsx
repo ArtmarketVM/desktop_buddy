@@ -56,6 +56,9 @@ it("keeps Quiet mode available outside Today and exposes its actual state", asyn
       Chats
     </AppShell>,
   );
+  expect(
+    within(screen.getByRole("button", { name: "Quiet mode" })).getByText("Off"),
+  ).toBeTruthy();
   await user.click(
     screen.getByRole("button", { name: "Quiet mode", pressed: false }),
   );
@@ -68,6 +71,11 @@ it("keeps Quiet mode available outside Today and exposes its actual state", asyn
   expect(
     screen.getByRole("button", { name: "Quiet mode", pressed: true }).title,
   ).toContain("Chat stays available");
+  expect(
+    within(screen.getByRole("button", { name: "Quiet mode" })).getByText("On"),
+  ).toBeTruthy();
+  await user.keyboard(" ");
+  expect(onQuietMode).toHaveBeenCalledTimes(2);
 });
 
 it("preserves the separate theme action and blocks Quiet mode while a change is pending", async () => {

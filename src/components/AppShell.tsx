@@ -4,8 +4,8 @@ import {
   BarChart3,
   History,
   Settings,
-  ChevronsLeft,
-  ChevronsRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   Sun,
   Moon,
   BellOff,
@@ -174,9 +174,9 @@ export function AppShell({
             onClick={() => setCollapsed((previous) => !previous)}
           >
             {collapsed ? (
-              <ChevronsRight size={20} strokeWidth={1.75} aria-hidden="true" />
+              <PanelLeftOpen size={20} strokeWidth={1.6} aria-hidden="true" />
             ) : (
-              <ChevronsLeft size={20} strokeWidth={1.75} aria-hidden="true" />
+              <PanelLeftClose size={20} strokeWidth={1.6} aria-hidden="true" />
             )}
           </button>
         </div>
@@ -252,9 +252,9 @@ export function AppShell({
             >
               <BellOff size={17} aria-hidden="true" />
               <span className="nav-label">Quiet mode</span>
-              {quietMode && (
-                <span className="quiet-indicator" aria-hidden="true" />
-              )}
+              <span className="quiet-state" aria-hidden="true">
+                {quietMode ? "On" : "Off"}
+              </span>
             </button>
           </nav>
           <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
