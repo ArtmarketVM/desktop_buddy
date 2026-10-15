@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   Sun,
   Moon,
+  BellOff,
   UserRound,
   LogOut,
   MessageSquare,
@@ -84,6 +85,9 @@ export function AppShell({
   children,
   theme = "light",
   onTheme,
+  quietMode = false,
+  quietModeDisabled = false,
+  onQuietMode,
   onReset,
 }: {
   page: WorkspacePage;
@@ -96,6 +100,9 @@ export function AppShell({
   children: ReactNode;
   theme?: "light" | "dark";
   onTheme?: (theme: "light" | "dark") => void;
+  quietMode?: boolean;
+  quietModeDisabled?: boolean;
+  onQuietMode?: () => void;
   onReset?: () => void;
   onQuickGoal?: () => void;
 }) {
@@ -161,6 +168,11 @@ export function AppShell({
     >
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
+          <div className="workspace-brand" aria-hidden={collapsed || undefined}>
+            <div>
+              sumi<span>Personal workspace</span>
+            </div>
+          </div>
           <button
             ref={sidebarToggle}
             type="button"
@@ -178,11 +190,6 @@ export function AppShell({
               <ChevronsLeft size={20} strokeWidth={1.75} aria-hidden="true" />
             )}
           </button>
-          <div className="workspace-brand" aria-hidden={collapsed || undefined}>
-            <div>
-              sumi<span>Personal workspace</span>
-            </div>
-          </div>
         </div>
         <span className="eyebrow nav-heading">WORKSPACE</span>
         <nav id="workspace-navigation" aria-label="Workspace pages">
@@ -204,38 +211,65 @@ export function AppShell({
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <nav className="sidebar-utilities" aria-label="Workspace controls">
+            <button
+              className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("settings")}
+              aria-label="Settings"
+              aria-current={
+                page === "settings" && !onboarding ? "page" : undefined
+              }
+              title="Settings"
+            >
+              <Settings size={17} />
+              <span className="nav-label">Settings</span>
+            </button>
+            <UpdateEntry snapshot={update} onClick={onUpdates} />
+            <button
+              className={`nav-item ${page === "feedback" ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("feedback")}
+              aria-label="Feedback"
+              aria-current={
+                page === "feedback" && !onboarding ? "page" : undefined
+              }
+              title="Feedback"
+            >
+              <MessageSquare size={17} />
+              <span className="nav-label">Feedback</span>
+            </button>
+            <button
+              className="nav-item theme-toggle"
+              onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
+              aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+              title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+            >
+              {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+              <span className="nav-label">
+                {theme === "light" ? "Dark theme" : "Light theme"}
+              </span>
+            </button>
+            <button
+              className="nav-item quiet-toggle"
+              aria-label="Quiet mode"
+              aria-pressed={quietMode}
+              title={
+                quietMode
+                  ? "Quiet mode is on. Turn off to resume nudges and pop-ups. Chat stays available."
+                  : "Quiet mode is off. Turn on to pause nudges and pop-ups. Chat stays available."
+              }
+              disabled={onboarding || quietModeDisabled || !onQuietMode}
+              onClick={onQuietMode}
+            >
+              <BellOff size={17} aria-hidden="true" />
+              <span className="nav-label">Quiet mode</span>
+              {quietMode && (
+                <span className="quiet-indicator" aria-hidden="true" />
+              )}
+            </button>
+          </nav>
           <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
-          <button
-            className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
-            disabled={onboarding}
-            onClick={() => onNavigate("settings")}
-            aria-label="Settings"
-            title="Settings"
-          >
-            <Settings size={17} />
-            <span className="nav-label">Settings</span>
-          </button>
-          <UpdateEntry snapshot={update} onClick={onUpdates} />
-          <button
-            className={`nav-item ${page === "feedback" ? "selected" : ""}`}
-            disabled={onboarding}
-            onClick={() => onNavigate("feedback")}
-            aria-label="Feedback"
-            title="Feedback"
-          >
-            <MessageSquare size={17} />
-            <span className="nav-label">Feedback</span>
-          </button>
-          <button
-            className="nav-item theme-toggle"
-            onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
-          >
-            {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-            <span className="nav-label">
-              {theme === "light" ? "Dark theme" : "Light theme"}
-            </span>
-          </button>
           <div className="profile-menu-root" ref={menuRoot}>
             {menu && (
               <div className="profile-menu" aria-label="Profile actions">

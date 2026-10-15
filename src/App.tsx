@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Moon } from "lucide-react";
 import { defaultCompanionView } from "./companion/types";
 import { api, desktop } from "./api/tauri";
 import type { Dashboard } from "./types";
@@ -199,6 +198,9 @@ export default function App() {
           onUpdates={() => setUpdatesOpen(true)}
           onboarding={onboarding}
           theme={theme}
+          quietMode={data.status.dnd}
+          quietModeDisabled={busy || !desktop}
+          onQuietMode={() => void run(() => api.dnd(!data.status.dnd))}
           onTheme={(next) => {
             if (desktop) void run(() => api.theme(next));
             else setTheme(next);
@@ -230,22 +232,6 @@ export default function App() {
                     <p>{title.description}</p>
                   )}
                 </div>
-                {page === "focus" && (
-                  <button
-                    className="text-button today-dnd"
-                    aria-describedby="quiet-tip"
-                    aria-pressed={data.status.dnd}
-                    disabled={busy || !desktop}
-                    onClick={() => void run(() => api.dnd(!data.status.dnd))}
-                  >
-                    <Moon size={16} />
-                    Quiet mode{data.status.dnd ? ": on" : ""}
-                    <span id="quiet-tip" role="tooltip" className="quiet-tip">
-                      Pauses all sumi nudges and pop-ups until you turn it off.
-                      Chat stays available.
-                    </span>
-                  </button>
-                )}
               </div>
               {!desktop && (
                 <p className="notice preview-notice">

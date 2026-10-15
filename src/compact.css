@@ -20,10 +20,10 @@
     width var(--sidebar-motion);
 }
 .sidebar-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
   align-items: center;
   flex: 0 0 44px;
-  gap: 10px;
   min-width: 0;
   overflow: hidden;
 }
@@ -62,6 +62,9 @@
   white-space: nowrap;
   overflow: hidden;
 }
+.sidebar .workspace-brand > div {
+  min-width: 0;
+}
 .sidebar .workspace-brand > div > span {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -75,6 +78,11 @@
 }
 .sidebar nav {
   margin-top: 0;
+  flex-shrink: 0;
+}
+.sidebar-bottom {
+  flex-shrink: 0;
+  padding-top: 24px;
 }
 .sidebar .nav-item {
   height: 40px;
@@ -90,18 +98,50 @@
   font-size: inherit;
 }
 .sidebar .update-entry {
-  height: 58px;
+  height: 40px;
   justify-content: flex-start;
-  padding: 10px 4px;
+  gap: 11px;
+  padding: 10px 13.5px;
+  border-radius: 6px;
   overflow: hidden;
   white-space: nowrap;
 }
 .sidebar .update-icon {
   flex-shrink: 0;
+  width: 17px;
+  height: 20px;
+  background: transparent;
+  color: inherit;
 }
 .sidebar .update-entry small {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: none;
+}
+.sidebar .update-entry > span:last-child {
+  font-size: 13px;
+  font-weight: 450;
+}
+.sidebar .update-entry.update-available {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.sidebar .quiet-toggle {
+  position: relative;
+}
+.sidebar .quiet-toggle[aria-pressed="true"] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.sidebar .quiet-toggle[aria-pressed="true"] > svg {
+  color: inherit;
+}
+.sidebar .quiet-indicator {
+  position: absolute;
+  left: 28px;
+  top: 26px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
 .sidebar .profile-entry {
   height: 60px;
@@ -152,40 +192,6 @@
 .page-focus .page-title {
   max-width: none;
   align-items: center;
-}
-.today-dnd {
-  position: relative;
-  z-index: 8;
-}
-.today-dnd {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-}
-.quiet-tip {
-  display: none;
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  width: 240px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 12px;
-  line-height: 1.4;
-  text-align: left;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
-}
-.today-dnd:hover .quiet-tip,
-.today-dnd:focus-visible .quiet-tip {
-  display: block;
-}
-.today-dnd[aria-pressed="true"] {
-  background: var(--accent-soft);
-  color: var(--accent-text);
 }
 .goal-heading .goal-expand-toggle {
   display: flex;
@@ -634,7 +640,11 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: radial-gradient(circle at 30% 80%, var(--accent-soft), var(--accent-text) 70%);
+  background: radial-gradient(
+    circle at 30% 80%,
+    var(--accent-soft),
+    var(--accent-text) 70%
+  );
 }
 .voice-indicator.listening {
   animation: voice-pulse 1.3s ease-in-out infinite;
@@ -806,12 +816,6 @@
 }
 .app-shell .main > .page-title p {
   margin: 6px 0 0;
-}
-.app-shell .main > .page-title > .today-dnd {
-  align-self: flex-start;
-  min-height: 40px;
-  margin-left: auto;
-  padding-block: 0;
 }
 
 /* Switches: a 40 x 24 track with an 18px knob that always stays inside it. */
@@ -1025,17 +1029,20 @@ main.desktop-buddy.chatting > .companion-error {
   }
 }
 
-/* Quiet connection metadata above the workspace settings. */
+/* Supporting connection metadata stays directly above the profile. */
 .sidebar-ai-services {
-  margin: 0 0 8px;
-  padding: 0 4px 10px;
-  border-bottom: 1px solid var(--line);
+  margin: 8px 0 0;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line);
 }
 .sidebar-ai-heading {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding-left: 9px;
+  height: 28px;
+  padding-left: 13.5px;
+  overflow: hidden;
+  white-space: nowrap;
   color: var(--muted);
   font-size: 9px;
   font-weight: 600;
@@ -1043,6 +1050,8 @@ main.desktop-buddy.chatting > .companion-error {
   text-transform: uppercase;
 }
 .sidebar-ai-heading .service-check {
+  position: absolute;
+  right: 8px;
   display: grid;
   place-items: center;
   width: 28px;
@@ -1050,13 +1059,16 @@ main.desktop-buddy.chatting > .companion-error {
   padding: 0;
 }
 .sidebar .sidebar-service {
+  position: relative;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   height: 30px;
   min-height: 30px;
-  padding: 5px 9px;
+  padding: 5px 15px;
+  overflow: hidden;
   text-align: left;
   font-size: 11px;
   font-weight: 400;
@@ -1067,6 +1079,7 @@ main.desktop-buddy.chatting > .companion-error {
   flex-shrink: 0;
 }
 .sidebar-service > .sidebar-service-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1080,7 +1093,13 @@ main.desktop-buddy.chatting > .companion-error {
   background: var(--muted);
 }
 .sidebar-service .service-dot {
-  margin-left: auto;
+  position: absolute;
+  left: 25px;
+  top: 19px;
+  width: 5px;
+  height: 5px;
+  margin: 0;
+  outline: 2px solid var(--sidebar);
 }
 .service-dot.service-verified {
   background: var(--accent);
@@ -1141,27 +1160,51 @@ main.desktop-buddy.chatting > .companion-error {
   overflow: hidden;
   clip-path: inset(50%);
 }
-.sidebar-collapsed .sidebar-ai-services {
-  padding: 0 0 10px;
-}
-.sidebar-collapsed .sidebar-ai-heading {
-  justify-content: center;
-  padding: 0;
-}
 .sidebar-collapsed .sidebar-service-label {
-  display: none;
+  visibility: hidden;
 }
-.sidebar-collapsed .sidebar-service {
-  position: relative;
-  justify-content: center;
-  padding: 0;
-}
-.sidebar-collapsed .sidebar-service .service-dot {
-  position: absolute;
-  right: 7px;
-  bottom: 5px;
-  width: 5px;
-  height: 5px;
+
+@media (max-height: 760px) {
+  .sidebar .nav-heading {
+    margin-block: 12px 6px;
+  }
+  .sidebar nav {
+    gap: 2px;
+  }
+  .sidebar-bottom {
+    gap: 3px;
+    padding-top: 12px;
+  }
+  .sidebar .nav-item,
+  .sidebar .update-entry {
+    height: 36px;
+    min-height: 36px;
+    padding-block: 8px;
+  }
+  .sidebar-ai-services {
+    margin-top: 6px;
+    padding-top: 6px;
+  }
+  .sidebar-ai-heading {
+    height: 24px;
+  }
+  .sidebar-ai-heading .service-check {
+    height: 24px;
+    min-height: 24px;
+  }
+  .sidebar .sidebar-service {
+    height: 26px;
+    min-height: 26px;
+    padding-block: 3px;
+  }
+  .sidebar-service .service-dot {
+    top: 17px;
+  }
+  .sidebar .profile-entry {
+    height: 52px;
+    margin-top: 5px;
+    padding-block: 10px 6px;
+  }
 }
 
 /* Today exposes a dedicated grip; title clicks and checkpoint actions stay independent. */
