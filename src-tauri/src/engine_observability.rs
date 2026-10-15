@@ -240,6 +240,15 @@ pub(crate) fn finish_connection_check(
     if inner.privacy_revision != revision {
         return;
     }
+    // Startup metadata can predate Keychain authorization or a completed app update.
+    // A successful current probe proves that a usable runtime credential exists.
+    if connected {
+        if provider == "nebius" {
+            inner.status.nebius_configured = true;
+        } else {
+            inner.status.tavily_configured = true;
+        }
+    }
     inner.engine.connections[index] = Some(ConnectionHealth {
         connected,
         model_available,
