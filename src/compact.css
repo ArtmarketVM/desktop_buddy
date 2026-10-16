@@ -297,8 +297,12 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 24px;
-  height: min(680px, calc(100vh - 200px));
-  min-height: 380px;
+  margin-top: 33px;
+  height: min(780px, calc(100vh - 120px));
+  min-height: 420px;
+}
+.chat-conversations > h1 {
+  margin: 9px 0 26px;
 }
 .chats-layout > .chat-pane {
   height: 100%;
@@ -314,30 +318,45 @@
 .chat-search-bar {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-bottom: 4px;
+  gap: 6px;
+  margin-bottom: 8px;
 }
 .chat-search {
   display: flex;
   flex: 1;
   min-width: 0;
+  height: 36px;
   align-items: center;
   gap: 8px;
-  padding: 7px 10px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
   border-radius: 8px;
+  background: var(--input);
   color: var(--muted);
+}
+.chat-search > svg {
+  flex: none;
+}
+.chat-conversations .chat-search input[type="search"] {
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .chat-search-bar > .chat-new {
   display: grid;
   flex: none;
   place-items: center;
-  width: 30px;
-  min-height: 30px;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
   padding: 0;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--text);
+  color: var(--muted);
 }
 .chat-search-bar > .chat-new:hover:not(:disabled) {
   background: color-mix(in srgb, var(--text) 6%, transparent);
@@ -386,7 +405,7 @@
 }
 .chat-item:hover,
 .chat-search:focus-within {
-  background: color-mix(in srgb, var(--text) 6%, transparent);
+  border-color: var(--accent);
 }
 .chat-item.selected,
 .chat-item.open {
@@ -430,7 +449,7 @@
   right: 4px;
 }
 .chat-group {
-  margin: 14px 10px 4px;
+  margin: 6px 10px 4px;
   color: var(--muted);
   font-size: 11px;
 }

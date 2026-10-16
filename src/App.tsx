@@ -242,14 +242,16 @@ export default function App() {
           ) : (
             <>
               {overview && <WorkspaceOverview close={closeOverview} />}
-              <div className="page-title">
-                <div>
-                  <h1>{title.label}</h1>
-                  {page !== "focus" && title.description && (
-                    <p>{title.description}</p>
-                  )}
+              {page !== "chats" && (
+                <div className="page-title">
+                  <div>
+                    <h1>{title.label}</h1>
+                    {page !== "focus" && title.description && (
+                      <p>{title.description}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
               {!desktop && (
                 <p className="notice preview-notice">
                   Browser preview · saves, voice recognition and updates are

@@ -119,9 +119,10 @@ export function Chats({
   return (
     <div className="chats-layout">
       <aside className="chat-conversations" aria-label="Saved conversations">
+        <h1>Chats</h1>
         <div className="chat-search-bar">
           <label className="chat-search">
-            <Search size={14} aria-hidden="true" />
+            <Search size={16} aria-hidden="true" />
             <input
               type="search"
               value={query}
@@ -153,7 +154,7 @@ export function Chats({
             <Plus size={16} />
           </button>
         </div>
-        <p className="chat-group">{searching ? "Results" : "Recent"}</p>
+        {searching && <p className="chat-group">Results</p>}
         {visible.map((item) => (
           <div
             key={item.id}
