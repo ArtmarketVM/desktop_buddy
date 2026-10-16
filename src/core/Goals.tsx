@@ -275,22 +275,6 @@ export function GoalRow({
                     {today ? "Remove from Today" : "Add to Today"}
                   </button>
                   <button
-                    disabled={disabled}
-                    onClick={() => {
-                      setMenu(false);
-                      void run(() =>
-                        coreApi.transition(
-                          goal.id,
-                          goal.status === "open" ? "defer" : "resume",
-                        ),
-                      );
-                    }}
-                  >
-                    {goal.status === "open"
-                      ? "Set aside for later"
-                      : "Reopen goal"}
-                  </button>
-                  <button
                     className="danger-text"
                     disabled={disabled}
                     onClick={() => {

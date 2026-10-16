@@ -1,6 +1,6 @@
 # Desktop Buddy 0.32.1
 
-- Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today, Set aside for later and Delete. Steps get a hover × instead of a menu.
+- Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
 - Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place.
 - Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.
 - Completed goals now live inside the day summary callout, which opens as a dropdown.
