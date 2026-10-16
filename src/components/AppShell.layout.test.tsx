@@ -22,6 +22,7 @@ afterEach(() => {
 
 it("keeps utility controls in the requested reading and keyboard order above services and profile", () => {
   render(<AppShell {...base}>Today</AppShell>);
+  expect(screen.queryByRole("toolbar", { name: "Window toolbar" })).toBeNull();
   const controls = screen.getByRole("navigation", {
     name: "Workspace controls",
   });

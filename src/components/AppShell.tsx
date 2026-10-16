@@ -4,8 +4,7 @@ import {
   BarChart3,
   History,
   Settings,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelLeft,
   Sun,
   Moon,
   BellOff,
@@ -153,32 +152,47 @@ export function AppShell({
       document.removeEventListener("keydown", escape);
     };
   }, [menu]);
+  const sidebarButton = (
+    <button
+      ref={sidebarToggle}
+      type="button"
+      className="text-button sidebar-collapse"
+      aria-label={sidebarAction}
+      title={`${sidebarAction} (${isMac ? "Cmd" : "Ctrl"} + \\)`}
+      aria-expanded={!collapsed}
+      aria-controls="workspace-navigation"
+      aria-keyshortcuts={isMac ? "Meta+\\" : "Control+\\"}
+      onClick={() => setCollapsed((previous) => !previous)}
+    >
+      <PanelLeft
+        width={26}
+        height={22}
+        strokeWidth={1.6}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      />
+    </button>
+  );
   return (
     <div
-      className={`app-shell page-${page} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
+      className={`app-shell page-${page} ${isMac ? "macos-window" : ""} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
     >
+      {isMac && (
+        <div
+          className="window-toolbar"
+          role="toolbar"
+          aria-label="Window toolbar"
+          data-tauri-drag-region
+        >
+          {sidebarButton}
+        </div>
+      )}
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>sumi</div>
           </div>
-          <button
-            ref={sidebarToggle}
-            type="button"
-            className="text-button sidebar-collapse"
-            aria-label={sidebarAction}
-            title={`${sidebarAction} (${isMac ? "Cmd" : "Ctrl"} + \\)`}
-            aria-expanded={!collapsed}
-            aria-controls="workspace-navigation"
-            aria-keyshortcuts={isMac ? "Meta+\\" : "Control+\\"}
-            onClick={() => setCollapsed((previous) => !previous)}
-          >
-            {collapsed ? (
-              <PanelLeftOpen size={20} strokeWidth={1.6} aria-hidden="true" />
-            ) : (
-              <PanelLeftClose size={20} strokeWidth={1.6} aria-hidden="true" />
-            )}
-          </button>
+          {!isMac && sidebarButton}
         </div>
         <nav id="workspace-navigation" aria-label="Workspace pages">
           {pages.slice(0, 4).map((item) => (
@@ -283,7 +297,6 @@ export function AppShell({
                   <LogOut size={15} />
                   Sign out of local profile
                 </button>
-                <small>Opens setup again. Goals and history are kept.</small>
               </div>
             )}
             <button
