@@ -6,7 +6,7 @@ import type { WorkspacePage } from "../components/AppShell";
 import { coreApi } from "./api";
 import { Composer } from "./Composer";
 import { GoalAreas, GoalEditor, GoalLine, GoalRow } from "./Goals";
-import { DaySummary, Progress } from "./Progress";
+import { Progress, TodaySummary, type FinishedItem } from "./Progress";
 import {
   emptyCore,
   type ProgressPeriod,
@@ -142,6 +142,31 @@ export function Experience({
     )
     .map(({ goal }) => goal);
   const finishedToday = today.filter((goal) => goal.status === "completed");
+  const timeFor = (id: number) =>
+    snapshot.summary.goals.find((goal) => goal.goal_id === id)
+      ?.relevant_seconds ?? 0;
+  // Finished goals with all their done steps, then open goals with steps finished today.
+  const finishedItems: FinishedItem[] = [
+    ...finishedToday.map((goal) => ({
+      id: goal.id,
+      title: goal.title,
+      seconds: timeFor(goal.id),
+      steps: goal.plan.steps.filter((s) => s.done).map((s) => s.text),
+      completed: true,
+    })),
+    ...today
+      .filter((goal) => goal.status !== "completed")
+      .map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        seconds: timeFor(goal.id),
+        steps: goal.plan.steps
+          .filter((s) => s.done && snapshot.summary.completed.includes(s.text))
+          .map((s) => s.text),
+        completed: false,
+      }))
+      .filter((item) => item.steps.length > 0),
+  ];
   const focusedSeconds = snapshot.summary.goals.reduce(
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
@@ -295,23 +320,8 @@ export function Experience({
               )}
             </section>
           </div>
-          {(snapshot.summary.completed.length > 0 ||
-            focusedSeconds > 0 ||
-            finishedToday.length > 0) && (
-            <DaySummary day={snapshot.summary}>
-              {finishedToday.length > 0 &&
-                finishedToday.map((goal) => (
-                  <GoalRow
-                    key={goal.id}
-                    goal={goal}
-                    snapshot={snapshot}
-                    busy={busy}
-                    run={run}
-                    edit={setEditor}
-                    enhancement={enhancement}
-                  />
-                ))}
-            </DaySummary>
+          {(focusedSeconds > 0 || finishedItems.length > 0) && (
+            <TodaySummary day={snapshot.summary} items={finishedItems} />
           )}
         </>
       )}

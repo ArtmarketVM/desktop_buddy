@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { WindowActivity } from "./WindowActivity";
 import { Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
@@ -27,14 +26,7 @@ const periodOptions: Array<{
 const periodDays = (period: ProgressPeriod) =>
   periodOptions.find((item) => item.value === period)?.days ?? 7;
 
-export function DaySummary({
-  day,
-  children,
-}: {
-  day: DayProgress;
-  unfinished?: number;
-  children?: ReactNode;
-}) {
+export function DaySummary({ day }: { day: DayProgress; unfinished?: number }) {
   const seconds = day.goals.reduce(
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
@@ -51,32 +43,91 @@ export function DaySummary({
       : "",
     seconds > 0 ? `${duration(seconds)} focused` : "",
   ].filter(Boolean);
-  const line = parts.length ? (
-    <strong>{parts.join(" · ")}</strong>
-  ) : (
-    "No recorded activity or completed goals for this day."
+  return (
+    <section
+      className={`day-summary ${parts.length ? "has-progress" : ""}`}
+      aria-label="Day summary"
+    >
+      <Check size={16} aria-hidden="true" />
+      <p>
+        {parts.length ? (
+          <strong>{parts.join(" · ")}</strong>
+        ) : (
+          "No recorded activity or completed goals for this day."
+        )}
+      </p>
+    </section>
   );
-  if (!children)
+}
+export interface FinishedItem {
+  id: number;
+  title: string;
+  seconds: number;
+  /** Steps finished today; for a completed goal, all of its done steps. */
+  steps: string[];
+  completed: boolean;
+}
+/** Today's callout: focused time first, counts on the right, finished work in the dropdown. */
+export function TodaySummary({
+  day,
+  items,
+}: {
+  day: DayProgress;
+  items: FinishedItem[];
+}) {
+  const seconds = day.goals.reduce(
+    (sum, goal) => sum + (goal.relevant_seconds ?? 0),
+    0,
+  );
+  const goalsDone = items.filter((item) => item.completed).length;
+  const stepsDone = items.reduce((sum, item) => sum + item.steps.length, 0);
+  const counts = [
+    goalsDone > 0 ? `${goalsDone} ${goalsDone === 1 ? "goal" : "goals"}` : "",
+    stepsDone > 0 ? `${stepsDone} ${stepsDone === 1 ? "step" : "steps"}` : "",
+  ].filter(Boolean);
+  const headline =
+    seconds > 0
+      ? `${duration(seconds)} of focused work today`
+      : "No focused work recorded yet today";
+  if (!items.length)
     return (
-      <section
-        className={`day-summary ${parts.length ? "has-progress" : ""}`}
-        aria-label="Day summary"
-      >
-        <Check size={16} aria-hidden="true" />
-        <p>{line}</p>
+      <section className="today-summary" aria-label="Day summary">
+        <div className="today-summary-head">
+          <strong>{headline}</strong>
+        </div>
       </section>
     );
   return (
-    <details
-      className={`day-summary day-summary-details ${parts.length ? "has-progress" : ""}`}
-      aria-label="Day summary"
-    >
-      <summary>
-        <Check size={16} aria-hidden="true" />
-        <p>{line}</p>
-        <ChevronDown size={16} aria-hidden="true" className="summary-chevron" />
+    <details className="today-summary" aria-label="Day summary">
+      <summary className="today-summary-head">
+        <strong>{headline}</strong>
+        <span className="today-summary-counts">
+          {counts.join(" · ")}
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className="summary-chevron"
+          />
+        </span>
       </summary>
-      <div className="day-summary-goals">{children}</div>
+      <ul className="today-summary-list">
+        {items.map((item) => (
+          <li key={item.id}>
+            <div className="today-summary-row">
+              <span className="today-summary-dot" aria-hidden="true" />
+              <span className={item.completed ? "finished" : ""}>
+                {item.title}
+              </span>
+              <span className="today-summary-time">
+                {item.seconds > 0 ? duration(item.seconds) : "—"}
+              </span>
+            </div>
+            {item.steps.length > 0 && (
+              <p className="today-summary-steps">{item.steps.join(" · ")}</p>
+            )}
+          </li>
+        ))}
+      </ul>
     </details>
   );
 }

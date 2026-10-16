@@ -2120,40 +2120,85 @@ p.error .text-button {
 .step-line:focus-within > .step-remove {
   opacity: 1;
 }
-.day-summary-details {
-  display: block;
-  padding: 0;
-}
-.day-summary-details > summary {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 24px;
-  list-style: none;
-  cursor: pointer;
-}
-.day-summary-details > summary::-webkit-details-marker {
-  display: none;
-}
-.day-summary-details > summary p {
-  flex: 1;
-  margin: 0;
-}
-.day-summary-details > summary .summary-chevron {
-  color: var(--muted);
-  transition: transform 150ms;
-}
-.day-summary-details[open] > summary .summary-chevron {
-  transform: rotate(180deg);
-}
-.day-summary-goals {
-  padding: 0 24px 12px;
-}
-.day-summary-goals .core-goal:first-child {
-  border-top: 0;
-}
 
 .finder-dropdown .finder-list {
   max-height: 320px;
   overflow-y: auto;
+}
+
+/* Today summary: time first, counts on the right, finished work below. */
+.today-summary {
+  margin-top: 28px;
+  padding: 0;
+  background: var(--raised);
+  border-radius: 12px;
+}
+.today-summary-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  list-style: none;
+  cursor: default;
+}
+details.today-summary > .today-summary-head {
+  cursor: pointer;
+}
+.today-summary-head::-webkit-details-marker {
+  display: none;
+}
+.today-summary-head strong {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 500;
+}
+.today-summary-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.today-summary-counts .summary-chevron {
+  transition: transform 150ms;
+}
+.today-summary[open] .summary-chevron {
+  transform: rotate(180deg);
+}
+.today-summary-list {
+  margin: 0;
+  padding: 0 24px 18px;
+  list-style: none;
+  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+}
+.today-summary-list > li {
+  padding: 10px 0 2px;
+}
+.today-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+}
+.today-summary-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.today-summary-row .finished {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.today-summary-time {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.today-summary-steps {
+  margin: 2px 0 6px 20px;
+  color: var(--muted);
+  font-size: 12px;
 }

@@ -3,7 +3,7 @@
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
 - Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place.
 - Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.
-- Completed goals now live inside the day summary callout, which opens as a dropdown.
+- The day summary now leads with focused time ("3 h 40 min of focused work today"), shows goal and step counts on the right, and opens to list finished goals and steps with the time spent on each.
 - Today is one plain list again: no "In focus" and "Later today" lanes, no focus bar, Focus now, Park or Checkpoint buttons. sumi works out what you are doing by itself.
 - Every goal row has a priority tag (Urgent, High, Medium, Low or none) with number-key shortcuts; Today sorts by priority, then by your drag order. Urgent is a new level.
 - Goal titles and steps are edited in place like a document: click the text, type, press Enter or click away to save, Escape to undo. Emptying the text deletes the goal or step.
