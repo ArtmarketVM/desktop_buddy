@@ -403,7 +403,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat-item:hover,
+.chat-item:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
 .chat-search:focus-within {
   border-color: var(--accent);
 }
