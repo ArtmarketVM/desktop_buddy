@@ -71,17 +71,36 @@ export function Avatar({
           <path transform="translate(22 31)" d={eyes} />
           <path transform="translate(38 31)" d={eyes} />
         </g>
+        {(state === "completed" || state === "success") && (
+          <path
+            className="avatar-smile"
+            d="M24 41q6 5.5 12 0"
+            fill="none"
+            stroke={INK}
+            strokeWidth={2.2}
+            strokeLinecap="round"
+          />
+        )}
       </g>
       {(state === "completed" || state === "success") && (
-        <path
-          className="avatar-check"
-          d="m47 -8 5 5 10-11"
-          stroke="var(--accent, #3E6B48)"
-          strokeWidth={4}
-          fill="none"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+        <g className="avatar-fireworks" fill="none" strokeLinecap="round">
+          <g
+            className="avatar-burst"
+            stroke="var(--accent, #3E6B48)"
+            strokeWidth={2.2}
+            transform="translate(60 -6)"
+          >
+            <path d="M0 -4V-9M3 -3l4-4M4 0h5M3 3l4 4M0 4v5M-3 3l-4 4M-4 0h-5M-3 -3l-4-4" />
+          </g>
+          <g
+            className="avatar-burst avatar-burst-small"
+            stroke="color-mix(in srgb, var(--avatar-color) 55%, var(--text, #1E2A23))"
+            strokeWidth={1.8}
+            transform="translate(2 -8)"
+          >
+            <path d="M0 -3V-6M2.5 -2.5l2.5-2.5M3 0h3M2.5 2.5l2.5 2.5M0 3v3M-2.5 2.5l-2.5 2.5M-3 0h-3M-2.5 -2.5l-2.5-2.5" />
+          </g>
+        </g>
       )}
       {state === "sleeping" && (
         <g

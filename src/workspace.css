@@ -1434,10 +1434,13 @@ a,
 .avatar-gallery .avatar-dot:nth-child(3) {
   animation-delay: 0.6s;
 }
-.avatar-gallery .avatar-check {
+.avatar-gallery .avatar-burst {
   transform-box: fill-box;
   transform-origin: center;
-  animation: avatar-check 2.4s ease-in-out infinite;
+  animation: avatar-burst 2.4s ease-out infinite;
+}
+.avatar-gallery .avatar-burst-small {
+  animation-delay: 0.5s;
 }
 .avatar-gallery .avatar-sleeping .pet__body {
   transform-box: fill-box;
@@ -1482,14 +1485,19 @@ a,
     opacity: 0.95;
   }
 }
-@keyframes avatar-check {
-  0%,
-  70%,
-  100% {
+@keyframes avatar-burst {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  25% {
+    opacity: 1;
     transform: scale(1);
   }
-  82% {
-    transform: scale(1.25);
+  60%,
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
   }
 }
 @keyframes avatar-breathe {
