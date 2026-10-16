@@ -1369,15 +1369,9 @@
 .goal-heading {
   gap: 6px;
 }
-.goal-heading {
-  position: relative;
-}
 .goal-heading .goal-overflow {
-  position: absolute;
-  left: -34px;
-  top: 50%;
   width: 28px;
-  transform: translateY(-50%);
+  flex: none;
   opacity: 0;
   transition: opacity 120ms;
 }
@@ -1940,20 +1934,6 @@ p.error .text-button {
 }
 .goal-finder .quick-goal input {
   border-radius: var(--radius-pill);
-}
-.goal-finder .quick-goal > button {
-  flex: none;
-  width: var(--finder-action-width);
-}
-.today-goals {
-  --finder-action-width: 128px;
-}
-.today-goals .ordered-goals,
-.today-goals .core-goal {
-  padding-right: calc(var(--finder-action-width) + 10px);
-}
-.today-goals .ordered-goals .core-goal {
-  padding-right: 0;
 }
 .finder-dropdown {
   position: absolute;
