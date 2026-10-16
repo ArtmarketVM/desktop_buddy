@@ -151,6 +151,7 @@ export function GoalRow({
   const [ideasOutcome, setIdeasOutcome] = useState<"idle" | "none" | "failed">(
     "idle",
   );
+  const [ideasError, setIdeasError] = useState("");
   const [completions, setCompletions] = useState<{
     prefix: string;
     items: string[];
@@ -240,7 +241,9 @@ export function GoalRow({
         })
         .catch((error) => {
           console.warn("Step ideas unavailable", error);
-          if (current) setIdeasOutcome("failed");
+          if (!current) return;
+          setIdeasOutcome("failed");
+          setIdeasError(typeof error === "string" ? error : "");
         })
         .finally(() => {
           if (current) setFinding(false);
@@ -536,8 +539,8 @@ export function GoalRow({
                   </p>
                 ) : typed && ideasOutcome === "failed" ? (
                   <p className="ideas-note" role="status">
-                    Ideas are unavailable right now. Press Enter to add the step
-                    as typed.
+                    {ideasError || "Ideas are unavailable right now."} Press
+                    Enter to add the step as typed.
                   </p>
                 ) : typed && ideasOutcome === "none" && ideas.length === 0 ? (
                   <p className="ideas-note" role="status">
