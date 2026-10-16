@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, SquarePen } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
@@ -9,6 +8,9 @@ import { Avatar } from "./Avatar";
 import { defaultCompanionView } from "../companion/types";
 import { CompanionChat } from "../companion/CompanionChat";
 import { InterventionCard } from "../companion/InterventionCard";
+import { BuddyActionBar } from "../companion/BuddyActionBar";
+import { useBuddyPointer } from "../companion/useBuddyPointer";
+import { useBuddyActions } from "../companion/useBuddyActions";
 
 export function DesktopBuddy({
   view,
@@ -48,6 +50,7 @@ export function DesktopBuddy({
     null,
   );
   const companion = view.companion ?? defaultCompanionView;
+  const actions = useBuddyActions(companion.chat_open || busy);
   useEffect(() => {
     if (!companion.chat_open) setMode("text");
     const escape = (event: KeyboardEvent) => {
@@ -62,6 +65,16 @@ export function DesktopBuddy({
   }, [companion.chat_open, onChanged]);
   const card = view.suggestion || view.decision;
   const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
+  const root = useRef<HTMLElement>(null);
+  useBuddyPointer(
+    root,
+    appearance.visible || companion.chat_open,
+    busy,
+    () => {
+      setError("Click-through is unavailable. Restart sumi to try again.");
+    },
+    actions.setNativeHovered,
+  );
   async function action(work: () => Promise<unknown>, celebrate = false) {
     setBusy(true);
     try {
@@ -91,6 +104,7 @@ export function DesktopBuddy({
         : companion.state);
   return (
     <main
+      ref={root}
       className={`desktop-buddy ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
     >
       {companion.chat_open ? (
@@ -166,6 +180,7 @@ export function DesktopBuddy({
         )
       )}
       <button
+        {...actions.events}
         className="desktop-character"
         aria-label="Open sumi mini chat"
         title="Click to chat · drag to move · right-click for actions"
@@ -215,28 +230,18 @@ export function DesktopBuddy({
       >
         <Avatar appearance={{ ...appearance, visible: true }} state={state} />
       </button>
-      <div className="buddy-action-bar" aria-label="sumi actions">
-        <button
-          aria-label="Write to sumi"
-          title="Write to sumi"
-          onClick={() => {
-            setMode("text");
-            if (desktop) void action(api.openChat);
-          }}
-        >
-          <SquarePen size={17} />
-        </button>
-        <button
-          aria-label="Talk to sumi"
-          title="Talk to sumi"
-          onClick={() => {
-            setMode("voice");
-            if (desktop) void action(api.openChat);
-          }}
-        >
-          <Mic size={17} />
-        </button>
-      </div>
+      <BuddyActionBar
+        color={appearance.color}
+        actions={actions}
+        onWrite={() => {
+          setMode("text");
+          if (desktop) void action(api.openChat);
+        }}
+        onTalk={() => {
+          setMode("voice");
+          if (desktop) void action(api.openChat);
+        }}
+      />
       {error && (
         <small className="companion-error" role="alert">
           {error}

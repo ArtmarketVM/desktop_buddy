@@ -51,3 +51,39 @@ The available-state screenshot uses an explicitly labeled, ignored UI fixture wi
 This is the first updater-enabled release. A complete live upgrade to a genuinely newer release has not yet been exercised; there is no fabricated newer release or simulated installer run. Existing onboarding retains its clearly labeled draft privacy notice. These are functional/release limits rather than outstanding visual drift.
 
 **final result: passed**
+
+# Companion controls design QA — 0.33.0
+
+## Source, evidence and normalization
+
+- Visual truth: the user's capsule reference (`Photo 1.jpg`), subsequent `Screenshot 2026-10-16 at 14.59.08.png`, and divider reference `Screenshot 2026-10-16 at 15.02.41.png`.
+- Final native captures: `.tools/reports/buddy-action-bar/native-collapsed.png` and `native-expanded.png`, each 320 × 304 pixels from a 160 × 152 CSS-pixel companion window at scale factor 2.
+- Source and final collapsed capture were opened together in one comparison input. The source and implementation character bodies both measure approximately 112 physical pixels wide. Compare the character/capsule region, excluding the native capture's white transparency composite and synthetic cursor overlay.
+- Component preview: `http://127.0.0.1:1421/.tools/reports/buddy-action-bar/preview.html`, using real React components in a separate native test webview. Three selected avatar colors were inspected. Local artifacts are ignored, not release assets.
+
+## Comparison history
+
+- P2, fixed: the first implementation disappeared completely. Replaced it with a persistent capsule and animated width/height transitions.
+- P2, fixed: the initial strip was too far from the character and too thick. Reduced thickness from 6 to 4 CSS pixels and moved it closer, following both user corrections.
+- P2, fixed: moving the capsule vertically during expansion could move it out from under a stationary pointer and cause repeated collapse/expand. Its top edge is now stationary; it grows downward.
+- Added the requested subtle vertical divider between the chat and microphone buttons.
+- Final native expanded/collapsed captures show no remaining actionable visual mismatches within the requested component scope. The existing sumi character and selected palette are intentionally preserved.
+
+## Fidelity surfaces
+
+- Typography: no new visible text; existing English accessible labels and tooltips retained.
+- Layout: 64 × 32 CSS-pixel expanded surface, 24 × 4 collapsed capsule; fixed layout slot prevents mascot movement. Both native captures reviewed at equal density.
+- Color: inherited selected avatar color, existing ink token and a low-opacity divider. Transparent native window compositing differs from the supplied dark desktop intentionally.
+- Assets: existing vector mascot and Lucide icons retained; no replacement illustrations or raster approximations.
+- Content: text and voice actions retain their original behavior. The capsule has no misleading extra label or action.
+
+## Interaction verification and limits
+
+- Half-second timeout, pointer reveal, capsule reveal, keyboard focus, open-chat pinning and native hover callbacks covered by component tests.
+- Native macOS keyboard focus reveals the toolbar; removing focus returns to the capsule. The two final native captures verify the divider and spacing.
+- SVG hit targets, physical-to-logical coordinates including negative monitor origins, native input restoration, window geometry changes, drag hold, hidden-window suppression, cleanup and failure recovery covered by pointer-adapter tests.
+- OS-level composite click-through and hover cannot be certified through this computer-use tool: its window-targeted synthetic clicks do not move the real global macOS cursor. Native overlapping test windows were attempted; those clicks are not reported as an OS-level pass.
+- Windows interactive desktop testing remains a manual follow-up; the common adapter is compiled and regression-tested in the coordinated release workflow.
+- Reduced-motion CSS disables both surface and icon transitions. No provider calls or credentials are involved in this UI review.
+
+**final result: passed**

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "buddy-pointer",
+  "description": "Let the local transparent companion window pass mouse input through its empty pixels",
+  "windows": ["buddy"],
+  "permissions": ["core:window:allow-set-ignore-cursor-events"]
+}
