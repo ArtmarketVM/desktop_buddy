@@ -212,6 +212,26 @@
   margin: 0.25em 0;
   padding-left: 0.15em;
 }
+.markdown li.md-task {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.markdown .md-task input {
+  margin: 4px 0 0;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.markdown .md-task span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.markdown a {
+  color: inherit;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
 .markdown strong {
   font-weight: 600;
 }

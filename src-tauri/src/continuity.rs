@@ -288,12 +288,18 @@ impl Report {
     }
     /// The answer bypasses free-form generation: a model cannot add accomplishments.
     pub fn render(&self) -> String {
-        let mut out = vec![format!("Work continuity — {} ({:?})", self.day, self.view)];
+        let title = match self.view {
+            View::Priorities => "Current priorities",
+            View::Yesterday => "Yesterday's recorded work",
+            View::Waiting => "Waiting for",
+            View::Remaining => "Remaining work",
+            View::EndOfDay => "End-of-day review",
+        };
+        let mut out = vec![format!("### {title} — {}", self.day)];
         for lane in &self.lanes {
             out.push(format!(
-                "\n{} [goal {}]{}{}{}",
-                lane.title,
-                lane.goal_id,
+                "\n### {}{}{}{}",
+                lane.title.replace(['\n', '\r'], " "),
                 if self.view == View::Yesterday {
                     String::new()
                 } else {
@@ -315,8 +321,10 @@ impl Report {
             ));
             for c in &lane.completed {
                 out.push(format!(
-                    "Completed ({}): {} [recorded {}]",
-                    c.source, c.title, c.day
+                    "- [x] Completed ({}): {} [recorded {}]",
+                    c.source,
+                    c.title.replace(['\n', '\r'], " "),
+                    c.day
                 ));
             }
             if lane.completed.is_empty() {
@@ -328,31 +336,47 @@ impl Report {
             }
             if let Some(c) = &lane.checkpoint {
                 out.push(format!(
-                    "Saved checkpoint ({}): {}",
-                    c.updated_at, c.summary
+                    "\n**Saved checkpoint** ({}): {}",
+                    c.updated_at,
+                    c.summary.replace(['\n', '\r'], " ")
                 ));
                 if c.status == "paused" {
                     out.push("Parked context".into());
                 }
                 if let Some(w) = &c.waiting_for {
-                    out.push(format!("Waiting for: {w}"));
+                    out.push(format!(
+                        "- **Waiting for:** {}",
+                        w.replace(['\n', '\r'], " ")
+                    ));
                 }
                 if let Some(n) = &c.next_action {
-                    out.push(format!("Next entry point: {n}"));
+                    out.push(format!(
+                        "- **Next action:** {}",
+                        n.replace(['\n', '\r'], " ")
+                    ));
                 }
                 if let Some(r) = &c.last_result {
-                    out.push(format!("Reported result: {r}"));
+                    out.push(format!(
+                        "- **Reported result:** {}",
+                        r.replace(['\n', '\r'], " ")
+                    ));
                 }
+            }
+            if !lane.remaining.is_empty() {
+                out.push("\n**Remaining steps**".into());
             }
             for s in &lane.remaining {
                 out.push(format!(
-                    "Open step: {}",
-                    s["text"].as_str().unwrap_or_default()
+                    "- [ ] {}",
+                    s["text"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .replace(['\n', '\r'], " ")
                 ));
             }
             for event in &lane.meaningful_events {
                 out.push(format!(
-                    "Recorded event: {}",
+                    "- Recorded event: {}",
                     event["kind"].as_str().unwrap_or_default()
                 ));
             }
@@ -361,7 +385,10 @@ impl Report {
             out.push("No matching recorded work context or results.".into());
         }
         for p in &self.pinned_preferences {
-            out.push(format!("Pinned preference: {p}"));
+            out.push(format!(
+                "- Pinned preference: {}",
+                p.replace(['\n', '\r'], " ")
+            ));
         }
         if self.omitted_lanes > 0 {
             out.push(format!(

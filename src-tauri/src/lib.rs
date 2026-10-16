@@ -7,6 +7,7 @@ mod autostart;
 mod browser;
 mod buddy;
 mod chat_contract;
+pub mod coaching;
 mod collector;
 mod commands;
 mod companion;

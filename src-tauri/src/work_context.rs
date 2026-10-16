@@ -581,15 +581,24 @@ pub fn receipt(skill: &str, title: &str, checkpoint: &Value) -> String {
     };
     let mut lines = vec![
         format!("{verb} \"{title}\"."),
-        checkpoint["summary"].as_str().unwrap_or_default().into(),
+        format!(
+            "\n**Saved checkpoint:** {}",
+            checkpoint["summary"]
+                .as_str()
+                .unwrap_or_default()
+                .replace(['\n', '\r'], " ")
+        ),
     ];
     for (key, label) in [
-        ("last_result", "Last confirmed result"),
+        ("last_result", "Last recorded result"),
         ("next_action", "Next"),
         ("waiting_for", "Waiting for"),
     ] {
         if let Some(value) = checkpoint[key].as_str() {
-            lines.push(format!("{label}: {value}"));
+            lines.push(format!(
+                "- **{label}:** {}",
+                value.replace(['\n', '\r'], " ")
+            ));
         }
     }
     lines.join("\n")

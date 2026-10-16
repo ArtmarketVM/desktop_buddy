@@ -92,8 +92,9 @@ pub fn workspace(snapshot: &Snapshot, share: bool, selected: Option<i64>) -> Val
         references["last_action"] = json!({"skill":action["skill"],"goal_id":action["goal_id"],"step_id":action["step_id"],
             "data":{"backup_id":action["data"]["backup_id"],"research_id":action["data"]["research_id"],"status":action["data"]["status"]}});
     }
-    json!({"state_version":snapshot.version,"sharing":true,"date":snapshot.data["date"],"goals":goals,
+    json!({"state_version":snapshot.version,"sharing":true,"date":snapshot.data["date"],"local_timezone_offset":chrono::Local::now().format("%:z").to_string(),"goals":goals,
         "today":snapshot.data["today"],"work_queue":queue,"references":references,
+        "last_goal_edit":snapshot.data["last_goal_edit"],"last_goal_search":snapshot.data["last_goal_search"],
         "deleted_goals":deleted,"focused_goal_id":focus,"total_goals":total,"omitted_goals":total.saturating_sub(40),
         "details_rule":"Only selected, recently referenced, focused and Up next goals include bounded details. Use inspect_goal for other goals or full text. Truncated labels are not full assignment evidence."})
 }

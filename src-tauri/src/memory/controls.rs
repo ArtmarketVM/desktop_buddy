@@ -73,6 +73,7 @@ impl Storage {
     }
     pub fn clear_personal_memory(&self) -> Result<(), String> {
         atomic(&self.connection, || {
+            self.forget_coaching(None, None)?;
             self.connection.execute_batch("DELETE FROM contextual_research; DELETE FROM memory_evidence; DELETE FROM memories; DELETE FROM work_contexts; DELETE FROM memory_proposals; DELETE FROM memory_retrieval_debug;").map_err(db_error)
         })
     }
@@ -127,10 +128,13 @@ impl Storage {
     }
     pub fn forget_work_context(&self, goal_id: i64) -> Result<(), String> {
         Scope::goal(goal_id).validate(&self.connection)?;
-        self.connection
-            .execute("DELETE FROM work_contexts WHERE goal_id=?1", [goal_id])
-            .map_err(db_error)?;
-        Ok(())
+        atomic(&self.connection, || {
+            self.forget_coaching(Some(goal_id), None)?;
+            self.connection
+                .execute("DELETE FROM work_contexts WHERE goal_id=?1", [goal_id])
+                .map_err(db_error)?;
+            Ok(())
+        })
     }
     /// Model output is only a proposal. Exact quoted user evidence and explicit opt-in are required.
     pub fn stage_memory_proposal(

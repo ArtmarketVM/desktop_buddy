@@ -1,5 +1,7 @@
 import { Fragment, useState, type ReactNode } from "react";
 import { Check, Copy } from "lucide-react";
+import { safeUrl, desktop } from "../api/tauri";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 /** Some models return markdown on a single line; put the obvious block breaks back. */
 export function repairMarkdown(text: string): string {
@@ -13,7 +15,8 @@ export function repairMarkdown(text: string): string {
 
 function inline(text: string, key: string): ReactNode[] {
   const parts: ReactNode[] = [];
-  const pattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*)/g;
+  const pattern =
+    /(`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*\*)/g;
   let last = 0;
   let index = 0;
   for (const match of text.matchAll(pattern)) {
@@ -21,11 +24,30 @@ function inline(text: string, key: string): ReactNode[] {
     if (start > last) parts.push(text.slice(last, start));
     const token = match[0];
     const id = `${key}-${index++}`;
-    if (token.startsWith("`"))
+    const link = /^\[([^\]]+)\]\(([^)]+)\)$/.exec(token);
+    if (link && safeUrl(link[2]))
+      parts.push(
+        <a
+          key={id}
+          href={link[2]}
+          onClick={(event) => {
+            event.preventDefault();
+            const url = safeUrl(link[2]);
+            if (!url) return;
+            if (desktop) void openUrl(url).catch(() => undefined);
+            else window.open(url, "_blank", "noopener,noreferrer");
+          }}
+        >
+          {link[1]}
+        </a>,
+      );
+    else if (token.startsWith("`"))
       parts.push(<code key={id}>{token.slice(1, -1)}</code>);
     else if (token.startsWith("**"))
       parts.push(<strong key={id}>{inline(token.slice(2, -2), id)}</strong>);
-    else parts.push(<em key={id}>{inline(token.slice(1, -1), id)}</em>);
+    else if (token.startsWith("*"))
+      parts.push(<em key={id}>{inline(token.slice(1, -1), id)}</em>);
+    else parts.push(token);
     last = start + token.length;
   }
   if (last < text.length) parts.push(text.slice(last));
@@ -154,9 +176,26 @@ export function Markdown({ text }: { text: string }) {
             const List = block.kind;
             return (
               <List key={key}>
-                {block.items.map((item, n) => (
-                  <li key={`${key}-${n}`}>{inline(item, `${key}-${n}`)}</li>
-                ))}
+                {block.items.map((item, n) =>
+                  /^\[([ xX])\]\s+/.test(item) ? (
+                    <li key={`${key}-${n}`} className="md-task">
+                      <input
+                        type="checkbox"
+                        checked={/^\[[xX]\]/.test(item)}
+                        disabled
+                        aria-label={item.replace(/^\[[ xX]\]\s+/, "")}
+                      />
+                      <span>
+                        {inline(
+                          item.replace(/^\[[ xX]\]\s+/, ""),
+                          `${key}-${n}`,
+                        )}
+                      </span>
+                    </li>
+                  ) : (
+                    <li key={`${key}-${n}`}>{inline(item, `${key}-${n}`)}</li>
+                  ),
+                )}
               </List>
             );
           }

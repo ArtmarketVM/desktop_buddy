@@ -13,10 +13,11 @@ impl Storage {
         store.initialize_window_history()?;
         store.initialize_profile()?;
         store.initialize_core()?;
-        store.initialize_skills()?;
         store.initialize_personal_memory()?;
         store.initialize_research()?;
         store.initialize_continuity()?;
+        store.initialize_coaching()?;
+        store.initialize_skills()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -98,10 +99,19 @@ impl Storage {
             })
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        let coaching_ready: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='coaching_sessions')", [], |r| r.get(0)).map_err(|e|e.to_string())?;
+        if coaching_ready {
+            tx.execute("DELETE FROM coaching_sessions WHERE ?1 IS NULL OR (julianday(updated_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM memories m WHERE m.id=coaching_sessions.memory_id AND m.pinned=1))", [cutoff]).map_err(|e|e.to_string())?;
+        }
         tx.execute("DELETE FROM memories WHERE memory_type='episodic' AND pinned=0 AND (?1 IS NULL OR julianday(created_at)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         tx.execute("DELETE FROM memory_retrieval_debug", [])
             .map_err(|e| e.to_string())?;
-        tx.execute("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR (julianday(updated_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM memories WHERE conversation_id=buddy_conversations.id AND pinned=1))", [cutoff]).map_err(|e| e.to_string())?;
+        let preserve_coaching = if coaching_ready {
+            " AND NOT EXISTS(SELECT 1 FROM coaching_sessions s JOIN memories m ON m.id=s.memory_id WHERE s.conversation_id=buddy_conversations.id AND m.pinned=1)"
+        } else {
+            ""
+        };
+        tx.execute(&format!("DELETE FROM buddy_conversations WHERE ?1 IS NULL OR (julianday(updated_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM memories WHERE conversation_id=buddy_conversations.id AND pinned=1){preserve_coaching})"), [cutoff]).map_err(|e|e.to_string())?;
         // Backups of goals deleted in chat hold activity history, so they follow the same retention.
         let cutoff_unix = cutoff
             .map(|v| chrono::DateTime::parse_from_rfc3339(v).map(|d| d.timestamp()))
