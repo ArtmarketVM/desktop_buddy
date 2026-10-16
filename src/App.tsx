@@ -6,6 +6,7 @@ import type { Dashboard } from "./types";
 import { defaultBuddyPreferences, defaultUserSettings } from "./types";
 import { DesktopBuddy } from "./components/DesktopBuddy";
 import packageInfo from "../package.json";
+import { useAvatarColorSync } from "./companion/useAvatarColorSync";
 import { AppShell, pages, type WorkspacePage } from "./components/AppShell";
 import { StartupUpdate, UpdateDialog } from "./components/Updates";
 import { useUpdates } from "./updates/useUpdates";
@@ -46,6 +47,7 @@ const empty: Dashboard = {
 };
 export default function App() {
   const [data, setData] = useState<Dashboard>(empty);
+  useAvatarColorSync(setData);
   const [error, setError] = useState("");
   const [dashboardError, setDashboardError] = useState("");
   const displayedError = error || dashboardError;
