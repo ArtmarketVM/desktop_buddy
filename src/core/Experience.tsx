@@ -13,7 +13,7 @@ import {
   type CoreGoal,
   type CoreSnapshot,
 } from "./types";
-import { QuickGoal } from "./QuickGoal";
+import { GoalBrowser, GoalFinder } from "./GoalFinder";
 import { CapturedGoal } from "./CapturedGoal";
 import type { GoalEnhancement } from "./analysis";
 import type { Dashboard } from "../types";
@@ -49,7 +49,6 @@ export function Experience({
   const [editor, setEditor] = useState<CoreGoal | null>(null);
   const [composerDirty, setComposerDirty] = useState(false);
   const [quickDirty, setQuickDirty] = useState(false);
-  const [picking, setPicking] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [drafts, setDrafts] = useState<Array<{ id: string; text: string }>>([]);
   const snapshotAnchor = page === "activity" ? anchor : null;
@@ -199,24 +198,30 @@ export function Experience({
           )}
           <div className="today-layout">
             <section className="core-section today-goals">
-              <div className="section-heading">
-                <div>
-                  <h2>Goals</h2>
-                </div>
-                <button
-                  className="text-button"
+              <div className="section-heading today-actions">
+                <GoalFinder
+                  snapshot={snapshot}
                   disabled={busy || !desktop}
-                  onClick={() => setPicking(!picking)}
-                >
-                  <Plus size={15} />
-                  Choose goals
-                </button>
+                  onDirty={setQuickDirty}
+                  showRecent={
+                    today.length === 0 && snapshot.day_mode === "plan"
+                  }
+                  create={(title, batch) =>
+                    run(() => coreApi.create(title, batch))
+                  }
+                  addToToday={(id) => run(() => coreApi.today(id, true))}
+                  dismissCarryover={(id) =>
+                    run(() => coreApi.dismissCarryover(id))
+                  }
+                />
+                <GoalBrowser
+                  snapshot={snapshot}
+                  disabled={busy || !desktop}
+                  toggleToday={(id, include) =>
+                    run(() => coreApi.today(id, include))
+                  }
+                />
               </div>
-              <QuickGoal
-                disabled={busy || !desktop}
-                onDirty={setQuickDirty}
-                save={(title, batch) => run(() => coreApi.create(title, batch))}
-              />
               {drafts.length > 0 && (
                 <section aria-label="Selected text drafts">
                   <h3>Drafts to review</h3>
@@ -243,11 +248,7 @@ export function Experience({
                   </p>
                   <button
                     disabled={busy || !desktop}
-                    onClick={() =>
-                      void run(() => coreApi.planDay(false)).then((ok) => {
-                        if (ok) setPicking(true);
-                      })
-                    }
+                    onClick={() => void run(() => coreApi.planDay(false))}
                   >
                     Plan today
                   </button>
@@ -263,11 +264,6 @@ export function Experience({
               {snapshot.day_mode === "no_plan" && (
                 <p className="empty-copy">
                   No plan today. Your goals will be here whenever you need them.
-                </p>
-              )}
-              {today.length === 0 && snapshot.day_mode === "plan" && (
-                <p className="empty-copy">
-                  Choose a saved goal, or add a new one above.
                 </p>
               )}
               {focusGoal && (
@@ -347,72 +343,6 @@ export function Experience({
                     />
                   ))}
                 </details>
-              )}
-              {picking && (
-                <div className="today-picker">
-                  <h3>Choose goals for Today</h3>
-                  {snapshot.carryover.length > 0 && (
-                    <section aria-label="Unfinished goals from previous days">
-                      <h3>Pick up where you left off</h3>
-                      {snapshot.goals
-                        .filter((goal) => snapshot.carryover.includes(goal.id))
-                        .map((goal) => (
-                          <GoalLine goal={goal} key={goal.id}>
-                            <button
-                              className="text-button"
-                              disabled={busy}
-                              onClick={() =>
-                                void run(() => coreApi.today(goal.id, true))
-                              }
-                            >
-                              Add to today
-                            </button>
-                            <button
-                              className="text-button"
-                              disabled={busy}
-                              onClick={() =>
-                                void run(() =>
-                                  coreApi.dismissCarryover(goal.id),
-                                )
-                              }
-                            >
-                              Dismiss
-                            </button>
-                          </GoalLine>
-                        ))}
-                    </section>
-                  )}
-                  {snapshot.goals
-                    .filter(
-                      (goal) =>
-                        goal.status === "open" &&
-                        !snapshot.today.includes(goal.id) &&
-                        !snapshot.carryover.includes(goal.id),
-                    )
-                    .map((goal) => (
-                      <GoalLine goal={goal} key={goal.id}>
-                        <button
-                          className="text-button"
-                          aria-label={`Add ${goal.title} to today`}
-                          disabled={busy}
-                          onClick={() =>
-                            void run(() => coreApi.today(goal.id, true))
-                          }
-                        >
-                          <Plus size={14} />
-                        </button>
-                      </GoalLine>
-                    ))}
-                  {!snapshot.goals.some((g) => g.status === "open") && (
-                    <p className="helper">Add your first goal above.</p>
-                  )}
-                  <button
-                    className="text-button"
-                    onClick={() => setPicking(false)}
-                  >
-                    Done choosing
-                  </button>
-                </div>
               )}
               {snapshot.timer && (
                 <button

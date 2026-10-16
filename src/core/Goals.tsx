@@ -43,7 +43,7 @@ export function mergeSuggestedSteps(
     }));
   return [...existing, ...additions];
 }
-function stepCount(count: number) {
+export function stepCount(count: number) {
   return `${count} ${count === 1 ? "step" : "steps"}`;
 }
 /** Same goal title line as GoalRow, for lists that only need to show or pick a goal. */

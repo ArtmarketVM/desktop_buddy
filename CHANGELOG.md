@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.32.1 — calmer Today goal picking
+
+- One field on Today now finds or adds a goal: typing filters your saved goals (titles, descriptions and steps), Enter adds the highlighted match to Today or creates a new goal, and an empty field shows five recent goals.
+- "Choose goals" opens a compact panel with its own search and pages of eight goals, instead of the long inline list.
+- Removed the duplicated "Goals", "Choose goals for Today" and "Pick up where you left off" headings and the helper line; unfinished goals from earlier days are marked in the suggestions and can be dismissed there.
+
 ## 0.29.0
 
 - Constrain structured agent operations and render authoritative Rust action/read receipts.
