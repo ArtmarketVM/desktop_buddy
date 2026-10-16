@@ -165,8 +165,8 @@ export function AppShell({
       onClick={() => setCollapsed((previous) => !previous)}
     >
       <PanelLeft
-        width={26}
-        height={22}
+        width={20}
+        height={18}
         strokeWidth={1.6}
         preserveAspectRatio="none"
         aria-hidden="true"
