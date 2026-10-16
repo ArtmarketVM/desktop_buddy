@@ -41,6 +41,16 @@ export function InlineText({
     else el.textContent = display ?? value;
   }
   function key(event: KeyboardEvent<HTMLSpanElement>) {
+    // Backspace or Delete on already-empty text removes the item at once, like a Notion block.
+    if (
+      (event.key === "Backspace" || event.key === "Delete") &&
+      !(node.current?.textContent ?? "").trim()
+    ) {
+      event.preventDefault();
+      editing.current = false;
+      onDelete();
+      return;
+    }
     if (event.key === "Enter") {
       event.preventDefault();
       node.current?.blur();

@@ -34,6 +34,9 @@ describe("inline text", () => {
     type(el, "   ");
     fireEvent.blur(el);
     expect(onDelete).toHaveBeenCalledTimes(1);
+    type(el, "");
+    fireEvent.keyDown(el, { key: "Backspace" });
+    expect(onDelete).toHaveBeenCalledTimes(2);
   });
   it("ranks urgent first and none last, and picks a priority from the tag", () => {
     expect(
