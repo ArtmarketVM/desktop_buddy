@@ -20,7 +20,7 @@ Four sizes, exposed as CSS tokens. Nothing else is allowed in a stylesheet.
 | --- | --- | --- | --- |
 | `--text-title` | 34px | 1.2 | The one page title per screen. Serif. Nothing else, not even big numbers. |
 | `--text-heading` | 18px | 1.3 | Section headings inside a page, dialog titles, the current chat's title. Sans, medium. |
-| `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, settings labels, inputs, buttons, navigation. |
+| `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, the open chat's name (medium), settings labels, inputs, buttons, navigation. |
 | `--text-caption` | 11px | 1.45 | Secondary information: counts, dates, due dates, tags, timestamps, the rare helper line. |
 
 Markdown inside chat uses the body size; its headings use the heading size; code shrinks by 10% relative to the text around it.

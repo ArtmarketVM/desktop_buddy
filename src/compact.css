@@ -493,11 +493,13 @@
   border-bottom: 0;
   border-radius: 12px 12px 0 0;
 }
-.chat-pane-title {
+/* The base stylesheet tints a header's first span with the accent; the chat title stays ink. */
+.chat-pane-head > .chat-pane-title {
   color: var(--text);
   overflow: hidden;
   letter-spacing: 0;
   font-size: var(--text-body);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
