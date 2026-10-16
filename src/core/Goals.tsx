@@ -241,9 +241,19 @@ export function GoalRow({
       clearTimeout(timer);
     };
   }, [stepText, adding, goal.id]);
+  const toggleFromBlankSpace = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        "button, input, textarea, a, [contenteditable], .inline-text, .priority-picker, .goal-meta-wrap, .goal-overflow",
+      )
+    )
+      return;
+    setExpanded(!expanded);
+  };
   return (
     <article className={`core-goal ${goal.status}`}>
-      <div className="goal-heading">
+      <div className="goal-heading" onClick={toggleFromBlankSpace}>
         {!readOnly && (
           <div className="goal-overflow" ref={menuRoot}>
             <button

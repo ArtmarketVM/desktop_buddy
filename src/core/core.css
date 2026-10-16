@@ -2006,6 +2006,9 @@ p.error .text-button {
 }
 
 /* Inline editing: the text itself is the field, no boxes or highlights. */
+.goal-heading {
+  cursor: pointer;
+}
 .goal-heading > .goal-title-row {
   display: block;
   flex: 1 1 auto;
