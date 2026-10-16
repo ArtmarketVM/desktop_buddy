@@ -241,6 +241,10 @@
   text-align: left;
   font-size: 14px;
 }
+.goal-heading .goal-expand-toggle:hover:not(:disabled),
+.goal-heading .goal-expand-toggle:focus-visible {
+  background: transparent;
+}
 .goal-expand-toggle svg {
   flex-shrink: 0;
 }
