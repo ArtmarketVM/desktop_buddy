@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import {
-  ChevronDown,
-  MoreHorizontal,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
+import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { aiApi, type ChatConversation } from "../ai/api";
 import type { Dashboard } from "../types";
@@ -126,37 +119,46 @@ export function Chats({
   return (
     <div className="chats-layout">
       <aside className="chat-conversations" aria-label="Saved conversations">
-        <label className="chat-search">
-          <Search size={14} aria-hidden="true" />
-          <input
-            type="search"
-            value={query}
-            placeholder="Search chats"
-            aria-label="Search chats"
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery("")}
-            >
-              <X size={13} />
-            </button>
-          )}
-        </label>
-        <button
-          className="chat-new"
-          disabled={!desktop || busy}
-          onClick={() => {
-            setQuery("");
-            void run(aiApi.newConversation);
-          }}
-        >
-          <Plus size={15} />
-          New chat
-        </button>
-        <p className="chat-group">{searching ? "Results" : "Recent"}</p>
+        <h1>Chats</h1>
+        <div className="chat-search-bar">
+          <label className="chat-search search-field">
+            <Search
+              size={16}
+              aria-hidden="true"
+              className="search-field-icon"
+            />
+            <input
+              type="search"
+              value={query}
+              placeholder="Search chats"
+              aria-label="Search chats"
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+              >
+                <X size={13} />
+              </button>
+            )}
+          </label>
+          <button
+            type="button"
+            className="chat-new"
+            aria-label="New chat"
+            title="New chat"
+            disabled={!desktop || busy}
+            onClick={() => {
+              setQuery("");
+              void run(aiApi.newConversation);
+            }}
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+        {searching && <p className="chat-group">Results</p>}
         {visible.map((item) => (
           <div
             key={item.id}
@@ -212,7 +214,6 @@ export function Chats({
           <span className="chat-pane-title">
             {current?.title ?? "New chat"}
           </span>
-          {current && <ChevronDown size={14} aria-hidden="true" />}
           <div className="chat-menu-wrap">
             <button
               type="button"

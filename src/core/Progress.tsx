@@ -206,6 +206,7 @@ export function Progress({
   busy: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
   const days = snapshot.week.length
     ? [...snapshot.week].reverse()
     : [snapshot.summary];
@@ -265,6 +266,25 @@ export function Progress({
               (stepSeconds.get(step.step_id) ?? 0) + step.seconds,
             );
   const doneSteps = focus?.plan.steps.filter((step) => step.done) ?? [];
+  const allSteps = focus?.plan.steps ?? [];
+  const periodGoalsDone = days.reduce(
+    (sum, day) => sum + (day.completed_goals?.length ?? 0),
+    0,
+  );
+  const periodStepsDone = days.reduce(
+    (sum, day) =>
+      sum +
+      Math.max(0, day.completed.length - (day.completed_goals?.length ?? 0)),
+    0,
+  );
+  const periodWord =
+    period === "day"
+      ? "today"
+      : period === "week"
+        ? "this week"
+        : period === "month"
+          ? "this month"
+          : "this year";
   const listed = doneSteps.reduce(
     (sum, step) => sum + (stepSeconds.get(step.id) ?? 0),
     0,
@@ -360,18 +380,52 @@ export function Progress({
       </div>
       <div className="progress-total">{total > 0 ? duration(total) : "0m"}</div>
       <p className="progress-sub">
-        focused
         {focus
-          ? ` · ${doneSteps.length} ${doneSteps.length === 1 ? "step" : "steps"} done`
-          : ""}
+          ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
+          : [
+              `focused ${periodWord}`,
+              periodGoalsDone > 0
+                ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
+                : "",
+              periodStepsDone > 0
+                ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
+                : "",
+            ]
+              .filter(Boolean)
+              .join(" · ")}
       </p>
       <div className="stack-chart" aria-label="Focused time">
         {buckets.map((bucket) => (
-          <div key={bucket.key} className="stack-col">
+          <div
+            key={bucket.key}
+            className="stack-col"
+            onMouseEnter={() => setHover(bucket.key)}
+            onMouseLeave={() => setHover(null)}
+          >
+            {hover === bucket.key && bucketTotal(bucket) > 0 && (
+              <div className="stack-tip" role="tooltip">
+                <strong>
+                  {bucket.label} · {duration(bucketTotal(bucket))}
+                </strong>
+                {[...bucket.goals.entries()]
+                  .filter(([, seconds]) => seconds > 0)
+                  .sort((a, b) => b[1] - a[1])
+                  .map(([id, seconds]) => (
+                    <span key={id}>
+                      <i style={{ background: colorOf(id) }} />
+                      {sentenceCase(
+                        snapshot.goals.find((g) => g.id === id)?.title ??
+                          goals.find((g) => g.id === id)?.title ??
+                          "Goal",
+                      )}
+                      <em>{duration(seconds)}</em>
+                    </span>
+                  ))}
+              </div>
+            )}
             <div
               className="stack-bar"
               style={{ height: `${(bucketTotal(bucket) / maxBucket) * 100}%` }}
-              title={`${bucket.label} · ${duration(bucketTotal(bucket))}`}
             >
               {[...bucket.goals.entries()]
                 .filter(([, seconds]) => seconds > 0)
@@ -413,10 +467,16 @@ export function Progress({
         ))}
       {focus && (
         <ul className="progress-list">
-          {doneSteps.map((item) => (
-            <li key={item.id} className="progress-row static">
-              <span className="done-box" aria-hidden="true">
-                <Check size={10} />
+          {allSteps.map((item) => (
+            <li
+              key={item.id}
+              className={`progress-row static ${item.done ? "" : "open"}`}
+            >
+              <span
+                className={`done-box ${item.done ? "" : "empty"}`}
+                aria-hidden="true"
+              >
+                {item.done && <Check size={10} />}
               </span>
               <span>{sentenceCase(item.text)}</span>
               <em>
@@ -433,14 +493,17 @@ export function Progress({
               <em>{minutes(other)}</em>
             </li>
           )}
-          {doneSteps.length === 0 && other === 0 && (
+          {allSteps.length === 0 && other === 0 && (
             <li className="empty-copy">
-              No finished steps or focused time in this period.
+              No steps or focused time in this period.
             </li>
           )}
         </ul>
       )}
-      <WindowActivity first={oldest} last={newest} goalId={selected} />
+      <details className="progress-details">
+        <summary>Tracked activity</summary>
+        <WindowActivity first={oldest} last={newest} goalId={selected} />
+      </details>
     </section>
   );
 }

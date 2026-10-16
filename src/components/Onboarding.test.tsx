@@ -74,7 +74,7 @@ describe("onboarding and profiles", () => {
           onChanged={async () => {}}
         />,
       );
-    expect(render(0)).toContain("Choose your companion");
+    expect(render(0)).toContain("Choose the color of your companion");
     expect(render(0)).not.toContain('id="profile-email"');
     expect(render(1)).toContain('id="profile-email"');
     expect(render(1)).toContain("Privacy notice — draft");

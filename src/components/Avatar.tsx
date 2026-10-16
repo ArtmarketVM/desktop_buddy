@@ -2,6 +2,8 @@ import type { CSSProperties } from "react";
 import type { AvatarPreferences, AvatarState } from "../types";
 
 const INK = "#1E2A23";
+// Marks drawn outside the body sit on the page, so they follow the theme's text colour.
+const MARK = "var(--text, #1E2A23)";
 // Eye shapes from the sumi site mascot: sleepy, alert and happy.
 const EYES = {
   sleepy:
@@ -41,6 +43,83 @@ export function Avatar({
       role="img"
       aria-label={`sumi companion, ${state}`}
     >
+      {(state === "completed" || state === "success") && (
+        <g className="avatar-confetti" aria-hidden="true">
+          <g
+            fill="none"
+            stroke="var(--accent, #3E6B48)"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            opacity={0.55}
+          >
+            <path d="M30-8v-10M60 4l6-7M70 30h10M60 56l7 7M30 68v10M0 56l-7 7M-10 30h-10M0 4l-7-7" />
+          </g>
+          <g fill="var(--avatar-color)">
+            <circle cx="30" cy="-24" r="3" />
+            <rect
+              x="66"
+              y="64"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(-25 68 66)"
+            />
+            <circle cx="-24" cy="30" r="2.6" />
+            <circle cx="8" cy="78" r="1.8" />
+          </g>
+          <g fill="var(--accent, #3E6B48)">
+            <rect
+              x="68"
+              y="-8"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(20 70 -6)"
+            />
+            <circle cx="30" cy="84" r="3" />
+            <rect
+              x="-12"
+              y="-10"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(-15 -10 -8)"
+            />
+            <circle cx="52" cy="-18" r="1.8" />
+            <circle cx="-18" cy="8" r="1.8" />
+          </g>
+          <g fill={MARK} opacity={0.8}>
+            <circle cx="84" cy="30" r="2.6" />
+            <rect
+              x="-12"
+              y="64"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(30 -10 66)"
+            />
+            <circle cx="78" cy="52" r="1.8" />
+          </g>
+        </g>
+      )}
+      {state === "stretching" && (
+        <g
+          className="avatar-stretch-arms"
+          fill="none"
+          stroke="color-mix(in srgb, var(--avatar-color) 70%, #1E2A23)"
+          strokeWidth={4.5}
+          strokeLinecap="round"
+        >
+          <path
+            className="avatar-arm avatar-arm-left"
+            d="M9 40C-3 36-7 26-3 15"
+          />
+          <path
+            className="avatar-arm avatar-arm-right"
+            d="M51 40c12-4 16-14 12-25"
+          />
+        </g>
+      )}
       <g className="pet__body">
         <path
           className="pet__fill"
@@ -51,34 +130,85 @@ export function Avatar({
           <path transform="translate(22 31)" d={eyes} />
           <path transform="translate(38 31)" d={eyes} />
         </g>
+        {state === "stretching" && (
+          <circle
+            className="avatar-breath avatar-breath-fast"
+            cx="30"
+            cy="43"
+            r="2.4"
+            fill={INK}
+          />
+        )}
+        {mood(state) === "sleepy" && (
+          <circle
+            className="avatar-breath"
+            cx="30"
+            cy="43"
+            r="2.6"
+            fill={INK}
+          />
+        )}
+        {(state === "completed" || state === "success") && (
+          <path
+            className="avatar-smile"
+            d="M24 41q6 5.5 12 0"
+            fill="none"
+            stroke={INK}
+            strokeWidth={2.2}
+            strokeLinecap="round"
+          />
+        )}
       </g>
-      {(state === "completed" || state === "success") && (
-        <path
-          d="m47 -8 5 5 10-11"
-          stroke="#3E6B48"
-          strokeWidth={4}
-          fill="none"
-          strokeLinecap="round"
-        />
-      )}
       {state === "sleeping" && (
-        <text x="52" y="-2" fill={INK} fontSize="11">
-          z
-        </text>
-      )}
-      {(state === "thinking" || state === "attention") && (
-        <text x="52" y="0" fill={INK} fontSize="14" fontWeight="700">
-          {state === "thinking" ? "…" : "?"}
-        </text>
-      )}
-      {state === "stretching" && (
-        <g className="avatar-stretch-arms" {...line}>
-          <path d="M4 46 -6 40 -8 30M56 46 66 40 68 30" />
+        <g
+          fill="none"
+          stroke={MARK}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="avatar-mark"
+        >
+          <path className="avatar-zz" d="M61 -9h6l-6 6h6" />
+          <path className="avatar-zz" d="M71 -18h4l-4 4h4" strokeWidth={1.6} />
         </g>
       )}
+      {state === "thinking" && (
+        <g fill={MARK} className="avatar-mark">
+          <circle className="avatar-dot" cx="52" cy="-4" r="1.7" />
+          <circle className="avatar-dot" cx="58" cy="-8" r="2.3" />
+          <circle className="avatar-dot" cx="65" cy="-13" r="3" />
+        </g>
+      )}
+      {state === "attention" && (
+        <text
+          x="51"
+          y="0"
+          fill={MARK}
+          fontSize="16"
+          fontWeight="700"
+          className="avatar-mark"
+        >
+          ?
+        </text>
+      )}
       {state === "listening" && (
-        <g {...line} strokeWidth={1.8}>
-          <path d="M-2 22q-6 8 0 16M-7 18q-9 12 0 24" />
+        <g
+          className="avatar-mark"
+          fill="none"
+          stroke={MARK}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+        >
+          <path className="avatar-wave" d="M-3 24q-5 7 0 14" />
+          <path
+            className="avatar-wave avatar-wave-outer"
+            d="M-9 20q-9 11 0 22"
+          />
+          <path className="avatar-wave" d="M63 24q5 7 0 14" />
+          <path
+            className="avatar-wave avatar-wave-outer"
+            d="M69 20q9 11 0 22"
+          />
         </g>
       )}
     </svg>

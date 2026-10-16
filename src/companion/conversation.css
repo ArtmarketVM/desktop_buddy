@@ -27,12 +27,12 @@
 .conversation-message p {
   margin: 0;
   white-space: pre-wrap;
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .conversation-empty {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption);
   margin: 16px 0;
 }
 .conversation-composer {
@@ -52,7 +52,7 @@
 .conversation-context {
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--text-caption);
   max-height: 150px;
   overflow: auto;
 }
@@ -69,12 +69,12 @@
   width: 95px;
 }
 .conversation-context button {
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .conversation-context .helper,
 .conversation-context p {
   margin: 6px 0;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .conversation-inbox-item {
   display: flex;
@@ -91,7 +91,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .conversation-attachment span {
   flex: 1;
@@ -100,7 +100,7 @@
 .conversation-message .companion-resource {
   margin-top: 8px;
   text-align: left;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .conversation-message .companion-resource small {
   display: block;
@@ -110,7 +110,7 @@
 }
 .conversation-confirm {
   padding: 8px 12px;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .companion-chat > .companion-error {
   padding: 0 12px;
@@ -126,10 +126,10 @@
   height: 100%;
 }
 .workspace-chat .conversation-message p {
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .workspace-chat .conversation-empty {
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .floating-chat-card {
   position: absolute;
@@ -180,12 +180,12 @@
 }
 
 .conversation-message .markdown {
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.65;
   overflow-wrap: anywhere;
 }
 .workspace-chat .conversation-message .markdown {
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .conversation-message .markdown > * {
   margin: 0 0 0.75em;
@@ -198,7 +198,7 @@
 .markdown h5 {
   margin: 1.1em 0 0.4em;
   font-size: 1.08em;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.35;
 }
 .conversation-message .markdown > :first-child {
@@ -233,7 +233,7 @@
   overflow-wrap: anywhere;
 }
 .markdown strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 .markdown blockquote {
   padding-left: 12px;
@@ -281,7 +281,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .md-copy:hover {
   background: color-mix(in srgb, var(--text) 8%, transparent);
@@ -293,7 +293,7 @@
   gap: 8px;
   margin-top: 8px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .conversation-message.user .message-meta {
   justify-content: flex-end;
@@ -319,7 +319,7 @@
 .message-sources h4 {
   margin: 0 0 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 500;
 }
 .message-sources ol {
@@ -351,7 +351,7 @@
   border-radius: 50%;
   background: color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .message-sources .source-text {
   flex: 1;
@@ -361,13 +361,13 @@
 }
 .message-sources .source-title {
   overflow: hidden;
-  font-size: 12px;
+  font-size: var(--text-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .message-sources .source-domain {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .message-sources svg {
   flex: none;

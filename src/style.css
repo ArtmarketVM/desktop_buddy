@@ -1,5 +1,14 @@
-@import "@fontsource/shippori-mincho/400.css";
-@import "@fontsource/shippori-mincho/500.css";
+/* Type scale: four sizes and two weights, see docs/TYPOGRAPHY.md. */
+:root {
+  --text-title: 34px;
+  --text-heading: 18px;
+  --text-body: 14px;
+  --text-caption: 11px;
+  --leading-title: 1.2;
+  --leading-heading: 1.3;
+  --leading-body: 1.5;
+  --leading-caption: 1.45;
+}
 @import "@fontsource/zen-maru-gothic/300.css";
 @import "@fontsource/zen-maru-gothic/400.css";
 @import "@fontsource/zen-maru-gothic/500.css";
@@ -16,8 +25,8 @@
   padding: 36px;
 }
 .onboarding-brand {
-  font-size: 30px;
-  font-weight: 800;
+  font-size: var(--text-title);
+  font-weight: 500;
   letter-spacing: -1px;
   margin-bottom: 22px;
 }
@@ -30,12 +39,12 @@
   gap: 18px;
   padding: 0;
   list-style: none;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .onboarding-progress [aria-current="step"] {
   color: var(--text);
-  font-weight: 700;
+  font-weight: 500;
 }
 .onboarding-card h1 {
   font-size: clamp(26px, 4vw, 35px);
@@ -55,7 +64,7 @@
 }
 .onboarding-card legend,
 .preferences legend {
-  font-weight: 600;
+  font-weight: 500;
   margin-bottom: 12px;
 }
 .onboarding-card input:not([type="checkbox"]):not([type="color"]),
@@ -159,7 +168,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.5;
   margin: 18px 0;
 }
@@ -173,12 +182,12 @@
   gap: 8px 18px;
   padding: 0;
   list-style: none;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .preset-apps span {
   display: block;
   color: var(--text);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .product-feedback {
   margin-top: 24px;
@@ -245,7 +254,7 @@
   overflow-wrap: anywhere;
   max-height: 350px;
   overflow-y: auto;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .privacy-settings select {
   display: block;
@@ -337,7 +346,7 @@ html.buddy-window,
 .desktop-buddy .workspace-link {
   min-height: 26px;
   padding: 2px 9px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 20px;
   background: var(--canvas);
   color: var(--text);
@@ -353,12 +362,12 @@ html.buddy-window,
   box-shadow: 0 3px 8px #253b2915;
 }
 .suggestion-card h2 {
-  font-size: 18px;
+  font-size: var(--text-heading);
   margin: 10px 0;
   overflow-wrap: anywhere;
 }
 .suggestion-card p {
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -410,7 +419,7 @@ html.buddy-window,
   background: var(--canvas);
   font-synthesis: none;
   font-weight: 400;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 * {
   box-sizing: border-box;
@@ -438,7 +447,7 @@ button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-weight: 550;
+  font-weight: 500;
 }
 button:disabled {
   opacity: 0.45;
@@ -479,12 +488,12 @@ input::placeholder {
   flex-direction: column;
 }
 .brand {
-  font-family: var(--serif);
+  font-family: var(--sans);
   display: flex;
   align-items: center;
   gap: 10px;
-  font-weight: 800;
-  font-size: 29px;
+  font-weight: 500;
+  font-size: var(--text-title);
   color: var(--text);
   text-decoration: none;
   letter-spacing: -1.5px;
@@ -494,7 +503,7 @@ input::placeholder {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  font-size: 27px;
+  font-size: var(--text-title);
   text-align: center;
 }
 .brand-dot {
@@ -502,8 +511,8 @@ input::placeholder {
   margin-left: -8px;
 }
 .eyebrow {
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--text-caption);
+  font-weight: 500;
   letter-spacing: 1.7px;
   color: var(--muted);
 }
@@ -516,16 +525,16 @@ input::placeholder {
   gap: 12px;
   padding: 13px 12px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .nav-item.selected {
   background: var(--accent-soft);
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
 }
 .nav-item span {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--text-caption);
   opacity: 0.55;
 }
 .sidebar-note {
@@ -537,11 +546,11 @@ input::placeholder {
   color: var(--muted);
 }
 .sidebar-note h3 {
-  font-size: 14px;
-  font-weight: 550;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .sidebar-note p {
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.8;
 }
@@ -550,14 +559,14 @@ input::placeholder {
   padding: 22px 10px 0;
   display: flex;
   gap: 10px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--text);
 }
 .local-badge small {
   display: block;
   margin-top: 5px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .main {
   flex: 1;
@@ -571,7 +580,7 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 10px;
+  font-size: var(--text-caption);
   letter-spacing: 1px;
   color: var(--muted);
 }
@@ -583,7 +592,7 @@ header > span:first-child {
   color: var(--muted);
 }
 .version {
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .page-title {
   display: flex;
@@ -593,9 +602,9 @@ header > span:first-child {
   gap: 20px;
 }
 h1 {
-  font-family: var(--serif);
-  font-size: 34px;
-  font-weight: 650;
+  font-family: var(--sans);
+  font-size: var(--text-title);
+  font-weight: 500;
   letter-spacing: -1.5px;
   margin: 9px 0 10px;
 }
@@ -604,7 +613,7 @@ h1 span {
 }
 .page-title p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   margin: 0;
 }
 .status-pill {
@@ -617,7 +626,7 @@ h1 span {
   border: 1px solid var(--line);
   border-radius: 30px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 i.live {
   background: var(--accent);
@@ -651,8 +660,8 @@ i.live {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
-  font-weight: 600;
+  font-size: var(--text-caption);
+  font-weight: 500;
   letter-spacing: 1.3px;
   color: var(--muted);
 }
@@ -664,14 +673,14 @@ i.live {
   background: var(--surface);
 }
 .goal-card h2 {
-  font-size: 21px;
+  font-size: var(--text-heading);
   font-weight: 500;
   letter-spacing: -0.6px;
   margin: 23px 0;
 }
 .goal-form label {
   display: block;
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--muted);
   margin-bottom: 9px;
 }
@@ -681,7 +690,7 @@ i.live {
 }
 .input-row button {
   white-space: nowrap;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .section-heading {
   display: flex;
@@ -691,20 +700,20 @@ i.live {
   margin-bottom: 20px;
 }
 .section-heading h2 {
-  font-size: 19px;
+  font-size: var(--text-heading);
   font-weight: 500;
   margin: 7px 0 0;
   letter-spacing: -0.5px;
 }
 .muted {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .empty {
   padding: 44px 20px 55px;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.8;
 }
 .card-footer {
@@ -714,7 +723,7 @@ i.live {
   border-top: 1px solid var(--line);
   padding-top: 16px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .activity {
   display: flex;
@@ -724,12 +733,12 @@ i.live {
   border-top: 1px solid var(--line);
 }
 .activity time {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .activity strong {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -741,7 +750,7 @@ i.live {
 }
 .activity small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
   margin-top: 5px;
 }
@@ -753,7 +762,7 @@ i.live {
 }
 .duration {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .timeline {
   max-height: 360px;
@@ -767,15 +776,15 @@ i.live {
   text-align: center;
 }
 .companion-card .section-label {
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .companion-card h2 {
-  font-size: 18px;
+  font-size: var(--text-heading);
   font-weight: 500;
   letter-spacing: -0.5px;
 }
 .companion-card > p {
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.9;
   color: var(--muted);
   margin: 0 0 24px;
@@ -855,14 +864,14 @@ i.live {
   border: 1px solid var(--hill);
   color: var(--accent);
   width: 100%;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .preferences {
   padding: 22px;
 }
 .preferences h3 {
-  font-size: 12px;
-  font-weight: 550;
+  font-size: var(--text-caption);
+  font-weight: 500;
   margin: 0 0 18px;
 }
 .toggle-row {
@@ -871,7 +880,7 @@ i.live {
   justify-content: space-between;
   gap: 14px;
   padding: 12px 0;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .toggle-row span > svg {
   vertical-align: middle;
@@ -880,7 +889,7 @@ i.live {
 }
 .toggle-row small {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.7;
   margin-top: 6px;
@@ -892,7 +901,7 @@ i.live {
   flex-shrink: 0;
 }
 .connection {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
   display: flex;
   gap: 7px;
@@ -902,12 +911,12 @@ i.live {
 .quiet-note {
   text-align: center;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-style: italic;
   margin: 0;
 }
 .helper {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.7;
 }
@@ -918,11 +927,11 @@ i.live {
 }
 .result a {
   color: var(--accent);
-  font-weight: 550;
-  font-size: 13px;
+  font-weight: 500;
+  font-size: var(--text-body);
 }
 .result p {
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.7;
 }
@@ -930,7 +939,7 @@ i.live {
   background: transparent;
   color: var(--muted);
   padding: 6px 0;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .session-toggle {
   margin-top: 12px;
@@ -940,7 +949,7 @@ i.live {
   padding: 13px 16px;
   border-radius: 10px;
   margin-bottom: 20px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
   background: var(--canvas);
   color: var(--muted);
@@ -956,7 +965,7 @@ i.live {
   display: block;
   margin-top: 14px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 footer {
   display: flex;
@@ -965,12 +974,12 @@ footer {
   margin: 35px 0 0;
   padding: 20px 0;
   color: var(--muted);
-  font-size: 8px;
+  font-size: var(--text-caption);
   letter-spacing: 1.2px;
 }
 footer span {
   letter-spacing: 0;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .popup-shell {
   padding: 18px;
@@ -988,17 +997,17 @@ footer span {
   width: 55px;
   height: 55px;
   padding-top: 12px;
-  font-size: 25px;
+  font-size: var(--text-title);
   transform: rotate(90deg);
 }
 .buddy-card h2 {
-  font-size: 22px;
+  font-size: var(--text-heading);
   font-weight: 500;
 }
 .buddy-card p {
   color: var(--muted);
   line-height: 1.7;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .buddy-actions {
   display: flex;
@@ -1043,7 +1052,7 @@ footer span {
     align-items: flex-start;
   }
   h1 {
-    font-size: 28px;
+    font-size: var(--text-title);
   }
   .status-pill {
     display: none;
@@ -1092,7 +1101,7 @@ footer span {
     margin-top: 25px;
   }
   h1 {
-    font-size: 27px;
+    font-size: var(--text-title);
   }
 }
 /* Provider secrets are only held in these inputs until saving or closing Settings. */
@@ -1249,7 +1258,7 @@ footer span {
 }
 .inline-details {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--text);
 }
 .inline-details > summary,
@@ -1264,8 +1273,8 @@ footer span {
   outline-offset: 4px;
 }
 .disclosure-card > summary {
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .card.disclosure-card {
   padding: 16px 20px;
@@ -1275,7 +1284,7 @@ footer span {
 }
 .disclosure-count {
   margin-left: 8px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 400;
   color: var(--text);
 }
@@ -1283,7 +1292,7 @@ footer span {
   margin: 0 0 20px;
 }
 .inline-details .helper {
-  font-size: 12px;
+  font-size: var(--text-caption);
   line-height: 1.6;
 }
 .avatar-preview {

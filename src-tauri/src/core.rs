@@ -19,7 +19,7 @@ impl Default for CorePreferences {
     fn default() -> Self {
         Self {
             working_days: vec![1, 2, 3, 4, 5],
-            movement_reminders: false,
+            movement_reminders: true,
             vision_model: String::new(),
         }
     }
@@ -1163,7 +1163,7 @@ pub fn save_core_identity(
     inner.storage.write_setting("user_settings", &settings)?;
     crate::buddy::sync(&app, &mut inner)
 }
-fn mutate(
+pub(crate) fn mutate(
     state: &AppState,
     app: &AppHandle,
     work: impl FnOnce(&mut Storage) -> Result<(), String>,

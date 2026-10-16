@@ -136,8 +136,8 @@
   display: none;
 }
 .sidebar .update-entry > span:last-child {
-  font-size: 13px;
-  font-weight: 450;
+  font-size: var(--text-body);
+  font-weight: 400;
 }
 .sidebar .update-entry.update-available {
   color: var(--accent-text);
@@ -163,7 +163,7 @@
   flex: 0 0 18px;
   margin-left: auto;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 500;
   text-align: right;
 }
@@ -185,13 +185,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .sidebar-collapsed .profile-entry {
   padding-inline: 6px;
 }
 .sidebar-collapsed .profile-name {
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .sidebar-collapsed .workspace-brand,
 .sidebar-collapsed .nav-label,
@@ -236,9 +236,14 @@
   align-items: center;
   gap: 8px;
   padding-left: 0;
+  margin-right: 8px;
   color: var(--text);
   text-align: left;
-  font-size: 14px;
+  font-size: var(--text-body);
+}
+.goal-heading .goal-expand-toggle:hover:not(:disabled),
+.goal-heading .goal-expand-toggle:focus-visible {
+  background: transparent;
 }
 .goal-expand-toggle svg {
   flex-shrink: 0;
@@ -268,7 +273,7 @@
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   padding: 5px 0;
 }
 .compact-suggestions .suggested-step > span {
@@ -297,8 +302,15 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   gap: 24px;
-  height: min(680px, calc(100vh - 200px));
-  min-height: 380px;
+  margin-top: 40px;
+  height: min(780px, calc(100vh - 120px));
+  min-height: 420px;
+}
+/* Same size and rhythm as the page title on the other screens; the chat pane starts level with it. */
+.chat-conversations > h1 {
+  margin: 0 0 28px;
+  font-size: var(--text-title);
+  line-height: 40px;
 }
 .chats-layout > .chat-pane {
   height: 100%;
@@ -311,14 +323,52 @@
   width: 100%;
   margin-bottom: 16px;
 }
-.chat-search {
+.chat-search-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 10px;
-  margin-bottom: 4px;
-  border-radius: 8px;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chat-search {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
   color: var(--muted);
+}
+.chat-conversations .chat-search input[type="search"] {
+  display: block;
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  min-height: 0;
+  padding: 0 32px 0 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--text);
+  font-size: var(--text-body);
+  line-height: 34px;
+}
+.chat-conversations .chat-search input[type="search"]:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.chat-search-bar > .chat-new {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+}
+.chat-search-bar > .chat-new:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 .chat-search input {
   flex: 1;
@@ -327,7 +377,7 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
   outline: none;
 }
 .chat-search button {
@@ -338,7 +388,6 @@
   background: transparent;
   color: var(--muted);
 }
-.chat-conversations > .chat-new,
 .chat-item > .chat-row {
   display: flex;
   align-items: center;
@@ -350,7 +399,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-align: left;
 }
 .chat-item > .chat-row {
@@ -359,14 +408,18 @@
   min-width: 0;
   padding-right: 4px;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat-conversations > .chat-new:hover,
-.chat-item:hover,
-.chat-search:focus-within {
+.chat-item:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.chat-search > button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .chat-item.selected,
 .chat-item.open {
@@ -401,18 +454,23 @@
 .chat-item-menu:focus-visible {
   opacity: 1;
 }
-.chat-item-menu:hover {
+.chat-item > .chat-item-menu:hover:not(:disabled),
+.chat-item > .chat-item-menu[aria-expanded="true"] {
   background: color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--text);
+}
+.chat-item > .chat-item-menu:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 1px;
 }
 .chat-item > .chat-menu {
   top: calc(100% - 2px);
   right: 4px;
 }
 .chat-group {
-  margin: 14px 10px 4px;
+  margin: 6px 10px 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .chat-pane {
   display: flex;
@@ -440,11 +498,13 @@
   border-bottom: 0;
   border-radius: 12px 12px 0 0;
 }
-.chat-pane-title {
+/* The base stylesheet tints a header's first span with the accent; the chat title stays ink. */
+.chat-pane-head > .chat-pane-title {
   color: var(--text);
   overflow: hidden;
   letter-spacing: 0;
-  font-size: 14px;
+  font-size: var(--text-body);
+  font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -468,13 +528,14 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 10;
+  z-index: 30;
   min-width: 150px;
   margin-top: 4px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel, var(--bg));
+  background: var(--surface);
+  box-shadow: 0 8px 24px #0002;
 }
 .chat-menu button {
   display: flex;
@@ -485,7 +546,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  font-size: 13px;
+  font-size: var(--text-body);
   text-align: left;
 }
 .chat-menu button:hover {
@@ -502,7 +563,7 @@
   padding: 8px 14px;
   border: 1px solid var(--line);
   border-bottom: 0;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .chat-confirm span {
   flex: 1;
@@ -541,7 +602,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   padding: 8px 12px;
   border-radius: 12px 12px 0 0;
   background: var(--raised);
@@ -730,7 +791,7 @@ main.desktop-buddy {
 
 .compact-conversation .companion-error {
   margin: 8px 16px;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .compact-conversation .conversation-attachment {
   position: absolute;
@@ -848,7 +909,7 @@ main.desktop-buddy {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .tracking-health-dot {
   width: 8px;
@@ -865,13 +926,13 @@ main.desktop-buddy {
 }
 .tracking-health-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   margin-left: auto;
 }
 .tracking-goal-context {
   display: grid;
   gap: 5px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   overflow-wrap: anywhere;
 }
 .tracking-goal-context strong {
@@ -885,7 +946,7 @@ main.desktop-buddy {
   gap: 6px;
   cursor: pointer;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   padding-block: 6px;
 }
 .tracking-details .helper {
@@ -939,14 +1000,14 @@ main.desktop-buddy {
 }
 .app-shell .main > .page-title h1 {
   margin: 0;
-  font-size: 34px;
+  font-size: var(--text-title);
   line-height: 40px;
 }
 .app-shell .main > .page-title p {
   margin: 6px 0 0;
 }
 
-/* Switches: a 40 x 24 track with an 18px knob that always stays inside it. */
+/* Switches follow macOS: a 30 x 18 track with a 14px knob. */
 .toggle-row input[type="checkbox"],
 .core-workspace .toggle-row input[type="checkbox"] {
   appearance: none;
@@ -954,14 +1015,14 @@ main.desktop-buddy {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  width: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  height: 24px;
+  width: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  height: 18px;
   margin: 0 0 0 16px;
   padding: 0;
   border: 0;
-  border-radius: 12px;
+  border-radius: 9px;
   background: var(--field-line, var(--line));
   cursor: pointer;
   transition: background 0.18s ease;
@@ -970,13 +1031,13 @@ main.desktop-buddy {
 .core-workspace .toggle-row input[type="checkbox"]::before {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 18px;
-  height: 18px;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
   transform: none;
   transition: transform 0.18s ease;
 }
@@ -986,8 +1047,8 @@ main.desktop-buddy {
 }
 .toggle-row input[type="checkbox"]:checked::before,
 .core-workspace .toggle-row input[type="checkbox"]:checked::before {
-  background: var(--surface);
-  transform: translateX(16px);
+  background: #fff;
+  transform: translateX(12px);
 }
 .toggle-row input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--accent);
@@ -1049,7 +1110,7 @@ main.desktop-buddy.chatting > .companion-error {
   border-bottom: 1px solid var(--line);
 }
 .compact-header strong {
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .compact-conversation .conversation-history {
   flex: 1;
@@ -1064,7 +1125,7 @@ main.desktop-buddy.chatting > .companion-error {
 .compact-conversation .conversation-message {
   max-width: 88%;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .compact-conversation .conversation-message.user {
   align-self: flex-end;
@@ -1076,7 +1137,7 @@ main.desktop-buddy.chatting > .companion-error {
   margin: auto;
   text-align: center;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .compact-conversation .conversation-composer {
   align-items: flex-end;
@@ -1106,7 +1167,7 @@ main.desktop-buddy.chatting > .companion-error {
   gap: 5px;
   min-height: 30px;
   padding: 4px 6px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 400;
   white-space: nowrap;
 }
@@ -1122,7 +1183,7 @@ main.desktop-buddy.chatting > .companion-error {
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 12px 36px #0002;
-  font-size: 13px;
+  font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
 .checkpoint-popover .checkpoint-header {
@@ -1134,14 +1195,14 @@ main.desktop-buddy.chatting > .companion-error {
 .checkpoint-popover time {
   display: block;
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .checkpoint-popover p {
   margin: 10px 0;
 }
 .checkpoint-popover .helper {
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .checkpoint-popover .work-context-actions {
   border-top: 1px solid var(--line);
@@ -1172,8 +1233,8 @@ main.desktop-buddy.chatting > .companion-error {
   overflow: hidden;
   white-space: nowrap;
   color: var(--muted);
-  font-size: 9px;
-  font-weight: 600;
+  font-size: var(--text-caption);
+  font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -1198,7 +1259,7 @@ main.desktop-buddy.chatting > .companion-error {
   padding: 5px 15px;
   overflow: hidden;
   text-align: left;
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-weight: 400;
   border: 0;
   border-radius: 6px;
@@ -1250,7 +1311,7 @@ main.desktop-buddy.chatting > .companion-error {
   background: var(--surface);
   color: var(--text);
   box-shadow: 0 12px 36px #0003;
-  font-size: 12px;
+  font-size: var(--text-caption);
   max-height: calc(100vh - 24px);
   overflow-y: auto;
 }
@@ -1259,19 +1320,19 @@ main.desktop-buddy.chatting > .companion-error {
   line-height: 1.5;
 }
 .service-tooltip strong {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--text-caption);
+  font-weight: 500;
 }
 .service-tooltip small {
   display: block;
   margin-top: 6px;
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 .service-model {
   color: var(--muted);
-  font-size: 10px;
+  font-size: var(--text-caption);
   overflow-wrap: anywhere;
 }
 .service-state {
@@ -1279,7 +1340,7 @@ main.desktop-buddy.chatting > .companion-error {
   align-items: center;
   gap: 7px;
   margin-top: 10px;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .service-receipt {
   position: absolute;
@@ -1375,4 +1436,38 @@ main.desktop-buddy.chatting > .companion-error {
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   overflow-y: auto;
+}
+
+/* Chats page composer: flat grey icons grouped on the right, send turns dark when there is text. */
+.chat-pane .companion-composer-actions {
+  justify-content: flex-end;
+  gap: 2px;
+}
+.chat-pane .companion-composer-actions > span {
+  order: -1;
+  flex: 1;
+  font-size: var(--text-caption);
+}
+.chat-pane .companion-composer-actions > button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.chat-pane .companion-composer-actions > button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+.chat-pane .companion-composer-actions > button[type="submit"]:not(:disabled) {
+  color: var(--text);
+}
+.chat-pane .companion-composer-actions > button:disabled {
+  opacity: 0.45;
 }

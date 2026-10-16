@@ -22,6 +22,7 @@ import { Chats } from "../companion/Chats";
 import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
 import { TrackingStatus } from "./TrackingStatus";
+import { Toasts } from "../components/Toasts";
 
 export function Experience({
   page,
@@ -386,6 +387,7 @@ export function Experience({
           }
         />
       )}
+      <Toasts />
     </div>
   );
 }

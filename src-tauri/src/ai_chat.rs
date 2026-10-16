@@ -1722,3 +1722,25 @@ async fn name_conversation(app: AppHandle, conversation: i64) {
 #[cfg(test)]
 #[path = "ai_chat_tests.rs"]
 mod tests;
+
+/// Deletes a goal with the 30-day backup the chat skills use and returns the backup id for Undo.
+#[tauri::command(async)]
+pub fn delete_core_goal(state: State<AppState>, app: AppHandle, id: i64) -> Result<i64, String> {
+    let mut backup_id = 0_i64;
+    crate::core::mutate(&state, &app, |storage| {
+        backup_id = crate::skills::delete(storage, id)?;
+        Ok(())
+    })?;
+    Ok(backup_id)
+}
+/// Restores a goal deleted from the app by its backup id (Undo).
+#[tauri::command(async)]
+pub fn restore_core_goal(
+    state: State<AppState>,
+    app: AppHandle,
+    backup_id: i64,
+) -> Result<crate::core::CoreSnapshot, String> {
+    crate::core::mutate(&state, &app, |storage| {
+        crate::skills::restore(storage, backup_id).map(|_| ())
+    })
+}

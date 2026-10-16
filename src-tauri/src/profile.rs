@@ -116,13 +116,11 @@ pub fn validate_profile(profile: &mut UserProfile, require_identity: bool) -> Re
         .map(|app| app.trim().to_string())
         .collect();
     if !["cat", "dog", "seal", "bird"].contains(&profile.avatar.character.as_str())
-        || ![
-            "#A8D8C8", "#C9D3D8", "#E8EEF0", "#EF6B6B", "#F2C94C", "#4B8EF5",
-        ]
-        .contains(&profile.avatar.color.as_str())
+        || !is_hex_color(&profile.avatar.color)
     {
         return Err("Choose a supported character and color".into());
     }
+    profile.avatar.color = profile.avatar.color.to_ascii_uppercase();
     if profile.name.chars().count() > 120 || profile.name.chars().any(char::is_control) {
         return Err("Use at most 120 characters for your name".into());
     }
@@ -193,8 +191,8 @@ impl Storage {
     }
     pub fn user_settings(&self) -> Result<UserSettings, String> {
         let mut settings: UserSettings = self.read_setting("user_settings")?.unwrap_or_default();
-        // Migrate legacy custom colors on read without losing any profile or goal data.
-        settings.profile.avatar.color = palette_color(&settings.profile.avatar.color).into();
+        // Any #RRGGBB colour is kept; only a broken value falls back to the default.
+        settings.profile.avatar.color = palette_color(&settings.profile.avatar.color);
         if !["light", "dark"].contains(&settings.theme.as_str()) {
             settings.theme = "light".into();
         }
@@ -298,30 +296,19 @@ impl Storage {
     }
 }
 
-pub fn palette_color(color: &str) -> &'static str {
-    let palette = [
-        ("#A8D8C8", [168_i32, 216, 200]),
-        ("#C9D3D8", [201, 211, 216]),
-        ("#E8EEF0", [232, 238, 240]),
-    ];
-    let rgb = color
+pub fn is_hex_color(color: &str) -> bool {
+    color
         .strip_prefix('#')
-        .filter(|v| v.len() == 6 && v.is_ascii())
-        .and_then(|v| {
-            Some([
-                i32::from_str_radix(&v[0..2], 16).ok()?,
-                i32::from_str_radix(&v[2..4], 16).ok()?,
-                i32::from_str_radix(&v[4..6], 16).ok()?,
-            ])
-        });
-    rgb.map(|rgb| {
-        palette
-            .iter()
-            .min_by_key(|(_, p)| (0..3).map(|i| (rgb[i] - p[i]).pow(2)).sum::<i32>())
-            .unwrap()
-            .0
-    })
-    .unwrap_or("#A8D8C8")
+        .is_some_and(|v| v.len() == 6 && v.chars().all(|c| c.is_ascii_hexdigit()))
+}
+
+/// Keeps any valid #RRGGBB colour (uppercased); anything else becomes the default Matcha.
+pub fn palette_color(color: &str) -> String {
+    if is_hex_color(color) {
+        color.to_ascii_uppercase()
+    } else {
+        "#A8D8C8".into()
+    }
 }
 
 pub fn apply_theme(app: &tauri::AppHandle, theme: &str) -> Result<(), String> {
@@ -498,14 +485,14 @@ pub(crate) fn store_avatar_color(
     storage: &Storage,
     color: &str,
 ) -> Result<AvatarPreferences, String> {
-    if !["#A8D8C8", "#C9D3D8", "#E8EEF0"].contains(&color) {
+    if !is_hex_color(color) {
         return Err("Choose a supported companion color".into());
     }
     let mut settings = storage.user_settings()?;
     if !settings.onboarding.completed {
         return Err("Finish setup first".into());
     }
-    settings.profile.avatar.color = color.into();
+    settings.profile.avatar.color = color.to_ascii_uppercase();
     storage.write_setting("user_settings", &settings)?;
     Ok(settings.profile.avatar)
 }

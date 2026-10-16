@@ -24,7 +24,6 @@ const sections = [
   "Profile",
   "Privacy",
   "Memory",
-  "Appearance",
   "Updates",
   "Integrations / AI",
   "AI Monitor",
@@ -188,10 +187,6 @@ export function CoreSettings({
                 }}
               />
             </label>
-            <p className="helper">
-              Stored in your local profile. Email reports are not available yet;
-              this does not subscribe you or share your email with AI.
-            </p>
           </fieldset>
         </details>
         <details className="core-section" hidden={section !== "General"} open>
@@ -223,19 +218,11 @@ export function CoreSettings({
               }}
             />
           </label>
-          <p className="helper" role="status">
-            {data.buddy.desktop_visible
-              ? "sumi is visible on your desktop. Click to chat or drag to move."
-              : (data.buddy.visibility_reason ??
-                "Desktop visibility is being checked.")}
-          </p>
-          <button
-            className="text-button"
-            disabled={blocked || !desktop}
-            onClick={() => void run(api.resetBuddyPosition)}
-          >
-            Reset sumi position
-          </button>
+          {!data.buddy.desktop_visible && data.buddy.visibility_reason && (
+            <p className="helper" role="status">
+              {data.buddy.visibility_reason}
+            </p>
+          )}
           <label className="toggle-row">
             <span>Start when I sign in</span>
             <input
@@ -248,77 +235,29 @@ export function CoreSettings({
               }}
             />
           </label>
-          <label className="toggle-row">
-            <span>
-              Do not disturb
-              <small>
-                Pause all automatic nudges until you turn this off. Chat remains
-                available.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={data.status.dnd}
-              disabled={blocked}
-              onChange={(e) => void run(() => api.dnd(e.target.checked))}
-            />
-          </label>
-          <button
-            className="outline-button"
-            disabled={blocked}
-            onClick={() => void run(() => api.snooze(true))}
-          >
-            Pause nudges for 1 hour
-          </button>
-          {data.buddy.snoozed_until && (
-            <button
-              className="text-button"
-              disabled={blocked}
-              onClick={() => void run(() => api.snooze(false))}
-            >
-              Resume nudges now
-            </button>
-          )}
           <CompanionSettings
             onChanged={onChanged}
             currentPreferences={data.buddy.companion?.preferences}
           />
           <label className="toggle-row">
-            <span>
-              Movement reminders
-              <small>
-                A workspace note after 45 minutes on the optional timer.
-              </small>
-            </span>
+            <span>Remind me to move every 45 minutes</span>
             <input
               type="checkbox"
               checked={preferences.movement_reminders}
               disabled={blocked}
               onChange={(e) => {
-                setPreferences({
-                  ...preferences,
-                  movement_reminders: e.target.checked,
-                });
+                const enabled = e.target.checked;
+                setPreferences({ ...preferences, movement_reminders: enabled });
                 change();
+                const companion = data.buddy.companion?.preferences;
+                if (companion)
+                  void run(() =>
+                    api.companionPreferences({
+                      ...companion,
+                      movement_reminder: enabled,
+                    }),
+                  );
               }}
-            />
-          </label>
-        </details>
-        <details
-          className="core-section"
-          hidden={section !== "Appearance"}
-          open
-        >
-          <summary>Appearance</summary>
-          <label className="toggle-row">
-            <span>Dark theme</span>
-            <input
-              type="checkbox"
-              checked={settings.theme === "dark"}
-              disabled={blocked}
-              onChange={(e) =>
-                void run(() => api.theme(e.target.checked ? "dark" : "light"))
-              }
             />
           </label>
         </details>
@@ -329,10 +268,8 @@ export function CoreSettings({
             <span>
               Track goals and suggest completed work
               <small>
-                Record active windows and time locally, even before choosing a
-                goal. Use app context to match goals and send a limited sample
-                of visible text with your goal and steps to Nebius to suggest
-                completed work. Every completion needs your confirmation.
+                Records active windows locally and may send a small text sample
+                to Nebius. You confirm every completion.
               </small>
             </span>
             <input
@@ -470,10 +407,6 @@ export function CoreSettings({
           open
         >
           <summary>Integrations / AI</summary>
-          <p className="helper">
-            Goals work without AI. Provider keys are kept in the running app and
-            are not stored in your profile.
-          </p>
           <label>
             Vision model (optional)
             <input
@@ -519,12 +452,8 @@ export function CoreSettings({
           <summary>About</summary>
           <p>sumi · v{data.version}</p>
           <p className="helper">
-            Local profile · {settings.profile.name || "Your workspace"}
-          </p>
-          <p className="helper">
-            Goals, profile, chat and activity history are stored on this PC. AI
-            requests use the providers you configure. Local history is not
-            encrypted; deleting it does not delete records held by providers.
+            Everything is stored on this computer. AI requests go to the
+            providers you configure.
           </p>
         </details>
         <div className="settings-actions settings-save">

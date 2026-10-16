@@ -13,13 +13,13 @@ export interface CompanionPreferences {
 export const defaultCompanionPreferences: CompanionPreferences = {
   paused: false,
   daily_checkins: true,
-  screen_task_detection: false,
+  screen_task_detection: true,
   hide_fullscreen: true,
   morning_delay_minutes: 10,
   cooldown_minutes: 60,
   quiet_start_minute: 1140,
   quiet_end_minute: 540,
-  movement_reminder: false,
+  movement_reminder: true,
 };
 export interface Intervention {
   id: string;

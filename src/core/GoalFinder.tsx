@@ -206,7 +206,7 @@ export function GoalFinder({
   return (
     <div className="goal-finder">
       <form
-        className="quick-goal"
+        className="quick-goal search-field"
         role="combobox"
         aria-expanded={listOpen}
         aria-haspopup="listbox"
@@ -215,7 +215,11 @@ export function GoalFinder({
           void submit();
         }}
       >
-        <Search size={16} aria-hidden="true" className="finder-icon" />
+        <Search
+          size={16}
+          aria-hidden="true"
+          className="finder-icon search-field-icon"
+        />
         <input
           aria-label="Search or add a goal"
           placeholder="Search your goals, or type a new one…"

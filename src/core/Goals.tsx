@@ -6,14 +6,23 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Plus,
+  Search,
+  X,
+  MoreHorizontal,
+} from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
-import { DeadlinePicker } from "./DeadlinePicker";
+import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
+import { toast } from "../components/Toasts";
 import { GoalOrder } from "./GoalOrder";
+import { Pager, usePage } from "./Pager";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
   deadlineISO,
@@ -142,11 +151,14 @@ export function GoalRow({
       ),
     });
   }, [menu]);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepText, setStepText] = useState("");
   const [adding, setAdding] = useState(initialAdding);
   const [highlight, setHighlight] = useState(-1);
   const [finding, setFinding] = useState(false);
+  const [ideasOutcome, setIdeasOutcome] = useState<"idle" | "none" | "failed">(
+    "idle",
+  );
+  const [ideasError, setIdeasError] = useState("");
   const [completions, setCompletions] = useState<{
     prefix: string;
     items: string[];
@@ -166,6 +178,17 @@ export function GoalRow({
     if (ok) setStepText("");
     return ok;
   }
+  const deleteWithUndo = async () => {
+    let backup = 0;
+    const ok = await run(async () => {
+      backup = await coreApi.deleteGoal(goal.id);
+    });
+    if (!ok) return;
+    toast({
+      message: `Deleted “${sentenceCase(goal.title)}”`,
+      undo: () => run(() => coreApi.restoreGoal(backup)),
+    });
+  };
   const removeStep = (id: string) =>
     run(() =>
       coreApi.save(goal.title, area, {
@@ -214,13 +237,21 @@ export function GoalRow({
     }
     let current = true;
     setFinding(true);
+    setIdeasOutcome("idle");
     const timer = setTimeout(() => {
       void aiApi
         .completeStep(goal.id, stepText.trim())
         .then((items) => {
-          if (current) setCompletions({ prefix, items });
+          if (!current) return;
+          setCompletions({ prefix, items });
+          setIdeasOutcome(items.length ? "idle" : "none");
         })
-        .catch(() => {})
+        .catch((error) => {
+          console.warn("Step ideas unavailable", error);
+          if (!current) return;
+          setIdeasOutcome("failed");
+          setIdeasError(typeof error === "string" ? error : "");
+        })
         .finally(() => {
           if (current) setFinding(false);
         });
@@ -230,9 +261,19 @@ export function GoalRow({
       clearTimeout(timer);
     };
   }, [stepText, adding, goal.id]);
+  const toggleFromBlankSpace = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+    if (
+      target.closest(
+        "button, input, textarea, a, [contenteditable], .inline-text, .priority-picker, .goal-meta-wrap, .goal-overflow",
+      )
+    )
+      return;
+    setExpanded(!expanded);
+  };
   return (
     <article className={`core-goal ${goal.status}`}>
-      <div className="goal-heading">
+      <div className="goal-heading" onClick={toggleFromBlankSpace}>
         {!readOnly && (
           <div className="goal-overflow" ref={menuRoot}>
             <button
@@ -261,15 +302,6 @@ export function GoalRow({
                     disabled={disabled}
                     onClick={() => {
                       setMenu(false);
-                      edit(goal);
-                    }}
-                  >
-                    Goal details
-                  </button>
-                  <button
-                    disabled={disabled}
-                    onClick={() => {
-                      setMenu(false);
                       void run(() => coreApi.today(goal.id, !today));
                     }}
                   >
@@ -280,7 +312,7 @@ export function GoalRow({
                     disabled={disabled}
                     onClick={() => {
                       setMenu(false);
-                      setConfirmDelete(true);
+                      void deleteWithUndo();
                     }}
                   >
                     Delete goal
@@ -333,7 +365,7 @@ export function GoalRow({
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
           {goal.status === "open" && (
-            <GoalMeta goal={goal} onToday={today} onEdit={() => edit(goal)} />
+            <GoalMeta goal={goal} onToday={today} area={area} run={run} />
           )}
         </div>
         <button
@@ -478,6 +510,7 @@ export function GoalRow({
             </form>
             {(ideas.length > 0 ||
               finding ||
+              (typed && ideasOutcome !== "idle") ||
               (!suggestions &&
                 ["queued", "working", "failed"].includes(
                   goal.analysis?.state ?? "",
@@ -511,6 +544,15 @@ export function GoalRow({
                   <p className="ideas-note ideas-loading" role="status">
                     Finding ideas<span aria-hidden="true">...</span>
                   </p>
+                ) : typed && ideasOutcome === "failed" ? (
+                  <p className="ideas-note" role="status">
+                    {ideasError || "Ideas are unavailable right now."} Press
+                    Enter to add the step as typed.
+                  </p>
+                ) : typed && ideasOutcome === "none" && ideas.length === 0 ? (
+                  <p className="ideas-note" role="status">
+                    No ideas for this yet. Keep typing or press Enter to add it.
+                  </p>
                 ) : (
                   !suggestions &&
                   goal.analysis?.state !== "failed" && (
@@ -536,27 +578,6 @@ export function GoalRow({
           </div>
         )}
       </div>
-      {confirmDelete && (
-        <div className="delete-confirm" role="alert">
-          <p>Delete this goal, its steps and its local progress history?</p>
-          <button
-            className="danger-button"
-            disabled={disabled}
-            onClick={() =>
-              void run(() => coreApi.transition(goal.id, "delete", true))
-            }
-          >
-            Delete permanently
-          </button>
-          <button
-            className="text-button"
-            disabled={disabled}
-            onClick={() => setConfirmDelete(false)}
-          >
-            Keep goal
-          </button>
-        </div>
-      )}
     </article>
   );
 }
@@ -796,17 +817,34 @@ export function GoalAreas({
   const archive = snapshot.goals.filter(
     (goal) => goal.status !== "open" && matches(goal),
   );
+  const activePage = usePage(active, normalized);
+  const archivePage = usePage(archive, normalized);
   return (
     <section className="core-section goal-log" aria-label="Goals">
-      <label className="goal-search">
-        <span className="sr-only">Search goals</span>
-        <input
-          type="search"
-          placeholder="Search..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <form
+        className="goal-finder goal-search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const title = query.trim();
+          if (!title || busy || !desktop) return;
+          void run(() => coreApi.create(title)).then((ok) => {
+            if (ok) setQuery("");
+          });
+        }}
+      >
+        <div className="quick-goal search-field">
+          <Search size={16} aria-hidden="true" className="search-field-icon" />
+          <input
+            type="search"
+            aria-label="Search or add a goal"
+            placeholder="Search your goals, or type a new one…"
+            maxLength={500}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <button disabled={busy || !desktop || !query.trim()}>Add goal</button>
+        </div>
+      </form>
       <div className="goal-log-part">
         <h2>Active</h2>
         {active.length === 0 ? (
@@ -817,7 +855,7 @@ export function GoalAreas({
           </p>
         ) : (
           <GoalOrder
-            goals={active}
+            goals={activePage.visible}
             allGoals={snapshot.goals}
             disabled={busy || !!query}
             reorder={(ids) => run(() => coreApi.reorder(ids))}
@@ -836,6 +874,12 @@ export function GoalAreas({
             )}
           </GoalOrder>
         )}
+        <Pager
+          page={activePage.page}
+          pages={activePage.pages}
+          onChange={activePage.setPage}
+          label="Active goals"
+        />
       </div>
       <div className="goal-log-part">
         <h2>Archive</h2>
@@ -846,7 +890,7 @@ export function GoalAreas({
               : "Completed and set-aside items will appear here."}
           </p>
         ) : (
-          archive.map((goal) => (
+          archivePage.visible.map((goal) => (
             <GoalRow
               key={goal.id}
               goal={goal}
@@ -860,21 +904,38 @@ export function GoalAreas({
             />
           ))
         )}
+        <Pager
+          page={archivePage.page}
+          pages={archivePage.pages}
+          onChange={archivePage.setPage}
+          label="Archive"
+        />
       </div>
     </section>
   );
 }
 
-/** Deadline and expected time after the title. Today goals without a deadline are due today. */
+/** Deadline and expected time after the title; click opens the date, time and estimate popover.
+ *  Today goals without a deadline are shown as due today. */
 export function GoalMeta({
   goal,
   onToday,
-  onEdit,
+  area,
+  run,
 }: {
   goal: CoreGoal;
   onToday: boolean;
-  onEdit: () => void;
+  area: string;
+  run: (work: () => Promise<unknown>) => Promise<boolean>;
 }) {
+  const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
+    useDismissiblePopover();
+  const [minutes, setMinutes] = useState(
+    goal.estimated_minutes ? String(goal.estimated_minutes) : "",
+  );
+  useEffect(() => {
+    setMinutes(goal.estimated_minutes ? String(goal.estimated_minutes) : "");
+  }, [goal.estimated_minutes]);
   const now = new Date();
   const due = goal.due_at ? new Date(goal.due_at) : null;
   const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
@@ -888,22 +949,81 @@ export function GoalMeta({
   } else if (onToday) {
     deadline = "due today";
   }
-  const minutes = goal.estimated_minutes ?? null;
+  const estimated = goal.estimated_minutes ?? null;
   const estimate =
-    minutes === null
+    estimated === null
       ? (goal.analysis?.result?.estimatedDuration ?? "")
-      : minutes >= 60
-        ? `~${Math.round((minutes / 60) * 10) / 10} h`
-        : `~${minutes} min`;
-  if (!deadline && !estimate) return null;
+      : estimated >= 60
+        ? `~${Math.round((estimated / 60) * 10) / 10} h`
+        : `~${estimated} min`;
+  const label =
+    [deadline, estimate].filter(Boolean).join(" · ") || "set deadline";
+  function saveDeadline(local: string) {
+    void run(() =>
+      coreApi.save(goal.title, area, goal.plan, {
+        due_at: deadlineISO(local),
+        priority: goal.priority ?? null,
+        description: goal.description ?? "",
+      }),
+    );
+  }
+  function saveEstimate() {
+    const text = minutes.trim();
+    const parsed = text ? Number(text) : null;
+    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1)) return;
+    if (parsed !== (goal.estimated_minutes ?? null))
+      void run(() => coreApi.estimate(goal.id, parsed));
+  }
   return (
-    <button
-      type="button"
-      className={`text-button goal-meta ${overdue ? "overdue" : ""}`}
-      title="Deadline and expected time · click to change"
-      onClick={onEdit}
-    >
-      {[deadline, estimate].filter(Boolean).join(" · ")}
-    </button>
+    <span className="goal-meta-wrap" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`text-button goal-meta ${overdue ? "overdue" : ""}`}
+        title="Deadline and expected time"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen(!open)}
+      >
+        {label}
+      </button>
+      {open && (
+        <div
+          className="period-popover deadline-popover goal-meta-popover"
+          id={id}
+          ref={surfaceRef}
+          role="dialog"
+          aria-label={`Deadline for ${goal.title}`}
+        >
+          <DeadlinePanel
+            value={localDeadline(goal.due_at)}
+            onChange={saveDeadline}
+            onDone={() => setOpen(false)}
+            extra={
+              <label className="deadline-time">
+                <span>Takes</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  inputMode="numeric"
+                  placeholder="minutes"
+                  aria-label="Estimated minutes"
+                  value={minutes}
+                  onChange={(event) => setMinutes(event.target.value)}
+                  onBlur={saveEstimate}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveEstimate();
+                    }
+                  }}
+                />
+              </label>
+            }
+          />
+        </div>
+      )}
+    </span>
   );
 }

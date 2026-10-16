@@ -56,8 +56,8 @@ export const pages = [
   {
     id: "settings",
     label: "Settings",
+    description: "",
     icon: Settings,
-    description: "Make this workspace feel like yours.",
   },
   {
     id: "profile",

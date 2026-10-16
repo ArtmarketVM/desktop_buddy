@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
@@ -42,15 +42,18 @@ export function formatDeadline(value: string): string {
   return allDay ? day : `${day} · ${formatTime(date)}`;
 }
 
-export function DeadlinePicker({
+export function DeadlinePanel({
   value,
   onChange,
+  onDone,
+  extra,
 }: {
   value: string;
   onChange: (value: string) => void;
+  onDone?: () => void;
+  /** Optional rows under the time field, e.g. an estimated-time input. */
+  extra?: ReactNode;
 }) {
-  const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
-    useDismissiblePopover();
   const selected = value ? new Date(value) : null;
   const valid = selected && !Number.isNaN(selected.getTime()) ? selected : null;
   const withTime =
@@ -64,14 +67,6 @@ export function DeadlinePicker({
   );
   const [timeError, setTimeError] = useState(false);
   const timeInput = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const base = valid ?? new Date();
-    setView({ year: base.getFullYear(), month: base.getMonth() });
-    setTimeText(valid && withTime ? formatTime(valid) : "");
-    setTimeError(false);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
-
   function pickDay(day: Date) {
     const next = new Date(day);
     if (valid && withTime)
@@ -103,6 +98,135 @@ export function DeadlinePicker({
   const same = (a: Date, b: Date | null) =>
     !!b && a.toDateString() === b.toDateString();
   return (
+    <div className="deadline-panel">
+      <div className="period-head">
+        <strong>
+          {first.toLocaleDateString(undefined, {
+            month: "short",
+            year: "numeric",
+          })}
+        </strong>
+        <span>
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              const now = new Date();
+              setView({ year: now.getFullYear(), month: now.getMonth() });
+              onChange(localValue(now, true));
+              setTimeText(formatTime(now));
+            }}
+          >
+            Now
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Previous month"
+            onClick={() =>
+              setView(({ year, month }) =>
+                month
+                  ? { year, month: month - 1 }
+                  : { year: year - 1, month: 11 },
+              )
+            }
+          >
+            <ChevronLeft size={15} />
+          </button>
+          <button
+            type="button"
+            className="text-button"
+            aria-label="Next month"
+            onClick={() =>
+              setView(({ year, month }) =>
+                month === 11
+                  ? { year: year + 1, month: 0 }
+                  : { year, month: month + 1 },
+              )
+            }
+          >
+            <ChevronRight size={15} />
+          </button>
+        </span>
+      </div>
+      <div className="period-grid">
+        {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
+          <small key={d}>{d}</small>
+        ))}
+        {days.map((day) => (
+          <button
+            type="button"
+            key={day.toISOString()}
+            className={`deadline-day ${day.getMonth() !== view.month ? "outside" : ""} ${same(day, today) ? "today" : ""} ${same(day, valid) ? "selected" : ""}`}
+            aria-pressed={same(day, valid)}
+            aria-label={day.toDateString()}
+            onClick={() => pickDay(day)}
+          >
+            {day.getDate()}
+          </button>
+        ))}
+      </div>
+      <label className="deadline-time">
+        <span>Time</span>
+        <input
+          ref={timeInput}
+          type="text"
+          inputMode="numeric"
+          placeholder="e.g. 13:00 or 1 pm"
+          aria-label="Deadline time"
+          aria-invalid={timeError || undefined}
+          value={timeText}
+          onChange={(event) => setTimeText(event.target.value)}
+          onBlur={commitTime}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              commitTime();
+            }
+          }}
+        />
+      </label>
+      {timeError && (
+        <p className="error deadline-error">
+          Use a time like 13:00 or 1:30 pm.
+        </p>
+      )}
+      {extra}
+      <div className="deadline-actions">
+        {valid && (
+          <button
+            type="button"
+            className="text-button"
+            onClick={() => {
+              onChange("");
+              setTimeText("");
+            }}
+          >
+            Clear
+          </button>
+        )}
+        {onDone && (
+          <button type="button" className="text-button" onClick={onDone}>
+            Done
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function DeadlinePicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
+    useDismissiblePopover();
+  const selected = value ? new Date(value) : null;
+  const valid = selected && !Number.isNaN(selected.getTime()) ? selected : null;
+  return (
     <div className="deadline-picker" ref={rootRef}>
       <button
         ref={triggerRef}
@@ -122,119 +246,11 @@ export function DeadlinePicker({
           role="dialog"
           aria-label="Deadline"
         >
-          <div className="period-head">
-            <strong>
-              {first.toLocaleDateString(undefined, {
-                month: "short",
-                year: "numeric",
-              })}
-            </strong>
-            <span>
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  const now = new Date();
-                  setView({ year: now.getFullYear(), month: now.getMonth() });
-                  onChange(localValue(now, true));
-                  setTimeText(formatTime(now));
-                }}
-              >
-                Now
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                aria-label="Previous month"
-                onClick={() =>
-                  setView(({ year, month }) =>
-                    month
-                      ? { year, month: month - 1 }
-                      : { year: year - 1, month: 11 },
-                  )
-                }
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <button
-                type="button"
-                className="text-button"
-                aria-label="Next month"
-                onClick={() =>
-                  setView(({ year, month }) =>
-                    month === 11
-                      ? { year: year + 1, month: 0 }
-                      : { year, month: month + 1 },
-                  )
-                }
-              >
-                <ChevronRight size={15} />
-              </button>
-            </span>
-          </div>
-          <div className="period-grid">
-            {["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((d) => (
-              <small key={d}>{d}</small>
-            ))}
-            {days.map((day) => (
-              <button
-                type="button"
-                key={day.toISOString()}
-                className={`deadline-day ${day.getMonth() !== view.month ? "outside" : ""} ${same(day, today) ? "today" : ""} ${same(day, valid) ? "selected" : ""}`}
-                aria-pressed={same(day, valid)}
-                aria-label={day.toDateString()}
-                onClick={() => pickDay(day)}
-              >
-                {day.getDate()}
-              </button>
-            ))}
-          </div>
-          <label className="deadline-time">
-            <span>Time</span>
-            <input
-              ref={timeInput}
-              type="text"
-              inputMode="numeric"
-              placeholder="e.g. 13:00 or 1 pm"
-              aria-label="Deadline time"
-              aria-invalid={timeError || undefined}
-              value={timeText}
-              onChange={(event) => setTimeText(event.target.value)}
-              onBlur={commitTime}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitTime();
-                }
-              }}
-            />
-          </label>
-          {timeError && (
-            <p className="error deadline-error">
-              Use a time like 13:00 or 1:30 pm.
-            </p>
-          )}
-          <div className="deadline-actions">
-            {valid && (
-              <button
-                type="button"
-                className="text-button"
-                onClick={() => {
-                  onChange("");
-                  setTimeText("");
-                }}
-              >
-                Clear
-              </button>
-            )}
-            <button
-              type="button"
-              className="text-button"
-              onClick={() => setOpen(false)}
-            >
-              Done
-            </button>
-          </div>
+          <DeadlinePanel
+            value={value}
+            onChange={onChange}
+            onDone={() => setOpen(false)}
+          />
         </div>
       )}
     </div>

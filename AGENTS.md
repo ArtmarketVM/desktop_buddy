@@ -26,3 +26,12 @@
 - After repeated identical failures, investigate the cause instead of blindly retrying.
 - Keep progress updates brief. Final responses should summarize results, verification, and blockers without repeating the plan.
 - Stop when the requested outcome is verified. Suggest optional next steps without executing them.
+
+## Local macOS test builds
+
+- Install only internally signed local builds: the credential helper refuses an ad-hoc signed app, so unsigned builds (`BUDDY_MACOS_UNSIGNED=true`) cannot read saved Nebius/Tavily keys and every AI feature fails. Sign with the ignored identity in `.tools/signing/internal-macos/` via `scripts/internal-macos-signing.sh` and a temporary `--config` that sets `bundle.macOS.signingIdentity` (no updater key needed for a local `.app`).
+- The startup update is mandatory: a local build whose version is below the latest GitHub release replaces itself on launch. Keep the branch version above the latest published release while testing locally.
+
+## Typography
+
+- Follow `docs/TYPOGRAPHY.md`: one family (Zen Maru Gothic) for everything; four sizes via `--text-title`, `--text-heading`, `--text-body`, `--text-caption`; weights 400 and 500 only. Never write a literal `font-size` in px.
