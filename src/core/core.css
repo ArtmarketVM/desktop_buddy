@@ -2147,3 +2147,12 @@ p.error .text-button {
   background: var(--raised);
   color: var(--muted);
 }
+
+.goal-title-row > .priority-picker {
+  display: inline-block;
+  margin: 0 2px 0 10px;
+  vertical-align: middle;
+}
+.goal-title-row > .priority-picker .priority-tag {
+  vertical-align: middle;
+}

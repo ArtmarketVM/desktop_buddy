@@ -354,6 +354,16 @@ export function GoalRow({
               void run(() => coreApi.transition(goal.id, "delete", true))
             }
           />
+          {!readOnly && goal.status === "open" && (
+            <PriorityPicker
+              priority={goal.priority}
+              disabled={disabled}
+              label={goal.title}
+              onChange={(priority) =>
+                void run(() => coreApi.priority(goal.id, priority))
+              }
+            />
+          )}
           <small>
             {goal.plan.steps.length}{" "}
             {goal.plan.steps.length === 1 ? "step" : "steps"}
@@ -371,16 +381,6 @@ export function GoalRow({
             className={`goal-chevron ${expanded ? "rotated" : ""}`}
           />
         </button>
-        {!readOnly && goal.status === "open" && (
-          <PriorityPicker
-            priority={goal.priority}
-            disabled={disabled}
-            label={goal.title}
-            onChange={(priority) =>
-              void run(() => coreApi.priority(goal.id, priority))
-            }
-          />
-        )}
       </div>
       <div className="goal-expanded" hidden={!expanded}>
         <ul className="core-steps">
