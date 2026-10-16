@@ -30,11 +30,11 @@
   box-shadow: none;
 }
 .core-workspace h2 {
-  font-size: 19px;
+  font-size: var(--text-heading);
   margin: 0 0 8px;
 }
 .core-workspace h3 {
-  font-size: 15px;
+  font-size: var(--text-body);
 }
 .core-workspace p {
   line-height: 1.6;
@@ -42,7 +42,7 @@
 .core-workspace .helper,
 .empty-copy {
   color: var(--muted, var(--muted));
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .section-heading {
   display: flex;
@@ -64,7 +64,7 @@
   margin-bottom: 18px;
 }
 .composer-heading p {
-  font-size: 13px;
+  font-size: var(--text-body);
   color: var(--muted);
   margin: 6px 0 0;
 }
@@ -76,7 +76,7 @@
   border-radius: 12px;
   width: 38px;
   height: 38px;
-  font-weight: 600;
+  font-weight: 500;
   flex-shrink: 0;
 }
 .core-composer > textarea {
@@ -88,7 +88,7 @@
   width: 100%;
   padding: 16px;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .composer-actions {
@@ -108,7 +108,7 @@
   flex: 1;
 }
 .composer-sharing {
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
   margin-top: 16px;
 }
@@ -136,7 +136,7 @@
   min-width: 0;
 }
 .core-workspace label:not(.toggle-row):not(.small-check) {
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .core-workspace label > input:not([type="checkbox"]),
 .core-workspace label > textarea {
@@ -154,7 +154,7 @@
   gap: 8px;
   flex-wrap: wrap;
   margin: 12px 0;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .attachment-list > span,
 .summary-areas > span {
@@ -186,7 +186,7 @@
 }
 .import-proposal legend {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .import-proposal textarea {
   min-height: 90px;
@@ -198,7 +198,7 @@
   display: flex;
   gap: 6px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .core-area > summary,
@@ -214,13 +214,13 @@
   display: none;
 }
 .core-area > summary {
-  font-size: 14px;
+  font-size: var(--text-body);
   padding: 14px 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 .core-area > summary > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption);
   font-weight: 400;
 }
 .core-area[open] > summary > svg,
@@ -306,7 +306,7 @@
 }
 .goal-enhancement {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .goal-enhancement > summary {
@@ -336,7 +336,7 @@
 }
 .page-history .history-navigation > .text-button {
   padding-right: 0;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .captured-goal {
   margin: 12px 0;
@@ -374,7 +374,7 @@
 }
 .core-goal-title {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--text-body);
   overflow-wrap: anywhere;
   justify-content: flex-start;
   width: 100%;
@@ -382,7 +382,7 @@
 .core-goal-title small {
   display: inline;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   margin-left: 8px;
   font-weight: 400;
 }
@@ -402,7 +402,7 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .goal-expanded {
@@ -427,10 +427,10 @@
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .goal-actions button {
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .today-picker {
   display: flex;
@@ -469,15 +469,15 @@
   flex-shrink: 0;
 }
 .day-summary h2 {
-  font-size: 17px;
+  font-size: var(--text-heading);
 }
 .day-summary ul {
   padding-left: 18px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.8;
 }
 .day-summary p {
-  font-size: 14px;
+  font-size: var(--text-body);
   margin: 6px 0;
 }
 .week-navigation {
@@ -515,10 +515,10 @@
 }
 .week-strip span,
 .week-strip small {
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .week-strip strong {
-  font-size: 16px;
+  font-size: var(--text-heading);
   font-variant-numeric: tabular-nums;
 }
 .progress-toolbar {
@@ -527,7 +527,7 @@
 .progress-range {
   margin: 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .progress-controls {
   display: flex;
@@ -569,7 +569,7 @@
   display: grid;
   gap: 6px;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .progress-bar-day > div {
@@ -588,7 +588,7 @@
 }
 .progress-bar-day strong,
 .progress-bar-day em {
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-style: normal;
   font-weight: 500;
   color: var(--text);
@@ -607,7 +607,7 @@
 }
 .selected-goal-progress p {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .progress-history .day-summary {
   background: transparent;
@@ -630,7 +630,7 @@
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .goal-time-list small {
   display: block;
@@ -658,7 +658,7 @@
 .progress-goal-details {
   padding: 0 0 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .progress-goal-details p {
   margin: 6px 0;
@@ -681,7 +681,7 @@
   display: flex;
   justify-content: space-between;
   color: var(--positive);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .core-dialog {
   background: var(--surface, var(--surface));
@@ -706,7 +706,7 @@
 .core-dialog fieldset > label {
   display: block;
   margin: 14px 0;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .core-dialog input {
   width: 100%;
@@ -757,7 +757,7 @@
   padding-top: 34px;
 }
 .core-onboarding h1 {
-  font-size: 30px;
+  font-size: var(--text-title);
 }
 .core-onboarding > label {
   display: block;
@@ -811,7 +811,7 @@
     gap: 0;
   }
   .core-onboarding h1 {
-    font-size: 24px;
+    font-size: var(--text-title);
   }
 }
 
@@ -835,7 +835,7 @@
   border-bottom: 1px solid var(--line, var(--accent-soft));
 }
 .activity-timeline time {
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
   min-width: 96px;
 }
@@ -939,7 +939,7 @@
 .priority-badge {
   padding: 2px 5px;
   border-radius: 5px;
-  font-weight: 600;
+  font-weight: 500;
 }
 .priority-high {
   color: var(--danger);
@@ -967,7 +967,7 @@
 }
 .workspace-overview span {
   display: block;
-  font-size: 12px;
+  font-size: var(--text-caption);
   margin-top: 5px;
   color: var(--muted);
 }
@@ -985,7 +985,7 @@
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .settings-sections button:hover,
 .settings-sections button.selected {
@@ -999,7 +999,7 @@
 }
 .core-settings summary {
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
 }
 .core-settings details {
   scroll-margin-top: 18px;
@@ -1032,8 +1032,8 @@
   gap: 5px;
 }
 .planned-date-control strong {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--text-heading);
+  font-weight: 500;
 }
 .segmented-control {
   display: inline-flex;
@@ -1057,7 +1057,7 @@
 }
 .today-secondary {
   margin-top: 18px;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .today-secondary summary {
   color: var(--muted);
@@ -1116,8 +1116,8 @@
   margin: 0;
 }
 .goal-log-part h2 {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: var(--text-heading);
+  font-weight: 500;
   margin: 0 0 6px;
 }
 /* Goals page lists look like Today: no separators, tighter rows. */
@@ -1148,7 +1148,7 @@
   align-items: center;
   gap: 8px;
   padding: 4px 0;
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 20px;
 }
 .goal-expanded .core-steps input[type="checkbox"] {
@@ -1194,7 +1194,7 @@
   gap: 8px;
   padding: 4px 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 20px;
 }
 .goal-expanded .add-step svg {
@@ -1225,7 +1225,7 @@
   border: 0;
   border-radius: 0;
   background: transparent;
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 20px;
   color: var(--text);
 }
@@ -1245,7 +1245,7 @@
 .ideas-note {
   margin: 0;
   padding: 4px 8px 2px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .ideas-menu > button[role="option"] {
@@ -1256,7 +1256,7 @@
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 20px;
   text-align: left;
   cursor: pointer;
@@ -1291,7 +1291,7 @@
   gap: 6px;
   flex: none;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .progress-goals {
   padding: 0;
@@ -1316,7 +1316,7 @@
   margin: 14px 0 4px;
 }
 .selected-goal-progress h3 {
-  font-size: 14px;
+  font-size: var(--text-body);
   font-weight: 500;
 }
 .progress-goals > li.core-goal {
@@ -1351,19 +1351,19 @@
 }
 .day-summary p {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 22px;
 }
 .day-summary .summary-detail {
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 20px;
 }
 .day-summary.has-progress > svg {
   color: var(--accent, var(--accent));
 }
 .day-summary strong {
-  font-weight: 600;
+  font-weight: 500;
 }
 .goal-heading {
   gap: 6px;
@@ -1497,14 +1497,14 @@ textarea:focus {
 }
 .progress-goal-title {
   margin: 0 0 8px;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: var(--text-heading);
+  font-weight: 500;
 }
 .progress-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: var(--text-body);
   margin-bottom: 14px;
 }
 .progress-nav strong {
@@ -1517,14 +1517,14 @@ textarea:focus {
   color: var(--muted);
 }
 .progress-total {
-  font-size: 30px;
-  font-weight: 600;
+  font-size: var(--text-title);
+  font-weight: 500;
   line-height: 36px;
 }
 .progress-sub {
   margin: 0 0 12px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .stack-chart {
   display: flex;
@@ -1557,7 +1557,7 @@ textarea:focus {
   height: 18px;
   text-align: center;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 18px;
 }
 .progress-list {
@@ -1577,7 +1577,7 @@ textarea:focus {
   border-top: 1px solid var(--line);
   color: var(--text);
   text-align: left;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .progress-row > span:not(.done-box) {
   flex: 1;
@@ -1591,7 +1591,7 @@ textarea:focus {
 }
 .progress-row > em {
   font-style: normal;
-  font-size: 14px;
+  font-size: var(--text-body);
   color: var(--muted);
 }
 .progress-row.muted {
@@ -1644,7 +1644,7 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 6px;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .period-head .text-button {
   padding: 2px 6px;
@@ -1658,7 +1658,7 @@ textarea:focus {
 }
 .period-grid small {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   padding: 4px 0;
 }
 .period-months {
@@ -1672,7 +1672,7 @@ textarea:focus {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 400;
 }
 .period-cell:hover:not(:disabled) {
@@ -1704,7 +1704,7 @@ p.update-error {
   border-radius: 6px;
   background: var(--raised);
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 20px;
 }
 .callout::before,
@@ -1756,7 +1756,7 @@ p.error .text-button {
 .progress-bar .segmented-control {
   height: 36px;
   box-sizing: border-box;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 20px;
 }
 .progress-bar .segmented-control {
@@ -1767,13 +1767,13 @@ p.error .text-button {
   height: 30px;
   min-height: 0;
   padding: 0 12px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 30px;
   font-weight: 500;
 }
 .progress-bar .progress-nav .period-label {
   height: 36px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 20px;
   padding: 0 10px;
 }
@@ -1798,10 +1798,10 @@ p.error .text-button {
 /* Checkpoints stay within the existing goal column. */
 .goal-work-context { margin: 0 0 8px 32px; }
 .work-context-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
-.work-context-status { font-size: 12px; font-weight: 600; color: var(--muted, var(--text)); }
-.work-context-checkpoint { font-size: 13px; overflow-wrap: anywhere; }
+.work-context-status { font-size: var(--text-caption); font-weight: 500; color: var(--muted, var(--text)); }
+.work-context-checkpoint { font-size: var(--text-body); overflow-wrap: anywhere; }
 .work-context-checkpoint p { margin: 6px 0; }
-.work-context-receipt { white-space: pre-line; font-size: 13px; }
+.work-context-receipt { white-space: pre-line; font-size: var(--text-body); }
 
 /* Explicit focus and a separate, reorderable queue. */
 .today-lane-heading,
@@ -1815,12 +1815,12 @@ p.error .text-button {
 }
 .today-lane-heading h3 {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--text-body);
+  font-weight: 500;
 }
 .today-lane-heading > span:last-child {
   margin-left: auto;
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
 }
 .focus-dot {
@@ -1834,14 +1834,14 @@ p.error .text-button {
   padding-left: 14px;
 }
 .today-queue-heading {
-  font-size: 11px;
+  font-size: var(--text-caption);
   color: var(--muted);
   padding: 8px 0 0;
 }
 .today-queue-heading button {
   margin-left: auto;
   padding: 3px 8px;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .today-finished {
   margin-top: 20px;
@@ -1851,7 +1851,7 @@ p.error .text-button {
   margin-top: 4px;
 }
 .window-activity .helper {
-  font-size: 12px;
+  font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.5;
 }
@@ -1864,7 +1864,7 @@ p.error .text-button {
   grid-template-columns: minmax(90px, 1fr) minmax(60px, 2fr) 55px;
   align-items: center;
   gap: 12px;
-  font-size: 12px;
+  font-size: var(--text-caption);
   padding: 5px 0;
 }
 .observed-apps meter {
@@ -1884,7 +1884,7 @@ p.error .text-button {
   gap: 12px;
   border-bottom: 1px solid var(--line, var(--accent-soft));
   padding: 10px 0;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .window-session-list time,
 .window-session-list small {
@@ -1951,7 +1951,7 @@ p.error .text-button {
 .finder-label {
   margin: 6px 10px 2px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .finder-list {
   margin: 0;
@@ -1975,7 +1975,7 @@ p.error .text-button {
   border-radius: 8px;
   background: transparent;
   color: var(--text);
-  font-size: 14px;
+  font-size: var(--text-body);
   text-align: left;
 }
 .finder-row > button:first-child svg {
@@ -1985,7 +1985,7 @@ p.error .text-button {
 .finder-row .core-goal-title em {
   margin-left: 8px;
   color: var(--accent);
-  font-size: 11px;
+  font-size: var(--text-caption);
   font-style: normal;
 }
 .finder-row.create > button:first-child {
@@ -2049,7 +2049,7 @@ p.error .text-button {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
   text-align: left;
 }
 .priority-menu button:hover,
@@ -2062,7 +2062,7 @@ p.error .text-button {
 .priority-menu kbd {
   color: var(--muted);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-caption);
 }
 .priority-menu svg:last-child {
   color: var(--accent);
@@ -2117,7 +2117,7 @@ p.error .text-button {
   border-radius: var(--radius-pill);
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 16px;
 }
 .priority-tag.urgent {
@@ -2168,7 +2168,7 @@ p.error .text-button {
   margin-left: 10px;
   padding: 0 4px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--text-caption);
   vertical-align: baseline;
 }
 .goal-meta.overdue {
@@ -2215,7 +2215,7 @@ details.today-summary > .today-summary-head {
 }
 .today-summary-head strong {
   flex: 1;
-  font-size: 15px;
+  font-size: var(--text-body);
   font-weight: 500;
 }
 .today-summary-counts {
@@ -2223,7 +2223,7 @@ details.today-summary > .today-summary-head {
   align-items: center;
   gap: 10px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .today-summary-counts .summary-chevron {
   transition: transform 150ms;
@@ -2244,7 +2244,7 @@ details.today-summary > .today-summary-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .today-summary-dot {
   flex: none;
@@ -2260,13 +2260,13 @@ details.today-summary > .today-summary-head {
 .today-summary-time {
   margin-left: auto;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   font-variant-numeric: tabular-nums;
 }
 .today-summary-steps {
   margin: 2px 0 6px 20px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 
 /* Deadline picker: calendar plus a free-typed time, like a Notion date. */
@@ -2302,7 +2302,7 @@ details.today-summary > .today-summary-head {
   border-radius: 6px;
   background: transparent;
   color: var(--text);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .deadline-day:hover:not(:disabled) {
   background: var(--raised);
@@ -2313,7 +2313,7 @@ details.today-summary > .today-summary-head {
 }
 .deadline-day.today {
   color: var(--accent);
-  font-weight: 600;
+  font-weight: 500;
 }
 .deadline-day.selected,
 .deadline-day.selected:hover {
@@ -2327,7 +2327,7 @@ details.today-summary > .today-summary-head {
   margin: 10px 0 0;
   padding-top: 10px;
   border-top: 1px solid var(--line);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .deadline-time span {
   color: var(--muted);
@@ -2344,7 +2344,7 @@ details.today-summary > .today-summary-head {
 }
 .deadline-error {
   margin: 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-caption);
 }
 .deadline-actions {
   display: flex;
@@ -2404,7 +2404,7 @@ details.today-summary > .today-summary-head {
   border-radius: 8px;
   background: var(--text);
   color: var(--canvas);
-  font-size: 11px;
+  font-size: var(--text-caption);
   line-height: 1.6;
   text-align: left;
   pointer-events: none;
@@ -2444,7 +2444,7 @@ details.today-summary > .today-summary-head {
 .progress-details > summary {
   display: inline-block;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
   cursor: pointer;
   list-style: none;
   text-decoration: underline;
@@ -2469,7 +2469,7 @@ details.today-summary > .today-summary-head {
   padding: 0 8px;
   border-radius: 999px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .pager > button:hover,
 .pager > button:focus-visible {
@@ -2498,7 +2498,7 @@ details.today-summary > .today-summary-head {
   border-radius: var(--radius-pill);
   background: var(--text);
   color: var(--canvas);
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .toast button {
   min-height: 0;
