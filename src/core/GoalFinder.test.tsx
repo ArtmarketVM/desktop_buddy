@@ -7,7 +7,7 @@ import {
   cleanup,
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { GoalBrowser, GoalFinder, matchGoals, recentGoals } from "./GoalFinder";
+import { GoalFinder, browseGoals, matchGoals, recentGoals } from "./GoalFinder";
 import { emptyCore, type CoreGoal, type CoreSnapshot } from "./types";
 
 function goal(
@@ -86,33 +86,20 @@ describe("goal finder", () => {
     });
     expect(create).toHaveBeenCalledWith("Learn the koto", expect.any(String));
   });
-  it("pages the browser eight at a time and searches", () => {
-    const many: CoreSnapshot = {
-      ...snapshot,
-      today: [],
-      carryover: [],
-      goals: Array.from({ length: 19 }, (_, i) =>
-        goal(i + 1, `Goal number ${i + 1}`),
-      ),
-    };
-    const toggle = vi.fn().mockResolvedValue(true);
+  it("lists every saved goal when the empty field is focused", () => {
+    expect(browseGoals(snapshot).map((g) => g.id)).toEqual([2, 1, 4]);
     render(
-      <GoalBrowser snapshot={many} disabled={false} toggleToday={toggle} />,
+      <GoalFinder
+        snapshot={snapshot}
+        disabled={false}
+        showRecent={false}
+        create={vi.fn()}
+        addToToday={vi.fn().mockResolvedValue(true)}
+        dismissCarryover={vi.fn()}
+      />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /Choose goals/ }));
-    expect(screen.getAllByRole("option")).toHaveLength(8);
-    expect(screen.getByText("1 / 3")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Next page" }));
-    expect(screen.getByText("2 / 3")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Search goals"), {
-      target: { value: "number 19" },
-    });
-    expect(screen.getAllByRole("option")).toHaveLength(1);
-    fireEvent.click(
-      screen
-        .getByRole("option", { name: /Goal number 19/ })
-        .querySelector("button")!,
-    );
-    expect(toggle).toHaveBeenCalledWith(19, true);
+    fireEvent.focus(screen.getByLabelText("Search or add a goal"));
+    expect(screen.getAllByRole("option")).toHaveLength(3);
+    expect(screen.getByText(/Saved goals · 3/)).toBeTruthy();
   });
 });

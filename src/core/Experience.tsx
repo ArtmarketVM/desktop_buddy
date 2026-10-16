@@ -13,7 +13,7 @@ import {
   type CoreGoal,
   type CoreSnapshot,
 } from "./types";
-import { GoalBrowser, GoalFinder } from "./GoalFinder";
+import { GoalFinder } from "./GoalFinder";
 import { CapturedGoal } from "./CapturedGoal";
 import type { GoalEnhancement } from "./analysis";
 import type { Dashboard } from "../types";
@@ -217,13 +217,6 @@ export function Experience({
                   addToToday={(id) => run(() => coreApi.today(id, true))}
                   dismissCarryover={(id) =>
                     run(() => coreApi.dismissCarryover(id))
-                  }
-                />
-                <GoalBrowser
-                  snapshot={snapshot}
-                  disabled={busy || !desktop}
-                  toggleToday={(id, include) =>
-                    run(() => coreApi.today(id, include))
                   }
                 />
               </div>

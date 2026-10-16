@@ -1,25 +1,15 @@
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
 } from "react";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Plus,
-  Search,
-  X,
-} from "lucide-react";
+import { Check, Plus, Search, X } from "lucide-react";
 import type { CoreGoal, CoreSnapshot } from "./types";
 import { sentenceCase } from "./types";
 import { stepCount } from "./Goals";
-import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
-const PAGE = 8;
 const RECENT = 5;
 
 function words(text: string): string[] {
@@ -46,7 +36,7 @@ export function matchGoals(
   });
 }
 /** Unfinished goals from earlier days first, then the goals with the most focused time. */
-export function recentGoals(
+export function browseGoals(
   snapshot: Pick<CoreSnapshot, "goals" | "today" | "carryover">,
 ): CoreGoal[] {
   const open = matchGoals(snapshot, "");
@@ -58,7 +48,12 @@ export function recentGoals(
         b.focused_seconds - a.focused_seconds ||
         (b.created_at ?? "").localeCompare(a.created_at ?? ""),
     );
-  return [...carry, ...rest].slice(0, RECENT);
+  return [...carry, ...rest];
+}
+export function recentGoals(
+  snapshot: Pick<CoreSnapshot, "goals" | "today" | "carryover">,
+): CoreGoal[] {
+  return browseGoals(snapshot).slice(0, RECENT);
 }
 
 function Row({
@@ -140,6 +135,7 @@ export function GoalFinder({
     [snapshot, trimmed],
   );
   const recent = useMemo(() => recentGoals(snapshot), [snapshot]);
+  const all = useMemo(() => browseGoals(snapshot), [snapshot]);
   const exact = matches.some(
     (goal) => goal.title.trim().toLowerCase() === trimmed.toLowerCase(),
   );
@@ -148,7 +144,7 @@ export function GoalFinder({
   useEffect(() => {
     setIndex(0);
   }, [trimmed]);
-  const listOpen = focused && (trimmed ? options > 0 : recent.length > 0);
+  const listOpen = focused && (trimmed ? options > 0 : all.length > 0);
   const inlineRecent = !focused && showRecent && recent.length > 0 && !trimmed;
   const highlighted = trimmed && index < matches.length ? matches[index] : null;
 
@@ -239,146 +235,16 @@ export function GoalFinder({
       </form>
       {listOpen && (
         <div className="finder-dropdown">
-          {!trimmed && <p className="finder-label">Recent</p>}
-          {list(trimmed ? matches : recent, trimmed !== "" && !exact)}
+          {!trimmed && (
+            <p className="finder-label">Saved goals · {all.length}</p>
+          )}
+          {list(trimmed ? matches : all, trimmed !== "" && !exact)}
         </div>
       )}
       {inlineRecent && (
         <div className="finder-inline">
           <p className="finder-label">Pick up a saved goal</p>
           {list(recent, false)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** The "Choose goals" button: a panel with search and pages of eight goals. */
-export function GoalBrowser({
-  snapshot,
-  disabled,
-  toggleToday,
-}: {
-  snapshot: CoreSnapshot;
-  disabled: boolean;
-  toggleToday: (id: number, include: boolean) => Promise<boolean>;
-}) {
-  const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
-    useDismissiblePopover();
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(0);
-  const input = useRef<HTMLInputElement>(null);
-  const terms = words(query);
-  const goals = useMemo(() => {
-    const open = snapshot.goals.filter((goal) => goal.status === "open");
-    const carry = (goal: CoreGoal) =>
-      snapshot.carryover.includes(goal.id) ? 0 : 1;
-    return open
-      .filter((goal) => {
-        if (!terms.length) return true;
-        const text = [goal.title, ...goal.plan.steps.map((s) => s.text)]
-          .join(" ")
-          .toLowerCase();
-        return terms.every((term) => text.includes(term));
-      })
-      .sort(
-        (a, b) =>
-          Number(snapshot.today.includes(a.id)) -
-            Number(snapshot.today.includes(b.id)) ||
-          carry(a) - carry(b) ||
-          a.title.localeCompare(b.title),
-      );
-  }, [snapshot, query]);
-  const pages = Math.max(1, Math.ceil(goals.length / PAGE));
-  useEffect(() => {
-    setPage(0);
-  }, [query]);
-  useEffect(() => {
-    if (page >= pages) setPage(pages - 1);
-  }, [page, pages]);
-  useLayoutEffect(() => {
-    if (open) input.current?.focus();
-    else setQuery("");
-  }, [open]);
-  const shown = goals.slice(page * PAGE, page * PAGE + PAGE);
-  return (
-    <div className="goal-browser" ref={rootRef}>
-      <button
-        ref={triggerRef}
-        className="text-button"
-        disabled={disabled}
-        aria-expanded={open}
-        aria-controls={id}
-        onClick={() => setOpen(!open)}
-      >
-        <Plus size={15} />
-        Choose goals
-      </button>
-      {open && (
-        <div
-          className="goal-browser-panel"
-          id={id}
-          ref={surfaceRef}
-          role="dialog"
-          aria-label="Choose goals for Today"
-        >
-          <label className="browser-search">
-            <Search size={14} aria-hidden="true" />
-            <input
-              ref={input}
-              type="search"
-              placeholder="Search goals"
-              aria-label="Search goals"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-            />
-          </label>
-          <ul className="finder-list" aria-label="All open goals">
-            {shown.map((goal) => {
-              const onToday = snapshot.today.includes(goal.id);
-              return (
-                <Row
-                  key={goal.id}
-                  goal={goal}
-                  onToday={onToday}
-                  carryover={snapshot.carryover.includes(goal.id)}
-                  action={() => void toggleToday(goal.id, !onToday)}
-                />
-              );
-            })}
-          </ul>
-          {!goals.length && (
-            <p className="helper">
-              {snapshot.goals.some((g) => g.status === "open")
-                ? `No goals match “${query.trim()}”.`
-                : "Add your first goal in the field above."}
-            </p>
-          )}
-          {pages > 1 && (
-            <div className="browser-pager">
-              <button
-                type="button"
-                className="text-button"
-                aria-label="Previous page"
-                disabled={page === 0}
-                onClick={() => setPage(page - 1)}
-              >
-                <ChevronLeft size={15} />
-              </button>
-              <span>
-                {page + 1} / {pages}
-              </span>
-              <button
-                type="button"
-                className="text-button"
-                aria-label="Next page"
-                disabled={page >= pages - 1}
-                onClick={() => setPage(page + 1)}
-              >
-                <ChevronRight size={15} />
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>

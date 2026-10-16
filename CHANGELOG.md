@@ -11,7 +11,7 @@
 - Goal titles and steps are edited in place like a document: click the text, type, press Enter or click away to save, Escape to undo. Emptying the text deletes the goal or step.
 - Fix "Your goal or sharing choices changed" appearing on a chat answer when a goal was edited or the focus changed while sumi was answering; only real sharing, privacy, tracking or provider changes discard an answer now.
 - One field on Today now finds or adds a goal: typing filters your saved goals (titles, descriptions and steps), Enter adds the highlighted match to Today or creates a new goal, and an empty field shows five recent goals.
-- "Choose goals" opens a compact panel with its own search and pages of eight goals, instead of the long inline list.
+- Clicking the empty field lists every saved goal (unfinished ones first) in a scrollable dropdown; there is no separate "Choose goals" button any more.
 - Removed the duplicated "Goals", "Choose goals for Today" and "Pick up where you left off" headings and the helper line; unfinished goals from earlier days are marked in the suggestions and can be dismissed there.
 
 ## 0.29.0
