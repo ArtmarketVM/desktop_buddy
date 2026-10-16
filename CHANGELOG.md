@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.33.1 — startup connection checks and immediate companion color
+
+- Check Nebius authentication/model access and Tavily authentication automatically when the workspace starts and when connectivity returns. Show a neutral checking indicator until each provider finishes; retain explicit refresh.
+- Avoid duplicate startup probes under React StrictMode. Background metadata polling does not make provider requests, and simulated providers stay simulated.
+- Save the selected companion color immediately, independently of other settings drafts. Notify both app windows without waiting for dashboard polling; validate supported colors in Rust.
+- Keep existing credential access, trusted updater signatures and macOS signing identity unchanged.
+
 ## 0.33.0 — compact companion controls and transparent input
 
 - The companion's toolbar uses its selected color, smaller icons and a subtle chat/microphone divider.
