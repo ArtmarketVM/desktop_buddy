@@ -9,8 +9,6 @@
   --leading-body: 1.5;
   --leading-caption: 1.45;
 }
-@import "@fontsource/shippori-mincho/400.css";
-@import "@fontsource/shippori-mincho/500.css";
 @import "@fontsource/zen-maru-gothic/300.css";
 @import "@fontsource/zen-maru-gothic/400.css";
 @import "@fontsource/zen-maru-gothic/500.css";
@@ -490,7 +488,7 @@ input::placeholder {
   flex-direction: column;
 }
 .brand {
-  font-family: var(--serif);
+  font-family: var(--sans);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -604,7 +602,7 @@ header > span:first-child {
   gap: 20px;
 }
 h1 {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-size: var(--text-title);
   font-weight: 500;
   letter-spacing: -1.5px;

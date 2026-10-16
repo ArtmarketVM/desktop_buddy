@@ -408,7 +408,7 @@
   min-width: 0;
   padding-right: 4px;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

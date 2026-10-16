@@ -1,7 +1,6 @@
 :root {
   color-scheme: light;
   /* sumi palette and type: shared with the marketing site. */
-  --serif: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif;
   --sans: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Segoe UI", system-ui, sans-serif;
   --canvas: #eef4f6;
   --sidebar: #dcebf0;
@@ -1878,13 +1877,13 @@ a,
   }
 }
 
-/* sumi typography (docs/TYPOGRAPHY.md): serif for the page title and the wordmark only. */
+/* sumi typography (docs/TYPOGRAPHY.md): one family everywhere; titles differ by size and weight only. */
 h1,
 .workspace-brand > div,
 .onboarding-brand {
-  font-family: var(--serif);
+  font-family: var(--sans);
   font-weight: 500;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 h2,
 h3,

@@ -34,4 +34,4 @@
 
 ## Typography
 
-- Follow `docs/TYPOGRAPHY.md`: serif only for the page title and the wordmark; four sizes via `--text-title`, `--text-heading`, `--text-body`, `--text-caption`; weights 400 and 500 only. Never write a literal `font-size` in px.
+- Follow `docs/TYPOGRAPHY.md`: one family (Zen Maru Gothic) for everything; four sizes via `--text-title`, `--text-heading`, `--text-body`, `--text-caption`; weights 400 and 500 only. Never write a literal `font-size` in px.
