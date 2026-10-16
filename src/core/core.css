@@ -2033,28 +2033,6 @@ p.error .text-button {
 .priority-trigger:hover:not(:disabled) {
   background: var(--raised);
 }
-.priority-bars {
-  display: inline-flex;
-  align-items: flex-end;
-  gap: 2px;
-  width: 14px;
-  height: 12px;
-}
-.priority-bars i {
-  display: block;
-  width: 3px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--text) 22%, transparent);
-}
-.priority-bars i:nth-child(1) { height: 5px; }
-.priority-bars i:nth-child(2) { height: 8px; }
-.priority-bars i:nth-child(3) { height: 11px; }
-.priority-bars i.on {
-  background: var(--accent);
-}
-.priority-urgent {
-  color: var(--danger);
-}
 .priority-menu {
   position: fixed;
   z-index: 40;
@@ -2155,4 +2133,28 @@ p.error .text-button {
 }
 .goal-title-row > .priority-picker .priority-tag {
   vertical-align: middle;
+}
+
+/* One colour scale for priority: red, orange, yellow, green, grey. */
+.priority-tag.urgent { background: #f7e6e1; color: #8e2e1d; }
+.priority-tag.high { background: #fbecdc; color: #8a4a12; }
+.priority-tag.medium { background: #faf3d2; color: #6e5a0e; }
+.priority-tag.low { background: var(--accent-soft); color: var(--accent-text); }
+.priority-tag.none { background: var(--raised); color: var(--muted); }
+:root[data-theme="dark"] .priority-tag.urgent { background: #4a2a24; color: #f0a391; }
+:root[data-theme="dark"] .priority-tag.high { background: #4a3421; color: #f0b989; }
+:root[data-theme="dark"] .priority-tag.medium { background: #45401f; color: #e6d27a; }
+.priority-menu .priority-menu-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+.priority-menu button {
+  min-width: 170px;
+}
+.priority-menu button > kbd,
+.priority-menu button > svg:last-child {
+  margin-left: auto;
 }

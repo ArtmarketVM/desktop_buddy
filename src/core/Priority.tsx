@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { AlertTriangle, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import type { GoalDetails } from "./types";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
@@ -16,24 +16,11 @@ export const PRIORITIES: { value: Priority; label: string; key: string }[] = [
 export function priorityRank(priority: Priority | undefined): number {
   return PRIORITIES.findIndex((item) => item.value === (priority ?? null));
 }
-export function PriorityIcon({ priority }: { priority: Priority | undefined }) {
-  if (priority === "urgent")
-    return (
-      <AlertTriangle size={14} className="priority-urgent" aria-hidden="true" />
-    );
-  const filled =
-    priority === "high"
-      ? 3
-      : priority === "medium"
-        ? 2
-        : priority === "low"
-          ? 1
-          : 0;
+export function PriorityTag({ priority }: { priority: Priority | undefined }) {
+  const item = PRIORITIES[priorityRank(priority)];
   return (
-    <span className="priority-bars" aria-hidden="true">
-      {[1, 2, 3].map((bar) => (
-        <i key={bar} className={bar <= filled ? "on" : ""} />
-      ))}
+    <span className={`priority-tag ${priority ?? "none"}`}>
+      {priority ? item.label : "—"}
     </span>
   );
 }
@@ -84,9 +71,7 @@ export function PriorityPicker({
         disabled={disabled}
         onClick={() => setOpen(!open)}
       >
-        <span className={`priority-tag ${priority ?? "none"}`}>
-          {priority ? current.label : "—"}
-        </span>
+        <PriorityTag priority={priority} />
       </button>
       {open &&
         createPortal(
@@ -118,8 +103,8 @@ export function PriorityPicker({
                   onChange(item.value);
                 }}
               >
-                <PriorityIcon priority={item.value} />
-                <span>{item.label}</span>
+                <PriorityTag priority={item.value} />
+                <span className="priority-menu-label">{item.label}</span>
                 {(priority ?? null) === item.value ? (
                   <Check size={13} aria-hidden="true" />
                 ) : (
