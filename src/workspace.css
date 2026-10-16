@@ -40,28 +40,29 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --canvas: #17211b;
-  --sidebar: #121a15;
-  --surface: #1d2922;
-  --raised: #27352c;
-  --line: #35463b;
-  --text: #eef3ee;
-  --muted: #a9b8ad;
-  --accent: #7fae8b;
-  --accent-text: #a9d1b4;
-  --accent-soft: #26392d;
-  --input: #19231d;
+  /* "Paper at night": warm charcoal surfaces; green stays the accent only. */
+  --canvas: #1b1a18;
+  --sidebar: #151412;
+  --surface: #23221f;
+  --raised: #2c2a26;
+  --line: #3a3732;
+  --text: #efece6;
+  --muted: #a8a49c;
+  --accent: #9bbf9f;
+  --accent-text: #b5d4ba;
+  --accent-soft: #2a342b;
+  --input: #201f1c;
   --inverse: #f5f7f4;
-  --positive: #99cfaa;
-  --positive-soft: #23372a;
+  --positive: #9bbf9f;
+  --positive-soft: #2a342b;
   --service-connected: #22c55e;
   --service-disconnected: #f87171;
-  --accent-fill: #4f7a5a;
-  --accent-fill-hover: #5a8766;
-  --field-line: #4a5d50;
-  --hill: #35543f;
-  --sky: #1f2d33;
-  --cloud: #243036;
+  --accent-fill: #5f8a67;
+  --accent-fill-hover: #6a9772;
+  --field-line: #4a4640;
+  --hill: #3d4a3c;
+  --sky: #262a2a;
+  --cloud: #2e3231;
   --danger: #e0664f;
   --danger-soft: #3c2520;
 }
@@ -1359,11 +1360,63 @@ a,
   border-color: var(--accent);
   background: var(--accent-soft);
 }
-.color-options button > span {
+.color-options button > span,
+.color-options .color-custom > span {
   width: 15px;
   height: 15px;
   border-radius: 50%;
   border: 1px solid #0002;
+}
+.color-options .color-custom {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 95px;
+  min-height: 34px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--raised);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.color-options .color-custom.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.color-options .color-custom input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.avatar-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin: 8px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.avatar-gallery li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 72px;
+}
+.avatar-gallery .avatar {
+  width: 64px;
+  height: 64px;
+}
+.avatar-gallery small {
+  font-size: 11px;
+  color: var(--muted);
 }
 .role-picker {
   margin: 10px 0 24px;

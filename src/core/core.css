@@ -886,6 +886,10 @@
   flex-direction: column;
   gap: 12px;
 }
+/* The left navigation already names the section; the pane itself has no repeated heading. */
+.settings-drafts > details > summary {
+  display: none;
+}
 .settings-drafts > details {
   padding: 16px 20px;
   border: 1px solid var(--line);

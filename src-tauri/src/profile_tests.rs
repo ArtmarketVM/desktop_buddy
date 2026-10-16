@@ -42,7 +42,7 @@ fn legacy_profile_migration_and_signout_preserve_goals_but_remove_local_identity
     s.write_setting("user_settings", &settings).unwrap();
     let migrated = s.user_settings().unwrap();
     assert_eq!(migrated.profile.email, "dev@example.com");
-    assert!(["#A8D8C8", "#C9D3D8", "#E8EEF0"].contains(&migrated.profile.avatar.color.as_str()));
+    assert_eq!(migrated.profile.avatar.color, "#9BB784");
     s.reset_local_profile().unwrap();
     let reset = s.user_settings().unwrap();
     assert!(reset.profile.email.is_empty());

@@ -49,35 +49,28 @@ export function CompanionSettings({
   }
   return (
     <details className="settings-group companion-settings">
-      <summary>
-        Desktop companion<small>Mini chat, context and gentle check-ins</small>
-      </summary>
+      <summary>Desktop companion</summary>
       {(
         [
           [
-            "paused",
-            "Disable automatic nudging",
-            "Keep manual chat available. Pause all new automatic prompts and suggestions until you turn this off.",
-          ],
-          [
             "daily_checkins",
             "Daily check-ins",
-            "A start-of-day planning offer, a midday progress review and an end-of-day wrap-up. At most once each per day.",
+            "Morning plan, midday review, evening wrap-up.",
           ],
           [
             "screen_task_detection",
-            "Detect tasks and completed work",
-            "With tracking and AI assistance on, send up to 3,000 characters of accessible text plus your goal and steps to Nebius. Password and edit controls are skipped; text is not saved locally. Clear receipts can suggest completed steps or an entire goal. You confirm every change.",
+            "Detect completed work",
+            "Sends a small text sample to Nebius; you confirm every change.",
           ],
           [
             "hide_fullscreen",
-            "Hide companion in full-screen apps",
-            "sumi returns to its saved position after full-screen ends. Suggestions remain suppressed in meetings and full-screen apps.",
+            "Hide in full-screen apps",
+            "Comes back when full-screen ends.",
           ],
           [
             "movement_reminder",
-            "Occasional stretch invitation",
-            "Optional, off by default. At most once a day after two hours, with the same quiet rules.",
+            "Stretch invitation",
+            "At most once a day after two hours.",
           ],
         ] as [keyof CompanionPreferences, string, string][]
       ).map(([key, label, description]) => (
@@ -153,11 +146,7 @@ export function CompanionSettings({
         </label>
       </div>
       <p className="helper">
-        Up to three prompts daily. Recent dismissals, meetings, media, idle time
-        and quiet hours are respected. Equal quiet-hour times disable quiet
-        hours. Select text and press {selectionShortcut} for manual task,
-        research, explain or save actions; paste text when an app does not
-        expose its selection.
+        Select text anywhere and press {selectionShortcut} to send it to sumi.
       </p>
       {error && <p role="alert">{error}</p>}
     </details>

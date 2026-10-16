@@ -1,4 +1,4 @@
-import type { UserProfile } from "../types";
+import type { AvatarState, UserProfile } from "../types";
 import { roles, roleApplications } from "../data/profile";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Check } from "lucide-react";
@@ -6,6 +6,22 @@ import { Avatar } from "./Avatar";
 import { RoleArt } from "./RoleArt";
 import { loopIndex, loopScrollShift } from "../data/roleLoop";
 import { RoleResearch } from "./ContactSettings";
+
+const PRESETS = [
+  { name: "Matcha", value: "#A8D8C8" },
+  { name: "Mist", value: "#C9D3D8" },
+  { name: "Cloud", value: "#E8EEF0" },
+];
+const MOODS: [AvatarState, string][] = [
+  ["working", "Working"],
+  ["listening", "Listening"],
+  ["thinking", "Thinking"],
+  ["completed", "Done"],
+  ["sleeping", "Resting"],
+  ["stretching", "Stretching"],
+];
+const isCustom = (color: string) =>
+  !PRESETS.some((preset) => preset.value === color);
 
 export function AvatarPicker({
   profile,
@@ -19,16 +35,20 @@ export function AvatarPicker({
   return (
     <fieldset disabled={disabled}>
       <legend>Choose your companion</legend>
-      <div className="avatar-preview">
-        <Avatar appearance={{ ...profile.avatar, visible: true }} state="fun" />
-      </div>
+      <ul className="avatar-gallery" aria-label="How sumi looks">
+        {MOODS.map(([state, label]) => (
+          <li key={state}>
+            <Avatar
+              appearance={{ ...profile.avatar, visible: true }}
+              state={state}
+            />
+            <small>{label}</small>
+          </li>
+        ))}
+      </ul>
       <span className="field-label">Companion color</span>
       <div className="color-options" role="group" aria-label="Companion color">
-        {[
-          { name: "Matcha", value: "#A8D8C8" },
-          { name: "Mist", value: "#C9D3D8" },
-          { name: "Cloud", value: "#E8EEF0" },
-        ].map((color) => (
+        {PRESETS.map((color) => (
           <button
             type="button"
             key={color.value}
@@ -45,6 +65,27 @@ export function AvatarPicker({
             {profile.avatar.color === color.value && <Check size={13} />}
           </button>
         ))}
+        <label
+          className={`color-custom ${isCustom(profile.avatar.color) ? "selected" : ""}`}
+        >
+          <span style={{ background: profile.avatar.color }} />
+          Custom
+          <input
+            type="color"
+            aria-label="Custom companion color"
+            value={profile.avatar.color}
+            onChange={(e) =>
+              onChange({
+                ...profile,
+                avatar: {
+                  ...profile.avatar,
+                  color: e.target.value.toUpperCase(),
+                },
+              })
+            }
+          />
+          {isCustom(profile.avatar.color) && <Check size={13} />}
+        </label>
       </div>
     </fieldset>
   );
