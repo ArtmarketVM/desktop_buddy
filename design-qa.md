@@ -28,6 +28,7 @@ The available-state screenshot uses an explicitly labeled, ignored UI fixture wi
 - **Spacing/layout:** persistent sidebar, aligned header and content margins, restrained 7–13 px radii, consistent card/section spacing. Settings uses progressive disclosure. Navigation preserves mounted form drafts.
 - **Colors/tokens:** neutral dark surfaces and subtle separators; blue communicates updates/actions. Available, checking, unavailable and disabled states remain distinct. Visible keyboard focus and reduced-motion handling are provided.
 - **Images/assets:** sharp existing companion assets; consistent Lucide icons. No replacement of supplied raster art with custom illustrations. The reference's standard download/profile motifs are implemented with the existing icon system and account initials.
+- **Long lists:** any list that can grow without bound (goals, archive, tracked activity) uses the shared `Pager` from `src/core/Pager.tsx`: ten rows per page via `usePage`, numbered page buttons underneath, nothing shown for a single page. Goal lists have no separators between rows, like Today.
 - **Copy/content:** English product text, truthful empty states and version status. Browser-only limitations are labeled in previews. Download progress, retry errors and unsaved-plan blocking are explicit. Provider/privacy disclosures remain available within their relevant sections.
 
 ## Interaction and verification checklist

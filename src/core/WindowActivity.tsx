@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { desktop } from "../api/tauri";
 import { duration } from "./types";
-const PAGE_SIZE = 10;
+import { Pager, usePage } from "./Pager";
 export interface WindowSession {
   id: number;
   goal_id: number | null;
@@ -31,13 +31,11 @@ export function WindowActivity({
 }) {
   const [history, setHistory] = useState<WindowHistory | null>(null);
   const [error, setError] = useState(false);
-  const [page, setPage] = useState(1);
   useEffect(() => {
     let alive = true,
       running = false;
     setHistory(null);
     setError(false);
-    setPage(1);
     const poll = async () => {
       if (!desktop || running || document.visibilityState === "hidden") return;
       running = true;
@@ -71,11 +69,9 @@ export function WindowActivity({
   }, [first, last, goalId]);
   const sessions = history?.sessions ?? [];
   const total = history?.total_active_seconds ?? 0;
-  const pages = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
-  const current = Math.min(page, pages);
-  const visible = sessions.slice(
-    (current - 1) * PAGE_SIZE,
-    current * PAGE_SIZE,
+  const { page, pages, visible, setPage } = usePage(
+    sessions,
+    `${first}|${last}|${goalId}`,
   );
   return (
     <section className="window-activity" aria-label="Tracked activity">
@@ -119,21 +115,12 @@ export function WindowActivity({
               </li>
             ))}
           </ol>
-          {pages > 1 && (
-            <nav className="pager" aria-label="Tracked activity pages">
-              {Array.from({ length: pages }, (_, i) => i + 1).map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  className="text-button"
-                  aria-current={n === current ? "page" : undefined}
-                  onClick={() => setPage(n)}
-                >
-                  {n}
-                </button>
-              ))}
-            </nav>
-          )}
+          <Pager
+            page={page}
+            pages={pages}
+            onChange={setPage}
+            label="Tracked activity"
+          />
         </>
       )}
     </section>

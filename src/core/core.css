@@ -1107,6 +1107,13 @@
   font-weight: 700;
   margin: 0 0 6px;
 }
+/* Goals page lists look like Today: no separators, tighter rows. */
+.goal-log .core-goal {
+  border-top: 0;
+}
+.goal-log .goal-heading {
+  padding: 12px 0;
+}
 .sr-only {
   position: absolute;
   width: 1px;

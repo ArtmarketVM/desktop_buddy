@@ -15,6 +15,7 @@ import { InlineText } from "./InlineText";
 import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
 import { toast } from "../components/Toasts";
 import { GoalOrder } from "./GoalOrder";
+import { Pager, usePage } from "./Pager";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
   deadlineISO,
@@ -787,6 +788,8 @@ export function GoalAreas({
   const archive = snapshot.goals.filter(
     (goal) => goal.status !== "open" && matches(goal),
   );
+  const activePage = usePage(active, normalized);
+  const archivePage = usePage(archive, normalized);
   return (
     <section className="core-section goal-log" aria-label="Goals">
       <label className="goal-search">
@@ -808,7 +811,7 @@ export function GoalAreas({
           </p>
         ) : (
           <GoalOrder
-            goals={active}
+            goals={activePage.visible}
             allGoals={snapshot.goals}
             disabled={busy || !!query}
             reorder={(ids) => run(() => coreApi.reorder(ids))}
@@ -827,6 +830,12 @@ export function GoalAreas({
             )}
           </GoalOrder>
         )}
+        <Pager
+          page={activePage.page}
+          pages={activePage.pages}
+          onChange={activePage.setPage}
+          label="Active goals"
+        />
       </div>
       <div className="goal-log-part">
         <h2>Archive</h2>
@@ -837,7 +846,7 @@ export function GoalAreas({
               : "Completed and set-aside items will appear here."}
           </p>
         ) : (
-          archive.map((goal) => (
+          archivePage.visible.map((goal) => (
             <GoalRow
               key={goal.id}
               goal={goal}
@@ -851,6 +860,12 @@ export function GoalAreas({
             />
           ))
         )}
+        <Pager
+          page={archivePage.page}
+          pages={archivePage.pages}
+          onChange={archivePage.setPage}
+          label="Archive"
+        />
       </div>
     </section>
   );
