@@ -6,7 +6,14 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  Plus,
+  Search,
+  X,
+  MoreHorizontal,
+} from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
@@ -814,15 +821,30 @@ export function GoalAreas({
   const archivePage = usePage(archive, normalized);
   return (
     <section className="core-section goal-log" aria-label="Goals">
-      <label className="goal-search">
-        <span className="sr-only">Search goals</span>
-        <input
-          type="search"
-          placeholder="Search..."
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
+      <form
+        className="goal-finder goal-search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const title = query.trim();
+          if (!title || busy || !desktop) return;
+          void run(() => coreApi.create(title)).then((ok) => {
+            if (ok) setQuery("");
+          });
+        }}
+      >
+        <div className="quick-goal search-field">
+          <Search size={16} aria-hidden="true" className="search-field-icon" />
+          <input
+            type="search"
+            aria-label="Search or add a goal"
+            placeholder="Search your goals, or type a new one…"
+            maxLength={500}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+          />
+          <button disabled={busy || !desktop || !query.trim()}>Add goal</button>
+        </div>
+      </form>
       <div className="goal-log-part">
         <h2>Active</h2>
         {active.length === 0 ? (

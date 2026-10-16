@@ -1108,13 +1108,8 @@
   flex-direction: column;
   gap: 36px;
 }
-.goal-search input {
-  display: block;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface);
+.goal-search .quick-goal {
+  margin: 0;
 }
 .goal-log-part h2 {
   font-size: 18px;
