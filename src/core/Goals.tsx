@@ -10,7 +10,8 @@ import { Check, ChevronDown, Plus, X, MoreHorizontal } from "lucide-react";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
-import { GoalWorkContext } from "./GoalWorkContext";
+import { PriorityPicker } from "./Priority";
+import { InlineText } from "./InlineText";
 import { GoalOrder } from "./GoalOrder";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
@@ -340,29 +341,46 @@ export function GoalRow({
             {goal.status === "completed" ? <Check size={12} /> : <span />}
           </button>
         )}
-        <button
-          className="text-button core-goal-title goal-expand-toggle"
-          aria-expanded={expanded}
-          onClick={() => {
-            setExpanded(!expanded);
-          }}
-        >
-          {sentenceCase(goal.title)}
+        <div className="core-goal-title goal-title-row">
+          <InlineText
+            value={goal.title}
+            display={sentenceCase(goal.title)}
+            label={`Goal title: ${goal.title}`}
+            disabled={disabled || goal.status !== "open"}
+            onSave={(text) =>
+              void run(() => coreApi.save(text, area, goal.plan))
+            }
+            onDelete={() =>
+              void run(() => coreApi.transition(goal.id, "delete", true))
+            }
+          />
           <small>
             {goal.plan.steps.length}{" "}
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
+        </div>
+        <button
+          type="button"
+          className="text-button goal-expand-toggle"
+          aria-label={`${expanded ? "Hide" : "Show"} steps for ${goal.title}`}
+          aria-expanded={expanded}
+          onClick={() => setExpanded(!expanded)}
+        >
           <ChevronDown
             size={16}
             className={`goal-chevron ${expanded ? "rotated" : ""}`}
           />
         </button>
-        <GoalWorkContext
-          goal={goal}
-          busy={busy}
-          run={run}
-          readOnly={readOnly}
-        />
+        {!readOnly && goal.status === "open" && (
+          <PriorityPicker
+            priority={goal.priority}
+            disabled={disabled}
+            label={goal.title}
+            onChange={(priority) =>
+              void run(() => coreApi.priority(goal.id, priority))
+            }
+          />
+        )}
       </div>
       <div className="goal-expanded" hidden={!expanded}>
         <ul className="core-steps">
@@ -426,13 +444,39 @@ export function GoalRow({
                     )
                   }
                 />
-                <span
+                <InlineText
+                  value={step.text}
+                  display={sentenceCase(step.text)}
+                  label={`Step: ${step.text}`}
                   className={
                     step.done || goal.status === "completed" ? "done" : ""
                   }
-                >
-                  {sentenceCase(step.text)}
-                </span>
+                  disabled={disabled || goal.status !== "open"}
+                  onSave={(text) =>
+                    void run(() =>
+                      coreApi.save(goal.title, area, {
+                        ...goal.plan,
+                        steps: goal.plan.steps.map((item) =>
+                          item.id === step.id ? { ...item, text } : item,
+                        ),
+                      }),
+                    )
+                  }
+                  onDelete={() =>
+                    void run(() =>
+                      coreApi.save(goal.title, area, {
+                        ...goal.plan,
+                        steps: goal.plan.steps.filter(
+                          (item) => item.id !== step.id,
+                        ),
+                        current_step:
+                          goal.plan.current_step === step.id
+                            ? null
+                            : goal.plan.current_step,
+                      }),
+                    )
+                  }
+                />
               </div>
             </li>
           ))}
@@ -735,6 +779,7 @@ export function GoalEditor({
               }
             >
               <option value="">No priority</option>
+              <option value="urgent">Urgent</option>
               <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>

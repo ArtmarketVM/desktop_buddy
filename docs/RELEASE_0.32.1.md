@@ -1,5 +1,8 @@
 # Desktop Buddy 0.32.1
 
+- Today is one plain list again: no "In focus" and "Later today" lanes, no focus bar, Focus now, Park or Checkpoint buttons. sumi works out what you are doing by itself.
+- Every goal row has a priority tag (Urgent, High, Medium, Low or none) with number-key shortcuts; Today sorts by priority, then by your drag order. Urgent is a new level.
+- Goal titles and steps are edited in place like a document: click the text, type, press Enter or click away to save, Escape to undo. Emptying the text deletes the goal or step.
 - Fixed: a chat answer was discarded with "Your goal or sharing choices changed" when a goal was edited or the focus moved while sumi was still answering. Only real changes to sharing, privacy, tracking or provider settings discard an answer now.
 - One field on Today now finds or adds a goal: typing filters your saved goals by title, description and steps, Enter adds the highlighted match to Today or creates a new goal, and an empty field shows your five most recent goals.
 - "Choose goals" opens a compact panel with search and pages of eight goals instead of the long inline list, so Today stays readable.

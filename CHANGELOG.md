@@ -2,6 +2,9 @@
 
 ## 0.32.1 — calmer Today goal picking
 
+- Today is one plain list again: no "In focus" and "Later today" lanes, no focus bar, Focus now, Park or Checkpoint buttons. sumi works out what you are doing by itself.
+- Every goal row has a priority tag (Urgent, High, Medium, Low or none) with number-key shortcuts; Today sorts by priority, then by your drag order. Urgent is a new level.
+- Goal titles and steps are edited in place like a document: click the text, type, press Enter or click away to save, Escape to undo. Emptying the text deletes the goal or step.
 - Fix "Your goal or sharing choices changed" appearing on a chat answer when a goal was edited or the focus changed while sumi was answering; only real sharing, privacy, tracking or provider changes discard an answer now.
 - One field on Today now finds or adds a goal: typing filters your saved goals (titles, descriptions and steps), Enter adds the highlighted match to Today or creates a new goal, and an empty field shows five recent goals.
 - "Choose goals" opens a compact panel with its own search and pages of eight goals, instead of the long inline list.

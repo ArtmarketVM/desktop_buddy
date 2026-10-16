@@ -14,7 +14,7 @@ export interface CoreGoal {
   tracked_seconds?: number;
   relevant_seconds?: number;
   due_at?: string | null;
-  priority?: "low" | "medium" | "high" | null;
+  priority?: "low" | "medium" | "high" | "urgent" | null;
   description?: string;
   created_at?: string;
   completed_at?: string | null;
@@ -27,7 +27,7 @@ export interface CoreGoal {
 }
 export interface GoalDetails {
   due_at: string | null;
-  priority: "low" | "medium" | "high" | null;
+  priority: "low" | "medium" | "high" | "urgent" | null;
   description: string;
 }
 export interface CorePreferences {

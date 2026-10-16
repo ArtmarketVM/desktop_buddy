@@ -70,7 +70,7 @@ impl GoalDetails {
         if self
             .priority
             .as_deref()
-            .is_some_and(|p| !["low", "medium", "high"].contains(&p))
+            .is_some_and(|p| !["low", "medium", "high", "urgent"].contains(&p))
         {
             return Err("Choose a valid priority".into());
         }
@@ -1231,6 +1231,40 @@ pub fn save_core_goal(
 ) -> Result<CoreSnapshot, String> {
     mutate(&state, &app, |s| {
         s.core_save_goal_details(&title, &area, plan, details)
+    })
+}
+/// Changes only the priority of a goal; other details are kept.
+#[tauri::command(async)]
+pub fn set_core_goal_priority(
+    state: State<AppState>,
+    app: AppHandle,
+    id: i64,
+    priority: Option<String>,
+) -> Result<CoreSnapshot, String> {
+    GoalDetails {
+        priority: priority.clone(),
+        ..Default::default()
+    }
+    .validate()?;
+    mutate(&state, &app, |s| {
+        let exists: bool = s
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=?1)",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if !exists {
+            return Err("Goal not found".into());
+        }
+        s.connection
+            .execute(
+                "INSERT INTO core_goal_details(goal_id,due_at,priority,description) VALUES(?1,NULL,?2,'') ON CONFLICT(goal_id) DO UPDATE SET priority=excluded.priority",
+                params![id, priority],
+            )
+            .map_err(db)?;
+        Ok(())
     })
 }
 #[tauri::command(async)]

@@ -279,6 +279,7 @@ pub fn run() {
             core::add_core_goals,
             core::create_core_goal,
             core::save_core_goal,
+            core::set_core_goal_priority,
             core::transition_core_goal,
             core::set_core_today,
             core::reorder_core_goals,

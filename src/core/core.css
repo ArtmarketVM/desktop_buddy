@@ -2015,3 +2015,135 @@ p.error .text-button {
 .goal-browser-panel .browser-search:focus-within {
   border-color: var(--accent);
 }
+
+/* Priority column: Linear-style bars, click to change. */
+.priority-picker {
+  flex: none;
+  margin-left: auto;
+}
+.priority-trigger {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  color: var(--muted);
+}
+.priority-trigger:hover:not(:disabled) {
+  background: var(--raised);
+}
+.priority-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 14px;
+  height: 12px;
+}
+.priority-bars i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--text) 22%, transparent);
+}
+.priority-bars i:nth-child(1) { height: 5px; }
+.priority-bars i:nth-child(2) { height: 8px; }
+.priority-bars i:nth-child(3) { height: 11px; }
+.priority-bars i.on {
+  background: var(--accent);
+}
+.priority-urgent {
+  color: var(--danger);
+}
+.priority-menu {
+  position: fixed;
+  z-index: 40;
+  min-width: 180px;
+  padding: 4px;
+}
+.priority-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.priority-menu button:hover,
+.priority-menu button:focus-visible {
+  background: var(--raised);
+}
+.priority-menu button > span {
+  flex: 1;
+}
+.priority-menu kbd {
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+}
+.priority-menu svg:last-child {
+  color: var(--accent);
+}
+
+/* Inline editing: the text itself is the field, no boxes or highlights. */
+.goal-heading > .goal-title-row {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.5;
+}
+.inline-text {
+  display: inline;
+  cursor: text;
+  outline: none;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.inline-text:focus {
+  outline: none;
+  caret-color: var(--accent);
+}
+.inline-text.done {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.goal-title-row > small {
+  display: inline;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.step-line > .inline-text {
+  flex: 1;
+}
+.goal-heading > .goal-expand-toggle {
+  flex: none;
+  padding: 4px;
+  color: var(--muted);
+}
+.priority-trigger {
+  width: auto;
+  height: auto;
+  padding: 0;
+}
+.priority-tag {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  font-size: 11px;
+  line-height: 16px;
+}
+.priority-tag.urgent {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.priority-tag.none {
+  background: var(--raised);
+  color: var(--muted);
+}
