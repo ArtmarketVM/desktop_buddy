@@ -1793,7 +1793,7 @@ p.error .text-button {
 }
 
 .window-activity {
-  margin-top: 24px;
+  margin-top: 4px;
 }
 .window-activity .helper {
   font-size: 12px;
@@ -2392,6 +2392,30 @@ details.today-summary > .today-summary-head {
 }
 .progress-details[open] > summary {
   margin-bottom: 8px;
+}
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.pager > button {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.pager > button:hover,
+.pager > button:focus-visible {
+  background: var(--raised);
+  color: var(--text);
+}
+.pager > button[aria-current="page"] {
+  background: var(--accent);
+  color: var(--inverse);
 }
 .toasts {
   position: fixed;

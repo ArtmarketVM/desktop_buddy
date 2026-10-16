@@ -501,7 +501,7 @@ export function Progress({
         </ul>
       )}
       <details className="progress-details">
-        <summary>Details</summary>
+        <summary>Tracked activity</summary>
         <WindowActivity first={oldest} last={newest} goalId={selected} />
       </details>
     </section>
