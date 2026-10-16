@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.33.0 — compact companion controls and transparent input
+
+- The companion's toolbar uses its selected color, smaller icons and a subtle chat/microphone divider.
+- After 500 ms outside the character and controls, the toolbar collapses into a nearby 24 × 4 px capsule. Hovering or keyboard focus reveals it; open chats keep controls accessible.
+- The capsule expands downward from a fixed edge without moving the character; reduced-motion preferences disable transitions.
+- Click targets follow the painted character silhouette. The native companion window passes transparent margins through to the application below while preserving chat, cards and drag interactions.
+- Includes the Today, priorities, inline editing and automatic checkpoint changes from 0.32.2. Windows x64 and Apple Silicon macOS share one release; trusted update signers and the credential helper are unchanged.
+
+## 0.32.2 — calmer Today, in-place editing, priorities
+
+- Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
+- Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place. The deadline uses a calendar with a Now button and a time you can type ("13:00" or "1:30 pm"); without a time it counts as the whole day.
+- Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.
+- The day summary now leads with focused time ("3 h 40 min of focused work today"), shows goal and step counts on the right, and opens to list finished goals and steps with the time spent on each.
+- Checkpoints are automatic: when sumi sees you move to another goal, the one you left is parked with where you were (app, window, next open step) and resumed when you come back. Park and Resume in the chat still work.
+- Today is one plain list again: no "In focus" and "Later today" lanes, no focus bar, Focus now, Park or Checkpoint buttons. sumi works out what you are doing by itself.
+- Every goal row has a priority tag (Urgent, High, Medium, Low or none) with number-key shortcuts; Today sorts by priority, then by your drag order. Urgent is a new level.
+- Goal titles and steps are edited in place like a document: click the text, type, press Enter or click away to save, Escape to undo. Emptying the text deletes the goal or step.
+- Fix "Your goal or sharing choices changed" appearing on a chat answer when a goal was edited or the focus changed while sumi was answering; only real sharing, privacy, tracking or provider changes discard an answer now.
+- One field on Today now finds or adds a goal: typing filters your saved goals (titles, descriptions and steps), Enter adds the highlighted match to Today or creates a new goal, and an empty field shows five recent goals.
+- Clicking the empty field lists every saved goal (unfinished ones first) in a scrollable dropdown; there is no separate "Choose goals" button any more.
+- Removed the duplicated "Goals", "Choose goals for Today" and "Pick up where you left off" headings and the helper line; unfinished goals from earlier days are marked in the suggestions and can be dismissed there.
+
 ## 0.29.0
 
 - Constrain structured agent operations and render authoritative Rust action/read receipts.

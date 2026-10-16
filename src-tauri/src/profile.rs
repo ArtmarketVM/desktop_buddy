@@ -488,7 +488,7 @@ pub fn save_user_profile(
     if let Some(goal) = inner.storage.goal()? {
         inner.storage.apply_role(goal.id)?;
     }
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     inner.buddy.clear();
     crate::buddy::sync(&app, &mut inner)
 }

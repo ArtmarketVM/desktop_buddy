@@ -27,7 +27,7 @@ export interface GoalAnalysisInput {
   title: string;
   description?: string;
   dueAt?: string;
-  priority?: "low" | "medium" | "high";
+  priority?: "low" | "medium" | "high" | "urgent";
   existingSteps: GoalStep[];
   userContextRef?: string;
 }

@@ -18,7 +18,7 @@ pub fn validate_retention(days: u32) -> Result<(), String> {
     }
 }
 fn invalidate(inner: &mut Inner) {
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     inner.buddy.clear();
     inner.buddy.foreground = None;
     inner.collector = collector::create(inner.status.demo);

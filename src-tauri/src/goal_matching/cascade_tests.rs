@@ -119,6 +119,35 @@ fn explicit_focus_counts_activity_that_names_no_other_goal() {
     assert_eq!(attribution(&i, &a).unwrap().confidence, 0.);
 }
 #[test]
+fn a_sustained_lane_switch_parks_the_previous_goal_and_returning_resumes_it() {
+    let (state, ids) = setup(&["Orion launch", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    feed(&mut i, &sample("Orion launch deck"), base, 0, 33);
+    assert_eq!(i.storage.goal().unwrap().map(|g| g.id), Some(ids[0]));
+    feed(&mut i, &sample("Vega budget workbook"), base, 36, 96);
+    assert_eq!(i.storage.goal().unwrap().map(|g| g.id), Some(ids[1]));
+    let parked = i.storage.work_context(ids[0]).unwrap().expect("parked");
+    assert!(parked
+        .context
+        .summary
+        .starts_with("Automatically parked while in Editor"));
+    assert_eq!(
+        parked.context.next_action.as_deref(),
+        Some("Deliver Orion launch")
+    );
+    assert!(parked.resumed_at.is_none());
+    feed(&mut i, &sample("Orion launch deck"), base, 100, 160);
+    assert_eq!(i.storage.goal().unwrap().map(|g| g.id), Some(ids[0]));
+    assert!(i
+        .storage
+        .work_context(ids[0])
+        .unwrap()
+        .unwrap()
+        .resumed_at
+        .is_some());
+}
+#[test]
 fn unique_user_app_rule_precedes_keywords_and_presets_do_not() {
     let (state, ids) = setup(&["Orion launch", "Vega budget"]);
     let mut i = state.inner.lock().unwrap();

@@ -50,6 +50,9 @@ pub struct CoreGoal {
     pub description: String,
     pub created_at: String,
     pub completed_at: Option<String>,
+    /// Expected minutes for the whole goal (user-set, also used by the chat's overrun check).
+    #[serde(default)]
+    pub estimated_minutes: Option<i64>,
     #[serde(default)]
     pub work_context: Option<crate::memory::WorkContext>,
 }
@@ -70,7 +73,7 @@ impl GoalDetails {
         if self
             .priority
             .as_deref()
-            .is_some_and(|p| !["low", "medium", "high"].contains(&p))
+            .is_some_and(|p| !["low", "medium", "high", "urgent"].contains(&p))
         {
             return Err("Choose a valid priority".into());
         }
@@ -1018,6 +1021,7 @@ impl Storage {
                         description,
                         created_at,
                         completed_at,
+                        estimated_minutes: self.connection.query_row("SELECT minutes FROM ai_goal_estimates WHERE goal_id=?1",[id],|r| r.get::<_, i64>(0)).optional().map_err(db)?,
                         work_context: if memory_ready {self.work_context(id)?} else {None},
                     })
                 },
@@ -1231,6 +1235,73 @@ pub fn save_core_goal(
 ) -> Result<CoreSnapshot, String> {
     mutate(&state, &app, |s| {
         s.core_save_goal_details(&title, &area, plan, details)
+    })
+}
+/// Changes only the priority of a goal; other details are kept.
+#[tauri::command(async)]
+pub fn set_core_goal_priority(
+    state: State<AppState>,
+    app: AppHandle,
+    id: i64,
+    priority: Option<String>,
+) -> Result<CoreSnapshot, String> {
+    GoalDetails {
+        priority: priority.clone(),
+        ..Default::default()
+    }
+    .validate()?;
+    mutate(&state, &app, |s| {
+        let exists: bool = s
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=?1)",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if !exists {
+            return Err("Goal not found".into());
+        }
+        s.connection
+            .execute(
+                "INSERT INTO core_goal_details(goal_id,due_at,priority,description) VALUES(?1,NULL,?2,'') ON CONFLICT(goal_id) DO UPDATE SET priority=excluded.priority",
+                params![id, priority],
+            )
+            .map_err(db)?;
+        Ok(())
+    })
+}
+/// Sets or clears the expected minutes for a goal.
+#[tauri::command(async)]
+pub fn set_core_goal_estimate(
+    state: State<AppState>,
+    app: AppHandle,
+    id: i64,
+    minutes: Option<i64>,
+) -> Result<CoreSnapshot, String> {
+    if minutes.is_some_and(|m| !(1..=100_000).contains(&m)) {
+        return Err("Use between 1 and 100,000 minutes".into());
+    }
+    mutate(&state, &app, |s| {
+        let exists: bool = s
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM core_goals WHERE goal_id=?1)",
+                [id],
+                |r| r.get(0),
+            )
+            .map_err(db)?;
+        if !exists {
+            return Err("Goal not found".into());
+        }
+        match minutes {
+            Some(minutes) => s.connection.execute("INSERT INTO ai_goal_estimates(goal_id,minutes) VALUES(?1,?2) ON CONFLICT(goal_id) DO UPDATE SET minutes=excluded.minutes", params![id, minutes]).map_err(db)?,
+            None => s
+                .connection
+                .execute("DELETE FROM ai_goal_estimates WHERE goal_id=?1", [id])
+                .map_err(db)?,
+        };
+        Ok(())
     })
 }
 #[tauri::command(async)]

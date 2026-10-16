@@ -169,6 +169,71 @@ impl Storage {
                 .ok_or("Checkpoint was not saved".into())
         })
     }
+    /// Automatic checkpoint when sumi sees the user move to another goal: records where they were
+    /// without setting the goal aside, changing its plan or recording a memory event.
+    pub fn auto_checkpoint(
+        &mut self,
+        goal_id: i64,
+        summary: &str,
+        next_action: &str,
+        last_app: Option<&str>,
+        last_window: Option<&str>,
+    ) -> Result<(), String> {
+        self.require_work_memory()?;
+        let Some(goal) = self
+            .core_snapshot(None)?
+            .goals
+            .into_iter()
+            .find(|g| g.id == goal_id && g.status == "open")
+        else {
+            return Ok(());
+        };
+        if self
+            .work_context(goal_id)?
+            .is_some_and(|c| c.context.status == ContextStatus::Waiting)
+        {
+            return Ok(());
+        }
+        let step_id = goal
+            .plan
+            .current_step
+            .filter(|id| goal.plan.steps.iter().any(|s| &s.id == id && !s.done));
+        let expected = self.work_context(goal_id)?.map(|c| c.updated_at);
+        self.save_work_context(
+            WorkContextInput {
+                goal_id,
+                step_id,
+                summary: memory::safe_text(summary, 500)?,
+                next_action: Some(memory::safe_text(next_action, 500)?),
+                status: ContextStatus::Paused,
+                waiting_for: None,
+                last_app: last_app.map(|s| memory::safe_text(s, 120)).transpose()?,
+                last_window: last_window.map(|s| memory::safe_text(s, 160)).transpose()?,
+            },
+            expected,
+        )?;
+        self.connection
+            .execute(
+                "UPDATE work_contexts SET parked_at=?1,resumed_at=NULL WHERE goal_id=?2",
+                params![Utc::now().to_rfc3339(), goal_id],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    /// Marks an automatically parked checkpoint as resumed when the user returns to the goal.
+    pub fn auto_resume(&mut self, goal_id: i64) -> Result<(), String> {
+        self.require_work_memory()?;
+        if self.work_context(goal_id)?.is_none() {
+            return Ok(());
+        }
+        self.connection
+            .execute(
+                "UPDATE work_contexts SET status='active',resumed_at=?1 WHERE goal_id=?2 AND status<>'waiting'",
+                params![Utc::now().to_rfc3339(), goal_id],
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
     pub fn resume_work_context(
         &mut self,
         goal_id: i64,

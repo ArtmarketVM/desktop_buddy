@@ -17,6 +17,9 @@ pub struct Inner {
     pub retention_days: u32,
     pub last_cleanup: Instant,
     pub privacy_revision: u64,
+    /// The `privacy_revision` at the last change to sharing, privacy, tracking or provider consent.
+    /// Goal and chat edits bump `privacy_revision` only, so a pending answer survives them.
+    pub last_consent_change: u64,
     pub memory_session_started_at: String,
     pub buddy: crate::buddy::Runtime,
     pub storage: Storage,
@@ -26,6 +29,18 @@ pub struct Inner {
     pub last_nudge: Option<Instant>,
     pub last_error: Option<String>,
 }
+impl Inner {
+    /// Records a consent-affecting change: sharing, privacy, tracking or provider settings.
+    pub fn mark_consent_change(&mut self) {
+        self.privacy_revision += 1;
+        self.last_consent_change = self.privacy_revision;
+    }
+    /// Whether consent changed after a request captured `revision`.
+    pub fn consent_changed(&self, revision: u64) -> bool {
+        self.last_consent_change > revision
+    }
+}
+
 pub struct AppState {
     pub companion_request: tokio::sync::Mutex<()>,
     pub recommendation: tokio::sync::Mutex<()>,
@@ -65,6 +80,7 @@ impl AppState {
                 retention_days,
                 last_cleanup: Instant::now(),
                 privacy_revision: 0,
+                last_consent_change: 0,
                 memory_session_started_at: chrono::Utc::now().to_rfc3339(),
                 buddy,
                 storage,
@@ -122,7 +138,7 @@ pub fn set_provider_key(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     crate::credentials::write(name, key)?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     if key.is_some() {
         inner.storage.connection.execute("UPDATE core_goal_analyses SET state='queued',message=NULL,attempts=0 WHERE state='failed'",[]).map_err(|_| "Could not resume goal suggestions")?;
     }
