@@ -43,6 +43,24 @@ export function Avatar({
       role="img"
       aria-label={`sumi companion, ${state}`}
     >
+      {state === "stretching" && (
+        <g
+          className="avatar-stretch-arms"
+          fill="none"
+          stroke="color-mix(in srgb, var(--avatar-color) 70%, #1E2A23)"
+          strokeWidth={4.5}
+          strokeLinecap="round"
+        >
+          <path
+            className="avatar-arm avatar-arm-left"
+            d="M9 40C-3 36-7 26-3 15"
+          />
+          <path
+            className="avatar-arm avatar-arm-right"
+            d="M51 40c12-4 16-14 12-25"
+          />
+        </g>
+      )}
       <g className="pet__body">
         <path
           className="pet__fill"
@@ -56,6 +74,7 @@ export function Avatar({
       </g>
       {(state === "completed" || state === "success") && (
         <path
+          className="avatar-check"
           d="m47 -8 5 5 10-11"
           stroke="var(--accent, #3E6B48)"
           strokeWidth={4}
@@ -73,15 +92,15 @@ export function Avatar({
           strokeLinejoin="round"
           className="avatar-mark"
         >
-          <path d="M50 -1h6l-6 6h6" />
-          <path d="M60 -9h4l-4 4h4" strokeWidth={1.6} />
+          <path className="avatar-zz" d="M61 -9h6l-6 6h6" />
+          <path className="avatar-zz" d="M71 -18h4l-4 4h4" strokeWidth={1.6} />
         </g>
       )}
       {state === "thinking" && (
         <g fill={MARK} className="avatar-mark">
-          <circle cx="50" cy="-2" r="1.7" />
-          <circle cx="56" cy="-5" r="2.3" />
-          <circle cx="63" cy="-9" r="3" />
+          <circle className="avatar-dot" cx="52" cy="-4" r="1.7" />
+          <circle className="avatar-dot" cx="58" cy="-8" r="2.3" />
+          <circle className="avatar-dot" cx="65" cy="-13" r="3" />
         </g>
       )}
       {state === "attention" && (
@@ -96,18 +115,6 @@ export function Avatar({
           ?
         </text>
       )}
-      {state === "stretching" && (
-        <g
-          className="avatar-stretch-arms"
-          fill="none"
-          stroke="color-mix(in srgb, var(--avatar-color) 72%, #1E2A23)"
-          strokeWidth={7}
-          strokeLinecap="round"
-        >
-          <path d="M9 36C1 32-2 24 1 16" />
-          <path d="M51 36c8-4 11-12 8-20" />
-        </g>
-      )}
       {state === "listening" && (
         <g
           className="avatar-mark"
@@ -116,10 +123,16 @@ export function Avatar({
           strokeWidth={2.2}
           strokeLinecap="round"
         >
-          <path d="M-3 24q-5 7 0 14" />
-          <path d="M-9 20q-9 11 0 22" />
-          <path d="M63 24q5 7 0 14" />
-          <path d="M69 20q9 11 0 22" />
+          <path className="avatar-wave" d="M-3 24q-5 7 0 14" />
+          <path
+            className="avatar-wave avatar-wave-outer"
+            d="M-9 20q-9 11 0 22"
+          />
+          <path className="avatar-wave" d="M63 24q5 7 0 14" />
+          <path
+            className="avatar-wave avatar-wave-outer"
+            d="M69 20q9 11 0 22"
+          />
         </g>
       )}
     </svg>
