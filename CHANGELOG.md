@@ -2,6 +2,8 @@
 
 ## 0.32.2 — calmer Today, in-place editing, priorities
 
+- Deleting a goal no longer asks; it is removed at once and a small "Deleted … · Undo" message restores it (goals stay recoverable for 30 days).
+- Progress is quieter: the headline counts goals and steps done in the period, hovering a bar shows that day's split by goal, a goal's view lists all its steps (done ones with minutes), and window activity sits under a Details link.
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
 - Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place. The deadline uses a calendar with a Now button and a time you can type ("13:00" or "1:30 pm"); without a time it counts as the whole day.
 - Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.

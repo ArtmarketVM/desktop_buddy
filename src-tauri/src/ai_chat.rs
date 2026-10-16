@@ -1722,3 +1722,52 @@ async fn name_conversation(app: AppHandle, conversation: i64) {
 #[cfg(test)]
 #[path = "ai_chat_tests.rs"]
 mod tests;
+
+/// Deletes a goal the way the chat does (with a 30-day backup) and returns the backup id for Undo.
+#[tauri::command(async)]
+pub fn delete_core_goal(state: State<AppState>, app: AppHandle, id: i64) -> Result<i64, String> {
+    let mut backup_id = 0_i64;
+    crate::core::mutate(&state, &app, |storage| {
+        let message = delete_goal_with_backup(storage, id);
+        if !message.starts_with("Deleted") {
+            return Err(message);
+        }
+        backup_id = storage
+            .connection
+            .query_row(
+                "SELECT COALESCE(MAX(id),0) FROM deleted_goal_backups",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    })?;
+    Ok(backup_id)
+}
+/// Restores a goal deleted from the app by its backup id (Undo).
+#[tauri::command(async)]
+pub fn restore_core_goal(
+    state: State<AppState>,
+    app: AppHandle,
+    backup_id: i64,
+) -> Result<crate::core::CoreSnapshot, String> {
+    crate::core::mutate(&state, &app, |storage| {
+        let title: Option<String> = storage
+            .connection
+            .query_row(
+                "SELECT title FROM deleted_goal_backups WHERE id=?1",
+                [backup_id],
+                |r| r.get(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        let Some(title) = title else {
+            return Err("That deleted goal is no longer available to restore".into());
+        };
+        let message = restore_goal(storage, Some(&title), 0);
+        if message.starts_with("Couldn't") || message.starts_with("There is no") {
+            return Err(message);
+        }
+        Ok(())
+    })
+}

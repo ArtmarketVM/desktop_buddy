@@ -1163,7 +1163,7 @@ pub fn save_core_identity(
     inner.storage.write_setting("user_settings", &settings)?;
     crate::buddy::sync(&app, &mut inner)
 }
-fn mutate(
+pub(crate) fn mutate(
     state: &AppState,
     app: &AppHandle,
     work: impl FnOnce(&mut Storage) -> Result<(), String>,

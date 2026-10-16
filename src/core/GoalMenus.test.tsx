@@ -102,7 +102,6 @@ it("clicking inside preserves the menu, and an action closes it and uses the cor
   expect(screen.getByRole("group", { name: "Goal actions" })).toBeTruthy();
   await user.click(screen.getByRole("button", { name: "Delete goal" }));
   expect(screen.queryByRole("group", { name: "Goal actions" })).toBeNull();
-  expect(screen.getByText(/Delete this goal/)).toBeTruthy();
 });
 it("moving keyboard focus outside closes the menu", async () => {
   const user = setup();

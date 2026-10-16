@@ -13,6 +13,7 @@ import { aiApi } from "../ai/api";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
 import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
+import { toast } from "../components/Toasts";
 import { GoalOrder } from "./GoalOrder";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
@@ -142,7 +143,6 @@ export function GoalRow({
       ),
     });
   }, [menu]);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [stepText, setStepText] = useState("");
   const [adding, setAdding] = useState(initialAdding);
   const [highlight, setHighlight] = useState(-1);
@@ -166,6 +166,17 @@ export function GoalRow({
     if (ok) setStepText("");
     return ok;
   }
+  const deleteWithUndo = async () => {
+    let backup = 0;
+    const ok = await run(async () => {
+      backup = await coreApi.deleteGoal(goal.id);
+    });
+    if (!ok) return;
+    toast({
+      message: `Deleted “${sentenceCase(goal.title)}”`,
+      undo: () => run(() => coreApi.restoreGoal(backup)),
+    });
+  };
   const removeStep = (id: string) =>
     run(() =>
       coreApi.save(goal.title, area, {
@@ -271,7 +282,7 @@ export function GoalRow({
                     disabled={disabled}
                     onClick={() => {
                       setMenu(false);
-                      setConfirmDelete(true);
+                      void deleteWithUndo();
                     }}
                   >
                     Delete goal
@@ -527,27 +538,6 @@ export function GoalRow({
           </div>
         )}
       </div>
-      {confirmDelete && (
-        <div className="delete-confirm" role="alert">
-          <p>Delete this goal, its steps and its local progress history?</p>
-          <button
-            className="danger-button"
-            disabled={disabled}
-            onClick={() =>
-              void run(() => coreApi.transition(goal.id, "delete", true))
-            }
-          >
-            Delete permanently
-          </button>
-          <button
-            className="text-button"
-            disabled={disabled}
-            onClick={() => setConfirmDelete(false)}
-          >
-            Keep goal
-          </button>
-        </div>
-      )}
     </article>
   );
 }
