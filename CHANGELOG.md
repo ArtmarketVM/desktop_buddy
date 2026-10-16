@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.33.1 — calmer Today, in-place editing, priorities
+## 0.33.3 — calmer Today, in-place editing, priorities
 
 - Deleting a goal no longer asks; it is removed at once and a small "Deleted … · Undo" message restores it (goals stay recoverable for 30 days).
 - Progress is quieter: the headline counts goals and steps done in the period, hovering a bar shows that day's split by goal, a goal's view lists all its steps (done ones with minutes), and window activity sits under a Details link.
