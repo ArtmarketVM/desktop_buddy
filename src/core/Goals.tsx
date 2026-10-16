@@ -165,6 +165,15 @@ export function GoalRow({
     if (ok) setStepText("");
     return ok;
   }
+  const removeStep = (id: string) =>
+    run(() =>
+      coreApi.save(goal.title, area, {
+        ...goal.plan,
+        steps: goal.plan.steps.filter((item) => item.id !== id),
+        current_step:
+          goal.plan.current_step === id ? null : goal.plan.current_step,
+      }),
+    );
   const completeGoal = () =>
     run(() => coreApi.transition(goal.id, "complete", true));
   const suggestions = goal.analysis?.result;
@@ -229,6 +238,7 @@ export function GoalRow({
               ref={menuTrigger}
               className="text-button"
               aria-label={`More actions for ${goal.title}`}
+              title="Click for actions · hold to drag"
               aria-expanded={menu}
               aria-controls={menu ? menuId : undefined}
               disabled={disabled}
@@ -253,18 +263,7 @@ export function GoalRow({
                       edit(goal);
                     }}
                   >
-                    Edit goal
-                  </button>
-                  <button
-                    disabled={disabled}
-                    onClick={() => {
-                      setMenu(false);
-                      window.dispatchEvent(
-                        new CustomEvent("buddy:ask-goal", { detail: goal }),
-                      );
-                    }}
-                  >
-                    Ask sumi about this
+                    Goal details
                   </button>
                   <button
                     disabled={disabled}
@@ -275,28 +274,6 @@ export function GoalRow({
                   >
                     {today ? "Remove from Today" : "Add to Today"}
                   </button>
-                  {today && (
-                    <button
-                      disabled={disabled || active}
-                      onClick={() => {
-                        setMenu(false);
-                        void run(() => coreApi.focus(goal.id));
-                      }}
-                    >
-                      {active ? "Current goal" : "Focus on this goal"}
-                    </button>
-                  )}
-                  {goal.status === "open" && (
-                    <button
-                      disabled={disabled}
-                      onClick={() => {
-                        setMenu(false);
-                        void completeGoal();
-                      }}
-                    >
-                      Mark complete
-                    </button>
-                  )}
                   <button
                     disabled={disabled}
                     onClick={() => {
@@ -309,7 +286,9 @@ export function GoalRow({
                       );
                     }}
                   >
-                    {goal.status === "open" ? "Set aside" : "Reopen goal"}
+                    {goal.status === "open"
+                      ? "Set aside for later"
+                      : "Reopen goal"}
                   </button>
                   <button
                     className="danger-text"
@@ -368,6 +347,9 @@ export function GoalRow({
             {goal.plan.steps.length}{" "}
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
+          {goal.status === "open" && (
+            <GoalMeta goal={goal} onToday={today} onEdit={() => edit(goal)} />
+          )}
         </div>
         <button
           type="button"
@@ -386,37 +368,6 @@ export function GoalRow({
         <ul className="core-steps">
           {goal.plan.steps.map((step) => (
             <li key={step.id}>
-              {!readOnly && goal.status === "open" && (
-                <details className="step-menu">
-                  <summary aria-label={`Actions for step: ${step.text}`}>
-                    <MoreHorizontal size={15} />
-                  </summary>
-                  <div className="goal-menu">
-                    <button disabled={disabled} onClick={() => edit(goal)}>
-                      Edit step
-                    </button>
-                    <button
-                      disabled={disabled}
-                      onClick={() =>
-                        void run(() =>
-                          coreApi.save(goal.title, area, {
-                            ...goal.plan,
-                            steps: goal.plan.steps.filter(
-                              (item) => item.id !== step.id,
-                            ),
-                            current_step:
-                              goal.plan.current_step === step.id
-                                ? null
-                                : goal.plan.current_step,
-                          }),
-                        )
-                      }
-                    >
-                      Delete step
-                    </button>
-                  </div>
-                </details>
-              )}
               <div className="step-line">
                 <input
                   type="checkbox"
@@ -462,21 +413,20 @@ export function GoalRow({
                       }),
                     )
                   }
-                  onDelete={() =>
-                    void run(() =>
-                      coreApi.save(goal.title, area, {
-                        ...goal.plan,
-                        steps: goal.plan.steps.filter(
-                          (item) => item.id !== step.id,
-                        ),
-                        current_step:
-                          goal.plan.current_step === step.id
-                            ? null
-                            : goal.plan.current_step,
-                      }),
-                    )
-                  }
+                  onDelete={() => void removeStep(step.id)}
                 />
+                {!readOnly && goal.status === "open" && (
+                  <button
+                    type="button"
+                    className="text-button step-remove"
+                    aria-label={`Remove step: ${step.text}`}
+                    title="Remove step"
+                    disabled={disabled}
+                    onClick={() => void removeStep(step.id)}
+                  >
+                    <X size={13} />
+                  </button>
+                )}
               </div>
             </li>
           ))}
@@ -646,16 +596,17 @@ export function GoalEditor({
   remove: () => Promise<boolean>;
   error?: string;
 }) {
-  const [title, setTitle] = useState(goal.title);
+  const title = goal.title;
   const [saveError, setSaveError] = useState("");
+  const [minutes, setMinutes] = useState(
+    goal.estimated_minutes ? String(goal.estimated_minutes) : "",
+  );
   const [area, setArea] = useState(
     snapshot.areas.find((a) => a.id === goal.area_id)?.title ?? "General",
   );
   const [plan, setPlan] = useState(goal.plan);
+  const priority = goal.priority ?? null;
   const [due, setDue] = useState(localDeadline(goal.due_at));
-  const [priority, setPriority] = useState<GoalDetails["priority"]>(
-    goal.priority ?? null,
-  );
   const [description, setDescription] = useState(goal.description ?? "");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -689,6 +640,13 @@ export function GoalEditor({
     setBusy(true);
     setSaveError("");
     try {
+      const parsed = minutes.trim() ? Number(minutes) : null;
+      if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1)) {
+        setSaveError("Use whole minutes, at least 1.");
+        return;
+      }
+      if (parsed !== (goal.estimated_minutes ?? null))
+        await coreApi.estimate(goal.id, parsed);
       if (
         await save(title, area, plan, {
           due_at: deadlineISO(due),
@@ -718,7 +676,7 @@ export function GoalEditor({
         aria-labelledby="goal-editor-title"
       >
         <div className="section-heading">
-          <h2 id="goal-editor-title">Edit goal</h2>
+          <h2 id="goal-editor-title">Goal details</h2>
           <button
             className="text-button"
             aria-label="Close goal editor"
@@ -729,15 +687,6 @@ export function GoalEditor({
           </button>
         </div>
         <fieldset disabled={busy}>
-          <label>
-            Goal
-            <input
-              autoFocus
-              value={title}
-              maxLength={500}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </label>
           <label>
             Area
             <input
@@ -769,21 +718,15 @@ export function GoalEditor({
             />
           </label>
           <label>
-            Priority
-            <select
-              value={priority ?? ""}
-              onChange={(event) =>
-                setPriority(
-                  (event.target.value || null) as GoalDetails["priority"],
-                )
-              }
-            >
-              <option value="">No priority</option>
-              <option value="urgent">Urgent</option>
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
+            Estimated time (minutes, optional)
+            <input
+              type="number"
+              min={1}
+              max={100000}
+              placeholder="For example 90"
+              value={minutes}
+              onChange={(event) => setMinutes(event.target.value)}
+            />
           </label>
           <label>
             Description (optional)
@@ -793,57 +736,6 @@ export function GoalEditor({
               onChange={(event) => setDescription(event.target.value)}
             />
           </label>
-          <div className="edit-steps">
-            {plan.steps.map((step, index) => (
-              <div key={step.id}>
-                <input
-                  aria-label={`Step ${index + 1}`}
-                  maxLength={500}
-                  value={step.text}
-                  onChange={(e) =>
-                    setPlan({
-                      ...plan,
-                      steps: plan.steps.map((s) =>
-                        s.id === step.id ? { ...s, text: e.target.value } : s,
-                      ),
-                    })
-                  }
-                />
-                <button
-                  className="text-button"
-                  aria-label={`Remove step ${index + 1}`}
-                  onClick={() =>
-                    setPlan({
-                      ...plan,
-                      steps: plan.steps.filter((s) => s.id !== step.id),
-                      current_step:
-                        plan.current_step === step.id
-                          ? null
-                          : plan.current_step,
-                    })
-                  }
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            className="text-button"
-            disabled={plan.steps.length >= 20}
-            onClick={() =>
-              setPlan({
-                ...plan,
-                steps: [
-                  ...plan.steps,
-                  { id: crypto.randomUUID(), text: "", done: false },
-                ],
-              })
-            }
-          >
-            <Plus size={14} />
-            Add a step
-          </button>
         </fieldset>
         {(error || saveError) && (
           <p className="error" role="alert">
@@ -851,18 +743,11 @@ export function GoalEditor({
           </p>
         )}
         <div className="settings-actions">
-          <button
-            disabled={
-              busy ||
-              !title.trim() ||
-              plan.steps.some((step) => !step.text.trim())
-            }
-            onClick={() => void commit()}
-          >
-            {busy ? "Saving…" : "Save changes"}
+          <button disabled={busy} onClick={() => void commit()}>
+            {busy ? "Saving…" : "Save"}
           </button>
           <button className="text-button" disabled={busy} onClick={close}>
-            Discard changes
+            Cancel
           </button>
           <button
             className="text-button danger-text"
@@ -996,5 +881,48 @@ export function GoalAreas({
         )}
       </div>
     </section>
+  );
+}
+
+/** Deadline and expected time after the title. Today goals without a deadline are due today. */
+export function GoalMeta({
+  goal,
+  onToday,
+  onEdit,
+}: {
+  goal: CoreGoal;
+  onToday: boolean;
+  onEdit: () => void;
+}) {
+  const now = new Date();
+  const due = goal.due_at ? new Date(goal.due_at) : null;
+  const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+  let deadline = "";
+  let overdue = false;
+  if (due && !Number.isNaN(due.getTime())) {
+    overdue = due.getTime() < now.getTime();
+    deadline = sameDay(due, now)
+      ? "due today"
+      : `due ${due.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
+  } else if (onToday) {
+    deadline = "due today";
+  }
+  const minutes = goal.estimated_minutes ?? null;
+  const estimate =
+    minutes === null
+      ? (goal.analysis?.result?.estimatedDuration ?? "")
+      : minutes >= 60
+        ? `~${Math.round((minutes / 60) * 10) / 10} h`
+        : `~${minutes} min`;
+  if (!deadline && !estimate) return null;
+  return (
+    <button
+      type="button"
+      className={`text-button goal-meta ${overdue ? "overdue" : ""}`}
+      title="Deadline and expected time · click to change"
+      onClick={onEdit}
+    >
+      {[deadline, estimate].filter(Boolean).join(" · ")}
+    </button>
   );
 }

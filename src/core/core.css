@@ -2158,3 +2158,60 @@ p.error .text-button {
 .priority-menu button > svg:last-child {
   margin-left: auto;
 }
+
+/* Row meta, hover-only step removal, summary dropdown. */
+.goal-meta {
+  display: inline;
+  margin-left: 10px;
+  padding: 0 4px;
+  color: var(--muted);
+  font-size: 11px;
+  vertical-align: baseline;
+}
+.goal-meta.overdue {
+  color: var(--danger);
+}
+.step-line > .step-remove {
+  flex: none;
+  padding: 2px;
+  margin-left: 4px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 120ms;
+}
+.step-line:hover > .step-remove,
+.step-line:focus-within > .step-remove {
+  opacity: 1;
+}
+.day-summary-details {
+  display: block;
+  padding: 0;
+}
+.day-summary-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 24px;
+  list-style: none;
+  cursor: pointer;
+}
+.day-summary-details > summary::-webkit-details-marker {
+  display: none;
+}
+.day-summary-details > summary p {
+  flex: 1;
+  margin: 0;
+}
+.day-summary-details > summary .summary-chevron {
+  color: var(--muted);
+  transition: transform 150ms;
+}
+.day-summary-details[open] > summary .summary-chevron {
+  transform: rotate(180deg);
+}
+.day-summary-goals {
+  padding: 0 24px 12px;
+}
+.day-summary-goals .core-goal:first-child {
+  border-top: 0;
+}

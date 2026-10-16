@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { WindowActivity } from "./WindowActivity";
-import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
 import { PeriodPicker, endOfMonth } from "./PeriodPicker";
 import {
   sentenceCase,
@@ -26,7 +27,14 @@ const periodOptions: Array<{
 const periodDays = (period: ProgressPeriod) =>
   periodOptions.find((item) => item.value === period)?.days ?? 7;
 
-export function DaySummary({ day }: { day: DayProgress; unfinished?: number }) {
+export function DaySummary({
+  day,
+  children,
+}: {
+  day: DayProgress;
+  unfinished?: number;
+  children?: ReactNode;
+}) {
   const seconds = day.goals.reduce(
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
@@ -43,20 +51,33 @@ export function DaySummary({ day }: { day: DayProgress; unfinished?: number }) {
       : "",
     seconds > 0 ? `${duration(seconds)} focused` : "",
   ].filter(Boolean);
+  const line = parts.length ? (
+    <strong>{parts.join(" · ")}</strong>
+  ) : (
+    "No recorded activity or completed goals for this day."
+  );
+  if (!children)
+    return (
+      <section
+        className={`day-summary ${parts.length ? "has-progress" : ""}`}
+        aria-label="Day summary"
+      >
+        <Check size={16} aria-hidden="true" />
+        <p>{line}</p>
+      </section>
+    );
   return (
-    <section
-      className={`day-summary ${parts.length ? "has-progress" : ""}`}
+    <details
+      className={`day-summary day-summary-details ${parts.length ? "has-progress" : ""}`}
       aria-label="Day summary"
     >
-      <Check size={16} aria-hidden="true" />
-      <p>
-        {parts.length ? (
-          <strong>{parts.join(" · ")}</strong>
-        ) : (
-          "No recorded activity or completed goals for this day."
-        )}
-      </p>
-    </section>
+      <summary>
+        <Check size={16} aria-hidden="true" />
+        <p>{line}</p>
+        <ChevronDown size={16} aria-hidden="true" className="summary-chevron" />
+      </summary>
+      <div className="day-summary-goals">{children}</div>
+    </details>
   );
 }
 const goalColors = [

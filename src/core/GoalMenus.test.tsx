@@ -83,11 +83,11 @@ it("Escape closes and restores focus to the exact trigger", async () => {
   });
   await user.click(trigger);
   expect(document.activeElement).toBe(
-    screen.getByRole("button", { name: "Edit goal" }),
+    screen.getByRole("button", { name: "Goal details" }),
   );
   await user.tab();
   expect(document.activeElement).toBe(
-    screen.getByRole("button", { name: "Ask sumi about this" }),
+    screen.getByRole("button", { name: /Remove from Today|Add to Today/ }),
   );
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("group", { name: "Goal actions" })).toBeNull();
@@ -100,7 +100,7 @@ it("clicking inside preserves the menu, and an action closes it and uses the cor
   );
   fireEvent.pointerDown(screen.getByRole("group", { name: "Goal actions" }));
   expect(screen.getByRole("group", { name: "Goal actions" })).toBeTruthy();
-  await user.click(screen.getByRole("button", { name: "Edit goal" }));
+  await user.click(screen.getByRole("button", { name: "Goal details" }));
   expect(edit).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }));
   expect(screen.queryByRole("group", { name: "Goal actions" })).toBeNull();
 });

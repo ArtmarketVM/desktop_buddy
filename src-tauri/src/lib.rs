@@ -280,6 +280,7 @@ pub fn run() {
             core::create_core_goal,
             core::save_core_goal,
             core::set_core_goal_priority,
+            core::set_core_goal_estimate,
             core::transition_core_goal,
             core::set_core_today,
             core::reorder_core_goals,

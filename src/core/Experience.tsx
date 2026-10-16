@@ -274,7 +274,6 @@ export function Experience({
               {openToday.length > 0 && (
                 <GoalOrder
                   goals={openToday}
-                  showHandles
                   allGoals={snapshot.goals}
                   disabled={busy}
                   reorder={(ids) => run(() => coreApi.reorder(ids))}
@@ -291,22 +290,6 @@ export function Experience({
                   )}
                 </GoalOrder>
               )}
-              {finishedToday.length > 0 && (
-                <details className="inline-details today-finished">
-                  <summary>Completed · {finishedToday.length}</summary>
-                  {finishedToday.map((goal) => (
-                    <GoalRow
-                      key={goal.id}
-                      goal={goal}
-                      snapshot={snapshot}
-                      busy={busy}
-                      run={run}
-                      edit={setEditor}
-                      enhancement={enhancement}
-                    />
-                  ))}
-                </details>
-              )}
               {snapshot.timer && (
                 <button
                   className="text-button"
@@ -319,8 +302,23 @@ export function Experience({
               )}
             </section>
           </div>
-          {(snapshot.summary.completed.length > 0 || focusedSeconds > 0) && (
-            <DaySummary day={snapshot.summary} />
+          {(snapshot.summary.completed.length > 0 ||
+            focusedSeconds > 0 ||
+            finishedToday.length > 0) && (
+            <DaySummary day={snapshot.summary}>
+              {finishedToday.length > 0 &&
+                finishedToday.map((goal) => (
+                  <GoalRow
+                    key={goal.id}
+                    goal={goal}
+                    snapshot={snapshot}
+                    busy={busy}
+                    run={run}
+                    edit={setEditor}
+                    enhancement={enhancement}
+                  />
+                ))}
+            </DaySummary>
           )}
         </>
       )}
