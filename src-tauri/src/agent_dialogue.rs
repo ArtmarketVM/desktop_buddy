@@ -269,7 +269,7 @@ fn fresh(state: &AppState, conversation: i64, revision: u64) -> Result<Snapshot,
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    if inner.privacy_revision != revision || !inner.storage.ai_preferences()?.enabled {
+    if inner.consent_changed(revision) || !inner.storage.ai_preferences()?.enabled {
         return Err("AI context or sharing changed".into());
     }
     let mut snap = skills::snapshot(&inner.storage, conversation)?;
@@ -651,7 +651,7 @@ async fn duplicate_question(
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
-        if inner.privacy_revision != revision {
+        if inner.consent_changed(revision) {
             return Err("Sharing changed; nothing was changed".into());
         }
         inner
@@ -789,7 +789,7 @@ pub async fn run(
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
-        if inner.privacy_revision != revision || !inner.storage.ai_preferences()?.enabled {
+        if inner.consent_changed(revision) || !inner.storage.ai_preferences()?.enabled {
             return Err("AI sharing changed; nothing was changed".into());
         }
         if let Some((token, _)) = &pending_confirmation {

@@ -2,6 +2,7 @@
 
 ## 0.32.1 — calmer Today goal picking
 
+- Fix "Your goal or sharing choices changed" appearing on a chat answer when a goal was edited or the focus changed while sumi was answering; only real sharing, privacy, tracking or provider changes discard an answer now.
 - One field on Today now finds or adds a goal: typing filters your saved goals (titles, descriptions and steps), Enter adds the highlighted match to Today or creates a new goal, and an empty field shows five recent goals.
 - "Choose goals" opens a compact panel with its own search and pages of eight goals, instead of the long inline list.
 - Removed the duplicated "Goals", "Choose goals for Today" and "Pick up where you left off" headings and the helper line; unfinished goals from earlier days are marked in the suggestions and can be dismissed there.

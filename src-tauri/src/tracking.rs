@@ -44,7 +44,7 @@ pub fn configure_goal_monitoring(
     inner.companion.invalidate();
     inner.buddy.foreground = None;
     inner.buddy.clear();
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }
 #[tauri::command(async)]
@@ -264,7 +264,7 @@ pub fn set_tracking_settings(
         .storage
         .write_setting("tracking_settings", &settings)?;
     inner.tracking_settings = settings;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     inner.usage = Default::default();
     inner.window_history.clear();
     inner.activity_state.stop(false);

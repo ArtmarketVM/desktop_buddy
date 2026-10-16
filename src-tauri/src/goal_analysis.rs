@@ -49,7 +49,7 @@ pub fn set_ai_preferences(
     inner
         .storage
         .write_setting("ai_assistance_preferences", &preferences)?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     inner.goal_matching.clear();
     Ok(())
 }
@@ -534,7 +534,7 @@ pub fn ensure_revision(state: &AppState, revision: u64) -> Result<(), String> {
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    if inner.privacy_revision != revision || !inner.storage.ai_preferences()?.enabled {
+    if inner.consent_changed(revision) || !inner.storage.ai_preferences()?.enabled {
         Err("Response discarded because AI sharing settings or context changed".into())
     } else {
         Ok(())

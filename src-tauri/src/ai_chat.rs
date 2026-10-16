@@ -1593,7 +1593,7 @@ async fn send_message(
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    if inner.privacy_revision != revision {
+    if inner.consent_changed(revision) {
         return Err("Response discarded because context or sharing changed".into());
     }
     if let Some(proposal) = reply.memory_update.take() {
