@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
+import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -36,10 +38,10 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
 });
-it("mounting reads local metadata without calling providers or claiming health from a key", async () => {
+it("startup probes both providers without claiming health from key metadata alone", async () => {
   render(<SidebarAiServices />);
   await screen.findByRole("button", { name: "NVIDIA Nemotron: Not checked" });
-  expect(api.testConnection).not.toHaveBeenCalled();
+  expect(api.testConnection).toHaveBeenCalledTimes(2);
   expect(document.querySelectorAll(".service-verified")).toHaveLength(0);
 });
 it("hover details explain the cloud model and preserve configured-model provenance", async () => {
@@ -62,7 +64,7 @@ it("hover details explain the cloud model and preserve configured-model provenan
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("tooltip")).toBeNull();
 });
-it("only an explicit check invokes both authentication probes and refreshes status", async () => {
+it("manual refresh checks both providers again after startup", async () => {
   const user = userEvent.setup();
   render(<SidebarAiServices />);
   await screen.findByRole("button", { name: "NVIDIA Nemotron: Not checked" });
@@ -78,7 +80,7 @@ it("only an explicit check invokes both authentication probes and refreshes stat
     screen.getByRole("button", { name: "Check AI connections" }),
   );
   await screen.findByRole("button", { name: "NVIDIA Nemotron: Model listed" });
-  expect(api.testConnection).toHaveBeenCalledTimes(2);
+  expect(api.testConnection).toHaveBeenCalledTimes(4);
   expect(api.testConnection).toHaveBeenCalledWith("nebius");
   expect(api.testConnection).toHaveBeenCalledWith("tavily");
   expect(screen.getByRole("status").textContent).toContain("refreshed");
@@ -140,5 +142,98 @@ it("status read failure clears green rather than retaining a successful connecti
 it("onboarding performs no diagnostics or provider requests", () => {
   render(<SidebarAiServices enabled={false} />);
   expect(serviceStatusApi.read).not.toHaveBeenCalled();
+  expect(api.testConnection).not.toHaveBeenCalled();
+});
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+it("startup stays neutral until real probes finish and reports each provider independently", async () => {
+  const nebius = deferred();
+  const tavily = deferred();
+  vi.mocked(api.testConnection).mockImplementation((provider) =>
+    (provider === "nebius" ? nebius.promise : tavily.promise).then(
+      () => "Checked",
+    ),
+  );
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({ ...s, status: "not_configured" })),
+  });
+  render(<SidebarAiServices />);
+  await screen.findByRole("button", { name: "Nebius: Checking…" });
+  await waitFor(() => expect(api.testConnection).toHaveBeenCalledTimes(2));
+  expect(document.querySelectorAll(".service-not_configured")).toHaveLength(0);
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({
+      ...s,
+      status: s.id === "tavily" ? "checking" : "verified",
+    })),
+  });
+  await act(async () => nebius.resolve());
+  await screen.findByRole("button", { name: "Nebius: Connected" });
+  expect(
+    screen.getByRole("button", { name: "Tavily: Checking…" }),
+  ).toBeTruthy();
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({
+      ...s,
+      status: s.id === "tavily" ? "unavailable" : "verified",
+    })),
+  });
+  await act(async () => tavily.resolve());
+  await screen.findByRole("button", {
+    name: "Tavily: Could not verify access",
+  });
+});
+it("StrictMode and sidebar collapse do not duplicate startup probes", async () => {
+  const view = render(
+    <StrictMode>
+      <SidebarAiServices />
+    </StrictMode>,
+  );
+  await screen.findByRole("button", { name: "Nebius: Not checked" });
+  view.rerender(
+    <StrictMode>
+      <SidebarAiServices collapsed />
+    </StrictMode>,
+  );
+  fireEvent(window, new Event("focus"));
+  await waitFor(() => expect(serviceStatusApi.read).toHaveBeenCalled());
+  expect(api.testConnection).toHaveBeenCalledTimes(2);
+});
+it("an offline startup waits for reconnection before probing", async () => {
+  const online = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+  render(<SidebarAiServices />);
+  expect(api.testConnection).not.toHaveBeenCalled();
+  online.mockReturnValue(true);
+  fireEvent(window, new Event("online"));
+  await screen.findByRole("button", { name: "Nebius: Not checked" });
+  expect(api.testConnection).toHaveBeenCalledTimes(2);
+});
+it("simulated providers never trigger real startup network checks", async () => {
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({ ...s, status: "mock" })),
+  });
+  render(<SidebarAiServices />);
+  await screen.findByRole("button", { name: "Nebius: Simulated provider" });
+  expect(api.testConnection).not.toHaveBeenCalled();
+});
+it("disabling before metadata arrives prevents startup probes", async () => {
+  const pending = deferred();
+  vi.mocked(serviceStatusApi.read).mockImplementation(async () => {
+    await pending.promise;
+    return fixture;
+  });
+  const view = render(<SidebarAiServices />);
+  view.rerender(<SidebarAiServices enabled={false} />);
+  await act(async () => pending.resolve());
   expect(api.testConnection).not.toHaveBeenCalled();
 });

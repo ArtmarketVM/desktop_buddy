@@ -611,27 +611,117 @@
   margin-left: auto;
 }
 .buddy-action-bar {
-  display: flex;
-  gap: 0;
-  padding: 3px 6px;
-  border-radius: 22px;
-  background: var(--text);
-  box-shadow: 0 3px 12px #0002;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 32px;
+  pointer-events: none;
 }
-.buddy-action-bar > button {
+.buddy-action-surface {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--buddy-control-color, var(--mochi-sleepy));
+  box-shadow: 0 2px 8px #0002;
+  pointer-events: auto;
+  transition:
+    width 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    height 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.buddy-action-buttons {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  width: 58px;
+  opacity: 1;
+  transform: scale(1);
+  transition:
+    opacity 120ms ease,
+    transform 220ms ease;
+}
+.buddy-action-buttons::after {
+  content: "";
+  position: absolute;
+  left: calc(50% - 0.5px);
+  top: 7px;
+  width: 1px;
+  height: 14px;
+  background: color-mix(in srgb, var(--buddy-control-ink) 20%, transparent);
+  pointer-events: none;
+}
+.buddy-action-bar[data-collapsed="true"] .buddy-action-surface {
+  width: 24px;
+  height: 4px;
+}
+.buddy-action-buttons[aria-hidden="true"] {
+  opacity: 0;
+  transform: scale(0.7);
+  pointer-events: none;
+}
+.buddy-action-buttons > button {
   display: flex;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: 0;
-  width: 34px;
-  min-height: 30px;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
   padding: 5px;
-  color: var(--canvas);
+  color: var(--buddy-control-ink);
 }
-.buddy-action-bar > button:hover:not(:disabled) {
-  background: var(--text);
-  border-radius: 16px;
+.buddy-action-buttons > button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--buddy-control-ink) 9%, transparent);
+}
+.buddy-action-buttons > button:focus-visible {
+  outline: 2px solid var(--buddy-control-ink);
+  outline-offset: -2px;
+}
+.desktop-character,
+.workspace-buddy-avatar,
+.buddy-action-bar {
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Only painted SVG geometry receives pointer input, not the avatar's box. */
+.desktop-character,
+.workspace-buddy-avatar,
+.desktop-character .avatar,
+.workspace-buddy-avatar .avatar {
+  pointer-events: none;
+}
+.desktop-character
+  .avatar
+  :is(path, text, circle, ellipse, rect, polygon, polyline),
+.workspace-buddy-avatar
+  .avatar
+  :is(path, text, circle, ellipse, rect, polygon, polyline) {
+  pointer-events: visiblePainted;
+}
+.workspace-buddy,
+main.desktop-buddy {
+  pointer-events: none;
+}
+.desktop-buddy :is(.companion-chat, .suggestion-card, .companion-error) {
+  pointer-events: auto;
+}
+.workspace-buddy-input {
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .buddy-action-surface,
+  .buddy-action-buttons {
+    transition: none;
+  }
 }
 .companion-chat.compact-conversation {
   position: relative;

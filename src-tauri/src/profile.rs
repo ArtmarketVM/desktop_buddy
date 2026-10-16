@@ -480,6 +480,44 @@ pub fn save_user_profile(
     crate::buddy::sync(&app, &mut inner)
 }
 
+// Change only appearance; unrelated settings drafts remain unsaved.
+pub(crate) fn store_avatar_color(
+    storage: &Storage,
+    color: &str,
+) -> Result<AvatarPreferences, String> {
+    if !is_hex_color(color) {
+        return Err("Choose a supported companion color".into());
+    }
+    let mut settings = storage.user_settings()?;
+    if !settings.onboarding.completed {
+        return Err("Finish setup first".into());
+    }
+    settings.profile.avatar.color = color.to_ascii_uppercase();
+    storage.write_setting("user_settings", &settings)?;
+    Ok(settings.profile.avatar)
+}
+
+#[tauri::command(async)]
+pub fn set_avatar_color(
+    color: String,
+    window: tauri::WebviewWindow,
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<(), String> {
+    use tauri::Emitter;
+    if window.label() != "main" {
+        return Err("Open Settings in the main window".into());
+    }
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    let avatar = store_avatar_color(&inner.storage, &color)?;
+    inner.buddy.view.avatar = avatar;
+    let _ = app.emit("buddy://avatar-color", &color);
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "profile_tests.rs"]
 mod tests;

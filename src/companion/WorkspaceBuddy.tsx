@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Mic, SquarePen, X } from "lucide-react";
+import { X } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import {
   defaultUserSettings,
@@ -11,6 +11,8 @@ import {
 import type { CoreGoal } from "../core/types";
 import { Conversation } from "./Conversation";
 import { defaultCompanionView } from "./types";
+import { BuddyActionBar } from "./BuddyActionBar";
+import { useBuddyActions } from "./useBuddyActions";
 
 export function WorkspaceBuddy({
   dashboard,
@@ -22,6 +24,7 @@ export function WorkspaceBuddy({
   showLauncher?: boolean;
 }) {
   const [mode, setMode] = useState<"idle" | "text" | "voice">("idle");
+  const actions = useBuddyActions(mode !== "idle");
   const [state, setState] = useState<AvatarState>("idle");
   const [context, setContext] = useState<{ goal: Goal; plan: GoalPlan } | null>(
     null,
@@ -88,6 +91,7 @@ export function WorkspaceBuddy({
       {showLauncher && (
         <>
           <button
+            {...actions.events}
             className="workspace-buddy-avatar"
             aria-label="Open sumi chat"
             onClick={() => setMode(mode === "idle" ? "text" : "idle")}
@@ -97,22 +101,12 @@ export function WorkspaceBuddy({
               state={state}
             />
           </button>
-          <div className="buddy-action-bar" aria-label="sumi actions">
-            <button
-              aria-label="Write to sumi"
-              title="Write to sumi"
-              onClick={() => setMode("text")}
-            >
-              <SquarePen size={17} />
-            </button>
-            <button
-              aria-label="Talk to sumi"
-              title="Talk to sumi"
-              onClick={() => setMode("voice")}
-            >
-              <Mic size={17} />
-            </button>
-          </div>
+          <BuddyActionBar
+            color={appearance.color}
+            actions={actions}
+            onWrite={() => setMode("text")}
+            onTalk={() => setMode("voice")}
+          />
         </>
       )}
     </div>

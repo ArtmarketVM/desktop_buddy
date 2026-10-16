@@ -302,6 +302,7 @@ pub fn run() {
             profile::create_onboarding_goal,
             profile::finish_onboarding,
             profile::save_user_profile,
+            profile::set_avatar_color,
             profile::set_user_theme,
             profile::reset_local_profile,
             installed_apps::get_installed_apps,

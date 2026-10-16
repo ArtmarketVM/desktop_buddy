@@ -42,7 +42,12 @@ export function SidebarAiServices({
   collapsed?: boolean;
 }) {
   const [snapshot, setSnapshot] = useState<ServiceSnapshot | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(desktop && enabled && navigator.onLine);
+  const [checking, setChecking] = useState<ServiceId[]>([]);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const started = useRef(false);
+  const allowed = useRef(enabled);
+  allowed.current = enabled;
   const [offline, setOffline] = useState(
     () => typeof navigator !== "undefined" && !navigator.onLine,
   );
@@ -64,16 +69,58 @@ export function SidebarAiServices({
         setSnapshot(data);
         setReadError(false);
       }
+      return data;
     } catch {
       if (mounted.current) setReadError(true);
     }
   }, []);
+  const check = useCallback(() => {
+    if (inFlight.current) return inFlight.current;
+    if (!desktop || !allowed.current || !navigator.onLine)
+      return Promise.resolve();
+    setBusy(true);
+    setChecking(["nebius", "nvidia", "tavily"]);
+    setReceipt("");
+    const work = async () => {
+      try {
+        const initial = await refresh();
+        if (!allowed.current || !mounted.current || !navigator.onLine) return;
+        if (initial?.services.some((item) => item.status === "mock")) return;
+        await Promise.allSettled(
+          (["nebius", "tavily"] as const).map(async (provider) => {
+            try {
+              await api.testConnection(provider);
+            } finally {
+              await refresh();
+              if (mounted.current)
+                setChecking((pending) =>
+                  pending.filter((id) =>
+                    provider === "nebius" ? id === "tavily" : id !== "tavily",
+                  ),
+                );
+            }
+          }),
+        );
+        if (mounted.current) setReceipt("Connection status refreshed.");
+      } finally {
+        inFlight.current = null;
+        if (mounted.current) {
+          setChecking([]);
+          setBusy(false);
+        }
+      }
+    };
+    inFlight.current = work();
+    return inFlight.current;
+  }, [refresh]);
   useEffect(() => {
     mounted.current = true;
-    if (!desktop || !enabled)
+    if (!desktop || !enabled) {
+      started.current = false;
       return () => {
         mounted.current = false;
       };
+    }
     let pending = false;
     const poll = async () => {
       if (document.hidden || pending) return;
@@ -86,9 +133,13 @@ export function SidebarAiServices({
     };
     const network = () => {
       setOffline(!navigator.onLine);
-      void poll();
+      if (navigator.onLine) void check();
+      else void poll();
     };
-    void poll();
+    if (!started.current) {
+      started.current = true;
+      void check();
+    } else void poll();
     const interval = window.setInterval(() => void poll(), 30_000);
     document.addEventListener("visibilitychange", poll);
     window.addEventListener("focus", poll);
@@ -102,7 +153,7 @@ export function SidebarAiServices({
       window.removeEventListener("online", network);
       window.removeEventListener("offline", network);
     };
-  }, [enabled, refresh]);
+  }, [enabled, refresh, check]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);
@@ -129,7 +180,7 @@ export function SidebarAiServices({
   }
   function state(service: ServiceId): ServiceState {
     if (offline) return "offline";
-    if (busy) return "checking";
+    if (checking.includes(service) || (busy && !snapshot)) return "checking";
     if (readError) return "not_checked";
     return (
       snapshot?.services.find((item) => item.id === service)?.status ??
@@ -144,20 +195,6 @@ export function SidebarAiServices({
         ? "NVIDIA Nemotron"
         : "NVIDIA model";
     return "AI model";
-  }
-  async function check() {
-    if (busy || !desktop || !enabled) return;
-    setBusy(true);
-    setReceipt("");
-    await Promise.allSettled([
-      api.testConnection("nebius"),
-      api.testConnection("tavily"),
-    ]);
-    await refresh();
-    if (mounted.current) {
-      setBusy(false);
-      setReceipt("Connection status refreshed.");
-    }
   }
   const item = services.find((service) => service.id === active)!;
   const checkedAt = snapshot?.services.find(

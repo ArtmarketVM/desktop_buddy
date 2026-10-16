@@ -55,6 +55,7 @@ export function CoreSettings({
   const [preferences, setPreferences] = useState(emptyCore().preferences);
   const [hours, setHours] = useState(defaultTrackingSettings);
   const [busy, setBusy] = useState(false);
+  const [colorBusy, setColorBusy] = useState(false);
   const [ready, setReady] = useState(!desktop);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -90,7 +91,28 @@ export function CoreSettings({
     setDirty(true);
     setSaved(false);
   };
-  const blocked = busy || !desktop || !ready;
+  const blocked = busy || colorBusy || !desktop || !ready;
+  async function selectColor(next: typeof profile) {
+    const previous = profile.avatar.color;
+    setProfile(next);
+    setColorBusy(true);
+    setError("");
+    let committed = false;
+    try {
+      await api.setAvatarColor(next.avatar.color);
+      committed = true;
+      await onChanged();
+    } catch (e) {
+      if (!committed)
+        setProfile((current) => ({
+          ...current,
+          avatar: { ...current.avatar, color: previous },
+        }));
+      setError(String(e));
+    } finally {
+      setColorBusy(false);
+    }
+  }
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
@@ -172,11 +194,9 @@ export function CoreSettings({
           <AvatarPicker
             profile={profile}
             disabled={blocked}
-            onChange={(next) => {
-              setProfile(next);
-              change();
-            }}
+            onChange={(next) => void selectColor(next)}
           />
+          <p className="helper">Companion color is saved immediately.</p>
           <label className="toggle-row">
             <span>Show sumi on desktop</span>
             <input

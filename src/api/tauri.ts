@@ -23,6 +23,8 @@ import type {
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  setAvatarColor: (color: string) =>
+    invoke<void>("set_avatar_color", { color }),
   goalMonitoring: (enabled: boolean) =>
     invoke<void>("set_goal_monitoring", { enabled }),
   companionView: () => invoke<CompanionView>("get_companion_view"),

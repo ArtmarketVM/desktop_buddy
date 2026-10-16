@@ -1,9 +1,40 @@
 # Changelog
 
-## 0.33.3 — calmer Today, in-place editing, priorities
+## 0.34.0 — one typeface, calmer Settings, Goals and Progress
 
-- Deleting a goal no longer asks; it is removed at once and a small "Deleted … · Undo" message restores it (goals stay recoverable for 30 days).
-- Progress is quieter: the headline counts goals and steps done in the period, hovering a bar shows that day's split by goal, a goal's view lists all its steps (done ones with minutes), and window activity sits under a Details link.
+- One typeface everywhere: Zen Maru Gothic for titles, the wordmark and all text; the serif is gone. Four sizes (34/18/14/11) and two weights, documented in docs/TYPOGRAPHY.md. Text is ink or muted; green marks only links and the selected option of a control.
+- Dark theme "Paper at night": warm charcoal surfaces with green kept for the accent, tags and the mascot.
+- Settings: no subtitle or repeated headings; quiet mode and snoozing live only in the sidebar; the Appearance tab is gone (the theme switch stays in the sidebar). Companion options are one line each and on by default; one "Remind me to move every 45 minutes" toggle drives both reminders. macOS-sized switches and tighter rows.
+- Companion colour: "Choose the color of your companion" shows six animated states (working, listening, thinking, done with confetti, resting with a breathing mouth, stretching) and a Custom colour wheel; any colour is kept. Marks beside the mascot follow the theme text colour and are no longer clipped.
+- Goals page: the field searches saved goals or adds a new one, like Today; rows match Today with no separators; Active and Archive page ten rows at a time with the shared Pager; Import sits on the heading line.
+- Today: clicking the blank part of a row opens its steps; step ideas while typing continue the typed text and say when they are loading, empty or unavailable; the goal menu is left-aligned.
+- Progress: Details is "Tracked activity" with ten-row pages and an empty state; the period controls are one height; the focused-time figure uses the heading size.
+- Chats: heading level with the chat pane, plus button in the search field, plain title, flat composer icons, solid row menu, list items in ink.
+- Local macOS test builds must be internally signed and versioned above the latest release (AGENTS.md); an ad-hoc build cannot read saved provider keys.
+
+## 0.33.2 — neutral dark theme
+
+- Replace green-tinted dark backgrounds, panels, inputs, dividers and text with neutral charcoal and gray tones. Disable the tinted grain texture in dark mode.
+- Preserve green accents and explicit service status colors. Light mode and the selected companion color are unchanged.
+- Shared theme tokens apply consistently on Windows x64 and Apple Silicon macOS.
+
+## 0.33.1 — startup connection checks and immediate companion color
+
+- Check Nebius authentication/model access and Tavily authentication automatically when the workspace starts and when connectivity returns. Show a neutral checking indicator until each provider finishes; retain explicit refresh.
+- Avoid duplicate startup probes under React StrictMode. Background metadata polling does not make provider requests, and simulated providers stay simulated.
+- Save the selected companion color immediately, independently of other settings drafts. Notify both app windows without waiting for dashboard polling; validate supported colors in Rust.
+- Keep existing credential access, trusted updater signatures and macOS signing identity unchanged.
+
+## 0.33.0 — compact companion controls and transparent input
+
+- The companion's toolbar uses its selected color, smaller icons and a subtle chat/microphone divider.
+- After 500 ms outside the character and controls, the toolbar collapses into a nearby 24 × 4 px capsule. Hovering or keyboard focus reveals it; open chats keep controls accessible.
+- The capsule expands downward from a fixed edge without moving the character; reduced-motion preferences disable transitions.
+- Click targets follow the painted character silhouette. The native companion window passes transparent margins through to the application below while preserving chat, cards and drag interactions.
+- Includes the Today, priorities, inline editing and automatic checkpoint changes from 0.32.2. Windows x64 and Apple Silicon macOS share one release; trusted update signers and the credential helper are unchanged.
+
+## 0.32.2 — calmer Today, in-place editing, priorities
+
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
 - Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place. The deadline uses a calendar with a Now button and a time you can type ("13:00" or "1:30 pm"); without a time it counts as the whole day.
 - Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.
