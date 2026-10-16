@@ -148,6 +148,9 @@ export function GoalRow({
   const [adding, setAdding] = useState(initialAdding);
   const [highlight, setHighlight] = useState(-1);
   const [finding, setFinding] = useState(false);
+  const [ideasOutcome, setIdeasOutcome] = useState<"idle" | "none" | "failed">(
+    "idle",
+  );
   const [completions, setCompletions] = useState<{
     prefix: string;
     items: string[];
@@ -226,13 +229,19 @@ export function GoalRow({
     }
     let current = true;
     setFinding(true);
+    setIdeasOutcome("idle");
     const timer = setTimeout(() => {
       void aiApi
         .completeStep(goal.id, stepText.trim())
         .then((items) => {
-          if (current) setCompletions({ prefix, items });
+          if (!current) return;
+          setCompletions({ prefix, items });
+          setIdeasOutcome(items.length ? "idle" : "none");
         })
-        .catch(() => {})
+        .catch((error) => {
+          console.warn("Step ideas unavailable", error);
+          if (current) setIdeasOutcome("failed");
+        })
         .finally(() => {
           if (current) setFinding(false);
         });
@@ -491,6 +500,7 @@ export function GoalRow({
             </form>
             {(ideas.length > 0 ||
               finding ||
+              (typed && ideasOutcome !== "idle") ||
               (!suggestions &&
                 ["queued", "working", "failed"].includes(
                   goal.analysis?.state ?? "",
@@ -523,6 +533,15 @@ export function GoalRow({
                 {finding ? (
                   <p className="ideas-note ideas-loading" role="status">
                     Finding ideas<span aria-hidden="true">...</span>
+                  </p>
+                ) : typed && ideasOutcome === "failed" ? (
+                  <p className="ideas-note" role="status">
+                    Ideas are unavailable right now. Press Enter to add the step
+                    as typed.
+                  </p>
+                ) : typed && ideasOutcome === "none" && ideas.length === 0 ? (
+                  <p className="ideas-note" role="status">
+                    No ideas for this yet. Keep typing or press Enter to add it.
                   </p>
                 ) : (
                   !suggestions &&

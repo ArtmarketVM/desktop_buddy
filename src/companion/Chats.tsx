@@ -121,8 +121,12 @@ export function Chats({
       <aside className="chat-conversations" aria-label="Saved conversations">
         <h1>Chats</h1>
         <div className="chat-search-bar">
-          <label className="chat-search">
-            <Search size={16} aria-hidden="true" />
+          <label className="chat-search search-field">
+            <Search
+              size={16}
+              aria-hidden="true"
+              className="search-field-icon"
+            />
             <input
               type="search"
               value={query}

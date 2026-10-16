@@ -322,28 +322,26 @@
   margin-bottom: 8px;
 }
 .chat-search {
-  display: flex;
   flex: 1;
   min-width: 0;
+  color: var(--muted);
+}
+.chat-conversations .chat-search input[type="search"] {
+  display: block;
+  width: 100%;
   height: 36px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 10px;
+  min-height: 0;
+  padding: 0 32px 0 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--input);
-  color: var(--muted);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 34px;
 }
-.chat-search > svg {
-  flex: none;
-}
-.chat-conversations .chat-search input[type="search"] {
-  height: 100%;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+.chat-conversations .chat-search input[type="search"]:focus {
+  border-color: var(--accent);
+  outline: none;
 }
 .chat-search-bar > .chat-new {
   display: grid;
@@ -406,8 +404,11 @@
 .chat-item:hover {
   background: color-mix(in srgb, var(--text) 6%, transparent);
 }
-.chat-search:focus-within {
-  border-color: var(--accent);
+.chat-search > button {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .chat-item.selected,
 .chat-item.open {
