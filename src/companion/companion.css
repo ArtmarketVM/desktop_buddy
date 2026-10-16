@@ -243,6 +243,13 @@
 .avatar-listening {
   filter: drop-shadow(0 0 2px #78896922);
 }
+/* Marks beside the body (sound waves, arms, dots) may extend past the view box. */
+svg.avatar {
+  overflow: visible;
+}
+.avatar-mark {
+  opacity: 0.75;
+}
 .avatar-stretch-arms {
   animation: companion-stretch 1.8s ease-in-out 1;
 }

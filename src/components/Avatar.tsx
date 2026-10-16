@@ -2,6 +2,8 @@ import type { CSSProperties } from "react";
 import type { AvatarPreferences, AvatarState } from "../types";
 
 const INK = "#1E2A23";
+// Marks drawn outside the body sit on the page, so they follow the theme's text colour.
+const MARK = "var(--text, #1E2A23)";
 // Eye shapes from the sumi site mascot: sleepy, alert and happy.
 const EYES = {
   sleepy:
@@ -55,30 +57,69 @@ export function Avatar({
       {(state === "completed" || state === "success") && (
         <path
           d="m47 -8 5 5 10-11"
-          stroke="#3E6B48"
+          stroke="var(--accent, #3E6B48)"
           strokeWidth={4}
           fill="none"
           strokeLinecap="round"
+          strokeLinejoin="round"
         />
       )}
       {state === "sleeping" && (
-        <text x="52" y="-2" fill={INK} fontSize="11">
-          z
-        </text>
+        <g
+          fill="none"
+          stroke={MARK}
+          strokeWidth={2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="avatar-mark"
+        >
+          <path d="M50 -1h6l-6 6h6" />
+          <path d="M60 -9h4l-4 4h4" strokeWidth={1.6} />
+        </g>
       )}
-      {(state === "thinking" || state === "attention") && (
-        <text x="52" y="0" fill={INK} fontSize="14" fontWeight="700">
-          {state === "thinking" ? "…" : "?"}
+      {state === "thinking" && (
+        <g fill={MARK} className="avatar-mark">
+          <circle cx="50" cy="-2" r="1.7" />
+          <circle cx="56" cy="-5" r="2.3" />
+          <circle cx="63" cy="-9" r="3" />
+        </g>
+      )}
+      {state === "attention" && (
+        <text
+          x="51"
+          y="0"
+          fill={MARK}
+          fontSize="16"
+          fontWeight="700"
+          className="avatar-mark"
+        >
+          ?
         </text>
       )}
       {state === "stretching" && (
-        <g className="avatar-stretch-arms" {...line}>
-          <path d="M4 46 -6 40 -8 30M56 46 66 40 68 30" />
+        <g
+          className="avatar-stretch-arms"
+          fill="none"
+          stroke="color-mix(in srgb, var(--avatar-color) 72%, #1E2A23)"
+          strokeWidth={7}
+          strokeLinecap="round"
+        >
+          <path d="M9 36C1 32-2 24 1 16" />
+          <path d="M51 36c8-4 11-12 8-20" />
         </g>
       )}
       {state === "listening" && (
-        <g {...line} strokeWidth={1.8}>
-          <path d="M-2 22q-6 8 0 16M-7 18q-9 12 0 24" />
+        <g
+          className="avatar-mark"
+          fill="none"
+          stroke={MARK}
+          strokeWidth={2.2}
+          strokeLinecap="round"
+        >
+          <path d="M-3 24q-5 7 0 14" />
+          <path d="M-9 20q-9 11 0 22" />
+          <path d="M63 24q5 7 0 14" />
+          <path d="M69 20q9 11 0 22" />
         </g>
       )}
     </svg>
