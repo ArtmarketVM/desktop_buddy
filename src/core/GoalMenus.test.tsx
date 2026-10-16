@@ -5,6 +5,9 @@ import userEvent from "@testing-library/user-event";
 import { GoalRow } from "./Goals";
 import { emptyCore, type CoreGoal } from "./types";
 vi.mock("../api/tauri", () => ({ desktop: true }));
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn().mockResolvedValue(1),
+}));
 const edit = vi.fn();
 const goal = (id: number): CoreGoal => ({
   id,
