@@ -325,11 +325,18 @@
   justify-content: flex-end;
   margin: 0;
 }
+/* Import sits on the Goals heading line, flush with the content's right edge. */
 .page-history .history-navigation {
   position: absolute;
-  top: 50px;
-  right: 36px;
+  top: calc(var(--window-toolbar-height, 0px) + 40px);
+  right: max(var(--page-gutter, 40px), calc((100% - var(--page-max, 1040px)) / 2));
   z-index: 4;
+  height: 40px;
+  align-items: center;
+}
+.page-history .history-navigation > .text-button {
+  padding-right: 0;
+  font-size: 13px;
 }
 .captured-goal {
   margin: 12px 0;
@@ -1362,9 +1369,15 @@
 .goal-heading {
   gap: 6px;
 }
+.goal-heading {
+  position: relative;
+}
 .goal-heading .goal-overflow {
+  position: absolute;
+  left: -34px;
+  top: 50%;
   width: 28px;
-  flex: none;
+  transform: translateY(-50%);
   opacity: 0;
   transition: opacity 120ms;
 }
@@ -1745,26 +1758,36 @@ p.error .text-button {
   gap: 12px;
   margin-bottom: 14px;
 }
+/* Period controls: both groups are exactly 36px tall with 13px labels. */
 .progress-bar .progress-nav,
 .progress-bar .segmented-control {
+  height: 36px;
+  box-sizing: border-box;
   font-size: 13px;
   line-height: 20px;
 }
+.progress-bar .segmented-control {
+  padding: 2px;
+  gap: 2px;
+}
 .progress-bar .segmented-control button {
+  height: 30px;
   min-height: 0;
-  padding: 5px 12px;
+  padding: 0 12px;
   font-size: 13px;
-  line-height: 20px;
+  line-height: 30px;
   font-weight: 500;
 }
 .progress-bar .progress-nav .period-label {
+  height: 36px;
   font-size: 13px;
   line-height: 20px;
-  padding: 5px 10px;
+  padding: 0 10px;
 }
 .progress-bar .progress-nav > .text-button {
+  height: 36px;
   min-height: 0;
-  padding: 5px 6px;
+  padding: 0 6px;
 }
 .progress-bar .progress-nav {
   margin-bottom: 0;
@@ -1917,6 +1940,20 @@ p.error .text-button {
 }
 .goal-finder .quick-goal input {
   border-radius: var(--radius-pill);
+}
+.goal-finder .quick-goal > button {
+  flex: none;
+  width: var(--finder-action-width);
+}
+.today-goals {
+  --finder-action-width: 128px;
+}
+.today-goals .ordered-goals,
+.today-goals .core-goal {
+  padding-right: calc(var(--finder-action-width) + 10px);
+}
+.today-goals .ordered-goals .core-goal {
+  padding-right: 0;
 }
 .finder-dropdown {
   position: absolute;
