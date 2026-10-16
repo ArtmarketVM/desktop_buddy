@@ -17,6 +17,8 @@
   --inverse: #f5f7f4;
   --positive: #3e6b48;
   --positive-soft: #e4ede6;
+  --service-connected: #15803d;
+  --service-disconnected: #dc2626;
   --accent-fill: var(--accent);
   --accent-fill-hover: #386040;
   --field-line: var(--line);
@@ -52,6 +54,8 @@
   --inverse: #f5f7f4;
   --positive: #99cfaa;
   --positive-soft: #23372a;
+  --service-connected: #22c55e;
+  --service-disconnected: #f87171;
   --accent-fill: #4f7a5a;
   --accent-fill-hover: #5a8766;
   --field-line: #4a5d50;
