@@ -1517,14 +1517,14 @@ textarea:focus {
   color: var(--muted);
 }
 .progress-total {
-  font-size: var(--text-title);
+  font-size: var(--text-heading);
   font-weight: 500;
-  line-height: 36px;
+  line-height: var(--leading-heading);
 }
 .progress-sub {
-  margin: 0 0 12px;
+  margin: 2px 0 12px;
   color: var(--muted);
-  font-size: var(--text-body);
+  font-size: var(--text-caption);
 }
 .stack-chart {
   display: flex;
@@ -1984,12 +1984,12 @@ p.error .text-button {
 }
 .finder-row .core-goal-title em {
   margin-left: 8px;
-  color: var(--accent);
+  color: var(--muted);
   font-size: var(--text-caption);
   font-style: normal;
 }
 .finder-row.create > button:first-child {
-  color: var(--accent);
+  color: var(--text);
 }
 .finder-row:hover,
 .finder-row.selected {

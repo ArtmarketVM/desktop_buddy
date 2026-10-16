@@ -24,7 +24,6 @@ const sections = [
   "Profile",
   "Privacy",
   "Memory",
-  "Appearance",
   "Updates",
   "Integrations / AI",
   "AI Monitor",
@@ -239,24 +238,6 @@ export function CoreSettings({
                     }),
                   );
               }}
-            />
-          </label>
-        </details>
-        <details
-          className="core-section"
-          hidden={section !== "Appearance"}
-          open
-        >
-          <summary>Appearance</summary>
-          <label className="toggle-row">
-            <span>Dark theme</span>
-            <input
-              type="checkbox"
-              checked={settings.theme === "dark"}
-              disabled={blocked}
-              onChange={(e) =>
-                void run(() => api.theme(e.target.checked ? "dark" : "light"))
-              }
             />
           </label>
         </details>

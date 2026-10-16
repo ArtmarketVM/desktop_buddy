@@ -18,10 +18,10 @@ Four sizes, exposed as CSS tokens. Nothing else is allowed in a stylesheet.
 
 | Token | Size | Line height | Use |
 | --- | --- | --- | --- |
-| `--text-title` | 34px | 1.2 | The one page title per screen; the big number on Progress. Serif. |
+| `--text-title` | 34px | 1.2 | The one page title per screen. Serif. Nothing else, not even big numbers. |
 | `--text-heading` | 18px | 1.3 | Section headings inside a page, dialog titles, the current chat's title. Sans, medium. |
 | `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, settings labels, inputs, buttons, navigation. |
-| `--text-caption` | 12px | 1.4 | Secondary information: counts, dates, helper lines under a label, tags, timestamps. |
+| `--text-caption` | 11px | 1.45 | Secondary information: counts, dates, due dates, tags, timestamps, the rare helper line. |
 
 Markdown inside chat uses the body size; its headings use the heading size; code shrinks by 10% relative to the text around it.
 
@@ -31,7 +31,7 @@ Two weights: 400 regular and 500 medium. Medium is for headings, the selected st
 
 ## Colour of text
 
-Primary text uses `--text`. Captions and descriptions use `--muted`. Links and the accent use `--accent-text`. Never lower opacity to make text quieter; pick the muted token.
+Primary text uses `--text`. Captions and descriptions use `--muted`. The accent colour is for links and for the selected item of a control (a segmented button, a selected day), never for titles, labels, tags inside a list or status words. If something needs emphasis, make it medium weight, not green.
 
 ## Rules of thumb
 
