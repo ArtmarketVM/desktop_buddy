@@ -1319,6 +1319,7 @@ mod tests {
         });
         inner.companion.view.preferences.quiet_start_minute = 0;
         inner.companion.view.preferences.quiet_end_minute = 0;
+        inner.companion.view.preferences.screen_task_detection = false;
         assert!(!detection_due(&inner));
         inner.companion.view.preferences.screen_task_detection = true;
         inner.companion.view.preferences.quiet_start_minute = 0;

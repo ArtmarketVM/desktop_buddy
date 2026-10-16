@@ -439,6 +439,7 @@ mod tests {
         );
         let mut p = p;
         p.daily_checkins = false;
+        p.movement_reminder = false;
         assert!(scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999).is_none());
         p.movement_reminder = true;
         assert_eq!(
