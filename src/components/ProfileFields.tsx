@@ -34,7 +34,7 @@ export function AvatarPicker({
 }) {
   return (
     <fieldset disabled={disabled}>
-      <legend>Choose your companion</legend>
+      <legend>Choose the color of your companion</legend>
       <ul className="avatar-gallery" aria-label="How sumi looks">
         {MOODS.map(([state, label]) => (
           <li key={state}>
@@ -46,7 +46,6 @@ export function AvatarPicker({
           </li>
         ))}
       </ul>
-      <span className="field-label">Companion color</span>
       <div className="color-options" role="group" aria-label="Companion color">
         {PRESETS.map((color) => (
           <button
@@ -68,7 +67,7 @@ export function AvatarPicker({
         <label
           className={`color-custom ${isCustom(profile.avatar.color) ? "selected" : ""}`}
         >
-          <span style={{ background: profile.avatar.color }} />
+          <span className="color-wheel" aria-hidden="true" />
           Custom
           <input
             type="color"

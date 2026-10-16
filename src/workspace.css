@@ -687,7 +687,7 @@ a {
 }
 .toggle-row {
   border-color: var(--line);
-  padding-block: 18px;
+  padding-block: 9px;
 }
 .toggle-row > span {
   color: var(--text);
@@ -1359,6 +1359,18 @@ a,
 .color-options button[aria-pressed="true"] {
   border-color: var(--accent);
   background: var(--accent-soft);
+}
+.color-options .color-wheel {
+  background: conic-gradient(
+    #e76f51,
+    #f4a261,
+    #e9c46a,
+    #8ab17d,
+    #2a9d8f,
+    #457b9d,
+    #8e7dbe,
+    #e76f51
+  );
 }
 .color-options button > span,
 .color-options .color-custom > span {

@@ -19,7 +19,7 @@ impl Default for CorePreferences {
     fn default() -> Self {
         Self {
             working_days: vec![1, 2, 3, 4, 5],
-            movement_reminders: false,
+            movement_reminders: true,
             vision_model: String::new(),
         }
     }

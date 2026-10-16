@@ -99,7 +99,7 @@ export const emptyCore = (): CoreSnapshot => {
     focused_goal_id: null,
     preferences: {
       working_days: [1, 2, 3, 4, 5],
-      movement_reminders: false,
+      movement_reminders: true,
       vision_model: "",
     },
   };

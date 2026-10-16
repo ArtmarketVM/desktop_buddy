@@ -1,4 +1,3 @@
-import { selectionShortcut } from "../api/platform";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
@@ -54,31 +53,17 @@ export function CompanionSettings({
         [
           [
             "daily_checkins",
-            "Daily check-ins",
-            "Morning plan, midday review, evening wrap-up.",
+            "Daily check-ins: morning plan, midday review, evening wrap-up",
           ],
           [
             "screen_task_detection",
-            "Detect completed work",
-            "Sends a small text sample to Nebius; you confirm every change.",
+            "Suggest completed work from what is on screen",
           ],
-          [
-            "hide_fullscreen",
-            "Hide in full-screen apps",
-            "Comes back when full-screen ends.",
-          ],
-          [
-            "movement_reminder",
-            "Stretch invitation",
-            "At most once a day after two hours.",
-          ],
-        ] as [keyof CompanionPreferences, string, string][]
-      ).map(([key, label, description]) => (
+          ["hide_fullscreen", "Hide sumi in full-screen apps"],
+        ] as [keyof CompanionPreferences, string][]
+      ).map(([key, label]) => (
         <label className="toggle-row" key={key}>
-          <span>
-            {label}
-            <small>{description}</small>
-          </span>
+          <span>{label}</span>
           <input
             type="checkbox"
             checked={Boolean(preferences[key])}
@@ -145,9 +130,6 @@ export function CompanionSettings({
           />
         </label>
       </div>
-      <p className="helper">
-        Select text anywhere and press {selectionShortcut} to send it to sumi.
-      </p>
       {error && <p role="alert">{error}</p>}
     </details>
   );

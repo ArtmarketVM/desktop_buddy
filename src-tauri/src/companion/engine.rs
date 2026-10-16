@@ -19,13 +19,13 @@ impl Default for Preferences {
         Self {
             paused: false,
             daily_checkins: true,
-            screen_task_detection: false,
+            screen_task_detection: true,
             hide_fullscreen: true,
             morning_delay_minutes: 10,
             cooldown_minutes: 60,
             quiet_start_minute: 19 * 60,
             quiet_end_minute: 9 * 60,
-            movement_reminder: false,
+            movement_reminder: true,
         }
     }
 }

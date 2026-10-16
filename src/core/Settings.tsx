@@ -221,20 +221,23 @@ export function CoreSettings({
             currentPreferences={data.buddy.companion?.preferences}
           />
           <label className="toggle-row">
-            <span>
-              Movement reminders
-              <small>A note after 45 minutes on the timer.</small>
-            </span>
+            <span>Remind me to move every 45 minutes</span>
             <input
               type="checkbox"
               checked={preferences.movement_reminders}
               disabled={blocked}
               onChange={(e) => {
-                setPreferences({
-                  ...preferences,
-                  movement_reminders: e.target.checked,
-                });
+                const enabled = e.target.checked;
+                setPreferences({ ...preferences, movement_reminders: enabled });
                 change();
+                const companion = data.buddy.companion?.preferences;
+                if (companion)
+                  void run(() =>
+                    api.companionPreferences({
+                      ...companion,
+                      movement_reminder: enabled,
+                    }),
+                  );
               }}
             />
           </label>
