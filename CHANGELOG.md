@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.33.2 — neutral dark theme
+
+- Replace green-tinted dark backgrounds, panels, inputs, dividers and text with neutral charcoal and gray tones. Disable the tinted grain texture in dark mode.
+- Preserve green accents and explicit service status colors. Light mode and the selected companion color are unchanged.
+- Shared theme tokens apply consistently on Windows x64 and Apple Silicon macOS.
+
 ## 0.33.1 — startup connection checks and immediate companion color
 
 - Check Nebius authentication/model access and Tavily authentication automatically when the workspace starts and when connectivity returns. Show a neutral checking indicator until each provider finishes; retain explicit refresh.
