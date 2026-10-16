@@ -235,7 +235,7 @@ pub fn set_memory_controls(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.set_memory_controls(&controls)?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }
 #[tauri::command(async)]
@@ -253,7 +253,7 @@ pub fn clear_personal_memory(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.clear_personal_memory()?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }
 #[tauri::command(async)]
@@ -272,7 +272,7 @@ pub fn forget_work_context(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.forget_work_context(goal_id)?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }
 #[tauri::command(async)]
@@ -292,7 +292,7 @@ pub fn resolve_memory_proposal(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.resolve_memory_proposal(id, accept)?;
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }
 
@@ -321,6 +321,6 @@ pub fn pin_work_context(
     {
         return Err("Checkpoint no longer exists".into());
     }
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     Ok(())
 }

@@ -189,13 +189,62 @@ fn observe_inner_at(
     inner.goal_matching.signature = Some(resolution::resolve(inner, sample)?.signature);
     Ok(())
 }
+/// Parks the goal the user is leaving with where they were, so the agent and the user can pick it
+/// up later without a manual Park. Nothing here may block the lane switch itself.
+fn auto_park(inner: &mut crate::commands::Inner, previous: i64) {
+    let Some(sample) = inner
+        .goal_matching
+        .current_sample()
+        .cloned()
+        .or_else(|| inner.buddy.foreground.clone())
+    else {
+        return;
+    };
+    let Ok(snapshot) = inner.storage.core_snapshot(None) else {
+        return;
+    };
+    let Some(goal) = snapshot
+        .goals
+        .iter()
+        .find(|g| g.id == previous && g.status == "open")
+    else {
+        return;
+    };
+    let next_action = goal
+        .plan
+        .steps
+        .iter()
+        .find(|s| !s.done)
+        .map(|s| s.text.clone())
+        .unwrap_or_else(|| format!("Continue {}", goal.title));
+    let place = if sample.window_title.trim().is_empty() {
+        sample.process_name.clone()
+    } else {
+        format!("{}: {}", sample.process_name, sample.window_title)
+    };
+    let _ = inner.storage.auto_checkpoint(
+        previous,
+        &format!("Automatically parked while in {place}"),
+        &next_action,
+        Some(&sample.process_name),
+        Some(&sample.window_title),
+    );
+}
 fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String> {
-    if inner.storage.goal()?.map(|g| g.id) != Some(id) {
+    let previous = inner.storage.goal()?.map(|g| g.id);
+    if previous != Some(id) {
+        if let Some(previous) = previous {
+            auto_park(inner, previous);
+        }
         let waiting = inner
             .storage
             .work_context(id)?
             .is_some_and(|c| c.context.status == crate::memory::ContextStatus::Waiting);
         inner.storage.transition_goal(id, "resume")?;
+        // Returning to an automatically parked goal resumes its checkpoint.
+        if !waiting {
+            let _ = inner.storage.auto_resume(id);
+        }
         if waiting {
             inner
                 .storage

@@ -144,7 +144,10 @@ fn revoked_consent_or_context_change_discards_results() {
         .unwrap();
     let state = AppState::new(storage).unwrap();
     assert!(ensure_revision(&state, 0).is_ok());
-    state.inner.lock().unwrap().privacy_revision = 1;
+    // A goal or chat edit bumps the revision but is not a consent change: the answer survives.
+    state.inner.lock().unwrap().privacy_revision += 1;
+    assert!(ensure_revision(&state, 0).is_ok());
+    state.inner.lock().unwrap().mark_consent_change();
     assert!(ensure_revision(&state, 0).is_err());
     let inner = state.inner.lock().unwrap();
     inner

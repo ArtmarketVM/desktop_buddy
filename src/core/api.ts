@@ -28,6 +28,10 @@ export const coreApi = {
     plan: GoalPlan,
     details: GoalDetails | null = null,
   ) => invoke<CoreSnapshot>("save_core_goal", { title, area, plan, details }),
+  priority: (id: number, priority: GoalDetails["priority"]) =>
+    invoke<CoreSnapshot>("set_core_goal_priority", { id, priority }),
+  estimate: (id: number, minutes: number | null) =>
+    invoke<CoreSnapshot>("set_core_goal_estimate", { id, minutes }),
   dismissCarryover: (id: number) =>
     invoke<CoreSnapshot>("dismiss_core_carryover", { id }),
   transition: (id: number, action: string, confirmed = false) =>
