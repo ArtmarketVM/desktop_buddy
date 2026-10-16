@@ -213,7 +213,7 @@ export function GoalRow({
         title.length <= 500 &&
         !taken.has(lower) &&
         lower !== typed &&
-        (!typed || aiIdeas.includes(title) || lower.includes(typed))
+        (!typed || lower.startsWith(typed))
       );
     })
     .slice(0, typed ? 4 : 3)
