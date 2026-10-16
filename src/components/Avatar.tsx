@@ -71,6 +71,15 @@ export function Avatar({
           <path transform="translate(22 31)" d={eyes} />
           <path transform="translate(38 31)" d={eyes} />
         </g>
+        {mood(state) === "sleepy" && (
+          <circle
+            className="avatar-breath"
+            cx="30"
+            cy="43"
+            r="2.6"
+            fill={INK}
+          />
+        )}
         {(state === "completed" || state === "success") && (
           <path
             className="avatar-smile"
