@@ -2286,3 +2286,39 @@ details.today-summary > .today-summary-head {
   gap: 4px;
   margin-top: 8px;
 }
+
+/* Today: no separators between goals, tighter rows, summary right under the list. */
+.today-goals .core-goal {
+  border-top: 0;
+}
+.today-goals .goal-heading {
+  padding: 12px 0;
+}
+.today-summary {
+  margin-top: 12px;
+}
+/* Caret the height of the text, like a document, not the row. */
+.goal-title-row > .inline-text,
+.step-line > .inline-text {
+  display: inline-block;
+  align-self: center;
+  line-height: 1.45;
+  padding: 1px 0;
+}
+.step-line {
+  align-items: center;
+}
+.goal-meta-wrap {
+  position: relative;
+  display: inline-block;
+}
+.goal-meta-popover {
+  left: 0;
+  right: auto;
+  width: 284px;
+  z-index: 40;
+}
+.goal-meta-popover .deadline-time input[type="number"] {
+  width: 110px;
+  flex: none;
+}

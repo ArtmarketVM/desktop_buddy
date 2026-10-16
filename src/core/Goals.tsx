@@ -12,7 +12,7 @@ import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
-import { DeadlinePicker } from "./DeadlinePicker";
+import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
 import { GoalOrder } from "./GoalOrder";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
@@ -201,7 +201,7 @@ export function GoalRow({
         title.length <= 500 &&
         !taken.has(lower) &&
         lower !== typed &&
-        (!typed || lower.startsWith(typed))
+        (!typed || aiIdeas.includes(title) || lower.includes(typed))
       );
     })
     .slice(0, typed ? 4 : 3)
@@ -257,15 +257,6 @@ export function GoalRow({
                   role="group"
                   aria-label="Goal actions"
                 >
-                  <button
-                    disabled={disabled}
-                    onClick={() => {
-                      setMenu(false);
-                      edit(goal);
-                    }}
-                  >
-                    Goal details
-                  </button>
                   <button
                     disabled={disabled}
                     onClick={() => {
@@ -333,7 +324,7 @@ export function GoalRow({
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
           {goal.status === "open" && (
-            <GoalMeta goal={goal} onToday={today} onEdit={() => edit(goal)} />
+            <GoalMeta goal={goal} onToday={today} area={area} run={run} />
           )}
         </div>
         <button
@@ -865,16 +856,27 @@ export function GoalAreas({
   );
 }
 
-/** Deadline and expected time after the title. Today goals without a deadline are due today. */
+/** Deadline and expected time after the title; click opens the date, time and estimate popover.
+ *  Today goals without a deadline are shown as due today. */
 export function GoalMeta({
   goal,
   onToday,
-  onEdit,
+  area,
+  run,
 }: {
   goal: CoreGoal;
   onToday: boolean;
-  onEdit: () => void;
+  area: string;
+  run: (work: () => Promise<unknown>) => Promise<boolean>;
 }) {
+  const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
+    useDismissiblePopover();
+  const [minutes, setMinutes] = useState(
+    goal.estimated_minutes ? String(goal.estimated_minutes) : "",
+  );
+  useEffect(() => {
+    setMinutes(goal.estimated_minutes ? String(goal.estimated_minutes) : "");
+  }, [goal.estimated_minutes]);
   const now = new Date();
   const due = goal.due_at ? new Date(goal.due_at) : null;
   const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
@@ -888,22 +890,81 @@ export function GoalMeta({
   } else if (onToday) {
     deadline = "due today";
   }
-  const minutes = goal.estimated_minutes ?? null;
+  const estimated = goal.estimated_minutes ?? null;
   const estimate =
-    minutes === null
+    estimated === null
       ? (goal.analysis?.result?.estimatedDuration ?? "")
-      : minutes >= 60
-        ? `~${Math.round((minutes / 60) * 10) / 10} h`
-        : `~${minutes} min`;
-  if (!deadline && !estimate) return null;
+      : estimated >= 60
+        ? `~${Math.round((estimated / 60) * 10) / 10} h`
+        : `~${estimated} min`;
+  const label =
+    [deadline, estimate].filter(Boolean).join(" · ") || "set deadline";
+  function saveDeadline(local: string) {
+    void run(() =>
+      coreApi.save(goal.title, area, goal.plan, {
+        due_at: deadlineISO(local),
+        priority: goal.priority ?? null,
+        description: goal.description ?? "",
+      }),
+    );
+  }
+  function saveEstimate() {
+    const text = minutes.trim();
+    const parsed = text ? Number(text) : null;
+    if (parsed !== null && (!Number.isInteger(parsed) || parsed < 1)) return;
+    if (parsed !== (goal.estimated_minutes ?? null))
+      void run(() => coreApi.estimate(goal.id, parsed));
+  }
   return (
-    <button
-      type="button"
-      className={`text-button goal-meta ${overdue ? "overdue" : ""}`}
-      title="Deadline and expected time · click to change"
-      onClick={onEdit}
-    >
-      {[deadline, estimate].filter(Boolean).join(" · ")}
-    </button>
+    <span className="goal-meta-wrap" ref={rootRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`text-button goal-meta ${overdue ? "overdue" : ""}`}
+        title="Deadline and expected time"
+        aria-expanded={open}
+        aria-controls={open ? id : undefined}
+        onClick={() => setOpen(!open)}
+      >
+        {label}
+      </button>
+      {open && (
+        <div
+          className="period-popover deadline-popover goal-meta-popover"
+          id={id}
+          ref={surfaceRef}
+          role="dialog"
+          aria-label={`Deadline for ${goal.title}`}
+        >
+          <DeadlinePanel
+            value={localDeadline(goal.due_at)}
+            onChange={saveDeadline}
+            onDone={() => setOpen(false)}
+            extra={
+              <label className="deadline-time">
+                <span>Takes</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={100000}
+                  inputMode="numeric"
+                  placeholder="minutes"
+                  aria-label="Estimated minutes"
+                  value={minutes}
+                  onChange={(event) => setMinutes(event.target.value)}
+                  onBlur={saveEstimate}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      saveEstimate();
+                    }
+                  }}
+                />
+              </label>
+            }
+          />
+        </div>
+      )}
+    </span>
   );
 }
