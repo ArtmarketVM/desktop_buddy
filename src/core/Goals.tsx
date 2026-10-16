@@ -12,6 +12,7 @@ import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
+import { DeadlinePicker } from "./DeadlinePicker";
 import { GoalOrder } from "./GoalOrder";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 import {
@@ -693,14 +694,10 @@ export function GoalEditor({
               onChange={(e) => setPlan({ ...plan, done_when: e.target.value })}
             />
           </label>
-          <label>
-            Deadline (optional)
-            <input
-              type="datetime-local"
-              value={due}
-              onChange={(event) => setDue(event.target.value)}
-            />
-          </label>
+          <div className="field">
+            <span className="field-label">Deadline (optional)</span>
+            <DeadlinePicker value={due} onChange={setDue} />
+          </div>
           <label>
             Estimated time (minutes, optional)
             <input

@@ -2202,3 +2202,87 @@ details.today-summary > .today-summary-head {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* Deadline picker: calendar plus a free-typed time, like a Notion date. */
+.deadline-picker {
+  position: relative;
+}
+.deadline-trigger {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--input);
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+}
+.deadline-trigger:hover:not(:disabled) {
+  background: var(--input);
+  border-color: var(--accent);
+}
+.deadline-popover {
+  width: 272px;
+  background: var(--surface);
+}
+.deadline-popover .period-head span {
+  display: inline-flex;
+  gap: 2px;
+}
+.deadline-day {
+  min-height: 0;
+  padding: 6px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+.deadline-day:hover:not(:disabled) {
+  background: var(--raised);
+}
+.deadline-day.outside {
+  color: var(--muted);
+  opacity: 0.6;
+}
+.deadline-day.today {
+  color: var(--accent);
+  font-weight: 600;
+}
+.deadline-day.selected,
+.deadline-day.selected:hover {
+  background: var(--accent);
+  color: var(--inverse);
+}
+.deadline-time {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+.deadline-time span {
+  color: var(--muted);
+}
+.deadline-time input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input);
+  color: var(--text);
+  font: inherit;
+}
+.deadline-error {
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.deadline-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 8px;
+}

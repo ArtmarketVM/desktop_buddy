@@ -1,7 +1,7 @@
 # Desktop Buddy 0.32.1
 
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
-- Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place.
+- Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place. The deadline uses a calendar with a Now button and a time you can type ("13:00" or "1:30 pm"); without a time it counts as the whole day.
 - Each row shows its deadline (Today goals without one are due today) and the expected time; click it to change.
 - The day summary now leads with focused time ("3 h 40 min of focused work today"), shows goal and step counts on the right, and opens to list finished goals and steps with the time spent on each.
 - Today is one plain list again: no "In focus" and "Later today" lanes, no focus bar, Focus now, Park or Checkpoint buttons. sumi works out what you are doing by itself.
