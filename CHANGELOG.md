@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.33.0 — compact companion controls and transparent input
+
+- The companion's toolbar uses its selected color, smaller icons and a subtle chat/microphone divider.
+- After 500 ms outside the character and controls, the toolbar collapses into a nearby 24 × 4 px capsule. Hovering or keyboard focus reveals it; open chats keep controls accessible.
+- The capsule expands downward from a fixed edge without moving the character; reduced-motion preferences disable transitions.
+- Click targets follow the painted character silhouette. The native companion window passes transparent margins through to the application below while preserving chat, cards and drag interactions.
+- Includes the Today, priorities, inline editing and automatic checkpoint changes from 0.32.2. Windows x64 and Apple Silicon macOS share one release; trusted update signers and the credential helper are unchanged.
+
 ## 0.32.2 — calmer Today, in-place editing, priorities
 
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
