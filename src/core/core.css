@@ -1929,7 +1929,7 @@ p.error .text-button {
   color: var(--muted);
   pointer-events: none;
 }
-.search-field > input {
+.search-field > input:not([hidden]) {
   padding-left: 40px;
 }
 .goal-finder .quick-goal input {
