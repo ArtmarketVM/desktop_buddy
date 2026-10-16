@@ -1434,13 +1434,9 @@ a,
 .avatar-gallery .avatar-dot:nth-child(3) {
   animation-delay: 0.6s;
 }
-.avatar-gallery .avatar-burst {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: avatar-burst 2.4s ease-out infinite;
-}
-.avatar-gallery .avatar-burst-small {
-  animation-delay: 0.5s;
+.avatar-gallery .avatar-confetti {
+  transform-origin: 30px 30px;
+  animation: avatar-burst 2.8s ease-out infinite;
 }
 .avatar-gallery .avatar-sleeping .pet__body {
   transform-box: fill-box;
@@ -1488,16 +1484,16 @@ a,
 @keyframes avatar-burst {
   0% {
     opacity: 0;
-    transform: scale(0.2);
+    transform: scale(0.3);
   }
-  25% {
+  30% {
     opacity: 1;
     transform: scale(1);
   }
-  60%,
+  70%,
   100% {
     opacity: 0;
-    transform: scale(1.35);
+    transform: scale(1.25) rotate(8deg);
   }
 }
 @keyframes avatar-breathe {

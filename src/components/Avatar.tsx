@@ -43,6 +43,65 @@ export function Avatar({
       role="img"
       aria-label={`sumi companion, ${state}`}
     >
+      {(state === "completed" || state === "success") && (
+        <g className="avatar-confetti" aria-hidden="true">
+          <g
+            fill="none"
+            stroke="var(--accent, #3E6B48)"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            opacity={0.55}
+          >
+            <path d="M30-8v-10M60 4l6-7M70 30h10M60 56l7 7M30 68v10M0 56l-7 7M-10 30h-10M0 4l-7-7" />
+          </g>
+          <g fill="var(--avatar-color)">
+            <circle cx="30" cy="-24" r="3" />
+            <rect
+              x="66"
+              y="64"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(-25 68 66)"
+            />
+            <circle cx="-24" cy="30" r="2.6" />
+            <circle cx="8" cy="78" r="1.8" />
+          </g>
+          <g fill="var(--accent, #3E6B48)">
+            <rect
+              x="68"
+              y="-8"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(20 70 -6)"
+            />
+            <circle cx="30" cy="84" r="3" />
+            <rect
+              x="-12"
+              y="-10"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(-15 -10 -8)"
+            />
+            <circle cx="52" cy="-18" r="1.8" />
+            <circle cx="-18" cy="8" r="1.8" />
+          </g>
+          <g fill={MARK} opacity={0.8}>
+            <circle cx="84" cy="30" r="2.6" />
+            <rect
+              x="-12"
+              y="64"
+              width="5"
+              height="5"
+              rx="1"
+              transform="rotate(30 -10 66)"
+            />
+            <circle cx="78" cy="52" r="1.8" />
+          </g>
+        </g>
+      )}
       {state === "stretching" && (
         <g
           className="avatar-stretch-arms"
@@ -91,26 +150,6 @@ export function Avatar({
           />
         )}
       </g>
-      {(state === "completed" || state === "success") && (
-        <g className="avatar-fireworks" fill="none" strokeLinecap="round">
-          <g
-            className="avatar-burst"
-            stroke="var(--accent, #3E6B48)"
-            strokeWidth={2.2}
-            transform="translate(60 -6)"
-          >
-            <path d="M0 -4V-9M3 -3l4-4M4 0h5M3 3l4 4M0 4v5M-3 3l-4 4M-4 0h-5M-3 -3l-4-4" />
-          </g>
-          <g
-            className="avatar-burst avatar-burst-small"
-            stroke="color-mix(in srgb, var(--avatar-color) 55%, var(--text, #1E2A23))"
-            strokeWidth={1.8}
-            transform="translate(2 -8)"
-          >
-            <path d="M0 -3V-6M2.5 -2.5l2.5-2.5M3 0h3M2.5 2.5l2.5 2.5M0 3v3M-2.5 2.5l-2.5 2.5M-3 0h-3M-2.5 -2.5l-2.5-2.5" />
-          </g>
-        </g>
-      )}
       {state === "sleeping" && (
         <g
           fill="none"
