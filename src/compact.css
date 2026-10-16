@@ -454,9 +454,14 @@
 .chat-item-menu:focus-visible {
   opacity: 1;
 }
-.chat-item-menu:hover {
+.chat-item > .chat-item-menu:hover:not(:disabled),
+.chat-item > .chat-item-menu[aria-expanded="true"] {
   background: color-mix(in srgb, var(--text) 10%, transparent);
   color: var(--text);
+}
+.chat-item > .chat-item-menu:focus-visible {
+  outline: 2px solid var(--muted);
+  outline-offset: 1px;
 }
 .chat-item > .chat-menu {
   top: calc(100% - 2px);
@@ -523,13 +528,14 @@
   position: absolute;
   top: 100%;
   right: 0;
-  z-index: 10;
+  z-index: 30;
   min-width: 150px;
   margin-top: 4px;
   padding: 4px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel, var(--bg));
+  background: var(--surface);
+  box-shadow: 0 8px 24px #0002;
 }
 .chat-menu button {
   display: flex;
