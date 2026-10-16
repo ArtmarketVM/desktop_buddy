@@ -1175,7 +1175,7 @@ fn execute_one(
     Ok(result)
 }
 
-fn delete(storage: &mut Storage, id: i64) -> Result<i64, String> {
+pub(crate) fn delete(storage: &mut Storage, id: i64) -> Result<i64, String> {
     let snapshot = storage.core_snapshot(None)?;
     let goal = snapshot
         .goals
@@ -1220,7 +1220,7 @@ fn delete(storage: &mut Storage, id: i64) -> Result<i64, String> {
     storage.ensure_today_focus()?;
     Ok(backup_id)
 }
-fn restore(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
+pub(crate) fn restore(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
     let payload: String = storage
         .connection
         .query_row(
