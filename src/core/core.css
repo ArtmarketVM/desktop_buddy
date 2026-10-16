@@ -1549,8 +1549,11 @@ textarea:focus {
 }
 .progress-list {
   list-style: none;
-  margin: 0;
+  margin: 28px 0 0;
   padding: 0;
+}
+.progress-list > li:first-child > .progress-row {
+  border-top: 0;
 }
 .progress-row {
   display: flex;
@@ -1575,6 +1578,7 @@ textarea:focus {
 }
 .progress-row > em {
   font-style: normal;
+  font-size: 14px;
   color: var(--muted);
 }
 .progress-row.muted {
@@ -1733,6 +1737,27 @@ p.error .text-button {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 14px;
+}
+.progress-bar .progress-nav,
+.progress-bar .segmented-control {
+  font-size: 13px;
+  line-height: 20px;
+}
+.progress-bar .segmented-control button {
+  min-height: 0;
+  padding: 5px 12px;
+  font-size: 13px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.progress-bar .progress-nav .period-label {
+  font-size: 13px;
+  line-height: 20px;
+  padding: 5px 10px;
+}
+.progress-bar .progress-nav > .text-button {
+  min-height: 0;
+  padding: 5px 6px;
 }
 .progress-bar .progress-nav {
   margin-bottom: 0;

@@ -311,14 +311,36 @@
   width: 100%;
   margin-bottom: 16px;
 }
+.chat-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 4px;
+}
 .chat-search {
   display: flex;
+  flex: 1;
+  min-width: 0;
   align-items: center;
   gap: 8px;
   padding: 7px 10px;
-  margin-bottom: 4px;
   border-radius: 8px;
   color: var(--muted);
+}
+.chat-search-bar > .chat-new {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+}
+.chat-search-bar > .chat-new:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
 }
 .chat-search input {
   flex: 1;
@@ -338,7 +360,6 @@
   background: transparent;
   color: var(--muted);
 }
-.chat-conversations > .chat-new,
 .chat-item > .chat-row {
   display: flex;
   align-items: center;
@@ -363,7 +384,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.chat-conversations > .chat-new:hover,
 .chat-item:hover,
 .chat-search:focus-within {
   background: color-mix(in srgb, var(--text) 6%, transparent);
@@ -444,7 +464,7 @@
   color: var(--text);
   overflow: hidden;
   letter-spacing: 0;
-  font-size: 14px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1285,4 +1305,38 @@ main.desktop-buddy.chatting > .companion-error {
   max-width: calc(100vw - 24px);
   max-height: calc(100vh - 24px);
   overflow-y: auto;
+}
+
+/* Chats page composer: flat grey icons grouped on the right, send turns dark when there is text. */
+.chat-pane .companion-composer-actions {
+  justify-content: flex-end;
+  gap: 2px;
+}
+.chat-pane .companion-composer-actions > span {
+  order: -1;
+  flex: 1;
+  font-size: 11px;
+}
+.chat-pane .companion-composer-actions > button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+.chat-pane .companion-composer-actions > button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+}
+.chat-pane .companion-composer-actions > button[type="submit"]:not(:disabled) {
+  color: var(--text);
+}
+.chat-pane .companion-composer-actions > button:disabled {
+  opacity: 0.45;
 }
