@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.32.1 — calmer Today goal picking
+## 0.32.2 — calmer Today, in-place editing, priorities
 
 - Goal rows: the ⋯ button is the only control on the left (click for actions, hold to drag); its menu is down to Goal details, Remove from Today and Delete. Steps get a hover × instead of a menu.
 - Goal details is a compact editor (area, done-when, deadline, estimated time, description); title, steps and priority are edited in place. The deadline uses a calendar with a Now button and a time you can type ("13:00" or "1:30 pm"); without a time it counts as the whole day.

@@ -37,9 +37,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 36px;
-  width: 36px;
-  height: 36px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
   justify-self: end;
   padding: 0;
   margin: 0;
@@ -1123,28 +1124,28 @@ main.desktop-buddy.chatting > .companion-error {
 }
 .service-dot {
   display: inline-block;
-  flex: 0 0 6px;
-  width: 6px;
-  height: 6px;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--muted);
 }
 .sidebar-service .service-dot {
   position: absolute;
   left: 25px;
-  top: 19px;
-  width: 5px;
-  height: 5px;
+  top: 17px;
+  width: 8px;
+  height: 8px;
   margin: 0;
   outline: 2px solid var(--sidebar);
 }
 .service-dot.service-verified {
-  background: var(--accent);
+  background: var(--service-connected);
 }
 .service-dot.service-unavailable,
 .service-dot.service-not_configured,
 .service-dot.service-offline {
-  background: var(--danger, var(--danger));
+  background: var(--service-disconnected);
 }
 .service-dot.service-checking {
   background: var(--muted);
@@ -1235,7 +1236,7 @@ main.desktop-buddy.chatting > .companion-error {
     padding-block: 3px;
   }
   .sidebar-service .service-dot {
-    top: 17px;
+    top: 15px;
   }
   .sidebar .profile-entry {
     height: 52px;
