@@ -4,11 +4,10 @@ import {
   BarChart3,
   History,
   Settings,
-  ChevronDown,
-  ChevronsLeft,
-  ChevronsRight,
+  PanelLeft,
   Sun,
   Moon,
+  BellOff,
   UserRound,
   LogOut,
   MessageSquare,
@@ -84,6 +83,9 @@ export function AppShell({
   children,
   theme = "light",
   onTheme,
+  quietMode = false,
+  quietModeDisabled = false,
+  onQuietMode,
   onReset,
 }: {
   page: WorkspacePage;
@@ -96,6 +98,9 @@ export function AppShell({
   children: ReactNode;
   theme?: "light" | "dark";
   onTheme?: (theme: "light" | "dark") => void;
+  quietMode?: boolean;
+  quietModeDisabled?: boolean;
+  onQuietMode?: () => void;
   onReset?: () => void;
   onQuickGoal?: () => void;
 }) {
@@ -147,44 +152,48 @@ export function AppShell({
       document.removeEventListener("keydown", escape);
     };
   }, [menu]);
-  const initials =
-    profile.name
-      .trim()
-      .split(/\s+/)
-      .slice(0, 2)
-      .map((name) => name[0])
-      .join("")
-      .toUpperCase() || "B";
+  const sidebarButton = (
+    <button
+      ref={sidebarToggle}
+      type="button"
+      className="text-button sidebar-collapse"
+      aria-label={sidebarAction}
+      title={`${sidebarAction} (${isMac ? "Cmd" : "Ctrl"} + \\)`}
+      aria-expanded={!collapsed}
+      aria-controls="workspace-navigation"
+      aria-keyshortcuts={isMac ? "Meta+\\" : "Control+\\"}
+      onClick={() => setCollapsed((previous) => !previous)}
+    >
+      <PanelLeft
+        width={26}
+        height={22}
+        strokeWidth={1.6}
+        preserveAspectRatio="none"
+        aria-hidden="true"
+      />
+    </button>
+  );
   return (
     <div
-      className={`app-shell page-${page} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
+      className={`app-shell page-${page} ${isMac ? "macos-window" : ""} ${collapsed ? "sidebar-collapsed" : ""} ${onboarding ? "setup-mode" : ""}`}
     >
+      {isMac && (
+        <div
+          className="window-toolbar"
+          role="toolbar"
+          aria-label="Window toolbar"
+          data-tauri-drag-region
+        >
+          {sidebarButton}
+        </div>
+      )}
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
-          <button
-            ref={sidebarToggle}
-            type="button"
-            className="text-button sidebar-collapse"
-            aria-label={sidebarAction}
-            title={`${sidebarAction} (${isMac ? "Cmd" : "Ctrl"} + \\)`}
-            aria-expanded={!collapsed}
-            aria-controls="workspace-navigation"
-            aria-keyshortcuts={isMac ? "Meta+\\" : "Control+\\"}
-            onClick={() => setCollapsed((previous) => !previous)}
-          >
-            {collapsed ? (
-              <ChevronsRight size={20} strokeWidth={1.75} aria-hidden="true" />
-            ) : (
-              <ChevronsLeft size={20} strokeWidth={1.75} aria-hidden="true" />
-            )}
-          </button>
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
-            <div>
-              sumi<span>Personal workspace</span>
-            </div>
+            <div>sumi</div>
           </div>
+          {!isMac && sidebarButton}
         </div>
-        <span className="eyebrow nav-heading">WORKSPACE</span>
         <nav id="workspace-navigation" aria-label="Workspace pages">
           {pages.slice(0, 4).map((item) => (
             <button
@@ -204,38 +213,65 @@ export function AppShell({
           ))}
         </nav>
         <div className="sidebar-bottom">
+          <nav className="sidebar-utilities" aria-label="Workspace controls">
+            <button
+              className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("settings")}
+              aria-label="Settings"
+              aria-current={
+                page === "settings" && !onboarding ? "page" : undefined
+              }
+              title="Settings"
+            >
+              <Settings size={17} />
+              <span className="nav-label">Settings</span>
+            </button>
+            <UpdateEntry snapshot={update} onClick={onUpdates} />
+            <button
+              className={`nav-item ${page === "feedback" ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("feedback")}
+              aria-label="Feedback"
+              aria-current={
+                page === "feedback" && !onboarding ? "page" : undefined
+              }
+              title="Feedback"
+            >
+              <MessageSquare size={17} />
+              <span className="nav-label">Feedback</span>
+            </button>
+            <button
+              className="nav-item theme-toggle"
+              onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
+              aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+              title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
+            >
+              {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
+              <span className="nav-label">
+                {theme === "light" ? "Dark theme" : "Light theme"}
+              </span>
+            </button>
+            <button
+              className="nav-item quiet-toggle"
+              aria-label="Quiet mode"
+              aria-pressed={quietMode}
+              title={
+                quietMode
+                  ? "Quiet mode is on. Turn off to resume nudges and pop-ups. Chat stays available."
+                  : "Quiet mode is off. Turn on to pause nudges and pop-ups. Chat stays available."
+              }
+              disabled={onboarding || quietModeDisabled || !onQuietMode}
+              onClick={onQuietMode}
+            >
+              <BellOff size={17} aria-hidden="true" />
+              <span className="nav-label">Quiet mode</span>
+              <span className="quiet-state" aria-hidden="true">
+                {quietMode ? "On" : "Off"}
+              </span>
+            </button>
+          </nav>
           <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
-          <button
-            className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
-            disabled={onboarding}
-            onClick={() => onNavigate("settings")}
-            aria-label="Settings"
-            title="Settings"
-          >
-            <Settings size={17} />
-            <span className="nav-label">Settings</span>
-          </button>
-          <UpdateEntry snapshot={update} onClick={onUpdates} />
-          <button
-            className={`nav-item ${page === "feedback" ? "selected" : ""}`}
-            disabled={onboarding}
-            onClick={() => onNavigate("feedback")}
-            aria-label="Feedback"
-            title="Feedback"
-          >
-            <MessageSquare size={17} />
-            <span className="nav-label">Feedback</span>
-          </button>
-          <button
-            className="nav-item theme-toggle"
-            onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
-            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
-          >
-            {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
-            <span className="nav-label">
-              {theme === "light" ? "Dark theme" : "Light theme"}
-            </span>
-          </button>
           <div className="profile-menu-root" ref={menuRoot}>
             {menu && (
               <div className="profile-menu" aria-label="Profile actions">
@@ -261,7 +297,6 @@ export function AppShell({
                   <LogOut size={15} />
                   Sign out of local profile
                 </button>
-                <small>Opens setup again. Goals and history are kept.</small>
               </div>
             )}
             <button
@@ -271,10 +306,11 @@ export function AppShell({
               onClick={() => setMenu(!menu)}
               aria-expanded={menu}
               aria-label="Open profile menu"
+              title={profile.name || "Your profile"}
             >
-              <span className="profile-initials">{initials}</span>
-              <span>{profile.name || "Your workspace"}</span>
-              <ChevronDown size={14} />
+              <span className="profile-name">
+                {profile.name || "Your profile"}
+              </span>
             </button>
           </div>
         </div>

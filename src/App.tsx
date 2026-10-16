@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { Moon } from "lucide-react";
 import { defaultCompanionView } from "./companion/types";
 import { api, desktop } from "./api/tauri";
 import type { Dashboard } from "./types";
@@ -76,6 +75,12 @@ export default function App() {
   const preview =
     !desktop &&
     new URLSearchParams(location.search).get("preview") === "workspace";
+  const previewProfileName = preview
+    ? new URLSearchParams(location.search)
+        .get("profileName")
+        ?.trim()
+        .slice(0, 120)
+    : undefined;
   const onboarding = !settings.onboarding.completed && !preview;
   useEffect(() => {
     if (quickRequest && page === "focus" && !onboarding)
@@ -193,12 +198,26 @@ export default function App() {
         <AppShell
           page={page}
           onNavigate={setPage}
-          profile={settings.profile}
+          profile={
+            previewProfileName
+              ? { ...settings.profile, name: previewProfileName }
+              : settings.profile
+          }
           version={data.version}
           update={update}
           onUpdates={() => setUpdatesOpen(true)}
           onboarding={onboarding}
           theme={theme}
+          quietMode={data.status.dnd}
+          quietModeDisabled={busy || (!desktop && !preview)}
+          onQuietMode={() => {
+            if (desktop) void run(() => api.dnd(!data.status.dnd));
+            else if (preview)
+              setData((previous) => ({
+                ...previous,
+                status: { ...previous.status, dnd: !previous.status.dnd },
+              }));
+          }}
           onTheme={(next) => {
             if (desktop) void run(() => api.theme(next));
             else setTheme(next);
@@ -230,22 +249,6 @@ export default function App() {
                     <p>{title.description}</p>
                   )}
                 </div>
-                {page === "focus" && (
-                  <button
-                    className="text-button today-dnd"
-                    aria-describedby="quiet-tip"
-                    aria-pressed={data.status.dnd}
-                    disabled={busy || !desktop}
-                    onClick={() => void run(() => api.dnd(!data.status.dnd))}
-                  >
-                    <Moon size={16} />
-                    Quiet mode{data.status.dnd ? ": on" : ""}
-                    <span id="quiet-tip" role="tooltip" className="quiet-tip">
-                      Pauses all sumi nudges and pop-ups until you turn it off.
-                      Chat stays available.
-                    </span>
-                  </button>
-                )}
               </div>
               {!desktop && (
                 <p className="notice preview-notice">

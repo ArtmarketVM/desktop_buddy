@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-buddy"
-version = "0.31.3"
+version = "0.32.0"
 dependencies = [
  "base64 0.22.1",
  "cc",
