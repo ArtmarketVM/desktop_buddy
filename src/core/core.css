@@ -584,12 +584,8 @@
   width: 100%;
   max-width: 34px;
   min-height: 4px;
-  border-radius: 0;
-  background: repeating-linear-gradient(
-    to top,
-    var(--accent, var(--muted)) 0 8px,
-    transparent 8px 10px
-  );
+  border-radius: 3px;
+  background: var(--accent, var(--muted));
 }
 .progress-bar-day strong,
 .progress-bar-day em {
@@ -1115,7 +1111,7 @@
 .goal-log {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 28px;
 }
 .goal-search .quick-goal {
   margin: 0;
@@ -1130,7 +1126,7 @@
   border-top: 0;
 }
 .goal-log .goal-heading {
-  padding: 12px 0;
+  padding: 5px 0;
 }
 .sr-only {
   position: absolute;
@@ -2546,18 +2542,25 @@ details.today-summary > .today-summary-head {
   border-radius: 1px;
 }
 
-/* Stacked goal bars share the 8px cell rhythm; each segment keeps its goal colour. */
+/* One soft block per goal, sized by its time. */
 .stack-bar > i {
-  border-radius: 0;
-  background: repeating-linear-gradient(
-    to top,
-    var(--bar-color, var(--accent)) 0 8px,
-    transparent 8px 10px
-  );
+  border-radius: 3px;
+  background: var(--bar-color, var(--accent));
 }
 
 .callout .callout-action,
 p[role="alert"] .text-button,
 p.error .text-button {
   color: #1f1f1f;
+}
+
+/* Chart day labels in the pixel face; bricks and bars keep soft 3px corners. */
+.stack-col small {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stack-bar > i {
+  border-radius: 3px;
 }

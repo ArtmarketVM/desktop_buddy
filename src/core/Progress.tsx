@@ -255,9 +255,9 @@ export function Progress({
   const bucketTotal = (bucket: Bucket) =>
     [...bucket.goals.values()].reduce((sum, value) => sum + value, 0);
   const maxBucket = Math.max(1, ...buckets.map(bucketTotal));
-  // The tallest day gets eleven bricks; every goal with any time keeps at least one.
-  const bricksFor = (seconds: number) =>
-    Math.max(1, Math.round((seconds / maxBucket) * 11));
+  // The tallest day fills the chart; every goal with any time keeps at least one visible block.
+  const blockHeight = (seconds: number) =>
+    Math.max(6, Math.round((seconds / maxBucket) * 110));
   const total = buckets.reduce((sum, bucket) => sum + bucketTotal(bucket), 0);
   const stepSeconds = new Map<string, number>();
   if (selected !== null)
@@ -439,7 +439,7 @@ export function Progress({
                     key={id}
                     style={
                       {
-                        height: `${bricksFor(seconds) * 10 - 2}px`,
+                        height: `${blockHeight(seconds)}px`,
                         "--bar-color": colorOf(id),
                       } as React.CSSProperties
                     }
