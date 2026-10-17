@@ -337,6 +337,26 @@ export function Progress({
       {focus && (
         <h2 className="progress-goal-title">{sentenceCase(focus.title)}</h2>
       )}
+      <div className="progress-headline">
+        <div className="progress-total">
+          {total > 0 ? duration(total) : "0m"}
+        </div>
+        <p className="progress-sub">
+          {focus
+            ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
+            : [
+                `focused ${periodWord}`,
+                periodGoalsDone > 0
+                  ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
+                  : "",
+                periodStepsDone > 0
+                  ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+        </p>
+      </div>
       <div className="progress-bar">
         <div className="progress-nav" role="group" aria-label="Choose period">
           <button
@@ -381,26 +401,6 @@ export function Progress({
             </button>
           ))}
         </div>
-      </div>
-      <div className="progress-headline">
-        <div className="progress-total">
-          {total > 0 ? duration(total) : "0m"}
-        </div>
-        <p className="progress-sub">
-          {focus
-            ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
-            : [
-                `focused ${periodWord}`,
-                periodGoalsDone > 0
-                  ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
-                  : "",
-                periodStepsDone > 0
-                  ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" · ")}
-        </p>
       </div>
       <div className="stack-chart" aria-label="Focused time">
         {buckets.map((bucket) => (

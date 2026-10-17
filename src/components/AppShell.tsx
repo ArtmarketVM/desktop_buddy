@@ -11,7 +11,7 @@ import {
   UserRound,
   LogOut,
   MessageSquare,
-} from "lucide-react";
+} from "./PixelIcons";
 import type { UserProfile } from "../types";
 import type { UpdateSnapshot } from "../updates/controller";
 import { UpdateEntry } from "./Updates";

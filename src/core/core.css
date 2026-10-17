@@ -1517,22 +1517,30 @@ textarea:focus {
   padding: 2px 6px;
   color: var(--muted);
 }
+/* The week's focus figure is an ink tile with the number in lime; everything below it is secondary. */
 .progress-headline {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  gap: 0 10px;
-  margin: 0 0 12px;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  border-radius: 4px;
+  background: var(--text);
+  color: var(--canvas);
 }
 .progress-total {
   font-size: var(--text-title);
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: var(--leading-title);
+  color: var(--lime);
 }
 .progress-sub {
   margin: 0;
-  color: var(--muted);
+  color: var(--canvas);
+  opacity: 0.8;
   font-size: var(--text-body);
 }
 .stack-chart {
