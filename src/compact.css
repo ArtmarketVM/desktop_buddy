@@ -1650,3 +1650,36 @@ main.desktop-buddy.chatting > .companion-error {
     transition: none;
   }
 }
+
+/* Hover labels must escape the buttons; the dots start where the page icons start. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings,
+.sidebar .sidebar-utilities,
+.sidebar .sidebar-bottom {
+  overflow: visible;
+}
+.sidebar-ai-dots {
+  padding: 0 0 0 13.5px;
+}
+.ai-dots {
+  gap: 4px;
+}
+.ai-dot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 14px;
+  height: 16px;
+}
+.sidebar .profile-menu-root {
+  align-items: center;
+  padding: 6px 0 8px;
+}
+.sidebar .profile-entry {
+  height: 36px;
+  padding: 0 13.5px;
+}
+.sidebar .profile-settings {
+  margin: 0;
+}
