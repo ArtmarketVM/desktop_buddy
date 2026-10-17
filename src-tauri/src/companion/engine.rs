@@ -101,14 +101,12 @@ impl ActiveWorkClock {
     }
     pub fn observe_at(&mut self, now: std::time::SystemTime, working: bool) {
         // Wall time includes sleep on macOS; reject clock jumps instead of charging them as work.
-        let gap = self.last.map(|last| now.duration_since(last));
-        if !working
-            || gap.is_some_and(|gap| {
-                gap.is_err() || gap.is_ok_and(|d| d > std::time::Duration::from_secs(15))
-            })
+        let backwards = self.last.is_some_and(|last| now < last);
+        let gap = self.last.and_then(|last| now.duration_since(last).ok());
+        if !working || backwards || gap.is_some_and(|gap| gap > std::time::Duration::from_secs(15))
         {
             self.active = std::time::Duration::ZERO;
-        } else if let Some(Ok(gap)) = gap {
+        } else if let Some(gap) = gap {
             self.active += gap;
         }
         self.last = working.then_some(now);
