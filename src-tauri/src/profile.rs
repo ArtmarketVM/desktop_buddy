@@ -302,12 +302,14 @@ pub fn is_hex_color(color: &str) -> bool {
         .is_some_and(|v| v.len() == 6 && v.chars().all(|c| c.is_ascii_hexdigit()))
 }
 
-/// Keeps any valid #RRGGBB colour (uppercased); anything else becomes the default Matcha.
+/// Keeps any valid #RRGGBB colour (uppercased); the retired presets move to their
+/// replacements and anything else becomes the default Lime.
 pub fn palette_color(color: &str) -> String {
-    if is_hex_color(color) {
-        color.to_ascii_uppercase()
-    } else {
-        "#E4FA8E".into()
+    match color.to_ascii_uppercase().as_str() {
+        "#A8D8C8" => "#E4FA8E".into(),
+        "#C9D3D8" | "#E8EEF0" => "#F3F3EF".into(),
+        upper if is_hex_color(upper) => upper.to_string(),
+        _ => "#E4FA8E".into(),
     }
 }
 

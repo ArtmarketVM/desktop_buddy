@@ -309,6 +309,8 @@
 /* Same size and rhythm as the page title on the other screens; the chat pane starts level with it. */
 .chat-conversations > h1 {
   margin: 0 0 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   font-size: var(--text-title);
   line-height: 40px;
 }
@@ -1000,6 +1002,8 @@ main.desktop-buddy {
 }
 .app-shell .main > .page-title h1 {
   margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   font-size: var(--text-title);
   line-height: 40px;
 }
