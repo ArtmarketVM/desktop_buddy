@@ -2678,3 +2678,65 @@ p.error .text-button {
     grid-template-columns: 1fr;
   }
 }
+
+/* Privacy tab rows. */
+.tracking-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tracking-state > i {
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+}
+.tracking-state.running > i {
+  background: var(--lime);
+  outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
+}
+.tracking-state.attention > i {
+  background: var(--accent);
+}
+.day-chips {
+  display: flex;
+  gap: 4px;
+}
+.core-workspace .day-chip {
+  min-height: 0;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--muted);
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.core-workspace .day-chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+.core-workspace .settings-card .small-button {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .inline-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-card .mac-permissions .callout {
+  margin: 8px 0;
+}
+.core-settings .privacy-preview,
+.core-settings .privacy-notes {
+  margin-top: 14px;
+  font-size: var(--text-caption);
+  color: var(--muted);
+}

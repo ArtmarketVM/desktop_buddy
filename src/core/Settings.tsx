@@ -1,5 +1,4 @@
 import { MemorySettings } from "../components/MemorySettings";
-import { TrackingStatus } from "./TrackingStatus";
 import { MacPermissions } from "../components/MacPermissions";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
@@ -11,7 +10,7 @@ import {
   type Dashboard,
 } from "../types";
 import { ProviderKey } from "../components/Settings";
-import { PrivacySettings } from "../components/PrivacySettings";
+import { PrivacyNotes } from "../components/PrivacySettings";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
@@ -61,6 +60,22 @@ export function CoreSettings({
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
+  const [retention, setRetention] = useState(data.retention_days);
+  const [preview, setPreview] = useState("");
+  const [showPolicy, setShowPolicy] = useState(false);
+  const [clearPending, setClearPending] = useState(false);
+  useEffect(() => setRetention(data.retention_days), [data.retention_days]);
+  const trackingState = !data.status.tracking
+    ? "paused"
+    : data.status.tracking_error
+      ? "attention"
+      : "running";
+  const trackingLabel =
+    trackingState === "paused"
+      ? "Paused"
+      : trackingState === "attention"
+        ? "Needs attention"
+        : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
   useEffect(() => {
     if (sectionRequest) setSection(sectionRequest.section);
@@ -279,132 +294,241 @@ export function CoreSettings({
         </details>
         <details className="core-section" hidden={section !== "Privacy"} open>
           <summary>Privacy</summary>
-          <MacPermissions />
-          <label className="toggle-row">
-            <span>
-              Track goals and suggest completed work
-              <small>
-                Records active windows locally and may send a small text sample
-                to Nebius. You confirm every completion.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={data.status.tracking}
-              disabled={blocked}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                if (enabled) {
-                  setTrackingConsentPending(true);
-                  return;
-                }
-                void run(() => api.goalMonitoring(enabled));
-              }}
-            />
-          </label>
-          {data.status.tracking &&
-            !data.buddy.companion?.preferences.screen_task_detection && (
-              <button
-                className="text-button"
-                disabled={blocked}
-                onClick={() => setTrackingConsentPending(true)}
+          <div className="settings-cards">
+            <section className="settings-card" aria-label="Tracking">
+              <p className="eyebrow settings-card-title">Tracking</p>
+              <label className="toggle-row">
+                <span>Track goals and suggest completed work</span>
+                <input
+                  type="checkbox"
+                  checked={data.status.tracking}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    if (enabled) {
+                      setTrackingConsentPending(true);
+                      return;
+                    }
+                    void run(() => api.goalMonitoring(enabled));
+                  }}
+                />
+              </label>
+              {trackingConsentPending && (
+                <div
+                  className="card"
+                  aria-label="Confirm local activity tracking"
+                >
+                  <p>
+                    Record foreground apps, window/tab titles and active time on
+                    this computer, and send up to 3,000 characters of visible
+                    text with your goal and steps to Nebius for progress checks?
+                    Password and edit controls are skipped. Provider charges may
+                    apply.
+                  </p>
+                  <button
+                    disabled={blocked}
+                    onClick={() => {
+                      void run(() => api.goalMonitoring(true)).then(
+                        async (ok) => {
+                          if (ok) setTrackingConsentPending(false);
+                          if (ok && isMac)
+                            await invoke<boolean>(
+                              "request_accessibility_permission",
+                            ).catch((e) => setError(String(e)));
+                        },
+                      );
+                    }}
+                  >
+                    Enable goal tracking
+                  </button>
+                  <button
+                    className="text-button"
+                    disabled={blocked}
+                    onClick={() => setTrackingConsentPending(false)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+              <div className="setting-row">
+                <span>Status</span>
+                <span className={`tracking-state ${trackingState}`}>
+                  <i aria-hidden="true" />
+                  {trackingLabel}
+                </span>
+              </div>
+              <MacPermissions />
+              <div className="setting-row">
+                <span>Working days</span>
+                <span
+                  className="day-chips"
+                  role="group"
+                  aria-label="Working days"
+                >
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
+                    (label, day) => {
+                      const on = preferences.working_days.includes(day);
+                      return (
+                        <button
+                          type="button"
+                          key={day}
+                          className="day-chip"
+                          aria-pressed={on}
+                          disabled={blocked}
+                          onClick={() => {
+                            const next = {
+                              ...preferences,
+                              working_days: on
+                                ? preferences.working_days.filter(
+                                    (d) => d !== day,
+                                  )
+                                : [...preferences.working_days, day].sort(),
+                            };
+                            setPreferences(next);
+                            void run(() => coreApi.preferences(next));
+                          }}
+                        >
+                          {label}
+                        </button>
+                      );
+                    },
+                  )}
+                </span>
+              </div>
+              <div
+                className="setting-row"
+                role="group"
+                aria-label="Working hours"
               >
-                Enable completion checks
-              </button>
-            )}
-          {trackingConsentPending && (
-            <div className="card" aria-label="Confirm local activity tracking">
-              <p>
-                Record foreground apps, window/tab titles and active time on
-                this computer, and send up to 3,000 characters of visible text
-                with your goal and steps to Nebius for progress checks? Password
-                and edit controls are skipped. Provider charges may apply.
-              </p>
-              <button
-                disabled={blocked}
-                onClick={() => {
-                  void run(() => api.goalMonitoring(true)).then(async (ok) => {
-                    if (ok) setTrackingConsentPending(false);
-                    if (ok && isMac)
-                      await invoke<boolean>(
-                        "request_accessibility_permission",
-                      ).catch((e) => setError(String(e)));
-                  });
-                }}
-              >
-                Enable goal tracking
-              </button>
-              <button
-                className="text-button"
-                disabled={blocked}
-                onClick={() => setTrackingConsentPending(false)}
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-          <TrackingStatus dashboard={data} compact />
-          <fieldset disabled={blocked}>
-            <div className="working-days">
-              <span>Working days</span>
-              <div>
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (label, day) => (
-                    <label key={day}>
-                      <input
-                        type="checkbox"
-                        checked={preferences.working_days.includes(day)}
-                        onChange={(e) => {
-                          setPreferences({
-                            ...preferences,
-                            working_days: e.target.checked
-                              ? [...preferences.working_days, day]
-                              : preferences.working_days.filter(
-                                  (d) => d !== day,
-                                ),
-                          });
-                          change();
-                        }}
-                      />
-                      {label}
-                    </label>
-                  ),
+                <span>Working hours</span>
+                <span className="quiet-hours">
+                  <input
+                    type="time"
+                    aria-label="Start time"
+                    value={time(hours.working_start_minute)}
+                    disabled={blocked}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const next = {
+                        ...hours,
+                        working_start_minute: minutes(e.target.value),
+                      };
+                      setHours(next);
+                      void run(() => api.saveTrackingSettings(next));
+                    }}
+                  />
+                  <span className="quiet-hours-to">to</span>
+                  <input
+                    type="time"
+                    aria-label="End time"
+                    value={time(hours.working_end_minute)}
+                    disabled={blocked}
+                    onChange={(e) => {
+                      if (!e.target.value) return;
+                      const next = {
+                        ...hours,
+                        working_end_minute: minutes(e.target.value),
+                      };
+                      setHours(next);
+                      void run(() => api.saveTrackingSettings(next));
+                    }}
+                  />
+                </span>
+              </div>
+            </section>
+            <section className="settings-card" aria-label="Your data">
+              <p className="eyebrow settings-card-title">Your data</p>
+              <label className="setting-row">
+                <span>Keep history</span>
+                <select
+                  value={retention}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const days = Number(e.target.value);
+                    setRetention(days);
+                    void run(() => api.retention(days));
+                  }}
+                >
+                  <option value={0}>Until I delete it</option>
+                  <option value={7}>7 days</option>
+                  <option value={30}>30 days</option>
+                  <option value={90}>90 days</option>
+                </select>
+              </label>
+              <div className="setting-row">
+                <span>What the AI can see</span>
+                <button
+                  type="button"
+                  className="outline-button small-button"
+                  disabled={blocked}
+                  onClick={() => {
+                    if (preview) {
+                      setPreview("");
+                      return;
+                    }
+                    void run(async () => {
+                      setPreview(
+                        JSON.stringify(await api.privacyPreview(), null, 2),
+                      );
+                    });
+                  }}
+                >
+                  {preview ? "Hide" : "Preview"}
+                </button>
+              </div>
+              <div className="setting-row">
+                <span>How sumi uses data</span>
+                <button
+                  type="button"
+                  className="outline-button small-button"
+                  onClick={() => setShowPolicy((open) => !open)}
+                >
+                  {showPolicy ? "Hide" : "Read"}
+                </button>
+              </div>
+              <div className="setting-row">
+                <span>Clear all local history</span>
+                {clearPending ? (
+                  <span className="inline-confirm">
+                    <button
+                      type="button"
+                      className="danger-button small-button"
+                      disabled={blocked}
+                      onClick={() =>
+                        void run(async () => {
+                          await api.clearHistory();
+                          setPreview("");
+                        }).then((ok) => {
+                          if (ok) setClearPending(false);
+                        })
+                      }
+                    >
+                      Clear permanently
+                    </button>
+                    <button
+                      type="button"
+                      className="text-button"
+                      disabled={blocked}
+                      onClick={() => setClearPending(false)}
+                    >
+                      Keep
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    className="outline-button small-button danger-text"
+                    disabled={blocked}
+                    onClick={() => setClearPending(true)}
+                  >
+                    Clear…
+                  </button>
                 )}
               </div>
-            </div>
-            <div className="working-hours">
-              {(["working_start_minute", "working_end_minute"] as const).map(
-                (key, index) => (
-                  <label key={key}>
-                    {index === 0 ? "Start time" : "End time"}
-                    <input
-                      type="time"
-                      value={time(hours[key])}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          setHours({
-                            ...hours,
-                            [key]: minutes(e.target.value),
-                          });
-                          change();
-                        }
-                      }}
-                    />
-                  </label>
-                ),
-              )}
-            </div>
-          </fieldset>
-          <details className="core-section">
-            <summary>Local data controls</summary>
-            <PrivacySettings
-              preferences={data.buddy.preferences}
-              retentionDays={data.retention_days}
-              onChanged={onChanged}
-              onHistoryCleared={onChanged}
-              showExclusions={false}
-            />
-          </details>
+            </section>
+          </div>
+          {preview && <pre className="privacy-preview">{preview}</pre>}
+          {showPolicy && <PrivacyNotes />}
         </details>
         <details className="core-section" hidden={section !== "Memory"} open>
           <summary>Memory</summary>
@@ -469,7 +593,10 @@ export function CoreSettings({
             Check for updates
           </button>
         </details>
-        <div className="settings-actions settings-save">
+        <div
+          className="settings-actions settings-save"
+          hidden={section === "Privacy"}
+        >
           <button
             type="button"
             onClick={() => void save()}

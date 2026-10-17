@@ -83,29 +83,7 @@ export function MacPermissions() {
             </button>
           </span>
         </p>
-      ) : (
-        <p className="helper">
-          Accessibility access is{" "}
-          {allowed === null ? "being checked" : "enabled"}. No screenshots are
-          taken.
-        </p>
-      )}
-      {allowed === false && (
-        <p className="helper">
-          Turn on sumi in System Settings → Privacy &amp; Security →
-          Accessibility. If it is already on but access stays blocked, for
-          example after an update, choose Reset and ask again. Goals and chat
-          work without it. No screenshots are taken.{" "}
-          <button
-            type="button"
-            className="text-button"
-            disabled={checking}
-            onClick={() => void refresh(true)}
-          >
-            {checking ? "Checking…" : "Check permission"}
-          </button>
-        </p>
-      )}
+      ) : null}
       {note && (
         <p className="helper" role="status">
           {note}

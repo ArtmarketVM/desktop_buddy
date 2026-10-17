@@ -3,6 +3,51 @@ import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import type { BuddyPreferences } from "../types";
 
+/** How sumi uses data: the policy text shared by the Privacy tab and the legacy panel. */
+export function PrivacyNotes() {
+  return (
+    <div className="privacy-notes">
+      <p>
+        Activity tracking observes foreground apps and window titles. Optional
+        visible-text suggestions and attachments have separate controls. Titles
+        and goals can contain sensitive information. Activity history is local
+        and is not encrypted.
+      </p>
+      <ul>
+        <li>
+          Goal context includes the saved completion criterion and current
+          unfinished step. Refine with AI separately sends the saved goal and
+          full checklist, without activity history, only when you request it.
+        </li>
+        <li>
+          AI check-ins: Nebius receives the goal and up to 10 activity segments
+          (app, title, active and idle seconds).
+        </li>
+        <li>
+          Proactive suggestions: Nebius receives the goal and up to 5 window
+          titles to plan a query. Tavily receives the query. Nebius then
+          receives up to 5 result titles, URLs and snippets to select a
+          resource. Both stages use up to 10 rated titles and 10 recently
+          offered titles for the current goal. These titles and ratings appear
+          in the local preview; they are not sent directly to Tavily.
+        </li>
+        <li>Manual search: Tavily receives only the query you submit.</li>
+        <li>
+          Personal memory has separate controls in Settings → Memory. During
+          chat, a bounded selection of relevant memories and the current goal
+          checkpoint may be sent to Nebius only with AI goal-context sharing.
+          Memory does not automatically store screen text. Turning Memory off
+          stops saving and recalling personal memory without clearing history.
+        </li>
+        <li>
+          API keys are sent only as authentication to the configured provider
+          endpoint. Provider-side retention is controlled by that provider;
+          deleting local history does not delete remote records.
+        </li>
+      </ul>
+    </div>
+  );
+}
 export function PrivacySettings({
   preferences,
   retentionDays,
@@ -45,44 +90,7 @@ export function PrivacySettings({
   return (
     <section className="privacy-settings" aria-label="Privacy and local data">
       <h3>Privacy and local data</h3>
-      <p>
-        Activity tracking observes foreground apps and window titles. Optional
-        visible-text suggestions and attachments have separate controls. Titles
-        and goals can contain sensitive information. Activity history is local
-        and is not encrypted.
-      </p>
-      <ul>
-        <li>
-          Goal context includes the saved completion criterion and current
-          unfinished step. Refine with AI separately sends the saved goal and
-          full checklist, without activity history, only when you request it.
-        </li>
-        <li>
-          AI check-ins: Nebius receives the goal and up to 10 activity segments
-          (app, title, active and idle seconds).
-        </li>
-        <li>
-          Proactive suggestions: Nebius receives the goal and up to 5 window
-          titles to plan a query. Tavily receives the query. Nebius then
-          receives up to 5 result titles, URLs and snippets to select a
-          resource. Both stages use up to 10 rated titles and 10 recently
-          offered titles for the current goal. These titles and ratings appear
-          in the local preview; they are not sent directly to Tavily.
-        </li>
-        <li>Manual search: Tavily receives only the query you submit.</li>
-        <li>
-          Personal memory has separate controls in Settings → Memory. During
-          chat, a bounded selection of relevant memories and the current goal
-          checkpoint may be sent to Nebius only with AI goal-context sharing.
-          Memory does not automatically store screen text. Turning Memory off
-          stops saving and recalling personal memory without clearing history.
-        </li>
-        <li>
-          API keys are sent only as authentication to the configured provider
-          endpoint. Provider-side retention is controlled by that provider;
-          deleting local history does not delete remote records.
-        </li>
-      </ul>
+      <PrivacyNotes />
       <button
         type="button"
         disabled={!desktop || busy}
