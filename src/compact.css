@@ -1475,3 +1475,110 @@ main.desktop-buddy.chatting > .companion-error {
 .chat-pane .companion-composer-actions > button:disabled {
   opacity: 0.45;
 }
+
+/* Sidebar layout 2: pages with labels, utilities as a row of square icon buttons, settings beside the name. */
+.sidebar .workspace-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ai-dots {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+.ai-dot {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+}
+.ai-dot:hover:not(:disabled),
+.ai-dot:focus-visible {
+  background: var(--raised);
+}
+.ai-dot .service-dot {
+  width: 6px;
+  height: 6px;
+  flex-basis: 6px;
+  border-radius: 1px;
+}
+.sidebar .sidebar-utilities {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+}
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sidebar .sidebar-utilities .nav-label,
+.sidebar .sidebar-utilities .quiet-state,
+.sidebar .sidebar-utilities .update-entry > span:last-child {
+  display: none;
+}
+.sidebar .sidebar-utilities .update-entry.update-available {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.sidebar .sidebar-utilities .quiet-toggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.sidebar .profile-menu-root {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.sidebar .profile-entry {
+  flex: 1;
+  min-width: 0;
+}
+.sidebar .profile-settings {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin-right: 10px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sidebar .profile-settings.selected {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.sidebar-collapsed .ai-dots,
+.sidebar-collapsed .profile-settings {
+  visibility: hidden;
+}
+/* The services panel inside Settings loses its sidebar framing. */
+.core-settings .sidebar-ai-services {
+  margin: 0 0 12px;
+  padding: 0;
+  border-top: 0;
+}
+.service-dot {
+  border-radius: 1px;
+}

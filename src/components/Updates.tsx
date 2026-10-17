@@ -1,11 +1,6 @@
 import { useEffect, useRef } from "react";
-import {
-  ArrowDownToLine,
-  Check,
-  LoaderCircle,
-  RefreshCw,
-  X,
-} from "lucide-react";
+import { Check, LoaderCircle, RefreshCw, X } from "lucide-react";
+import { ArrowDownToLine } from "./PixelIcons";
 import { desktop } from "../api/tauri";
 import type { UpdateController, UpdateSnapshot } from "../updates/controller";
 

@@ -20,7 +20,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("keeps utility controls in the requested reading and keyboard order above services and profile", () => {
+it("keeps utility controls in the requested reading order, with services by the wordmark and settings beside the profile", () => {
   render(<AppShell {...base}>Today</AppShell>);
   expect(screen.queryByRole("toolbar", { name: "Window toolbar" })).toBeNull();
   const controls = screen.getByRole("navigation", {
@@ -30,21 +30,20 @@ it("keeps utility controls in the requested reading and keyboard order above ser
     within(controls)
       .getAllByRole("button")
       .map((b) => b.getAttribute("aria-label")),
-  ).toEqual([
-    "Settings",
-    "Updates",
-    "Feedback",
-    "Switch to dark theme",
-    "Quiet mode",
-  ]);
+  ).toEqual(["Updates", "Feedback", "Switch to dark theme", "Quiet mode"]);
   const services = screen.getByRole("group", { name: "AI services" });
+  const pages = screen.getByRole("navigation", { name: "Workspace pages" });
   const profile = screen.getByRole("button", { name: "Open profile menu" });
+  const settings = screen.getByRole("button", { name: "Settings" });
   expect(
-    controls.compareDocumentPosition(services) &
+    services.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    controls.compareDocumentPosition(profile) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(
-    services.compareDocumentPosition(profile) &
+    profile.compareDocumentPosition(settings) &
       Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
 });
@@ -106,15 +105,11 @@ it("retains sidebar-toggle focus and service controls through collapse and expan
   const user = userEvent.setup();
   render(<AppShell {...base}>Today</AppShell>);
   const services = screen.getByRole("group", { name: "AI services" });
-  const refresh = screen.getByRole("button", { name: "Check AI connections" });
   const toggle = screen.getByRole("button", { name: "Collapse sidebar" });
   await user.click(toggle);
   expect(document.activeElement).toBe(toggle);
   expect(screen.getByRole("button", { name: "Expand sidebar" })).toBe(toggle);
   expect(screen.getByRole("group", { name: "AI services" })).toBe(services);
-  expect(screen.getByRole("button", { name: "Check AI connections" })).toBe(
-    refresh,
-  );
   await user.keyboard("{Enter}");
   expect(screen.getByRole("button", { name: "Collapse sidebar" })).toBe(toggle);
 });

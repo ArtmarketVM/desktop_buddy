@@ -191,6 +191,11 @@ export function AppShell({
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>sumi</div>
+            <SidebarAiServices
+              enabled={!onboarding}
+              collapsed={collapsed}
+              variant="dots"
+            />
           </div>
           {!isMac && sidebarButton}
         </div>
@@ -214,19 +219,6 @@ export function AppShell({
         </nav>
         <div className="sidebar-bottom">
           <nav className="sidebar-utilities" aria-label="Workspace controls">
-            <button
-              className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
-              disabled={onboarding}
-              onClick={() => onNavigate("settings")}
-              aria-label="Settings"
-              aria-current={
-                page === "settings" && !onboarding ? "page" : undefined
-              }
-              title="Settings"
-            >
-              <Settings size={17} />
-              <span className="nav-label">Settings</span>
-            </button>
             <UpdateEntry snapshot={update} onClick={onUpdates} />
             <button
               className={`nav-item ${page === "feedback" ? "selected" : ""}`}
@@ -271,7 +263,6 @@ export function AppShell({
               </span>
             </button>
           </nav>
-          <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
           <div className="profile-menu-root" ref={menuRoot}>
             {menu && (
               <div className="profile-menu" aria-label="Profile actions">
@@ -311,6 +302,18 @@ export function AppShell({
               <span className="profile-name">
                 {profile.name || "Your profile"}
               </span>
+            </button>
+            <button
+              className={`profile-settings ${page === "settings" && !onboarding ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("settings")}
+              aria-label="Settings"
+              aria-current={
+                page === "settings" && !onboarding ? "page" : undefined
+              }
+              title="Settings"
+            >
+              <Settings size={15} />
             </button>
           </div>
         </div>

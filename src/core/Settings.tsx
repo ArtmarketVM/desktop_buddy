@@ -16,6 +16,7 @@ import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
 import { AiSettings } from "../ai/AiSettings";
+import { SidebarAiServices } from "../components/SidebarAiServices";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
@@ -406,6 +407,7 @@ export function CoreSettings({
           open
         >
           <summary>Integrations / AI</summary>
+          <SidebarAiServices enabled variant="panel" />
           <label>
             Vision model (optional)
             <input
