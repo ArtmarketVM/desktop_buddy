@@ -2594,7 +2594,15 @@ p.error .text-button {
 
 /* Warning callout hugs the block below it; the headline then breathes before the period row. */
 .core-workspace > .callout + .core-section {
-  margin-top: -20px;
+  margin-top: -32px;
+}
+.core-workspace > .callout:has(+ .core-section) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.core-workspace > .callout + .core-section .progress-headline {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 .progress-headline {
   margin-bottom: 28px;
