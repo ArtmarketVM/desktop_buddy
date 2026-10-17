@@ -1294,13 +1294,16 @@ main.desktop-buddy.chatting > .companion-error {
   margin: 0;
   outline: 2px solid var(--sidebar);
 }
+/* Status in the palette: lime connected, violet needs attention, grey checking. */
 .service-dot.service-verified {
-  background: var(--service-connected);
+  background: var(--lime);
+  outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
+  outline-offset: -1px;
 }
 .service-dot.service-unavailable,
 .service-dot.service-not_configured,
 .service-dot.service-offline {
-  background: var(--service-disconnected);
+  background: var(--accent);
 }
 .service-dot.service-checking {
   background: var(--muted);
