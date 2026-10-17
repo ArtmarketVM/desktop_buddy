@@ -14,7 +14,7 @@ impl Default for AvatarPreferences {
     fn default() -> Self {
         Self {
             character: "cat".into(),
-            color: "#A8D8C8".into(),
+            color: "#E4FA8E".into(),
             visible: true,
         }
     }
@@ -307,7 +307,7 @@ pub fn palette_color(color: &str) -> String {
     if is_hex_color(color) {
         color.to_ascii_uppercase()
     } else {
-        "#A8D8C8".into()
+        "#E4FA8E".into()
     }
 }
 

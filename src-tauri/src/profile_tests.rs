@@ -341,5 +341,5 @@ fn avatar_color_is_persisted_without_changing_other_preferences() {
 fn avatar_color_requires_completed_setup() {
     let s = store();
     assert!(store_avatar_color(&s, "#C9D3D8").is_err());
-    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#A8D8C8");
+    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#E4FA8E");
 }

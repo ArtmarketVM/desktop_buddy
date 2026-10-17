@@ -131,13 +131,14 @@ export function TodaySummary({
     </details>
   );
 }
+// Direction A: violet, lime and ink first, then their lighter steps.
 const goalColors = [
-  "#547548",
-  "#7b9fc7",
-  "#c9a24e",
-  "#b07ab5",
-  "#d0795f",
-  "#6bb3a8",
+  "#6c5fff",
+  "#e4fa8e",
+  "#1f1f1f",
+  "#b3acff",
+  "#c8d87a",
+  "#8c8c86",
 ];
 
 type Bucket = {
@@ -432,10 +433,12 @@ export function Progress({
                 .map(([id, seconds]) => (
                   <i
                     key={id}
-                    style={{
-                      height: `${(seconds / bucketTotal(bucket)) * 100}%`,
-                      background: colorOf(id),
-                    }}
+                    style={
+                      {
+                        height: `${(seconds / bucketTotal(bucket)) * 100}%`,
+                        "--bar-color": colorOf(id),
+                      } as React.CSSProperties
+                    }
                   />
                 ))}
             </div>

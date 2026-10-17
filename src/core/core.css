@@ -2537,3 +2537,13 @@ details.today-summary > .today-summary-head {
 .goal-expanded .core-steps input[type="checkbox"] {
   border-radius: 1px;
 }
+
+/* Stacked goal bars share the 8px cell rhythm; each segment keeps its goal colour. */
+.stack-bar > i {
+  border-radius: 0;
+  background: repeating-linear-gradient(
+    to top,
+    var(--bar-color, var(--accent)) 0 8px,
+    transparent 8px 10px
+  );
+}

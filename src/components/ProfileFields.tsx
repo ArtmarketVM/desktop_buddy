@@ -8,9 +8,9 @@ import { loopIndex, loopScrollShift } from "../data/roleLoop";
 import { RoleResearch } from "./ContactSettings";
 
 const PRESETS = [
-  { name: "Matcha", value: "#A8D8C8" },
-  { name: "Mist", value: "#C9D3D8" },
-  { name: "Cloud", value: "#E8EEF0" },
+  { name: "Lime", value: "#E4FA8E" },
+  { name: "Violet", value: "#6C5FFF" },
+  { name: "Cloud", value: "#F3F3EF" },
 ];
 const MOODS: [AvatarState, string][] = [
   ["working", "Working"],
