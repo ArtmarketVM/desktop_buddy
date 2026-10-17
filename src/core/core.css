@@ -2531,7 +2531,7 @@ details.today-summary > .today-summary-head {
 .finder-label,
 .chat-group,
 .nav-heading,
-.sidebar-service-label,
+.sidebar-ai-heading .sidebar-service-label,
 .section-label,
 .eyebrow {
   font-family: var(--pix);
