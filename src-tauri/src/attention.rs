@@ -7,13 +7,25 @@ pub fn excluded(preferences: &BuddyPreferences, process: &str) -> bool {
         .any(|p| p.eq_ignore_ascii_case(process))
 }
 
-/// Heuristic only: no microphone, camera, calendar, or meeting contents are inspected.
+/// Conservative foreground evidence, not proof of call membership or calendar presence.
 pub fn meeting(activity: &ActivitySnapshot) -> bool {
     let process = activity.process_name.to_ascii_lowercase();
-    let title = activity.window_title.to_ascii_lowercase();
-    [
+    let title = activity.window_title.to_lowercase();
+    let call_marker = [
+        "zoom meeting",
+        "microsoft teams meeting",
+        "in a meeting",
+        "meeting in progress",
+        "call in progress",
+        "встреча в процессе",
+        "звонок в процессе",
+    ]
+    .iter()
+    .any(|marker| title.contains(marker));
+    let meeting_app = [
         "zoom.exe",
         "zoom.us",
+        "zoom",
         "microsoft teams",
         "webex",
         "teams.exe",
@@ -21,10 +33,38 @@ pub fn meeting(activity: &ActivitySnapshot) -> bool {
         "webex.exe",
         "webexmta.exe",
     ]
-    .contains(&process.as_str())
-        || ["google meet", "zoom meeting", "microsoft teams meeting"]
+    .contains(&process.as_str());
+    let meet = title.contains("meet")
+        || activity
+            .browser
+            .as_ref()
+            .and_then(|b| b.domain.as_deref())
+            .is_some_and(|d| d.eq_ignore_ascii_case("meet.google.com"));
+    let meet_code = title
+        .split(|c: char| !c.is_ascii_alphanumeric() && c != '-')
+        .any(|word| {
+            let parts: Vec<_> = word.split('-').collect();
+            parts.len() == 3
+                && parts[0].len() == 3
+                && parts[1].len() == 4
+                && parts[2].len() == 3
+                && parts
+                    .iter()
+                    .all(|part| part.bytes().all(|b| b.is_ascii_lowercase()))
+        });
+    // Merely opening the meeting app, its home page or calendar is not a meeting.
+    (meet && meet_code)
+        || call_marker
+        || (meeting_app
+            && [
+                "in call",
+                "video call",
+                "audio call",
+                "видеозвонок",
+                "аудиозвонок",
+            ]
             .iter()
-            .any(|s| title.contains(s))
+            .any(|marker| title.contains(marker)))
 }
 
 pub fn quiet_reason(
@@ -103,6 +143,7 @@ mod tests {
         assert!(excluded(&prefs, &a.process_name));
         prefs.excluded_apps.clear();
         a.process_name = "ms-teams.exe".into();
+        a.window_title = "Design — Microsoft Teams meeting".into();
         assert!(meeting(&a));
         assert_eq!(
             quiet_reason(&prefs, Some(&a), false, false).as_deref(),
@@ -125,5 +166,51 @@ mod tests {
         );
         p.interval_minutes = 1;
         assert!(validate_preferences(p).is_err());
+    }
+}
+
+#[cfg(test)]
+mod meeting_regressions {
+    use super::*;
+    #[test]
+    fn app_homes_and_chat_windows_are_not_calls_on_either_platform() {
+        for (app, title) in [
+            ("Google Chrome", "Google Meet - Home"),
+            ("chrome.exe", "Google Meet"),
+            ("zoom.us", "Zoom Workplace"),
+            ("Zoom.exe", "Zoom Home"),
+            ("Microsoft Teams", "Chat | Microsoft Teams"),
+            ("ms-teams.exe", "Calendar | Microsoft Teams"),
+            ("webex.exe", "Webex"),
+        ] {
+            assert!(
+                !meeting(&ActivitySnapshot {
+                    process_name: app.into(),
+                    window_title: title.into(),
+                    ..Default::default()
+                }),
+                "{app}: {title}"
+            );
+        }
+    }
+    #[test]
+    fn explicit_call_contexts_remain_quiet_on_both_platforms() {
+        for (app, title) in [
+            ("Google Chrome", "Meet - abc-defg-hij"),
+            ("chrome.exe", "Google Meet abc-defg-hij"),
+            ("zoom.us", "Zoom Meeting"),
+            ("Zoom.exe", "Zoom Meeting"),
+            ("Microsoft Teams", "Team — Microsoft Teams meeting"),
+            ("ms-teams.exe", "Video call — Client"),
+        ] {
+            assert!(
+                meeting(&ActivitySnapshot {
+                    process_name: app.into(),
+                    window_title: title.into(),
+                    ..Default::default()
+                }),
+                "{app}: {title}"
+            );
+        }
     }
 }

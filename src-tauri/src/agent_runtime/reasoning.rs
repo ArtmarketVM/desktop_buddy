@@ -43,6 +43,18 @@ pub fn schema() -> Value {
         "clarification":{"type":["string","null"],"maxLength":500}},
         "required":["situation","decision","proposed_actions","memory_updates","state_version","clarification"]})
 }
+/// Background inference must not advertise an action it can never authorize.
+pub fn background_schema() -> Value {
+    let mut schema = schema();
+    schema["properties"]["decision"]["enum"] = json!([
+        "stay_silent",
+        "update_memory_only",
+        "offer_help",
+        "offer_skill",
+        "request_clarification"
+    ]);
+    schema
+}
 pub fn parse(response: &Value) -> Result<Reasoning, String> {
     let result: Reasoning = serde_json::from_str(crate::goal_analysis::response_text(response)?)
         .map_err(|_| "Invalid agent reasoning JSON")?;

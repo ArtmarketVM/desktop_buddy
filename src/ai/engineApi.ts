@@ -49,6 +49,7 @@ export interface PersonalAiEngine {
       cancelled: number;
       verified: number;
       suppression_reason: string | null;
+      last_failure?: string | null;
     };
   };
   health: InferenceHealth;

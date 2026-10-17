@@ -89,6 +89,35 @@ pub fn fingerprint(value: &str) -> String {
         .hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
+/// Counts only adjacent active samples; long gaps, idle, media and privacy pauses reset the stretch clock.
+#[derive(Default)]
+pub struct ActiveWorkClock {
+    last: Option<std::time::SystemTime>,
+    active: std::time::Duration,
+}
+impl ActiveWorkClock {
+    pub fn observe(&mut self, working: bool) {
+        self.observe_at(std::time::SystemTime::now(), working);
+    }
+    pub fn observe_at(&mut self, now: std::time::SystemTime, working: bool) {
+        // Wall time includes sleep on macOS; reject clock jumps instead of charging them as work.
+        let gap = self.last.map(|last| now.duration_since(last));
+        if !working
+            || gap.is_some_and(|gap| {
+                gap.is_err() || gap.is_ok_and(|d| d > std::time::Duration::from_secs(15))
+            })
+        {
+            self.active = std::time::Duration::ZERO;
+        } else if let Some(Ok(gap)) = gap {
+            self.active += gap;
+        }
+        self.last = working.then_some(now);
+    }
+    pub fn seconds(&self) -> u64 {
+        self.active.as_secs()
+    }
+}
+
 pub fn scheduled_slot(
     preferences: &Preferences,
     has_goal: bool,
@@ -96,6 +125,7 @@ pub fn scheduled_slot(
     uptime_seconds: u64,
     no_progress_seconds: i64,
     goal_age_seconds: i64,
+    active_work_seconds: u64,
 ) -> Option<(&'static str, Kind, &'static str)> {
     if uptime_seconds < preferences.morning_delay_minutes as u64 * 60 {
         return None;
@@ -123,7 +153,7 @@ pub fn scheduled_slot(
             Kind::Midday,
             "Want to quickly update what moved forward?",
         ))
-    } else if preferences.movement_reminder && uptime_seconds >= 2 * 3600 {
+    } else if preferences.movement_reminder && active_work_seconds >= 2 * 3600 {
         Some((
             "movement",
             Kind::Movement,
@@ -418,21 +448,21 @@ mod tests {
     #[test]
     fn scheduled_checkins_wait_and_do_not_mistake_a_new_goal_for_no_progress() {
         let p = Preferences::default();
-        assert!(scheduled_slot(&p, false, 600, 599, 99999, 0).is_none());
+        assert!(scheduled_slot(&p, false, 600, 599, 99999, 0, 0).is_none());
         assert_eq!(
-            scheduled_slot(&p, false, 600, 600, 99999, 0).unwrap().1,
+            scheduled_slot(&p, false, 600, 600, 99999, 0, 0).unwrap().1,
             Kind::NoGoals
         );
-        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 99999, 300).is_none());
-        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 30, 99999).is_none());
+        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 99999, 300, 0).is_none());
+        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 30, 99999, 0).is_none());
         assert_eq!(
-            scheduled_slot(&p, true, 13 * 60, 3600, 4 * 3600, 4 * 3600)
+            scheduled_slot(&p, true, 13 * 60, 3600, 4 * 3600, 4 * 3600, 0)
                 .unwrap()
                 .1,
             Kind::Midday
         );
         assert_eq!(
-            scheduled_slot(&p, true, 18 * 60, 3600, 30, 99999)
+            scheduled_slot(&p, true, 18 * 60, 3600, 30, 99999, 0)
                 .unwrap()
                 .1,
             Kind::EndOfDay
@@ -440,10 +470,10 @@ mod tests {
         let mut p = p;
         p.daily_checkins = false;
         p.movement_reminder = false;
-        assert!(scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999).is_none());
+        assert!(scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999, 0).is_none());
         p.movement_reminder = true;
         assert_eq!(
-            scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999)
+            scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999, 2 * 3600)
                 .unwrap()
                 .1,
             Kind::Movement
@@ -464,8 +494,51 @@ mod tests {
         m.average_completion_seconds = 600;
         assert_eq!(m.cooldown_seconds(&p), 3600);
         assert_eq!(
-            scheduled_slot(&p, false, 18 * 60, 3600, 0, 0).unwrap().1,
+            scheduled_slot(&p, false, 18 * 60, 3600, 0, 0, 0).unwrap().1,
             Kind::EndOfDay
         );
+    }
+}
+
+#[cfg(test)]
+mod active_work_regressions {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+    #[test]
+    fn stretch_requires_two_hours_of_observed_work_not_uptime() {
+        let p = Preferences {
+            daily_checkins: false,
+            movement_reminder: true,
+            ..Default::default()
+        };
+        assert!(scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 0).is_none());
+        assert!(scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 7199).is_none());
+        assert_eq!(
+            scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 7200)
+                .unwrap()
+                .1,
+            Kind::Movement
+        );
+    }
+    #[test]
+    fn idle_sleep_and_pauses_reset_work_without_charging_the_gap() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+        let mut clock = ActiveWorkClock::default();
+        for n in 0..=2400 {
+            clock.observe_at(start + Duration::from_secs(n * 3), true);
+        }
+        assert_eq!(clock.seconds(), 7200);
+        clock.observe_at(start + Duration::from_secs(7203), false);
+        assert_eq!(clock.seconds(), 0);
+        clock.observe_at(start + Duration::from_secs(10000), true);
+        assert_eq!(clock.seconds(), 0);
+        clock.observe_at(start + Duration::from_secs(10003), true);
+        assert_eq!(clock.seconds(), 3);
+        clock.observe_at(start + Duration::from_secs(20000), true);
+        assert_eq!(clock.seconds(), 0);
+        clock.observe_at(start + Duration::from_secs(20003), true);
+        assert_eq!(clock.seconds(), 3);
+        clock.observe_at(start, true);
+        assert_eq!(clock.seconds(), 0);
     }
 }

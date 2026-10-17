@@ -292,9 +292,6 @@ pub fn explicit_category(inner: &Inner) -> Result<Option<Category>, String> {
 
 /// Explicit rules override automatic AI judgments; they never require provider keys.
 pub fn local_nudge(inner: &mut Inner) -> Result<(), String> {
-    if !inner.buddy.view.avatar.visible {
-        return Ok(());
-    }
     if !crate::tracking::notifications_allowed(inner) {
         return Ok(());
     }

@@ -198,7 +198,13 @@ export function CoreSettings({
           />
           <p className="helper">Companion color is saved immediately.</p>
           <label className="toggle-row">
-            <span>Show sumi on desktop</span>
+            <span>
+              Show sumi on desktop
+              <small>
+                Hide the character while keeping check-ins available. Quiet mode
+                pauses check-ins.
+              </small>
+            </span>
             <input
               type="checkbox"
               checked={

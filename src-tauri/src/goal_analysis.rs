@@ -470,6 +470,8 @@ impl<'a> Service<'a> {
         for attempt in 0..2 {
             let instructions = if attempt == 0 {
                 system.to_string()
+            } else if name == "buddy_agent_reasoning" {
+                format!("{system}\nThe last response failed background validation ({}). Return one complete JSON object matching the schema. Echo the supplied state_version exactly. This is an event, not a user request: never invent latest_request or instruction, and never execute actions. stay_silent and offer_help require empty proposed_actions; stay_silent also requires empty memory_updates. Use null clarification unless requesting clarification. Prefer a short valid response over optional detail. Do not invent evidence or sources.", crate::engine_observability::error_category(&failure))
             } else {
                 format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Classify the trusted latest request semantically; read questions never authorize mutations. Use only registered skills and preserve the requested operation. Copy instruction verbatim from latest_request. Keep field values concise. Do not invent evidence or sources.")
             };

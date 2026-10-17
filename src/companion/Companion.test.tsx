@@ -47,6 +47,7 @@ describe("companion interaction boundary", () => {
     expect(html).toContain("Yes, mark complete");
     expect(html).toContain("Not yet");
     expect(html).toContain("Nothing changes until you confirm");
+    expect(html).not.toContain("BUDDY · YOUR CHOICE");
   });
   it("shows completion reviews in the main chat without requiring the desktop popup", () => {
     const html = renderToStaticMarkup(
