@@ -15,9 +15,12 @@ const minute = (value: string) => {
 export function CompanionSettings({
   onChanged,
   currentPreferences,
+  part,
 }: {
   onChanged: () => Promise<void>;
   currentPreferences?: CompanionPreferences;
+  /** "desktop" renders the full-screen toggle; "nudges" the check-ins, timing and quiet hours. */
+  part: "desktop" | "nudges";
 }) {
   const [preferences, setPreferences] = useState(defaultCompanionPreferences);
   const [busy, setBusy] = useState(false);
@@ -46,91 +49,94 @@ export function CompanionSettings({
       setBusy(false);
     }
   }
+  const off = !desktop || busy;
+  const toggle = (key: keyof CompanionPreferences, label: string) => (
+    <label className="toggle-row" key={key}>
+      <span>{label}</span>
+      <input
+        type="checkbox"
+        checked={Boolean(preferences[key])}
+        disabled={off}
+        onChange={(event) => void update({ [key]: event.target.checked })}
+      />
+    </label>
+  );
+  if (part === "desktop")
+    return (
+      <>
+        {toggle("hide_fullscreen", "Hide sumi in full-screen apps")}
+        {error && <p role="alert">{error}</p>}
+      </>
+    );
   return (
-    <details className="settings-group companion-settings">
-      <summary>Desktop companion</summary>
-      {(
-        [
-          [
-            "daily_checkins",
-            "Daily check-ins: morning plan, midday review, evening wrap-up",
-          ],
-          [
-            "screen_task_detection",
-            "Suggest completed work from what is on screen",
-          ],
-          ["hide_fullscreen", "Hide sumi in full-screen apps"],
-        ] as [keyof CompanionPreferences, string][]
-      ).map(([key, label]) => (
-        <label className="toggle-row" key={key}>
-          <span>{label}</span>
-          <input
-            type="checkbox"
-            checked={Boolean(preferences[key])}
-            disabled={!desktop || busy}
-            onChange={(event) => void update({ [key]: event.target.checked })}
-          />
-        </label>
-      ))}
-      <div className="companion-settings-grid">
-        <label>
-          Start delay
-          <select
-            value={preferences.morning_delay_minutes}
-            disabled={!desktop || busy}
-            onChange={(e) =>
-              void update({ morning_delay_minutes: Number(e.target.value) })
-            }
-          >
-            {[5, 10, 15, 30, 60].map((n) => (
-              <option key={n} value={n}>
-                {n} minutes
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Minimum pause between prompts
-          <select
-            value={preferences.cooldown_minutes}
-            disabled={!desktop || busy}
-            onChange={(e) =>
-              void update({ cooldown_minutes: Number(e.target.value) })
-            }
-          >
-            {[60, 90, 120, 180, 240].map((n) => (
-              <option key={n} value={n}>
-                {n} minutes
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Quiet hours start
+    <>
+      {toggle(
+        "daily_checkins",
+        "Daily check-ins: morning plan, midday review, evening wrap-up",
+      )}
+      {toggle(
+        "screen_task_detection",
+        "Suggest completed work from what is on screen",
+      )}
+      <label className="setting-row">
+        <span>Wait after sign-in</span>
+        <select
+          value={preferences.morning_delay_minutes}
+          disabled={off}
+          onChange={(e) =>
+            void update({ morning_delay_minutes: Number(e.target.value) })
+          }
+        >
+          {[5, 10, 15, 30, 60].map((n) => (
+            <option key={n} value={n}>
+              {n} minutes
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="setting-row">
+        <span>Pause between prompts</span>
+        <select
+          value={preferences.cooldown_minutes}
+          disabled={off}
+          onChange={(e) =>
+            void update({ cooldown_minutes: Number(e.target.value) })
+          }
+        >
+          {[60, 90, 120, 180, 240].map((n) => (
+            <option key={n} value={n}>
+              {n} minutes
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="setting-row" role="group" aria-label="Quiet hours">
+        <span>Quiet hours</span>
+        <span className="quiet-hours">
           <input
             type="time"
+            aria-label="Quiet hours start"
             value={time(preferences.quiet_start_minute)}
-            disabled={!desktop || busy}
+            disabled={off}
             onChange={(e) => {
               if (e.target.value)
                 void update({ quiet_start_minute: minute(e.target.value) });
             }}
           />
-        </label>
-        <label>
-          Quiet hours end
+          <span className="quiet-hours-to">to</span>
           <input
             type="time"
+            aria-label="Quiet hours end"
             value={time(preferences.quiet_end_minute)}
-            disabled={!desktop || busy}
+            disabled={off}
             onChange={(e) => {
               if (e.target.value)
                 void update({ quiet_end_minute: minute(e.target.value) });
             }}
           />
-        </label>
+        </span>
       </div>
       {error && <p role="alert">{error}</p>}
-    </details>
+    </>
   );
 }

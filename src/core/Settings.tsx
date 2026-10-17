@@ -197,69 +197,86 @@ export function CoreSettings({
             disabled={blocked}
             onChange={(next) => void selectColor(next)}
           />
-          <label className="toggle-row">
-            <span>Show sumi on desktop</span>
-            <input
-              type="checkbox"
-              checked={
-                settings.profile.avatar.visible &&
-                !data.buddy.preferences.suggestions_only
-              }
-              disabled={blocked}
-              onChange={(e) => {
-                const visible = e.target.checked;
-                void run(() => api.showBuddy(visible)).then((ok) => {
-                  if (ok)
-                    setProfile((previous) => ({
-                      ...previous,
-                      avatar: { ...previous.avatar, visible },
-                    }));
-                });
-              }}
-            />
-          </label>
-          {!data.buddy.desktop_visible && data.buddy.visibility_reason && (
-            <p className="helper" role="status">
-              {data.buddy.visibility_reason}
-            </p>
-          )}
-          <label className="toggle-row">
-            <span>Start when I sign in</span>
-            <input
-              type="checkbox"
-              checked={autostart}
-              disabled={blocked}
-              onChange={(e) => {
-                setAutostart(e.target.checked);
-                change();
-              }}
-            />
-          </label>
-          <CompanionSettings
-            onChanged={onChanged}
-            currentPreferences={data.buddy.companion?.preferences}
-          />
-          <label className="toggle-row">
-            <span>Remind me to move every 45 minutes</span>
-            <input
-              type="checkbox"
-              checked={preferences.movement_reminders}
-              disabled={blocked}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                setPreferences({ ...preferences, movement_reminders: enabled });
-                change();
-                const companion = data.buddy.companion?.preferences;
-                if (companion)
-                  void run(() =>
-                    api.companionPreferences({
-                      ...companion,
-                      movement_reminder: enabled,
-                    }),
-                  );
-              }}
-            />
-          </label>
+          <div className="settings-cards">
+            <section className="settings-card" aria-label="On your desktop">
+              <p className="eyebrow settings-card-title">On your desktop</p>
+              <label className="toggle-row">
+                <span>Show sumi on desktop</span>
+                <input
+                  type="checkbox"
+                  checked={
+                    settings.profile.avatar.visible &&
+                    !data.buddy.preferences.suggestions_only
+                  }
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const visible = e.target.checked;
+                    void run(() => api.showBuddy(visible)).then((ok) => {
+                      if (ok)
+                        setProfile((previous) => ({
+                          ...previous,
+                          avatar: { ...previous.avatar, visible },
+                        }));
+                    });
+                  }}
+                />
+              </label>
+              {!data.buddy.desktop_visible && data.buddy.visibility_reason && (
+                <p className="helper" role="status">
+                  {data.buddy.visibility_reason}
+                </p>
+              )}
+              <label className="toggle-row">
+                <span>Start when I sign in</span>
+                <input
+                  type="checkbox"
+                  checked={autostart}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    setAutostart(e.target.checked);
+                    change();
+                  }}
+                />
+              </label>
+              <CompanionSettings
+                part="desktop"
+                onChanged={onChanged}
+                currentPreferences={data.buddy.companion?.preferences}
+              />
+              <label className="toggle-row">
+                <span>Remind me to move every 45 minutes</span>
+                <input
+                  type="checkbox"
+                  checked={preferences.movement_reminders}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setPreferences({
+                      ...preferences,
+                      movement_reminders: enabled,
+                    });
+                    change();
+                    const companion = data.buddy.companion?.preferences;
+                    if (companion)
+                      void run(() =>
+                        api.companionPreferences({
+                          ...companion,
+                          movement_reminder: enabled,
+                        }),
+                      );
+                  }}
+                />
+              </label>
+            </section>
+            <section className="settings-card" aria-label="Nudges">
+              <p className="eyebrow settings-card-title">Nudges</p>
+              <CompanionSettings
+                part="nudges"
+                onChanged={onChanged}
+                currentPreferences={data.buddy.companion?.preferences}
+              />
+            </section>
+          </div>
         </details>
         <details className="core-section" hidden={section !== "Privacy"} open>
           <summary>Privacy</summary>

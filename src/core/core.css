@@ -2607,3 +2607,69 @@ p.error .text-button {
 .progress-headline {
   margin-bottom: 28px;
 }
+
+/* Settings · General: the sumi block on top, then two framed cards side by side. */
+.settings-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 18px;
+}
+.settings-card {
+  min-width: 0;
+  padding: 14px 18px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.settings-card-title {
+  margin: 0 0 6px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+}
+.settings-card .toggle-row,
+.settings-card .setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-body);
+  color: var(--text);
+}
+.settings-card > .settings-card-title + .toggle-row,
+.settings-card > .settings-card-title + .setting-row {
+  border-top: 0;
+}
+.settings-card .setting-row > span:first-child {
+  flex: 1;
+}
+.core-workspace .settings-card .setting-row select,
+.core-workspace .settings-card .setting-row input[type="time"] {
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+.settings-card .quiet-hours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-card .quiet-hours-to {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .helper {
+  margin: 4px 0 8px;
+}
+@media (max-width: 1100px) {
+  .settings-cards {
+    grid-template-columns: 1fr;
+  }
+}
