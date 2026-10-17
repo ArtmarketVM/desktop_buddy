@@ -24,7 +24,7 @@ The available-state screenshot uses an explicitly labeled, ignored UI fixture wi
 
 ## Required fidelity surfaces
 
-- **Typography:** one system in `docs/TYPOGRAPHY.md`: Zen Maru Gothic for everything, monospace for code; four sizes (34/18/14/12) as tokens and two weights (400/500).
+- **Typography:** one system in `docs/TYPOGRAPHY.md`: Instrument Sans for everything, Silkscreen for 8px pixel captions and tags, monospace for code; four sizes (34/18/14/12) as tokens and two weights (400/500).
 - **Spacing/layout:** persistent sidebar, aligned header and content margins, restrained 7–13 px radii, consistent card/section spacing. Settings uses progressive disclosure. Navigation preserves mounted form drafts.
 - **Colors/tokens:** neutral dark surfaces and subtle separators; blue communicates updates/actions. Available, checking, unavailable and disabled states remain distinct. Visible keyboard focus and reduced-motion handling are provided.
 - **Images/assets:** sharp existing companion assets; consistent Lucide icons. No replacement of supplied raster art with custom illustrations. The reference's standard download/profile motifs are implemented with the existing icon system and account initials.

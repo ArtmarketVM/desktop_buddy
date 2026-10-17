@@ -4,7 +4,7 @@ One system for the app, the site and anything else that carries the sumi name.
 
 ## Fonts
 
-One family for everything: **Zen Maru Gothic** (rounded sans). Titles, the sumi wordmark, headings, body, labels, buttons, captions and chat all use it. Hierarchy comes from size, weight, colour and spacing, never from a second typeface. The only exception is a system monospace for code spans and blocks.
+Two faces with strictly separate jobs. **Instrument Sans** is the typeface: titles, the wordmark, headings, body, labels, buttons, chat. **Silkscreen** is the pixel face and appears only as tiny uppercase captions at 8px: priority tags, chart axis labels, section eyebrows such as "Ideas" or "AI services". It never sets a sentence or anything a person has to read at length. Code uses the system monospace.
 
 ## Sizes
 

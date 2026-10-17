@@ -5,12 +5,33 @@ const INK = "#1E2A23";
 // Marks drawn outside the body sit on the page, so they follow the theme's text colour.
 const MARK = "var(--text, #1E2A23)";
 // Eye shapes from the sumi site mascot: sleepy, alert and happy.
-const EYES = {
-  sleepy:
-    "M-5 0.3Q0 -0.5 3.2 -0.6L4.5 -2.1 5.8 0.3 4.7 1.2Q0 1.3-5 1.3Q-5.6 0.8-5 0.3Z",
-  alert: "M-1.5-4.8 1.3-5.4Q1.7 0 1.2 3.9 0 5.8-1.3 3.9-1.7 0-1.5-4.8Z",
-  happy:
-    "M-5.2 1.6Q-2.6-2.8 0-2.6 2.2-2.4 5.4 1.9 5.5 2.8 4.7 2.5 2.1-0.5 0-0.9-2.4-0.9-4.3 2.3-5.1 2.6-5.2 1.6Z",
+const CELL = 7.5;
+// An 8 x 8 sprite: 1 is body, 0 is empty. Corners are clipped so it reads as a rounded block.
+const BODY = [
+  "00111100",
+  "01111110",
+  "11111111",
+  "11111111",
+  "11111111",
+  "11111111",
+  "01111110",
+  "00111100",
+];
+// Eye glyphs as cells on the same grid: alert is a 1 x 2 bar, sleepy a 2 x 1 bar, happy a small ^.
+const EYES: Record<"sleepy" | "alert" | "happy", [number, number][]> = {
+  alert: [
+    [0, 0],
+    [0, 1],
+  ],
+  sleepy: [
+    [-0.5, 0.5],
+    [0.5, 0.5],
+  ],
+  happy: [
+    [-0.5, 0.5],
+    [0, 0],
+    [0.5, 0.5],
+  ],
 };
 function mood(state: AvatarState): keyof typeof EYES {
   if (state === "sleeping" || state === "paused") return "sleepy";
@@ -120,43 +141,78 @@ export function Avatar({
           />
         </g>
       )}
-      <g className="pet__body">
-        <path
-          className="pet__fill"
-          d="M6 6C20 4 40 4 54 6 56 20 56 40 54 54 40 56 20 56 6 54 4 40 4 20 6 6Z"
-          fill="var(--avatar-color)"
-        />
+      <g className="pet__body" shapeRendering="crispEdges">
+        {BODY.map((row, y) =>
+          row
+            .split("")
+            .map((cell, x) =>
+              cell === "1" ? (
+                <rect
+                  key={`${x}-${y}`}
+                  className="pet__fill"
+                  x={x * CELL}
+                  y={y * CELL}
+                  width={CELL}
+                  height={CELL}
+                  fill="var(--avatar-color)"
+                />
+              ) : null,
+            ),
+        )}
         <g className="avatar-eyes pet__eyes" fill={INK}>
-          <path transform="translate(22 31)" d={eyes} />
-          <path transform="translate(38 31)" d={eyes} />
+          {[2, 5].map((column) =>
+            eyes.map(([dx, dy], i) => (
+              <rect
+                key={`${column}-${i}`}
+                x={(column + dx) * CELL + CELL * 0.25}
+                y={(3 + dy) * CELL + CELL * 0.25}
+                width={CELL * 0.5}
+                height={CELL * 0.5}
+              />
+            )),
+          )}
         </g>
         {state === "stretching" && (
-          <circle
+          <rect
             className="avatar-breath avatar-breath-fast"
-            cx="30"
-            cy="43"
-            r="2.4"
+            x="28"
+            y="41"
+            width="4"
+            height="4"
             fill={INK}
           />
         )}
         {mood(state) === "sleepy" && (
-          <circle
+          <rect
             className="avatar-breath"
-            cx="30"
-            cy="43"
-            r="2.6"
+            x="28"
+            y="41"
+            width="4"
+            height="4"
             fill={INK}
           />
         )}
         {(state === "completed" || state === "success") && (
-          <path
-            className="avatar-smile"
-            d="M24 41q6 5.5 12 0"
-            fill="none"
-            stroke={INK}
-            strokeWidth={2.2}
-            strokeLinecap="round"
-          />
+          <g className="avatar-smile" fill={INK}>
+            <rect
+              x={3 * CELL}
+              y={5 * CELL}
+              width={CELL * 0.5}
+              height={CELL * 0.5}
+            />
+            <rect
+              x={3.5 * CELL}
+              y={5.4 * CELL}
+              width={CELL}
+              height={CELL * 0.5}
+            />
+            <rect
+              x={4.5 * CELL}
+              y={5 * CELL}
+              width={CELL * 0.5}
+              height={CELL * 0.5}
+            />
+          </g>
         )}
       </g>
       {state === "sleeping" && (

@@ -579,12 +579,17 @@
   justify-content: center;
   border-bottom: 1px solid var(--line);
 }
+/* Bars are stacks of 8px cells, like everything else on the grid. */
 .progress-bar-day span {
   width: 100%;
   max-width: 34px;
   min-height: 4px;
-  border-radius: 6px 6px 0 0;
-  background: var(--accent, var(--muted));
+  border-radius: 0;
+  background: repeating-linear-gradient(
+    to top,
+    var(--accent, var(--muted)) 0 8px,
+    transparent 8px 10px
+  );
 }
 .progress-bar-day strong,
 .progress-bar-day em {
@@ -1399,8 +1404,8 @@
   width: 18px;
   height: 18px;
   box-sizing: border-box;
-  border: 1.5px solid var(--muted);
-  border-radius: 50%;
+  border: 1.5px solid var(--text);
+  border-radius: 2px;
 }
 .goal-heading button.goal-status-icon:hover:not(:disabled) > span {
   border-color: var(--text);
@@ -2113,11 +2118,15 @@ p.error .text-button {
 }
 .priority-tag {
   display: inline-block;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill);
+  padding: 3px 6px 2px;
+  border-radius: 2px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: var(--text-caption);
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
   line-height: 16px;
 }
 .priority-tag.urgent {
@@ -2139,11 +2148,11 @@ p.error .text-button {
 }
 
 /* One colour scale for priority: red, orange, yellow, green, grey. */
-.priority-tag.urgent { background: #f7e6e1; color: #8e2e1d; }
-.priority-tag.high { background: #fbecdc; color: #8a4a12; }
-.priority-tag.medium { background: #faf3d2; color: #6e5a0e; }
-.priority-tag.low { background: var(--accent-soft); color: var(--accent-text); }
-.priority-tag.none { background: var(--raised); color: var(--muted); }
+.priority-tag.urgent { background: var(--accent); color: #ffffff; }
+.priority-tag.high { background: var(--lime); color: #1f1f1f; }
+.priority-tag.medium { background: var(--raised); color: var(--text); }
+.priority-tag.low { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.priority-tag.none { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 :root[data-theme="dark"] .priority-tag.urgent { background: #4a2a24; color: #f0a391; }
 :root[data-theme="dark"] .priority-tag.high { background: #4a3421; color: #f0b989; }
 :root[data-theme="dark"] .priority-tag.medium { background: #45401f; color: #e6d27a; }
@@ -2509,4 +2518,22 @@ details.today-summary > .today-summary-head {
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Pixel captions: the one place the grid becomes letters. */
+.progress-bar-day small,
+.axis-label,
+.ideas-label,
+.finder-label,
+.chat-group,
+.nav-heading,
+.section-label,
+.eyebrow {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.goal-expanded .core-steps input[type="checkbox"] {
+  border-radius: 1px;
 }
