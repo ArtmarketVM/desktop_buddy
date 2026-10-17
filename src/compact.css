@@ -1713,7 +1713,7 @@ main.desktop-buddy.chatting > .companion-error {
   background: var(--muted);
 }
 /* The Custom chip is a label; later label rules must not resize it. */
-.color-options label.color-custom {
+.color-options label.color-custom:not(.toggle-row):not(.small-check) {
   display: inline-flex;
   align-items: center;
   height: 22px;
