@@ -1,3 +1,7 @@
+@import "@fontsource/instrument-sans/400.css";
+@import "@fontsource/instrument-sans/500.css";
+@import "@fontsource/instrument-sans/600.css";
+@import "@fontsource/silkscreen/400.css";
 /* Type scale: four sizes and two weights, see docs/TYPOGRAPHY.md. */
 :root {
   --text-title: 34px;
@@ -9,10 +13,6 @@
   --leading-body: 1.5;
   --leading-caption: 1.45;
 }
-@import "@fontsource/instrument-sans/400.css";
-@import "@fontsource/instrument-sans/500.css";
-@import "@fontsource/instrument-sans/600.css";
-@import "@fontsource/silkscreen/400.css";
 .onboarding-shell {
   min-height: 100vh;
   display: grid;
