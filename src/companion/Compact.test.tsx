@@ -65,7 +65,7 @@ describe("compact workspace boundaries", () => {
         Today
       </AppShell>,
     );
-    expect(html).toContain('aria-label="Chats"');
+    expect(html).toContain('aria-label="Coach chats"');
     expect(html).toContain("Collapse sidebar");
     expect(html).not.toContain("breadcrumb");
     expect(html).not.toContain("Quick goal");

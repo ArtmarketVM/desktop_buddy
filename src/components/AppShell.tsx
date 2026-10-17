@@ -37,19 +37,19 @@ export const pages = [
   },
   {
     id: "activity",
-    label: "Progress",
+    label: "My progress",
     icon: BarChart3,
     description: "",
   },
   {
     id: "history",
-    label: "Goals",
+    label: "All goals",
     icon: History,
     description: "",
   },
   {
     id: "chats",
-    label: "Chats",
+    label: "Coach chats",
     icon: MessageSquare,
     description: "",
   },

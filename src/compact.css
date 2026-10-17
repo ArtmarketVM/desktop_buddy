@@ -1677,7 +1677,8 @@ main.desktop-buddy.chatting > .companion-error {
   padding: 6px 0 8px;
 }
 .sidebar .profile-entry {
-  height: 36px;
+  height: 32px;
+  margin-top: 0;
   padding: 0 13.5px;
 }
 .sidebar .profile-settings {
