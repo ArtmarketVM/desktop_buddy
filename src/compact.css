@@ -1712,3 +1712,15 @@ main.desktop-buddy.chatting > .companion-error {
 *::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
+/* The Custom chip is a label; later label rules must not resize it. */
+.color-options label.color-custom {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  font-family: var(--pix);
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.12em;
+}
