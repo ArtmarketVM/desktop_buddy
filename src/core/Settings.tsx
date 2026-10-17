@@ -25,7 +25,6 @@ const sections = [
   "Profile",
   "Privacy",
   "Memory",
-  "Updates",
   "Integrations / AI",
   "AI Monitor",
   "About",
@@ -411,13 +410,6 @@ export function CoreSettings({
           <summary>Memory</summary>
           {section === "Memory" && <MemorySettings onChanged={onChanged} />}
         </details>
-        <details className="core-section" hidden={section !== "Updates"} open>
-          <summary>Updates</summary>
-          <p>Installed version {data.version}</p>
-          <button className="outline-button" type="button" onClick={onUpdates}>
-            Check for updates
-          </button>
-        </details>
         <details
           className="core-section"
           hidden={section !== "Integrations / AI"}
@@ -473,6 +465,9 @@ export function CoreSettings({
             Everything is stored on this computer. AI requests go to the
             providers you configure.
           </p>
+          <button className="outline-button" type="button" onClick={onUpdates}>
+            Check for updates
+          </button>
         </details>
         <div className="settings-actions settings-save">
           <button

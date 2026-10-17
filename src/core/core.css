@@ -2618,8 +2618,13 @@ p.error .text-button {
 .settings-card {
   min-width: 0;
   padding: 14px 18px 4px;
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius-card);
+  background: var(--raised);
+}
+.settings-card .toggle-row,
+.settings-card .setting-row {
+  border-color: color-mix(in srgb, var(--text) 10%, transparent);
 }
 .settings-card-title {
   margin: 0 0 6px;

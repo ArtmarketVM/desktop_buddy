@@ -36,9 +36,6 @@ export function AvatarPicker({
   return (
     <fieldset disabled={disabled} className="sumi-picker">
       <legend>Your sumi</legend>
-      <span className="eyebrow sumi-eyebrow" aria-hidden="true">
-        Companion
-      </span>
       <ul className="avatar-gallery" aria-label="How sumi looks">
         {MOODS.map(([state, label]) => (
           <li key={state}>

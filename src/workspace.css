@@ -1828,13 +1828,6 @@ small,
 .sumi-picker {
   position: relative;
 }
-.sumi-picker .sumi-eyebrow {
-  position: absolute;
-  top: 0;
-  right: 0;
-  color: var(--accent);
-  letter-spacing: 0.12em;
-}
 .sumi-picker .avatar-gallery small {
   font-family: var(--pix);
   font-size: 8px;
