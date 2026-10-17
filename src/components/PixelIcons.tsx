@@ -3,12 +3,12 @@ import type { SVGProps } from "react";
 /** Sidebar icons drawn on an 11 x 11 pixel grid so they read at 17px and match the pixel wordmark. */
 type Props = Omit<SVGProps<SVGSVGElement>, "ref"> & { size?: number };
 
-const GRID = 11;
-
 function make(name: string, rows: string[]) {
+  // Most icons sit on an 11 x 11 grid; a denser icon may use a finer grid of its own.
+  const grid = rows.length;
   const Icon = ({ size = 17, className, ...rest }: Props) => (
     <svg
-      viewBox={`0 0 ${GRID} ${GRID}`}
+      viewBox={`0 0 ${grid} ${grid}`}
       width={size}
       height={size}
       shapeRendering="crispEdges"
@@ -94,19 +94,21 @@ export const MessageSquare = make("message", [
   "00000000000",
 ]);
 
-// Settings: a gear, ring with four teeth.
+// Settings: an eight-tooth gear on a 13-cell grid, one ring denser so it reads as round.
 export const Settings = make("settings", [
-  "00001110000",
-  "10001110001",
-  "11011111011",
-  "01111111110",
-  "00111011100",
-  "11110001111",
-  "00111011100",
-  "01111111110",
-  "11011111011",
-  "10001110001",
-  "00001110000",
+  "0000011100000",
+  "0100011100010",
+  "0110111110110",
+  "0011111111100",
+  "0011110111100",
+  "1111100011111",
+  "1111100011111",
+  "1111100011111",
+  "0011110111100",
+  "0011111111100",
+  "0110111110110",
+  "0100011100010",
+  "0000011100000",
 ]);
 
 // Updates: an arrow dropping into a tray.
