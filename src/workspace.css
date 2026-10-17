@@ -1921,7 +1921,7 @@ small,
   letter-spacing: 0.06em;
   line-height: 1.1;
 }
-.workspace-brand > div::before {
+.workspace-brand > div:first-child::before {
   content: "";
   display: inline-block;
   width: 8px;

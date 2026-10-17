@@ -1546,7 +1546,7 @@ main.desktop-buddy.chatting > .companion-error {
 }
 .sidebar .profile-menu-root {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 4px;
 }
 .sidebar .profile-entry {
@@ -1560,7 +1560,7 @@ main.desktop-buddy.chatting > .companion-error {
   width: 32px;
   height: 32px;
   min-height: 32px;
-  margin-right: 10px;
+  margin: 0 10px 10px 0;
   padding: 0;
   border: 1px solid var(--line);
   border-radius: 3px;
