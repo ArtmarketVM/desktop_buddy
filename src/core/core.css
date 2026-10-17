@@ -2593,14 +2593,14 @@ p.error .text-button {
 }
 
 /* Warning callout hugs the block below it; the headline then breathes before the period row. */
-.core-workspace > .callout + .core-section {
+.core-workspace > .callout ~ .progress-screen {
   margin-top: -32px;
 }
-.core-workspace > .callout:has(+ .core-section) {
+.core-workspace > .callout:has(~ .progress-screen > .progress-headline:first-child) {
   border-bottom-left-radius: 0;
   border-bottom-right-radius: 0;
 }
-.core-workspace > .callout + .core-section .progress-headline {
+.core-workspace > .callout ~ .progress-screen > .progress-headline:first-child {
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
