@@ -1946,3 +1946,54 @@ small,
 .card {
   border-radius: var(--radius-card);
 }
+
+/* "Your sumi": the heading, a pixel eyebrow in the corner, pixel captions and filled colour chips. */
+.sumi-picker {
+  position: relative;
+}
+.sumi-picker .sumi-eyebrow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+}
+.sumi-picker .avatar-gallery small {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.color-options .color-chip,
+.color-options .color-custom {
+  min-width: 0;
+  min-height: 0;
+  height: 22px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 3px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #1f1f1f;
+  background: var(--raised);
+  cursor: pointer;
+}
+.color-options .color-chip-dark {
+  color: #ffffff;
+}
+.color-options .color-custom {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.color-options .color-custom.selected {
+  border-color: transparent;
+}
+.color-options .color-chip[aria-pressed="true"],
+.color-options .color-custom.selected {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}

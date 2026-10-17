@@ -7,10 +7,11 @@ import { RoleArt } from "./RoleArt";
 import { loopIndex, loopScrollShift } from "../data/roleLoop";
 import { RoleResearch } from "./ContactSettings";
 
+// Chips are filled with the colour itself; dark chips take white text.
 const PRESETS = [
-  { name: "Lime", value: "#E4FA8E" },
-  { name: "Violet", value: "#6C5FFF" },
-  { name: "Cloud", value: "#F3F3EF" },
+  { name: "Lime", value: "#E4FA8E", dark: false },
+  { name: "Violet", value: "#6C5FFF", dark: true },
+  { name: "Cloud", value: "#F3F3EF", dark: false },
 ];
 const MOODS: [AvatarState, string][] = [
   ["working", "Working"],
@@ -33,8 +34,11 @@ export function AvatarPicker({
   disabled?: boolean;
 }) {
   return (
-    <fieldset disabled={disabled}>
-      <legend>Choose the color of your companion</legend>
+    <fieldset disabled={disabled} className="sumi-picker">
+      <legend>Your sumi</legend>
+      <span className="eyebrow sumi-eyebrow" aria-hidden="true">
+        Companion
+      </span>
       <ul className="avatar-gallery" aria-label="How sumi looks">
         {MOODS.map(([state, label]) => (
           <li key={state}>
@@ -51,6 +55,8 @@ export function AvatarPicker({
           <button
             type="button"
             key={color.value}
+            className={`color-chip ${color.dark ? "color-chip-dark" : ""}`}
+            style={{ background: color.value }}
             aria-pressed={profile.avatar.color === color.value}
             onClick={() =>
               onChange({
@@ -59,15 +65,17 @@ export function AvatarPicker({
               })
             }
           >
-            <span style={{ background: color.value }} />
             {color.name}
-            {profile.avatar.color === color.value && <Check size={13} />}
           </button>
         ))}
         <label
-          className={`color-custom ${isCustom(profile.avatar.color) ? "selected" : ""}`}
+          className={`color-chip color-custom ${isCustom(profile.avatar.color) ? "selected" : ""}`}
+          style={
+            isCustom(profile.avatar.color)
+              ? { background: profile.avatar.color }
+              : undefined
+          }
         >
-          <span className="color-wheel" aria-hidden="true" />
           Custom
           <input
             type="color"
@@ -83,7 +91,6 @@ export function AvatarPicker({
               })
             }
           />
-          {isCustom(profile.avatar.color) && <Check size={13} />}
         </label>
       </div>
     </fieldset>

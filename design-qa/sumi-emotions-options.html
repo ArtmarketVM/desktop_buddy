@@ -1,0 +1,121 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sumi emotions: pixel options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#1f1f1f; --text:#f3f3ef; --muted:#9a9a94; --line:#3a3a3a; --surface:#2a2a2a; --accent:#8f85ff; --lime:#e4fa8e; --ink:#1f1f1f; }
+  body { margin:0; padding:40px; background:#111; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 28px; max-width:640px; line-height:1.5; }
+  .opt { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:20px 24px 18px; margin-bottom:22px; }
+  .opt h2 { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 4px; font-weight:400; }
+  .opt h3 { font-size:16px; font-weight:500; margin:0 0 4px; }
+  .opt p { color:var(--muted); font-size:12px; line-height:1.5; margin:0 0 18px; max-width:620px; }
+  .row { display:flex; gap:34px; flex-wrap:wrap; }
+  figure { margin:0; display:flex; flex-direction:column; align-items:center; gap:8px; width:84px; }
+  figcaption { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .stage { position:relative; width:84px; height:84px; }
+  .g { position:absolute; display:grid; image-rendering:pixelated; }
+  .g b { display:block; }
+  /* 12 x 12 grid, 7px cells: the 8x8 body sits at columns 2-9 */
+  .g12 { left:0; top:0; width:84px; height:84px; grid-template-columns:repeat(12,7px); grid-auto-rows:7px; }
+  .c-body { background:var(--lime); } .c-ink { background:var(--ink); } .c-mark { background:var(--text); } .c-acc { background:var(--accent); } .c-dim { background:#c8d87a; }
+  /* frame animation: each sprite has up to 3 layers toggled with steps() */
+  .f { animation: frames 1.5s steps(1) infinite; }
+  .f2 { animation-delay:-.5s; } .f3 { animation-delay:-1s; }
+  @keyframes frames { 0%,33.3% { opacity:1 } 33.4%,100% { opacity:0 } }
+  .blink { animation: blink 3s steps(1) infinite; }
+  @keyframes blink { 0%,92% { opacity:0 } 93%,100% { opacity:1 } }
+  .breathe { animation: breathe 3.2s steps(2) infinite; transform-origin:50% 100%; }
+  @keyframes breathe { 0%,100% { transform:scaleY(1) } 50% { transform:scaleY(.93) } }
+  .hop { animation: hop 1.2s steps(1) infinite; }
+  @keyframes hop { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
+  .tilt { animation: tilt 2.4s steps(1) infinite; }
+  @keyframes tilt { 0%,100% { transform:translateX(0) } 50% { transform:translateX(-7px) } }
+  .tall { animation: tall 2.2s steps(1) infinite; transform-origin:50% 100%; }
+  @keyframes tall { 0%,100% { transform:scaleY(1) } 50% { transform:scaleY(1.14) } }
+</style>
+<h1>sumi emotions on the grid</h1>
+<p class="lead">Everything is cells on the 7px grid, and every motion is a frame change (steps), never an ease. Three directions: the face alone, pixel marks around the body, or the body itself moving.</p>
+
+<div class="opt" id="A">
+  <h2>Option A</h2><h3>Face only</h3>
+  <p>No marks outside the body. Each emotion is a different eye and mouth bitmap; motion is a two-frame flip (eyes glance, mouth opens, a blink every few seconds). Calmest and the most readable at 32px.</p>
+  <div class="row"></div>
+</div>
+
+<div class="opt" id="B">
+  <h2>Option B</h2><h3>Pixel marks</h3>
+  <p>What the current set does, redrawn in cells: stepped sound brackets, a climbing trail of squares, a pixel Z, square confetti, blocky arms. Marks are drawn in text colour so they work on both themes; the body stays still.</p>
+  <div class="row"></div>
+</div>
+
+<div class="opt" id="C">
+  <h2>Option C</h2><h3>Body moves</h3>
+  <p>The body itself carries the emotion in whole-cell jumps: it leans to listen, bobs while thinking, hops when done, flattens to rest, grows a row to stretch. Few extra pixels, the most "alive" of the three.</p>
+  <div class="row"></div>
+</div>
+
+<script>
+const BODY = ["00111100","01111110","11111111","11111111","11111111","11111111","01111110","00111100"];
+// draw a 12x12 layer; cells: array of [x,y,cls]
+function layer(cells, cls="") {
+  const g = document.createElement("div"); g.className = "g g12 " + cls;
+  const map = new Map(cells.map(([x,y,c]) => [x+","+y, c]));
+  for (let y=0;y<12;y++) for (let x=0;x<12;x++) { const b=document.createElement("b"); const c=map.get(x+","+y); if (c) b.className=c; g.appendChild(b); }
+  return g;
+}
+const body = (ox=2, oy=2, rows=BODY) => rows.flatMap((r,y)=>[...r].flatMap((c,x)=> c==="1"?[[x+ox,y+oy,"c-body"]]:[]));
+const eyesAlert = (ox=2,oy=2)=>[[ox+2,oy+3,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+5,oy+4,"c-ink"]];
+const eyesGlance = (ox=2,oy=2)=>[[ox+3,oy+3,"c-ink"],[ox+3,oy+4,"c-ink"],[ox+6,oy+3,"c-ink"],[ox+6,oy+4,"c-ink"]];
+const eyesUp = (ox=2,oy=2)=>[[ox+2,oy+2,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+5,oy+2,"c-ink"],[ox+5,oy+3,"c-ink"]];
+const eyesShut = (ox=2,oy=2)=>[[ox+1,oy+4,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+4,"c-ink"],[ox+6,oy+4,"c-ink"]];
+const eyesHappy = (ox=2,oy=2)=>[[ox+1,oy+4,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+3,oy+4,"c-ink"],[ox+4,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+6,oy+4,"c-ink"]];
+const eyesWide = (ox=2,oy=2)=>[[ox+1,oy+3,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+1,oy+4,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+6,oy+3,"c-ink"],[ox+5,oy+4,"c-ink"],[ox+6,oy+4,"c-ink"]];
+const mouthDot = (ox=2,oy=2)=>[[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"]];
+const mouthO = (ox=2,oy=2)=>[[ox+3,oy+5,"c-ink"],[ox+4,oy+5,"c-ink"],[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"]];
+const smile = (ox=2,oy=2)=>[[ox+2,oy+5,"c-ink"],[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"],[ox+5,oy+5,"c-ink"]];
+const Z = (x,y)=>[[x,y,"c-mark"],[x+1,y,"c-mark"],[x+2,y,"c-mark"],[x+1,y+1,"c-mark"],[x,y+2,"c-mark"],[x+1,y+2,"c-mark"],[x+2,y+2,"c-mark"]];
+
+function fig(row, label, layers, stageCls="") {
+  const f = document.createElement("figure"); const s = document.createElement("div"); s.className = "stage " + stageCls;
+  layers.forEach(l => s.appendChild(l)); f.appendChild(s);
+  const c = document.createElement("figcaption"); c.textContent = label; f.appendChild(c); row.appendChild(f);
+}
+
+// ---- A: face only
+{
+  const row = document.querySelector("#A .row");
+  fig(row, "Working", [layer([...body(), ...eyesAlert()], "f"), layer([...body(), ...eyesGlance()], "f f2"), layer([...body(), ...eyesAlert()], "f f3")]);
+  fig(row, "Listening", [layer([...body(), ...eyesWide(), ...mouthDot()], "f"), layer([...body(), ...eyesWide(), ...mouthO()], "f f2"), layer([...body(), ...eyesWide(), ...mouthDot()], "f f3")]);
+  fig(row, "Thinking", [layer([...body(), ...eyesUp(), ...mouthDot()], "f"), layer([...body(), ...eyesUp().map(([x,y,c])=>[x+1,y,c]), ...mouthDot()], "f f2"), layer([...body(), ...eyesUp(), ...mouthDot()], "f f3")]);
+  fig(row, "Done", [layer([...body(), ...eyesHappy(), ...smile()])]);
+  fig(row, "Resting", [layer([...body(), ...eyesShut(), ...mouthDot()], "breathe")]);
+  fig(row, "Stretching", [layer([...body(), ...eyesShut(), ...mouthO()], "f"), layer([...body(), ...eyesAlert(), ...mouthO()], "f f2"), layer([...body(), ...eyesShut(), ...mouthO()], "f f3")]);
+}
+// ---- B: pixel marks
+{
+  const row = document.querySelector("#B .row");
+  const base = [...body(), ...eyesAlert()];
+  fig(row, "Working", [layer(base), layer([[1,8,"c-mark"],[10,8,"c-mark"]], "blink")]);
+  const brackets = (d)=>[[1-d,4,"c-mark"],[0-d+0,5,"c-mark"],[0-d,6,"c-mark"],[1-d,7,"c-mark"],[10+d,4,"c-mark"],[11+d,5,"c-mark"],[11+d,6,"c-mark"],[10+d,7,"c-mark"]].filter(([x])=>x>=0&&x<12);
+  fig(row, "Listening", [layer(base), layer(brackets(0), "f"), layer(brackets(1), "f f2"), layer([], "f f3")]);
+  fig(row, "Thinking", [layer([...body(), ...eyesUp()]), layer([[9,2,"c-mark"]], "f"), layer([[9,2,"c-mark"],[10,1,"c-mark"]], "f f2"), layer([[9,2,"c-mark"],[10,1,"c-mark"],[11,0,"c-mark"],[11,0,"c-mark"]], "f f3")]);
+  const conf1=[[0,1,"c-acc"],[11,2,"c-mark"],[1,10,"c-mark"],[10,10,"c-acc"]], conf2=[[1,0,"c-mark"],[10,0,"c-acc"],[0,9,"c-acc"],[11,9,"c-mark"],[5,0,"c-acc"]];
+  fig(row, "Done", [layer([...body(), ...eyesHappy(), ...smile()]), layer(conf1, "f"), layer(conf2, "f f2"), layer([[0,0,"c-mark"],[11,0,"c-mark"],[0,11,"c-acc"],[11,11,"c-acc"]], "f f3")]);
+  fig(row, "Resting", [layer([...body(), ...eyesShut(), ...mouthDot()], "breathe"), layer(Z(9,0), "f"), layer(Z(9,1), "f f2"), layer([], "f f3")]);
+  const arms = (up)=> up ? [[1,1,"c-dim"],[1,2,"c-dim"],[1,3,"c-dim"],[10,1,"c-dim"],[10,2,"c-dim"],[10,3,"c-dim"]] : [[0,4,"c-dim"],[1,4,"c-dim"],[1,5,"c-dim"],[10,4,"c-dim"],[11,4,"c-dim"],[10,5,"c-dim"]];
+  fig(row, "Stretching", [layer([...body(), ...eyesShut(), ...mouthO()]), layer(arms(false), "f"), layer(arms(true), "f f2"), layer(arms(false), "f f3")]);
+}
+// ---- C: body moves
+{
+  const row = document.querySelector("#C .row");
+  fig(row, "Working", [layer([...body(), ...eyesAlert()], "f"), layer([...body(), ...eyesGlance()], "f f2"), layer([...body(), ...eyesAlert()], "f f3")]);
+  fig(row, "Listening", [layer([...body(3,2), ...eyesWide(3,2)], "tilt")]);
+  fig(row, "Thinking", [layer([...body(), ...eyesUp()], "f"), layer([...body(2,3), ...eyesUp(2,3)], "f f2"), layer([...body(), ...eyesUp()], "f f3")]);
+  fig(row, "Done", [layer([...body(2,3), ...eyesHappy(2,3), ...smile(2,3)], "hop")]);
+  const FLAT = ["00000000","00111100","01111110","11111111","11111111","11111111","11111111","01111110"];
+  fig(row, "Resting", [layer([...body(2,2,FLAT), ...eyesShut(2,3)], "f"), layer([...body(2,2,FLAT), ...eyesShut(2,3), [5,8,"c-ink"],[6,8,"c-ink"]], "f f2"), layer([...body(2,2,FLAT), ...eyesShut(2,3)], "f f3")]);
+  fig(row, "Stretching", [layer([...body(2,3), ...eyesShut(2,3), ...mouthO(2,3)], "tall")]);
+}
+</script>
