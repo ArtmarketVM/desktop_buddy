@@ -12,7 +12,7 @@ Four sizes, exposed as CSS tokens. Nothing else is allowed in a stylesheet.
 
 | Token | Size | Line height | Use |
 | --- | --- | --- | --- |
-| `--text-title` | 34px | 1.2 | The one page title per screen and the wordmark. Nothing else, not even big numbers. |
+| `--text-title` | 34px | 1.2 | The one page title per screen, and the focused-time figure on Progress. Bold (600), tight tracking. |
 | `--text-heading` | 18px | 1.3 | Section headings inside a page, dialog titles, the current chat's title. Sans, medium. |
 | `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, the open chat's name (medium), settings labels, inputs, buttons, navigation. |
 | `--text-caption` | 11px | 1.45 | Secondary information: counts, dates, due dates, tags, timestamps, the rare helper line. |

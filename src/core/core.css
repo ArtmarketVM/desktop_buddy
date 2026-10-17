@@ -1521,15 +1521,23 @@ textarea:focus {
   padding: 2px 6px;
   color: var(--muted);
 }
+.progress-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  margin: 0 0 12px;
+}
 .progress-total {
-  font-size: var(--text-heading);
-  font-weight: 500;
-  line-height: var(--leading-heading);
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: var(--leading-title);
 }
 .progress-sub {
-  margin: 2px 0 12px;
+  margin: 0;
   color: var(--muted);
-  font-size: var(--text-caption);
+  font-size: var(--text-body);
 }
 .stack-chart {
   display: flex;
@@ -1550,10 +1558,10 @@ textarea:focus {
 .stack-bar {
   display: flex;
   flex-direction: column-reverse;
-  border-radius: 3px 3px 0 0;
-  overflow: hidden;
+  gap: 2px;
+  border-radius: 0;
   min-height: 2px;
-  background: var(--line);
+  background: transparent;
 }
 .stack-bar:not(:has(i)) {
   height: 2px !important;
@@ -1706,9 +1714,9 @@ p.update-error {
   margin: 0 0 12px;
   padding: 9px 12px;
   border: 0;
-  border-radius: 6px;
-  background: var(--raised);
-  color: var(--text);
+  border-radius: 3px;
+  background: var(--lime);
+  color: #1f1f1f;
   font-size: var(--text-body);
   line-height: 20px;
 }
@@ -1721,7 +1729,7 @@ p.update-error::before {
   flex: none;
   width: 16px;
   height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0a343' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f1f1f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 p.notice::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8h.01'/%3E%3Cpath d='M11 12h1v4h1'/%3E%3C/svg%3E");
@@ -2546,4 +2554,10 @@ details.today-summary > .today-summary-head {
     var(--bar-color, var(--accent)) 0 8px,
     transparent 8px 10px
   );
+}
+
+.callout .callout-action,
+p[role="alert"] .text-button,
+p.error .text-button {
+  color: #1f1f1f;
 }

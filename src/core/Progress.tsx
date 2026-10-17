@@ -255,6 +255,9 @@ export function Progress({
   const bucketTotal = (bucket: Bucket) =>
     [...bucket.goals.values()].reduce((sum, value) => sum + value, 0);
   const maxBucket = Math.max(1, ...buckets.map(bucketTotal));
+  // The tallest day gets eleven bricks; every goal with any time keeps at least one.
+  const bricksFor = (seconds: number) =>
+    Math.max(1, Math.round((seconds / maxBucket) * 11));
   const total = buckets.reduce((sum, bucket) => sum + bucketTotal(bucket), 0);
   const stepSeconds = new Map<string, number>();
   if (selected !== null)
@@ -379,22 +382,26 @@ export function Progress({
           ))}
         </div>
       </div>
-      <div className="progress-total">{total > 0 ? duration(total) : "0m"}</div>
-      <p className="progress-sub">
-        {focus
-          ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
-          : [
-              `focused ${periodWord}`,
-              periodGoalsDone > 0
-                ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
-                : "",
-              periodStepsDone > 0
-                ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-      </p>
+      <div className="progress-headline">
+        <div className="progress-total">
+          {total > 0 ? duration(total) : "0m"}
+        </div>
+        <p className="progress-sub">
+          {focus
+            ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
+            : [
+                `focused ${periodWord}`,
+                periodGoalsDone > 0
+                  ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
+                  : "",
+                periodStepsDone > 0
+                  ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+        </p>
+      </div>
       <div className="stack-chart" aria-label="Focused time">
         {buckets.map((bucket) => (
           <div
@@ -424,10 +431,7 @@ export function Progress({
                   ))}
               </div>
             )}
-            <div
-              className="stack-bar"
-              style={{ height: `${(bucketTotal(bucket) / maxBucket) * 100}%` }}
-            >
+            <div className="stack-bar">
               {[...bucket.goals.entries()]
                 .filter(([, seconds]) => seconds > 0)
                 .map(([id, seconds]) => (
@@ -435,7 +439,7 @@ export function Progress({
                     key={id}
                     style={
                       {
-                        height: `${(seconds / bucketTotal(bucket)) * 100}%`,
+                        height: `${bricksFor(seconds) * 10 - 2}px`,
                         "--bar-color": colorOf(id),
                       } as React.CSSProperties
                     }

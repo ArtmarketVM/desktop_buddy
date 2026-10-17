@@ -1914,17 +1914,21 @@ small,
   font-size: var(--text-caption);
   line-height: var(--leading-caption);
 }
+/* The wordmark is the one word set in pixels, with a lime cell as its mark. */
 .workspace-brand > div {
-  font-size: var(--text-heading);
+  font-family: var(--pix);
+  font-size: var(--text-body);
+  letter-spacing: 0.06em;
   line-height: 1.1;
 }
 .workspace-brand > div::before {
   content: "";
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   margin-right: 8px;
-  border-radius: 50%;
+  border-radius: 0;
+  background: var(--lime) !important;
   background: var(--accent);
   vertical-align: 1px;
 }
