@@ -1,0 +1,113 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sumi emotions: pick per emotion</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#1f1f1f; --text:#f3f3ef; --muted:#9a9a94; --line:#3a3a3a; --surface:#2a2a2a; --accent:#8f85ff; --lime:#e4fa8e; --ink:#1f1f1f; }
+  body { margin:0; padding:40px; background:#111; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:640px; line-height:1.5; }
+  table { border-collapse:separate; border-spacing:0 14px; }
+  th { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); font-weight:400; text-align:left; padding:0 14px; }
+  td.name { font-size:15px; font-weight:500; padding:0 24px 0 0; width:110px; vertical-align:middle; }
+  td.name small { display:block; color:var(--muted); font-size:12px; font-weight:400; line-height:1.4; margin-top:3px; }
+  td.v { padding:0 7px; vertical-align:top; }
+  .card { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:14px 14px 10px; width:150px; cursor:pointer; }
+  .card:hover { border-color:var(--muted); }
+  .card.on { border-color:var(--lime); box-shadow:0 0 0 1px var(--lime) inset; }
+  .card p { margin:8px 0 0; color:var(--muted); font-size:11.5px; line-height:1.45; min-height:50px; }
+  .stage { position:relative; width:84px; height:84px; margin:0 auto; }
+  .g { position:absolute; display:grid; image-rendering:pixelated; }
+  .g b { display:block; }
+  .g12 { left:0; top:0; width:84px; height:84px; grid-template-columns:repeat(12,7px); grid-auto-rows:7px; }
+  .c-body { background:var(--lime); } .c-ink { background:var(--ink); } .c-mark { background:var(--text); } .c-acc { background:var(--accent); } .c-dim { background:#c8d87a; }
+  .f { animation: frames 1.5s steps(1) infinite; } .f2 { animation-delay:-.5s; } .f3 { animation-delay:-1s; }
+  @keyframes frames { 0%,33.3% { opacity:1 } 33.4%,100% { opacity:0 } }
+  .blink { animation: blink 3s steps(1) infinite; } @keyframes blink { 0%,92% { opacity:0 } 93%,100% { opacity:1 } }
+  .breathe { animation: breathe 3.2s steps(2) infinite; transform-origin:50% 100%; } @keyframes breathe { 0%,100% { transform:scaleY(1) } 50% { transform:scaleY(.93) } }
+  .hop { animation: hop 1.2s steps(1) infinite; } @keyframes hop { 0%,100% { transform:translateY(0) } 50% { transform:translateY(-7px) } }
+  .tilt { animation: tilt 2.4s steps(1) infinite; } @keyframes tilt { 0%,100% { transform:translateX(0) } 50% { transform:translateX(-7px) } }
+  .tall { animation: tall 2.2s steps(1) infinite; transform-origin:50% 100%; } @keyframes tall { 0%,100% { transform:scaleY(1) } 50% { transform:scaleY(1.14) } }
+  .bob { animation: bob 1.6s steps(1) infinite; } @keyframes bob { 0%,100% { transform:translateY(0) } 50% { transform:translateY(7px) } }
+  #summary { margin-top:28px; padding:16px 18px; background:var(--canvas); border:1px solid var(--line); border-radius:6px; max-width:640px; }
+  #summary h2 { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 10px; font-weight:400; }
+  #summary code { display:block; font-family:"Instrument Sans",sans-serif; font-size:14px; line-height:1.7; color:var(--text); white-space:pre-wrap; }
+  #summary .hint { color:var(--muted); font-size:12px; margin:10px 0 0; }
+</style>
+<h1>Pick each emotion</h1>
+<p class="lead">For every emotion: B keeps the body still and draws pixel marks around it, C moves the body in whole-cell jumps, and B+C does both. Click one card per row; the list at the bottom is what to send me back.</p>
+<table id="t">
+  <thead><tr><th></th><th>B · marks</th><th>C · body moves</th><th>B + C</th></tr></thead>
+  <tbody></tbody>
+</table>
+<div id="summary"><h2>Your picks</h2><code id="out">nothing chosen yet</code><p class="hint">Copy the lines above into the chat, or just tell me the letters.</p></div>
+
+<script>
+const BODY = ["00111100","01111110","11111111","11111111","11111111","11111111","01111110","00111100"];
+const FLAT = ["00000000","00111100","01111110","11111111","11111111","11111111","11111111","01111110"];
+function layer(cells, cls="") {
+  const g = document.createElement("div"); g.className = "g g12 " + cls;
+  const map = new Map(cells.map(([x,y,c]) => [x+","+y, c]));
+  for (let y=0;y<12;y++) for (let x=0;x<12;x++) { const b=document.createElement("b"); const c=map.get(x+","+y); if (c) b.className=c; g.appendChild(b); }
+  return g;
+}
+const body = (ox=2, oy=2, rows=BODY) => rows.flatMap((r,y)=>[...r].flatMap((c,x)=> c==="1"?[[x+ox,y+oy,"c-body"]]:[]));
+const E = {
+  alert:(ox=2,oy=2)=>[[ox+2,oy+3,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+5,oy+4,"c-ink"]],
+  glance:(ox=2,oy=2)=>[[ox+3,oy+3,"c-ink"],[ox+3,oy+4,"c-ink"],[ox+6,oy+3,"c-ink"],[ox+6,oy+4,"c-ink"]],
+  up:(ox=2,oy=2)=>[[ox+2,oy+2,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+5,oy+2,"c-ink"],[ox+5,oy+3,"c-ink"]],
+  shut:(ox=2,oy=2)=>[[ox+1,oy+4,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+4,"c-ink"],[ox+6,oy+4,"c-ink"]],
+  happy:(ox=2,oy=2)=>[[ox+1,oy+4,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+3,oy+4,"c-ink"],[ox+4,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+6,oy+4,"c-ink"]],
+  wide:(ox=2,oy=2)=>[[ox+1,oy+3,"c-ink"],[ox+2,oy+3,"c-ink"],[ox+1,oy+4,"c-ink"],[ox+2,oy+4,"c-ink"],[ox+5,oy+3,"c-ink"],[ox+6,oy+3,"c-ink"],[ox+5,oy+4,"c-ink"],[ox+6,oy+4,"c-ink"]],
+};
+const mouthDot=(ox=2,oy=2)=>[[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"]];
+const mouthO=(ox=2,oy=2)=>[[ox+3,oy+5,"c-ink"],[ox+4,oy+5,"c-ink"],[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"]];
+const smile=(ox=2,oy=2)=>[[ox+2,oy+5,"c-ink"],[ox+3,oy+6,"c-ink"],[ox+4,oy+6,"c-ink"],[ox+5,oy+5,"c-ink"]];
+const Z=(x,y)=>[[x,y,"c-mark"],[x+1,y,"c-mark"],[x+2,y,"c-mark"],[x+1,y+1,"c-mark"],[x,y+2,"c-mark"],[x+1,y+2,"c-mark"],[x+2,y+2,"c-mark"]];
+const brackets=(d)=>[[1-d,4,"c-mark"],[0-d,5,"c-mark"],[0-d,6,"c-mark"],[1-d,7,"c-mark"],[10+d,4,"c-mark"],[11+d,5,"c-mark"],[11+d,6,"c-mark"],[10+d,7,"c-mark"]].filter(([x])=>x>=0&&x<12);
+const trail=(n)=>[[9,2,"c-mark"],[10,1,"c-mark"],[11,0,"c-mark"]].slice(0,n);
+const conf=[[[0,1,"c-acc"],[11,2,"c-mark"],[1,10,"c-mark"],[10,10,"c-acc"]],[[1,0,"c-mark"],[10,0,"c-acc"],[0,9,"c-acc"],[11,9,"c-mark"],[5,0,"c-acc"]],[[0,0,"c-mark"],[11,0,"c-mark"],[0,11,"c-acc"],[11,11,"c-acc"]]];
+const arms=(up)=> up ? [[1,1,"c-dim"],[1,2,"c-dim"],[1,3,"c-dim"],[10,1,"c-dim"],[10,2,"c-dim"],[10,3,"c-dim"]] : [[0,4,"c-dim"],[1,4,"c-dim"],[1,5,"c-dim"],[10,4,"c-dim"],[11,4,"c-dim"],[10,5,"c-dim"]];
+const flip=(a,b)=>[layer(a,"f"),layer(b,"f f2"),layer(a,"f f3")];
+
+const ROWS = [
+  { name:"Working", note:"default, most of the day", B:{ layers:[layer([...body(),...E.alert()]), layer([[1,8,"c-mark"],[10,8,"c-mark"]],"blink")], text:"Still body, alert eyes. Two tiny sparks beside it flash every few seconds so it never looks frozen." },
+    C:{ layers:flip([...body(),...E.alert()],[...body(),...E.glance()]), text:"Eyes glance one cell to the side and back. Nothing outside the body." },
+    BC:{ layers:[...flip([...body(),...E.alert()],[...body(),...E.glance()]), layer([[1,8,"c-mark"],[10,8,"c-mark"]],"blink")], text:"Glancing eyes plus the occasional spark." } },
+  { name:"Listening", note:"while you talk to it", B:{ layers:[layer([...body(),...E.wide()]), layer(brackets(0),"f"), layer(brackets(1),"f f2"), layer([],"f f3")], text:"Stepped sound brackets on both sides pulse outward one cell at a time." },
+    C:{ layers:[layer([...body(3,2),...E.wide(3,2)],"tilt")], text:"The whole body leans one cell toward you and back, eyes wide." },
+    BC:{ layers:[layer([...body(3,2),...E.wide(3,2)],"tilt"), layer(brackets(0),"f"), layer(brackets(1),"f f2"), layer([],"f f3")], text:"Leaning body with the brackets pulsing." } },
+  { name:"Thinking", note:"while the AI works", B:{ layers:[layer([...body(),...E.up()]), layer(trail(1),"f"), layer(trail(2),"f f2"), layer(trail(3),"f f3")], text:"Eyes up; a trail of squares climbs out of the top corner, one cell per frame." },
+    C:{ layers:[layer([...body(),...E.up()],"bob")], text:"Eyes up, body bobs down a cell and back, like weighing something." },
+    BC:{ layers:[layer([...body(),...E.up()],"bob"), layer(trail(1),"f"), layer(trail(2),"f f2"), layer(trail(3),"f f3")], text:"Bobbing body with the climbing trail." } },
+  { name:"Done", note:"a goal is finished", B:{ layers:[layer([...body(),...E.happy(),...smile()]), layer(conf[0],"f"), layer(conf[1],"f f2"), layer(conf[2],"f f3")], text:"Smiling face; square confetti in lime, violet and white pops around it." },
+    C:{ layers:[layer([...body(2,3),...E.happy(2,3),...smile(2,3)],"hop")], text:"Smiling face; the body hops one cell up and lands." },
+    BC:{ layers:[layer([...body(2,3),...E.happy(2,3),...smile(2,3)],"hop"), layer(conf[0],"f"), layer(conf[1],"f f2"), layer(conf[2],"f f3")], text:"Hop plus confetti. The loudest moment of the day." } },
+  { name:"Resting", note:"paused or idle", B:{ layers:[layer([...body(),...E.shut(),...mouthDot()],"breathe"), layer(Z(9,0),"f"), layer(Z(9,1),"f f2"), layer([],"f f3")], text:"Closed eyes, slow two-step breathing; a pixel Z drifts up and fades." },
+    C:{ layers:flip([...body(2,2,FLAT),...E.shut(2,3)],[...body(2,2,FLAT),...E.shut(2,3),[5,8,"c-ink"],[6,8,"c-ink"]]), text:"The body settles one row flatter, eyes shut, mouth opens and closes slowly." },
+    BC:{ layers:[...flip([...body(2,2,FLAT),...E.shut(2,3)],[...body(2,2,FLAT),...E.shut(2,3),[5,8,"c-ink"],[6,8,"c-ink"]]), layer(Z(9,0),"f"), layer(Z(9,1),"f f2"), layer([],"f f3")], text:"Flattened body with the pixel Z." } },
+  { name:"Stretching", note:"the move reminder", B:{ layers:[layer([...body(),...E.shut(),...mouthO()]), layer(arms(false),"f"), layer(arms(true),"f f2"), layer(arms(false),"f f3")], text:"Blocky arms in a darker lime swing from the sides up over the head." },
+    C:{ layers:[layer([...body(2,3),...E.shut(2,3),...mouthO(2,3)],"tall")], text:"The body grows a row taller and relaxes, mouth open in a yawn." },
+    BC:{ layers:[layer([...body(2,3),...E.shut(2,3),...mouthO(2,3)],"tall"), layer(arms(false),"f"), layer(arms(true),"f f2"), layer(arms(false),"f f3")], text:"Growing body with the arms swinging up." } },
+];
+
+const picks = {};
+const tbody = document.querySelector("#t tbody");
+for (const r of ROWS) {
+  const tr = document.createElement("tr");
+  const name = document.createElement("td"); name.className="name"; name.innerHTML = r.name + "<small>"+r.note+"</small>"; tr.appendChild(name);
+  for (const k of ["B","C","BC"]) {
+    const td = document.createElement("td"); td.className="v";
+    const card = document.createElement("div"); card.className="card"; card.dataset.row=r.name; card.dataset.k=k;
+    const stage = document.createElement("div"); stage.className="stage"; r[k].layers.forEach(l=>stage.appendChild(l)); card.appendChild(stage);
+    const p = document.createElement("p"); p.textContent = r[k].text; card.appendChild(p);
+    card.onclick = () => { picks[r.name] = k === "BC" ? "B+C" : k; tr.querySelectorAll(".card").forEach(c=>c.classList.toggle("on", c===card)); render(); };
+    td.appendChild(card); tr.appendChild(td);
+  }
+  tbody.appendChild(tr);
+}
+function render() {
+  const out = ROWS.map(r => r.name + ": " + (picks[r.name] || "—")).join("\n");
+  document.getElementById("out").textContent = Object.keys(picks).length ? out : "nothing chosen yet";
+}
+</script>
