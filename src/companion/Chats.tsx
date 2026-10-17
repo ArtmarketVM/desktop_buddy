@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { desktop } from "../api/tauri";
@@ -6,6 +6,7 @@ import { aiApi, type ChatConversation } from "../ai/api";
 import type { Dashboard } from "../types";
 import { defaultCompanionView } from "./types";
 import { Conversation } from "./Conversation";
+import { toast } from "../components/Toasts";
 
 export function Chats({
   dashboard,
@@ -17,7 +18,18 @@ export function Chats({
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [deleting, setDeleting] = useState<number | null>(null);
+  // A deleted chat leaves the list at once and is removed for real when the undo toast expires.
+  const [pendingDelete, setPendingDelete] = useState<number | null>(null);
+  const pendingTimer = useRef<{ id: number; timer: number } | null>(null);
+  useEffect(
+    () => () => {
+      const pending = pendingTimer.current;
+      if (!pending) return;
+      window.clearTimeout(pending.timer);
+      void aiApi.deleteConversation(pending.id).catch(() => undefined);
+    },
+    [],
+  );
   useEffect(() => {
     let active = true;
     let stop: (() => void) | undefined;
@@ -59,6 +71,27 @@ export function Chats({
     } finally {
       setBusy(false);
     }
+  }
+  function deleteWithUndo(id: number) {
+    const item = conversations.find((c) => c.id === id);
+    if (!item) return;
+    setMenu(false);
+    setRowMenu(null);
+    setPendingDelete(id);
+    const timer = window.setTimeout(() => {
+      pendingTimer.current = null;
+      setPendingDelete(null);
+      void run(() => aiApi.deleteConversation(id));
+    }, 8000);
+    pendingTimer.current = { id, timer };
+    toast({
+      message: `Deleted “${item.title}”`,
+      undo: async () => {
+        window.clearTimeout(timer);
+        pendingTimer.current = null;
+        setPendingDelete(null);
+      },
+    });
   }
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<number[] | null>(null);
@@ -109,12 +142,15 @@ export function Chats({
   }, [query, conversations]);
   const visible = useMemo(
     () =>
-      matches === null
+      (matches === null
         ? conversations
-        : conversations.filter((item) => matches.includes(item.id)),
-    [conversations, matches],
+        : conversations.filter((item) => matches.includes(item.id))
+      ).filter((item) => item.id !== pendingDelete),
+    [conversations, matches, pendingDelete],
   );
-  const current = conversations.find((item) => item.active);
+  const current = conversations.find(
+    (item) => item.active && item.id !== pendingDelete,
+  );
   const searching = query.trim() !== "";
   return (
     <div className="chats-layout">
@@ -189,10 +225,7 @@ export function Chats({
                   type="button"
                   role="menuitem"
                   className="danger"
-                  onClick={() => {
-                    setRowMenu(null);
-                    setDeleting(item.id);
-                  }}
+                  onClick={() => deleteWithUndo(item.id)}
                 >
                   <Trash2 size={14} />
                   Delete
@@ -231,10 +264,7 @@ export function Chats({
                   type="button"
                   role="menuitem"
                   className="danger"
-                  onClick={() => {
-                    setMenu(false);
-                    setDeleting(current.id);
-                  }}
+                  onClick={() => deleteWithUndo(current.id)}
                 >
                   <Trash2 size={14} />
                   Delete chat
@@ -243,35 +273,6 @@ export function Chats({
             )}
           </div>
         </header>
-        {deleting !== null && (
-          <div className="chat-confirm delete-confirm" role="alert">
-            <p>
-              Delete “
-              {conversations.find((c) => c.id === deleting)?.title ??
-                "this chat"}
-              ”? This can’t be undone.
-            </p>
-            <button
-              className="danger-button"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await aiApi.deleteConversation(deleting);
-                  setDeleting(null);
-                })
-              }
-            >
-              Delete permanently
-            </button>
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => setDeleting(null)}
-            >
-              Keep chat
-            </button>
-          </div>
-        )}
         <Conversation
           key={current?.id ?? "preview"}
           conversationId={current?.id}

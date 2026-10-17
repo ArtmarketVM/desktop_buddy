@@ -557,14 +557,7 @@
 .chat-menu .danger {
   color: var(--danger);
 }
-/* Deleting a chat asks the same way deleting a goal does. */
-.chat-confirm {
-  margin: 12px 14px 0;
-  font-size: var(--text-body);
-}
-.chat-confirm > p {
-  margin: 0 0 10px;
-}
+
 .workspace-buddy {
   position: fixed;
   right: 24px;
