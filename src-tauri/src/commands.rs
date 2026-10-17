@@ -456,7 +456,6 @@ pub fn should_analyze(state: &AppState) -> bool {
         return false;
     };
     inner.status.tracking
-        && inner.buddy.view.avatar.visible
         && crate::tracking::notifications_allowed(&inner)
         && inner.status.ai_enabled
         && crate::insights::explicit_category(&inner).is_ok_and(|c| c.is_none())

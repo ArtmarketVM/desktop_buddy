@@ -193,7 +193,58 @@
   background: var(--surface);
   color: var(--text);
   border-color: var(--line);
-  border-radius: 18px;
+}
+.companion-bubble {
+  position: relative;
+  width: 100%;
+  min-height: 0;
+}
+.desktop-buddy .companion-bubble {
+  width: min(100%, 304px);
+  margin: 0 auto 5px;
+  filter: drop-shadow(
+    0 2px 3px color-mix(in srgb, var(--text) 5%, transparent)
+  );
+}
+.desktop-buddy .companion-bubble::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  bottom: -4px;
+  left: calc(50% - 5px);
+  transform: rotate(45deg);
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0 0 4px 0;
+  background: var(--surface);
+  pointer-events: none;
+}
+.desktop-buddy.character-hidden .companion-bubble::after {
+  display: none;
+}
+.desktop-buddy .companion-prompt {
+  padding: 12px 14px;
+  border-radius: 17px;
+  box-shadow: none;
+  max-height: 270px;
+}
+.companion-prompt h2 {
+  margin: 0 0 6px;
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.companion-prompt p {
+  margin: 0;
+  line-height: 1.45;
+}
+.companion-prompt .companion-prompt-actions {
+  margin-top: 10px;
+  gap: 6px;
+}
+.companion-prompt-actions button {
+  min-height: 30px;
+  padding: 5px 10px;
 }
 .companion-prompt small {
   font-size: var(--text-caption);

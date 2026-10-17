@@ -79,6 +79,25 @@ pub fn run() {
             }
         }
     }
+    if std::env::args().any(|arg| arg == "--check-agent-background") {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            tokio::time::timeout(
+                std::time::Duration::from_secs(180),
+                agent_runtime::headless_background_check(),
+            )
+            .await
+        });
+        match result {
+            Ok(Ok(report)) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            _ => {
+                eprintln!("Background checks could not finish. No personal data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
     if std::env::args().any(|arg| arg == "--check-agent-dialogue") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()

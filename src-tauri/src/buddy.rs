@@ -61,7 +61,7 @@ impl Runtime {
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
     if view.companion.chat_open {
         3
-    } else if !view.avatar.visible || snoozed(view) {
+    } else if snoozed(view) {
         0
     } else if view.companion.intervention.is_some()
         && !status.dnd
@@ -78,7 +78,7 @@ pub fn mode(status: &Status, view: &BuddyView) -> u8 {
         && (view.suggestion.is_some() || view.decision.is_some())
     {
         2
-    } else if !view.preferences.suggestions_only {
+    } else if view.avatar.visible && !view.preferences.suggestions_only {
         1
     } else {
         0
@@ -484,7 +484,6 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
 }
 pub fn due(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
-        && inner.buddy.view.avatar.visible
         && crate::tracking::notifications_allowed(inner)
         && inner
             .storage

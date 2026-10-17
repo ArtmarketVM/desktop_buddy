@@ -101,8 +101,8 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     });
     assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
     inner.buddy.view.avatar.visible = false;
-    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
-    assert!(!due(&inner));
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
+    assert!(due(&inner));
     inner.buddy.view.avatar.visible = true;
     inner.status.dnd = true;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
@@ -172,4 +172,34 @@ fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {
     assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 1);
     inner.buddy.view.avatar.visible = false;
     assert_eq!(display_mode(&inner.status, &inner.buddy.view, false), 0);
+}
+
+#[test]
+fn hidden_character_keeps_checkins_but_respects_quiet_and_snooze() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    let view = &mut inner.buddy.view;
+    view.avatar.visible = false;
+    view.companion.intervention = Some(crate::companion::engine::Intervention {
+        id: "checkin".into(),
+        kind: crate::companion::engine::Kind::Midday,
+        text: "Next step?".into(),
+        confidence: 1.0,
+        goal_id: None,
+        plan_revision: None,
+        step_id: None,
+        expires_at: i64::MAX,
+    });
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
+    inner.status.dnd = true;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    inner.status.dnd = false;
+    inner.buddy.view.quiet_reason = Some("Meeting".into());
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    inner.buddy.view.quiet_reason = None;
+    inner.buddy.view.snoozed_until = Some(i64::MAX);
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    inner.buddy.view.snoozed_until = None;
+    inner.buddy.view.companion.intervention = None;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
 }

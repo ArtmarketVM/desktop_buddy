@@ -223,6 +223,12 @@ export function PersonalAiEnginePanel({
             </dd>
             <dt>Suppression reason</dt>
             <dd>{data.runtime.diagnostics.suppression_reason ?? "None"}</dd>
+            <dt>Last background failure</dt>
+            <dd>
+              {data.runtime.diagnostics.last_failure
+                ? readable(data.runtime.diagnostics.last_failure)
+                : "None"}
+            </dd>
             <dt>Collector simulation / provider mock</dt>
             <dd>
               {data.demo_mode ? "DEMO_MODE on" : "DEMO_MODE off"} ·{" "}
@@ -322,9 +328,9 @@ export function PersonalAiEnginePanel({
           </section>
           <h4>Available skills</h4>
           <p className="helper">
-            The configured chat model proposes actions; Rust validates permissions,
-            IDs, scope and state before execution. Goal and step completion still requires
-            an explicit action or confirmation.
+            The configured chat model proposes actions; Rust validates
+            permissions, IDs, scope and state before execution. Goal and step
+            completion still requires an explicit action or confirmation.
           </p>
           {data.skills.map((group) => (
             <details className="inline-details" key={group.group}>

@@ -39,58 +39,62 @@ export function InterventionCard({
                   ? "Ask sumi"
                   : "Review progress";
   return (
-    <section
-      className="suggestion-card companion-prompt"
-      aria-live="polite"
-      aria-label={title}
-    >
-      <span className="eyebrow">BUDDY · YOUR CHOICE</span>
-      <h2>{title}</h2>
-      <p>{prompt.text}</p>
-      {prompt.kind === "research" && (
-        <small>
-          No search runs until you agree. Only a short query is sent to Tavily.
-        </small>
-      )}
-      {["new_task", "completion", "goal_completion"].includes(prompt.kind) && (
-        <small>
-          Suggested from visible context. Nothing changes until you confirm.
-        </small>
-      )}
-      <div className="companion-prompt-actions">
-        <button disabled={busy} onClick={() => respond("accept")}>
-          {accept}
-        </button>
-        <button
-          className="secondary"
-          disabled={busy}
-          onClick={() => respond("ignore")}
-        >
-          {["completion", "goal_completion"].includes(prompt.kind)
-            ? "Not yet"
-            : prompt.kind === "no_goals"
-              ? "No plan today"
-              : "Not now"}
-        </button>
-        {prompt.kind === "end_of_day" && (
-          <>
-            <button
-              className="secondary"
-              disabled={busy}
-              onClick={() => respond("tomorrow")}
-            >
-              Continue tomorrow
-            </button>
-            <button
-              className="text-button"
-              disabled={busy}
-              onClick={() => respond("summary")}
-            >
-              Daily summary
-            </button>
-          </>
+    <div className="companion-bubble">
+      <section
+        className="suggestion-card companion-prompt"
+        aria-live="polite"
+        aria-label={title}
+      >
+        <h2>{title}</h2>
+        <p>{prompt.text}</p>
+        {prompt.kind === "research" && (
+          <small>
+            No search runs until you agree. Only a short query is sent to
+            Tavily.
+          </small>
         )}
-      </div>
-    </section>
+        {["new_task", "completion", "goal_completion"].includes(
+          prompt.kind,
+        ) && (
+          <small>
+            Suggested from visible context. Nothing changes until you confirm.
+          </small>
+        )}
+        <div className="companion-prompt-actions">
+          <button disabled={busy} onClick={() => respond("accept")}>
+            {accept}
+          </button>
+          <button
+            className="secondary"
+            disabled={busy}
+            onClick={() => respond("ignore")}
+          >
+            {["completion", "goal_completion"].includes(prompt.kind)
+              ? "Not yet"
+              : prompt.kind === "no_goals"
+                ? "No plan today"
+                : "Not now"}
+          </button>
+          {prompt.kind === "end_of_day" && (
+            <>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => respond("tomorrow")}
+              >
+                Continue tomorrow
+              </button>
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() => respond("summary")}
+              >
+                Daily summary
+              </button>
+            </>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }

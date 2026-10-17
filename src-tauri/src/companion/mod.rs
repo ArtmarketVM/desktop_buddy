@@ -73,6 +73,7 @@ pub struct Runtime {
     previous_app: String,
     previous_goal: Option<i64>,
     sampled_context: String,
+    work_clock: engine::ActiveWorkClock,
 }
 impl Runtime {
     pub fn load(storage: &Storage) -> Result<Self, String> {
@@ -93,6 +94,7 @@ impl Runtime {
             previous_app: String::new(),
             previous_goal: None,
             sampled_context: String::new(),
+            work_clock: Default::default(),
         })
     }
     pub fn invalidate(&mut self) {
@@ -109,6 +111,11 @@ pub fn emit(app: &AppHandle, kind: &str, payload: impl Serialize) {
     );
 }
 pub fn observe(inner: &mut Inner, snapshot: &ActivitySnapshot, allowed: bool) {
+    inner.companion.work_clock.observe(
+        allowed
+            && snapshot.idle_seconds < inner.tracking_settings.idle_seconds
+            && !snapshot.media_playing,
+    );
     inner.companion.view.activity = allowed.then(|| ActivityEvent {
         r#type: "activity",
         app: snapshot.process_name.clone(),
@@ -128,8 +135,7 @@ pub fn observe(inner: &mut Inner, snapshot: &ActivitySnapshot, allowed: bool) {
 }
 fn suppressed(inner: &Inner) -> bool {
     let view = &inner.buddy.view;
-    !view.avatar.visible
-        || inner.status.dnd
+    inner.status.dnd
         || crate::buddy::snoozed(view)
         || inner.companion.view.chat_open
         || inner.companion.view.preferences.paused
@@ -236,6 +242,12 @@ pub(crate) fn offer_agent(
 }
 pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp();
+    if !inner.status.tracking
+        || inner.status.tracking_error.is_some()
+        || inner.buddy.foreground.is_none()
+    {
+        inner.companion.work_clock.observe(false);
+    }
     let local = chrono::Local::now();
     let day = local.date_naive().to_string();
     let minute = local.hour() * 60 + local.minute();
@@ -364,6 +376,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         inner.companion.started.elapsed().as_secs(),
         now.saturating_sub(inner.companion.memory.last_progress),
         goal_age,
+        inner.companion.work_clock.seconds(),
     );
     let slot = if preferences.daily_checkins
         && (12 * 60..15 * 60).contains(&minute)
@@ -1270,6 +1283,32 @@ pub fn update_companion_inbox(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn hidden_character_does_not_suppress_checkins_but_attention_gates_do() {
+        let state =
+            AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        inner.buddy.view.avatar.visible = false;
+        assert!(!suppressed(&inner));
+        inner.status.dnd = true;
+        assert!(suppressed(&inner));
+        inner.status.dnd = false;
+        inner.companion.view.preferences.paused = true;
+        assert!(suppressed(&inner));
+        inner.companion.view.preferences.paused = false;
+        inner.buddy.foreground = Some(ActivitySnapshot {
+            process_name: "zoom.us".into(),
+            window_title: "Zoom Workplace".into(),
+            idle_seconds: 10,
+            ..Default::default()
+        });
+        assert!(!suppressed(&inner));
+        inner.buddy.foreground.as_mut().unwrap().window_title = "Zoom Meeting".into();
+        assert!(suppressed(&inner));
+        inner.buddy.foreground.as_mut().unwrap().window_title = "Zoom Workplace".into();
+        inner.buddy.foreground.as_mut().unwrap().media_playing = true;
+        assert!(suppressed(&inner));
+    }
     #[test]
     fn quick_tasks_preserve_other_developers_plan_and_reject_stale_updates() {
         let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();

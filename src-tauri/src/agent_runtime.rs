@@ -1,5 +1,7 @@
 //! One dispatcher for local observation, bounded reasoning and existing specialist services.
+mod check;
 mod observe;
+pub use check::run as headless_background_check;
 pub mod reasoning;
 #[cfg(test)]
 mod tests;
@@ -90,6 +92,7 @@ pub struct Diagnostics {
     pub last_input: Option<EventKind>,
     pub last_event: Option<EventKind>,
     pub suppression_reason: Option<&'static str>,
+    pub last_failure: Option<&'static str>,
 }
 struct Flight {
     generation: u64,
@@ -432,7 +435,7 @@ async fn reason(
         return Err("Agent request cancelled".into());
     }
     tokio::select! {
-        result=crate::engine_observability::request_validated(state,service,reasoning::BACKGROUND_PROMPT,job.source.clone(),"buddy_agent_reasoning",reasoning::schema(),reasoning::parse) => result,
+        result=crate::engine_observability::request_validated(state,service,reasoning::BACKGROUND_PROMPT,job.source.clone(),"buddy_agent_reasoning",reasoning::background_schema(),reasoning::parse) => result,
         _=job.cancel.changed() => Err("Agent request cancelled".into()),
     }
 }
@@ -523,6 +526,22 @@ async fn process_pending_with_service(
     };
     let mut inner = state.inner.lock().map_err(|_| "Agent state unavailable")?;
     let applied = outcome.and_then(|result| apply(&mut inner, &job, &result));
+    // Keep only a fixed diagnostic code, never provider text or private context.
+    inner.agent.diagnostics.last_failure = applied
+        .as_ref()
+        .err()
+        .map(|error| crate::engine_observability::error_category(error));
+    if let Some(code) = inner.agent.diagnostics.last_failure {
+        inner.agent.suppress(code);
+        crate::engine_observability::record(
+            &mut inner,
+            "decision",
+            "background_reasoning",
+            code,
+            None,
+            job.event.goal_id,
+        );
+    }
     if inner
         .agent
         .flight
@@ -582,7 +601,14 @@ async fn run_pending(app: &AppHandle) {
     } else {
         match Service::configured(&state.client) {
             Ok(service) => service,
-            Err(_) => return,
+            Err(error) => {
+                if let Ok(mut inner) = state.inner.lock() {
+                    let code = crate::engine_observability::error_category(&error);
+                    inner.agent.diagnostics.last_failure = Some(code);
+                    inner.agent.suppress(code);
+                }
+                return;
+            }
         }
     };
     match process_pending_with_service(&state, &service).await {
@@ -601,9 +627,14 @@ async fn run_pending(app: &AppHandle) {
                 }
             }
         }
-        Err(_) => {
+        Err(error) => {
             if let Ok(mut inner) = state.inner.lock() {
-                inner.agent.suppress("failed_or_stale");
+                let code = crate::engine_observability::error_category(&error);
+                // Also cover preparation/storage failures before inference starts.
+                if inner.agent.diagnostics.suppression_reason != Some(code) {
+                    inner.agent.diagnostics.last_failure = Some(code);
+                    inner.agent.suppress(code);
+                }
             }
         }
         _ => {}

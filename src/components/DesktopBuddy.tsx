@@ -68,7 +68,10 @@ export function DesktopBuddy({
   const root = useRef<HTMLElement>(null);
   useBuddyPointer(
     root,
-    appearance.visible || companion.chat_open,
+    appearance.visible ||
+      companion.chat_open ||
+      !!companion.intervention ||
+      !!card,
     busy,
     () => {
       setError("Click-through is unavailable. Restart sumi to try again.");
@@ -92,7 +95,13 @@ export function DesktopBuddy({
       setBusy(false);
     }
   }
-  if (!appearance.visible && !companion.chat_open) return null;
+  if (
+    !appearance.visible &&
+    !companion.chat_open &&
+    !companion.intervention &&
+    !card
+  )
+    return null;
   const state: AvatarState =
     responseState ??
     (companion.chat_open
@@ -105,7 +114,7 @@ export function DesktopBuddy({
   return (
     <main
       ref={root}
-      className={`desktop-buddy ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
+      className={`desktop-buddy ${appearance.visible ? "" : "character-hidden"} ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
     >
       {companion.chat_open ? (
         <div className="desktop-compact-input">
@@ -179,69 +188,79 @@ export function DesktopBuddy({
           </section>
         )
       )}
-      <button
-        {...actions.events}
-        className="desktop-character"
-        aria-label="Open sumi mini chat"
-        title="Click to chat · drag to move · right-click for actions"
-        onPointerDown={(event) => {
-          if (event.button !== 0) return;
-          pointer.current = {
-            x: event.clientX,
-            y: event.clientY,
-            dragged: false,
-          };
-          event.currentTarget.setPointerCapture?.(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const origin = pointer.current;
-          if (
-            desktop &&
-            origin &&
-            !origin.dragged &&
-            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) >= 6
-          ) {
-            origin.dragged = true;
-            event.currentTarget.releasePointerCapture?.(event.pointerId);
-            void action(() => getCurrentWindow().startDragging());
-          }
-        }}
-        onPointerUp={() => {
-          const origin = pointer.current;
-          pointer.current = null;
-          if (origin && !origin.dragged && desktop)
-            void action(() =>
-              companion.chat_open ? api.closeChat() : api.openChat(),
-            );
-        }}
-        onPointerCancel={() => {
-          pointer.current = null;
-        }}
-        onClick={(event) => {
-          if (event.detail === 0 && desktop)
-            void action(() =>
-              companion.chat_open ? api.closeChat() : api.openChat(),
-            );
-        }}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          if (desktop) void action(api.companionMenu);
-        }}
-      >
-        <Avatar appearance={{ ...appearance, visible: true }} state={state} />
-      </button>
-      <BuddyActionBar
-        color={appearance.color}
-        actions={actions}
-        onWrite={() => {
-          setMode("text");
-          if (desktop) void action(api.openChat);
-        }}
-        onTalk={() => {
-          setMode("voice");
-          if (desktop) void action(api.openChat);
-        }}
-      />
+      {appearance.visible && (
+        <>
+          <button
+            {...actions.events}
+            className="desktop-character"
+            aria-label="Open sumi mini chat"
+            title="Click to chat · drag to move · right-click for actions"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              pointer.current = {
+                x: event.clientX,
+                y: event.clientY,
+                dragged: false,
+              };
+              event.currentTarget.setPointerCapture?.(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const origin = pointer.current;
+              if (
+                desktop &&
+                origin &&
+                !origin.dragged &&
+                Math.hypot(
+                  event.clientX - origin.x,
+                  event.clientY - origin.y,
+                ) >= 6
+              ) {
+                origin.dragged = true;
+                event.currentTarget.releasePointerCapture?.(event.pointerId);
+                void action(() => getCurrentWindow().startDragging());
+              }
+            }}
+            onPointerUp={() => {
+              const origin = pointer.current;
+              pointer.current = null;
+              if (origin && !origin.dragged && desktop)
+                void action(() =>
+                  companion.chat_open ? api.closeChat() : api.openChat(),
+                );
+            }}
+            onPointerCancel={() => {
+              pointer.current = null;
+            }}
+            onClick={(event) => {
+              if (event.detail === 0 && desktop)
+                void action(() =>
+                  companion.chat_open ? api.closeChat() : api.openChat(),
+                );
+            }}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              if (desktop) void action(api.companionMenu);
+            }}
+          >
+            <Avatar
+              appearance={{ ...appearance, visible: true }}
+              state={state}
+            />
+          </button>
+          <BuddyActionBar
+            color={appearance.color}
+            actions={actions}
+            onWrite={() => {
+              setMode("text");
+              if (desktop) void action(api.openChat);
+            }}
+            onTalk={() => {
+              setMode("voice");
+              if (desktop) void action(api.openChat);
+            }}
+          />
+        </>
+      )}
       {error && (
         <small className="companion-error" role="alert">
           {error}

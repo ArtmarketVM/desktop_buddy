@@ -48,7 +48,33 @@ pub struct Inference {
     validation_error: Option<&'static str>,
 }
 pub(crate) fn error_category(error: &str) -> &'static str {
-    if error.contains("does not match") {
+    if error == "Invalid agent reasoning JSON" {
+        "reasoning_json_invalid"
+    } else if error == "Invalid agent reasoning fields" {
+        "reasoning_fields_invalid"
+    } else if error == "Invalid agent memory update" {
+        "reasoning_memory_invalid"
+    } else if error == "Unknown agent skill" {
+        "reasoning_skill_unknown"
+    } else if error.contains("cancelled") {
+        "cancelled"
+    } else if error.contains("HTTP 401") || error.contains("HTTP 403") {
+        "provider_authentication"
+    } else if error.contains("HTTP 402") {
+        "provider_billing"
+    } else if error.contains("HTTP 429") {
+        "provider_rate_limit"
+    } else if error.contains("HTTP 5") {
+        "provider_unavailable"
+    } else if error.contains("timed out") {
+        "provider_timeout_or_network"
+    } else if error.starts_with("Configure ") || error.contains("Credential access") {
+        "credentials_unavailable"
+    } else if error == "Service returned invalid JSON"
+        || error == "The AI returned an invalid response"
+    {
+        "provider_response_invalid"
+    } else if error.contains("does not match") {
         "operation_mismatch"
     } else if error.contains("read-only") {
         "read_only_request"

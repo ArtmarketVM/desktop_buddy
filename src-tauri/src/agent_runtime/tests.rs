@@ -706,3 +706,95 @@ async fn hackathon_idle_stress_has_no_db_writes_inference_or_queue_growth() {
         .is_none());
     println!("Idle fixture: 1000 stable observations, {} ms wall time, {changes} DB writes, 0 queued events, 0 inference requests", start.elapsed().as_millis());
 }
+
+#[tokio::test]
+async fn background_repairs_malformed_output_without_explicit_chat_instructions() {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let (state, id) = state();
+    let server = MockServer::start().await;
+    let attempts = AtomicUsize::new(0);
+    Mock::given(method("POST"))
+        .respond_with(move |request: &Request| {
+            let body: Value = serde_json::from_slice(&request.body).unwrap();
+            let decisions =
+                &body["response_format"]["json_schema"]["schema"]["properties"]["decision"]["enum"];
+            assert!(!decisions
+                .as_array()
+                .unwrap()
+                .contains(&json!("execute_explicit_user_action")));
+            if attempts.fetch_add(1, Ordering::SeqCst) == 0 {
+                return response(json!({"invalid":true}));
+            }
+            let instructions = body["messages"][0]["content"].as_str().unwrap();
+            assert!(instructions.contains("background validation (reasoning_json_invalid)"));
+            assert!(!instructions.contains("Copy instruction verbatim from latest_request"));
+            let source: Value =
+                serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            response(reasoning(&source, "stay_silent"))
+        })
+        .expect(2)
+        .mount(&server)
+        .await;
+    state
+        .inner
+        .lock()
+        .unwrap()
+        .agent
+        .enqueue(event(EventKind::PossibleStuck, id));
+    assert!(run_pending_with_service(&state, &service(&state, &server))
+        .await
+        .unwrap()
+        .is_none());
+    let inner = state.inner.lock().unwrap();
+    assert_eq!(
+        inner.agent.diagnostics.last_decision,
+        Some(Decision::StaySilent)
+    );
+    assert_eq!(inner.agent.diagnostics.last_failure, None);
+    assert!(inner.agent.flight.is_none());
+}
+
+#[tokio::test]
+async fn background_failure_is_bounded_and_diagnosed_without_fake_action_or_private_text() {
+    for (status, code, requests) in [
+        (200, "reasoning_json_invalid", 2),
+        (401, "provider_authentication", 1),
+        (402, "provider_billing", 1),
+    ] {
+        let (state, id) = state();
+        let server = MockServer::start().await;
+        let reply = if status == 200 {
+            response(json!({"private":"DO NOT LOG THIS"}))
+        } else {
+            ResponseTemplate::new(status).set_body_string("DO NOT LOG THIS")
+        };
+        Mock::given(method("POST"))
+            .respond_with(reply)
+            .expect(requests)
+            .mount(&server)
+            .await;
+        state
+            .inner
+            .lock()
+            .unwrap()
+            .agent
+            .enqueue(event(EventKind::PossibleDrift, id));
+        assert!(run_pending_with_service(&state, &service(&state, &server))
+            .await
+            .is_err());
+        let mut inner = state.inner.lock().unwrap();
+        assert_eq!(inner.agent.diagnostics.last_failure, Some(code));
+        assert_eq!(inner.agent.diagnostics.suppression_reason, Some(code));
+        assert_eq!(inner.agent.diagnostics.verified, 0);
+        assert!(inner.agent.flight.is_none());
+        assert!(inner.companion.view.intervention.is_none());
+        assert!(!serde_json::to_string(&inner.agent.diagnostics)
+            .unwrap()
+            .contains("DO NOT LOG THIS"));
+        // A failed request still consumes the cooldown; no immediate retry loop.
+        inner.agent.enqueue(event(EventKind::PossibleStuck, id));
+        assert!(prepare(&mut inner, Utc::now().timestamp())
+            .unwrap()
+            .is_none());
+    }
+}
