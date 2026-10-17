@@ -627,7 +627,16 @@ async fn run_pending(app: &AppHandle) {
                 }
             }
         }
-        Err(_) => {} // A safe, specific failure code was recorded above.
+        Err(error) => {
+            if let Ok(mut inner) = state.inner.lock() {
+                let code = crate::engine_observability::error_category(&error);
+                // Also cover preparation/storage failures before inference starts.
+                if inner.agent.diagnostics.suppression_reason != Some(code) {
+                    inner.agent.diagnostics.last_failure = Some(code);
+                    inner.agent.suppress(code);
+                }
+            }
+        }
         _ => {}
     }
 }
