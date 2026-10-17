@@ -1749,3 +1749,19 @@ main.desktop-buddy.chatting > .companion-error {
 .sidebar-collapsed .profile-settings {
   visibility: visible;
 }
+/* Utility icons are muted like the page icons; the Updates button turns lime when an update is ready. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings {
+  color: var(--muted);
+}
+.sidebar .sidebar-utilities .nav-item:hover,
+.sidebar .sidebar-utilities .update-entry:hover,
+.sidebar .profile-settings:hover {
+  color: var(--text);
+}
+.sidebar .sidebar-utilities .update-entry.update-available {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #1f1f1f;
+}
