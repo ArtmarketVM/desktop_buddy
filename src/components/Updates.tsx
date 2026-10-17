@@ -43,11 +43,6 @@ export function UpdateEntry({
       className={`update-entry ${available ? "update-available" : ""}`}
       onClick={onClick}
       aria-label={available ? "Update available" : "Updates"}
-      title={
-        available
-          ? `Update available · ${snapshot.info?.version}`
-          : "Check for updates"
-      }
     >
       <span className="update-icon">
         {snapshot.phase === "checking" ? (

@@ -191,11 +191,6 @@ export function AppShell({
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
             <div>sumi</div>
-            <SidebarAiServices
-              enabled={!onboarding}
-              collapsed={collapsed}
-              variant="dots"
-            />
           </div>
           {!isMac && sidebarButton}
         </div>
@@ -217,6 +212,13 @@ export function AppShell({
             </button>
           ))}
         </nav>
+        <div className="sidebar-ai-dots">
+          <SidebarAiServices
+            enabled={!onboarding}
+            collapsed={collapsed}
+            variant="dots"
+          />
+        </div>
         <div className="sidebar-bottom">
           <nav className="sidebar-utilities" aria-label="Workspace controls">
             <UpdateEntry snapshot={update} onClick={onUpdates} />
@@ -228,7 +230,6 @@ export function AppShell({
               aria-current={
                 page === "feedback" && !onboarding ? "page" : undefined
               }
-              title="Feedback"
             >
               <MessageSquare size={17} />
               <span className="nav-label">Feedback</span>
@@ -237,7 +238,6 @@ export function AppShell({
               className="nav-item theme-toggle"
               onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
               aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
-              title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
             >
               {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
               <span className="nav-label">
@@ -248,11 +248,6 @@ export function AppShell({
               className="nav-item quiet-toggle"
               aria-label="Quiet mode"
               aria-pressed={quietMode}
-              title={
-                quietMode
-                  ? "Quiet mode is on. Turn off to resume nudges and pop-ups. Chat stays available."
-                  : "Quiet mode is off. Turn on to pause nudges and pop-ups. Chat stays available."
-              }
               disabled={onboarding || quietModeDisabled || !onQuietMode}
               onClick={onQuietMode}
             >
@@ -311,7 +306,6 @@ export function AppShell({
               aria-current={
                 page === "settings" && !onboarding ? "page" : undefined
               }
-              title="Settings"
             >
               <Settings size={15} />
             </button>

@@ -36,7 +36,11 @@ it("keeps utility controls in the requested reading order, with services by the 
   const profile = screen.getByRole("button", { name: "Open profile menu" });
   const settings = screen.getByRole("button", { name: "Settings" });
   expect(
-    services.compareDocumentPosition(pages) & Node.DOCUMENT_POSITION_FOLLOWING,
+    pages.compareDocumentPosition(services) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+  expect(
+    services.compareDocumentPosition(controls) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
   ).toBeTruthy();
   expect(
     controls.compareDocumentPosition(profile) &

@@ -217,16 +217,6 @@ export function SidebarAiServices({
       >
         <strong>{name(active)}</strong>
         <p>{item.description}</p>
-        {active === "nvidia" && (
-          <p className="service-model">
-            Configured model: {snapshot?.configured_model ?? "Not available"}
-            <br />
-            Configured response model:{" "}
-            {snapshot?.configured_response_model ??
-              snapshot?.configured_model ??
-              "Not available"}
-          </p>
-        )}
         <div className="service-state">
           <span
             className={`service-dot service-${state(active)}`}
@@ -243,13 +233,6 @@ export function SidebarAiServices({
             })}
           </small>
         )}
-        <small>
-          {active === "nvidia"
-            ? "Model-list access only; generation is checked separately in Settings."
-            : active === "nebius"
-              ? "Authentication check only; generation and billing are not tested."
-              : "Usage access check only; a search has not been tested."}
-        </small>
         {readError && (
           <small>Local status is unavailable. Try again in Settings.</small>
         )}

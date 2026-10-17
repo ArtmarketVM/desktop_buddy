@@ -1544,14 +1544,21 @@ main.desktop-buddy.chatting > .companion-error {
   color: var(--accent-text);
   border-color: var(--accent);
 }
+/* The divider above the profile spans the whole sidebar, name and settings together. */
 .sidebar .profile-menu-root {
   display: flex;
   align-items: flex-end;
   gap: 4px;
+  margin: 0 10px;
+  border-top: 1px solid var(--line);
 }
 .sidebar .profile-entry {
   flex: 1;
   min-width: 0;
+  border-top: 0;
+}
+.sidebar .profile-settings {
+  margin-right: 0;
 }
 .sidebar .profile-settings {
   flex: none;
@@ -1584,4 +1591,62 @@ main.desktop-buddy.chatting > .companion-error {
 }
 .service-dot {
   border-radius: 1px;
+}
+
+/* Service status dots sit under the pages, aligned with the icon column. */
+.sidebar-ai-dots {
+  padding: 2px 0 0 19px;
+}
+.ai-dots {
+  gap: 6px;
+}
+/* Hover labels for the icon-only buttons. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings {
+  position: relative;
+}
+.sidebar .sidebar-utilities .nav-item::after,
+.sidebar .sidebar-utilities .update-entry::after,
+.sidebar .profile-settings::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 4px 7px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.sidebar .profile-settings::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.sidebar .sidebar-utilities > :first-child::after {
+  left: 0;
+  transform: none;
+}
+.sidebar .sidebar-utilities .nav-item:hover::after,
+.sidebar .sidebar-utilities .nav-item:focus-visible::after,
+.sidebar .sidebar-utilities .update-entry:hover::after,
+.sidebar .sidebar-utilities .update-entry:focus-visible::after,
+.sidebar .profile-settings:hover::after,
+.sidebar .profile-settings:focus-visible::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .sidebar-utilities .nav-item::after,
+  .sidebar .sidebar-utilities .update-entry::after,
+  .sidebar .profile-settings::after {
+    transition: none;
+  }
 }
