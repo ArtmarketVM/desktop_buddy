@@ -1676,10 +1676,18 @@ main.desktop-buddy.chatting > .companion-error {
   align-items: center;
   padding: 6px 0 8px;
 }
+/* The profile row starts where the first utility icon starts. */
 .sidebar .profile-entry {
   height: 32px;
   margin-top: 0;
-  padding: 0 13.5px;
+  padding: 0;
+  gap: 10px;
+}
+.sidebar .profile-entry .profile-icon {
+  flex: none;
+  width: 32px;
+  height: 15px;
+  color: var(--text);
 }
 .sidebar .profile-settings {
   margin: 0;

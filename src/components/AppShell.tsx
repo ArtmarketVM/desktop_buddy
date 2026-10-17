@@ -294,6 +294,7 @@ export function AppShell({
               aria-label="Open profile menu"
               title={profile.name || "Your profile"}
             >
+              <UserRound size={15} className="profile-icon" />
               <span className="profile-name">
                 {profile.name || "Your profile"}
               </span>
