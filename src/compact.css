@@ -999,7 +999,7 @@ main.desktop-buddy {
   margin: 6px 0 0;
 }
 
-/* Switches follow macOS: a 30 x 18 track with a 14px knob. */
+/* Switches on the grid: a 28 x 16 square track with a 10px square knob that jumps, no easing. */
 .toggle-row input[type="checkbox"],
 .core-workspace .toggle-row input[type="checkbox"] {
   appearance: none;
@@ -1007,31 +1007,29 @@ main.desktop-buddy {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  width: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  height: 18px;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 16px;
   margin: 0 0 0 16px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: 2px;
   background: var(--field-line, var(--line));
   cursor: pointer;
-  transition: background 0.18s ease;
 }
 .toggle-row input[type="checkbox"]::before,
 .core-workspace .toggle-row input[type="checkbox"]::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--canvas);
   transform: none;
-  transition: transform 0.18s ease;
+  transition: transform 0.12s steps(2, jump-none);
 }
 .toggle-row input[type="checkbox"]:checked,
 .core-workspace .toggle-row input[type="checkbox"]:checked {
@@ -1039,7 +1037,7 @@ main.desktop-buddy {
 }
 .toggle-row input[type="checkbox"]:checked::before,
 .core-workspace .toggle-row input[type="checkbox"]:checked::before {
-  background: #fff;
+  background: #ffffff;
   transform: translateX(12px);
 }
 .toggle-row input[type="checkbox"]:focus-visible {
@@ -1047,7 +1045,6 @@ main.desktop-buddy {
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .toggle-row input[type="checkbox"],
   .toggle-row input[type="checkbox"]::before {
     transition: none;
   }

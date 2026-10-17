@@ -78,6 +78,11 @@ export function Chats({
     setMenu(false);
     setRowMenu(null);
     setPendingDelete(id);
+    // Show the next chat straight away instead of the one that is going.
+    const next = item.active
+      ? conversations.find((c) => c.id !== id && c.id !== pendingDelete)
+      : undefined;
+    if (next) void run(() => aiApi.selectConversation(next.id));
     const timer = window.setTimeout(() => {
       pendingTimer.current = null;
       setPendingDelete(null);
@@ -90,6 +95,7 @@ export function Chats({
         window.clearTimeout(timer);
         pendingTimer.current = null;
         setPendingDelete(null);
+        if (next) await run(() => aiApi.selectConversation(id));
       },
     });
   }
