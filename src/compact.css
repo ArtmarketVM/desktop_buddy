@@ -554,21 +554,16 @@
 .chat-menu button:hover {
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
-.chat-menu .danger,
-.chat-confirm .danger {
+.chat-menu .danger {
   color: var(--danger);
 }
+/* Deleting a chat asks the same way deleting a goal does. */
 .chat-confirm {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-bottom: 0;
+  margin: 12px 14px 0;
   font-size: var(--text-body);
 }
-.chat-confirm span {
-  flex: 1;
+.chat-confirm > p {
+  margin: 0 0 10px;
 }
 .workspace-buddy {
   position: fixed;
@@ -1723,4 +1718,44 @@ main.desktop-buddy.chatting > .companion-error {
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0.12em;
+}
+
+/* Collapsed sidebar: everything stacks in one icon column, nothing is cut off. */
+.sidebar-collapsed .sidebar-ai-dots {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 0;
+}
+.sidebar-collapsed .ai-dots {
+  visibility: visible;
+  flex-direction: column;
+  width: 14px;
+  height: auto;
+}
+.sidebar-collapsed .sidebar-utilities {
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+.sidebar-collapsed .profile-menu-root {
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 6px;
+  padding: 6px 0 8px;
+}
+.sidebar-collapsed .profile-entry {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+.sidebar-collapsed .profile-entry .profile-icon {
+  width: 15px;
+}
+.sidebar-collapsed .profile-name {
+  display: none;
+}
+.sidebar-collapsed .profile-settings {
+  visibility: visible;
 }

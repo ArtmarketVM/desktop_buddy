@@ -244,15 +244,15 @@ export function Chats({
           </div>
         </header>
         {deleting !== null && (
-          <div className="chat-confirm" role="alert">
-            <span>
+          <div className="chat-confirm delete-confirm" role="alert">
+            <p>
               Delete “
               {conversations.find((c) => c.id === deleting)?.title ??
                 "this chat"}
               ”? This can’t be undone.
-            </span>
+            </p>
             <button
-              className="danger"
+              className="danger-button"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
@@ -261,10 +261,14 @@ export function Chats({
                 })
               }
             >
-              Delete
+              Delete permanently
             </button>
-            <button disabled={busy} onClick={() => setDeleting(null)}>
-              Cancel
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => setDeleting(null)}
+            >
+              Keep chat
             </button>
           </div>
         )}
