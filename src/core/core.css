@@ -1409,9 +1409,9 @@
 .core-goal.completed .goal-status-icon svg {
   box-sizing: content-box;
   padding: 3px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--accent, var(--accent));
-  color: var(--surface);
+  color: #ffffff;
 }
 .goal-expand-toggle .goal-chevron {
   margin-left: auto;
@@ -1527,8 +1527,8 @@ textarea:focus {
   margin: 0 0 18px;
   padding: 14px 18px;
   border-radius: 4px;
-  background: var(--text);
-  color: var(--canvas);
+  background: var(--tile);
+  color: var(--tile-text);
 }
 .progress-total {
   font-size: var(--text-title);
@@ -1539,8 +1539,8 @@ textarea:focus {
 }
 .progress-sub {
   margin: 0;
-  color: var(--canvas);
-  opacity: 0.8;
+  color: var(--tile-text);
+  opacity: 0.75;
   font-size: var(--text-body);
 }
 .stack-chart {
@@ -2463,13 +2463,31 @@ details.today-summary > .today-summary-head {
   margin-top: 28px;
 }
 .progress-details > summary {
-  display: inline-block;
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
   font-size: var(--text-body);
+  font-weight: 500;
   cursor: pointer;
   list-style: none;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+}
+.progress-details > summary:hover {
+  background: var(--raised);
+}
+.progress-details > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 1px;
+}
+.progress-details[open] > summary::after {
+  background: var(--lime);
 }
 .progress-details > summary::-webkit-details-marker {
   display: none;
@@ -2488,7 +2506,7 @@ details.today-summary > .today-summary-head {
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 3px;
   color: var(--muted);
   font-size: var(--text-body);
 }
@@ -2499,7 +2517,7 @@ details.today-summary > .today-summary-head {
 }
 .pager > button[aria-current="page"] {
   background: var(--accent);
-  color: var(--inverse);
+  color: #ffffff;
 }
 .toasts {
   position: fixed;
@@ -2572,4 +2590,12 @@ p.error .text-button {
 }
 .stack-bar > i {
   border-radius: 3px;
+}
+
+/* Warning callout hugs the block below it; the headline then breathes before the period row. */
+.core-workspace > .callout + .core-section {
+  margin-top: -20px;
+}
+.progress-headline {
+  margin-bottom: 28px;
 }

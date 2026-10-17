@@ -1683,3 +1683,23 @@ main.desktop-buddy.chatting > .companion-error {
 .sidebar .profile-settings {
   margin: 0;
 }
+
+.sidebar-ai-dots {
+  padding-top: 10px;
+}
+/* Scrollbars on the grid: a thin square thumb, no track. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 0;
+  border: 2px solid var(--canvas);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}

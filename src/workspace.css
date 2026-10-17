@@ -23,6 +23,8 @@
   --accent-fill-hover: #5a4de6;
   --field-line: var(--text);
   --lime: #e4fa8e;
+  --tile: #1f1f1f;
+  --tile-text: #ffffff;
   --hill: #d9d5d2;
   --sky: #f3f3ef;
   --cloud: #ececec;
@@ -63,6 +65,8 @@
   --accent-fill-hover: #7d72ff;
   --field-line: #f3f3ef;
   --lime: #e4fa8e;
+  --tile: #2e2e2e;
+  --tile-text: #f3f3ef;
   --hill: #3a3a3a;
   --sky: #262626;
   --cloud: #2e2e2e;
