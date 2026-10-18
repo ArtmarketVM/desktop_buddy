@@ -18,11 +18,17 @@
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-  margin-block: 10px;
+  margin-block: 6px 0;
 }
 .coaching-panel label,
 .coaching-start .helper {
   display: block;
+}
+.coaching-panel .coaching-remember {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
 }
 .coaching-panel select,
 .coaching-panel input:not([type="checkbox"]) {

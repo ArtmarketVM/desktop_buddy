@@ -70,11 +70,12 @@ export function StartCoaching({
         <p className="helper">Step: {entry.target.step_title}</p>
       )}
       <p>
-        Choose one small action with sumi. You can pause or stop at any time.
+        Open a coaching chat for this goal and reply in your own words. You can
+        pause or exit at any time.
       </p>
       <p className="helper">
-        The session is saved locally, even with Personal Memory off. A suggested
-        action uses your AI and goal-sharing settings. Remembering a result is
+        The session is saved locally, even with Personal Memory off. Coaching
+        replies use your AI and goal-sharing settings. Remembering a result is
         optional.
       </p>
       {error && <p role="alert">{error}</p>}

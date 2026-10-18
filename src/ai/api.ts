@@ -81,10 +81,24 @@ export const aiApi = {
     goalId: number | null = null,
     conversationId: number | null = null,
     voiceMessage = false,
+    requestId: string = crypto.randomUUID(),
+    coachingSessionId: number | null = null,
+    coachingRevision: number | null = null,
+    rememberResult = false,
   ) =>
     invoke<{ message: string; resources: ChatResource[] }>(
       "send_buddy_message",
-      { text, attachmentText, goalId, conversationId, voiceMessage },
+      {
+        text,
+        attachmentText,
+        goalId,
+        conversationId,
+        voiceMessage,
+        requestId,
+        coachingSessionId,
+        coachingRevision,
+        rememberResult,
+      },
     ),
   resourceOpened: (goalId: number | null, url: string) =>
     invoke<void>("record_resource_view", { goalId, url }),

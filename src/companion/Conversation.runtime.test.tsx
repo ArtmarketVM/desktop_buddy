@@ -79,6 +79,10 @@ it("routes a locally transcribed message as voice, then an ordinary message as t
       null,
       42,
       true,
+      expect.any(String),
+      null,
+      null,
+      false,
     ),
   );
   await userEvent.type(screen.getByRole("textbox"), "List my goals{Enter}");
@@ -89,6 +93,10 @@ it("routes a locally transcribed message as voice, then an ordinary message as t
       null,
       null,
       42,
+      false,
+      expect.any(String),
+      null,
+      null,
       false,
     ),
   );
@@ -115,6 +123,10 @@ it("preserves the input source and chat when a message waits behind another repl
       null,
       null,
       42,
+      false,
+      expect.any(String),
+      null,
+      null,
       false,
     ),
   );
@@ -183,6 +195,10 @@ it("explains microphone permission failure and permits typed commands", async ()
       null,
       42,
       false,
+      expect.any(String),
+      null,
+      null,
+      false,
     ),
   );
 });
@@ -220,6 +236,10 @@ it("routes raw audio only to local STT and sends only the transcript to the agen
       null,
       42,
       true,
+      expect.any(String),
+      null,
+      null,
+      false,
     ),
   );
   expect(

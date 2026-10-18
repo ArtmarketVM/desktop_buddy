@@ -1,6 +1,72 @@
 use super::*;
 
 #[tokio::test]
+async fn send_route_honors_coaching_goal_even_after_external_blocker() {
+    use crate::coaching::{chat, Barrier, Control, Reply, Start};
+    let mut storage = store();
+    let pinned = goal(&mut storage, "Open Cash ISA", "pinned-coaching");
+    let unrelated = goal(&mut storage, "Hackathon", "unrelated-coaching");
+    let session = chat::start(
+        &storage,
+        &Start {
+            request_id: "start-pinned".into(),
+            goal_id: pinned,
+            step_id: None,
+            conversation_id: storage.current_conversation().unwrap(),
+            expected_target_revision: storage.coaching_target(pinned, None).unwrap().revision,
+            strategy_id: "tiny_habits".into(),
+            strategy_version: 1,
+        },
+    )
+    .unwrap();
+    let session = storage
+        .reply_coaching(
+            session.id,
+            session.conversation_id,
+            session.revision,
+            "external",
+            &Control::Reply {
+                reply: Reply::Barrier {
+                    barrier: Barrier::ExternalDependency,
+                }
+                .into(),
+            },
+        )
+        .unwrap();
+    let state = AppState::new(storage).unwrap();
+    state.inner.lock().unwrap().status.mock_ai = true;
+    let reply = send_message(
+        "But I need to do this today".into(),
+        None,
+        Some(unrelated),
+        Some(session.conversation_id),
+        None,
+        &state,
+        false,
+    )
+    .await
+    .unwrap();
+    assert!(reply.message.contains("external blocker"));
+    assert!(!reply.message.contains("Hackathon"));
+    let inner = state.inner.lock().unwrap();
+    let history = inner
+        .storage
+        .chat_history_of(session.conversation_id)
+        .unwrap();
+    assert_eq!(history.len(), 4);
+    assert!(history
+        .iter()
+        .all(|message| message.goal_id == Some(pinned)));
+    assert_eq!(
+        inner
+            .storage
+            .coaching_session(session.id, session.conversation_id)
+            .unwrap(),
+        session
+    );
+}
+
+#[tokio::test]
 async fn audit_regression_repairs_wrong_operation_and_missing_quote_without_model_receipts() {
     use std::sync::{
         atomic::{AtomicUsize, Ordering},

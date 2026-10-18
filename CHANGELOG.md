@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.36.1 — goal-bound coaching conversations
+
+- Route messages in a coaching chat through its saved session and selected goal,
+  including after an external blocker. Keep that context until explicit exit.
+- Start a dedicated chat, save coaching questions and text replies in its transcript,
+  and replace the separate questionnaire with pause, resume and exit controls.
+- Interpret explicit text answers through the existing validated workflow. Keep
+  micro-action reports separate from goal completion and require opt-in result memory.
+- Deduplicate turns and reject stale provider results after privacy, goal or session
+  changes. Preserve Windows x64 and Apple Silicon macOS signing and updater trust.
+
 ## 0.36.0 — Tiny Habits coaching
 
 - Add explicit goal/chat entry, persistent session controls and a real provider

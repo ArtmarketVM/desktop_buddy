@@ -1447,6 +1447,7 @@ pub fn parse_chat(
         memory_update: answer.memory_update,
     })
 }
+#[cfg(test)]
 async fn send_message(
     text: String,
     attachment_text: Option<String>,
@@ -1455,6 +1456,35 @@ async fn send_message(
     app: Option<&AppHandle>,
     state: &AppState,
     voice_message: bool,
+) -> Result<ChatReply, String> {
+    send_message_with_coaching(
+        text,
+        attachment_text,
+        selected_goal_id,
+        conversation_override,
+        app,
+        state,
+        voice_message,
+        None,
+        None,
+        None,
+        false,
+    )
+    .await
+}
+
+async fn send_message_with_coaching(
+    text: String,
+    attachment_text: Option<String>,
+    selected_goal_id: Option<i64>,
+    conversation_override: Option<i64>,
+    app: Option<&AppHandle>,
+    state: &AppState,
+    voice_message: bool,
+    request_id: Option<String>,
+    coaching_session_id: Option<i64>,
+    coaching_revision: Option<u64>,
+    remember_result: bool,
 ) -> Result<ChatReply, String> {
     let text = text.trim();
     let attachment = attachment_text.as_deref().unwrap_or_default();
@@ -1476,6 +1506,41 @@ async fn send_message(
         );
     }
     let _guard = state.companion_request.lock().await;
+    let conversation = {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        match conversation_override {
+            Some(id) if inner.storage.conversation_exists(id) => id,
+            Some(_) => return Err("That chat was deleted before sumi could answer".into()),
+            None => inner.storage.current_conversation()?,
+        }
+    };
+    let request_id = request_id.unwrap_or_else(|| {
+        format!(
+            "message-{}",
+            chrono::Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        )
+    });
+    if let Some(reply) = crate::coaching::chat::handle(
+        state,
+        crate::coaching::chat::Input {
+            conversation,
+            text,
+            attachment,
+            request_id: &request_id,
+            session_id: coaching_session_id,
+            revision: coaching_revision,
+            remember: remember_result,
+        },
+        None,
+    )
+    .await?
+    {
+        return Ok(reply);
+    }
+    let conversation_override = Some(conversation);
     let saved_text = if attachment.is_empty() {
         text.to_string()
     } else {
@@ -1643,10 +1708,14 @@ pub async fn send_buddy_message(
     goal_id: Option<i64>,
     conversation_id: Option<i64>,
     voice_message: Option<bool>,
+    request_id: Option<String>,
+    coaching_session_id: Option<i64>,
+    coaching_revision: Option<u64>,
+    remember_result: Option<bool>,
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ChatReply, String> {
-    let outcome = send_message(
+    let outcome = send_message_with_coaching(
         text,
         attachment_text,
         goal_id,
@@ -1654,6 +1723,10 @@ pub async fn send_buddy_message(
         Some(&app),
         &state,
         voice_message.unwrap_or(false),
+        request_id,
+        coaching_session_id,
+        coaching_revision,
+        remember_result.unwrap_or(false),
     )
     .await
     .map_err(|e| goal_analysis::user_error("chat", &e));
@@ -1662,7 +1735,21 @@ pub async fn send_buddy_message(
     let _ = app.emit("buddy://chat-updated", ());
     let handle = app.clone();
     if let Some(conversation) = reply.conversation {
-        tauri::async_runtime::spawn(async move { name_conversation(handle, conversation).await });
+        let coaching = state
+            .inner
+            .lock()
+            .ok()
+            .and_then(|inner| {
+                crate::coaching::chat::binding(&inner.storage, conversation)
+                    .ok()
+                    .flatten()
+            })
+            .is_some();
+        if !coaching {
+            tauri::async_runtime::spawn(
+                async move { name_conversation(handle, conversation).await },
+            );
+        }
     }
     Ok(reply)
 }

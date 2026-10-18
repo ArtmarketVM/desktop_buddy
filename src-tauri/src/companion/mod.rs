@@ -1088,8 +1088,10 @@ pub async fn companion_submit(
         });
     }
     // Compatibility entry point shares the same consent, history and research policy.
-    let reply =
-        crate::ai_chat::send_buddy_message(text, None, None, None, None, app, state).await?;
+    let reply = crate::ai_chat::send_buddy_message(
+        text, None, None, None, None, None, None, None, None, app, state,
+    )
+    .await?;
     Ok(Reply {
         message: reply.message,
         resources: reply

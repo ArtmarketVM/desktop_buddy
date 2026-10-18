@@ -1,4 +1,5 @@
 //! Persistent coaching workflows with explicit user controls.
+pub(crate) mod chat;
 pub mod gateway;
 pub mod strategy;
 pub mod tiny;
@@ -129,7 +130,7 @@ impl Storage {
                 |r| r.get(0),
             )
             .map_err(db)?;
-        if version > 1 {
+        if version > 2 {
             return Err("This database requires a newer coaching implementation".into());
         }
         if version == 0 {
@@ -142,6 +143,14 @@ impl Storage {
             }
             tx.execute(
                 "INSERT INTO coaching_migrations VALUES(1,?1)",
+                [Utc::now().to_rfc3339()],
+            )
+            .map_err(db)?;
+        }
+        if version < 2 {
+            tx.execute_batch(include_str!("chat.sql")).map_err(db)?;
+            tx.execute(
+                "INSERT INTO coaching_migrations VALUES(2,?1)",
                 [Utc::now().to_rfc3339()],
             )
             .map_err(db)?;
@@ -252,65 +261,66 @@ impl Storage {
     pub fn start_coaching(&self, input: &Start) -> Result<Session, String> {
         let strategy = strategy::find(&input.strategy_id, input.strategy_version)?;
         let request = encode(&json!({"start":input}))?;
-        let tx = self.connection.unchecked_transaction().map_err(db)?;
-        if let Some(replay) = self.replay_coaching(&input.request_id, &request)? {
-            return Ok(replay);
-        }
-        self.coaching_conversation(input.conversation_id)?;
-        let target = self.coaching_target(input.goal_id, input.step_id.as_deref())?;
-        if target.revision != input.expected_target_revision {
-            return Err("Coaching target changed. Reload before starting.".into());
-        }
-        let mut q = self.connection.prepare("SELECT id,conversation_id FROM coaching_sessions WHERE status IN ('active','paused') AND (goal_id=?1 OR conversation_id=?2)").map_err(db)?;
-        let existing = q
-            .query_map(params![input.goal_id, input.conversation_id], |r| {
-                Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
-            })
-            .map_err(db)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(db)?;
-        drop(q);
-        for (id, conversation) in existing {
-            let mut old = self.coaching_session(id, conversation)?;
-            if self
-                .coaching_target(old.goal_id, old.step_id.as_deref())
-                .is_ok_and(|t| t.revision == old.target_revision)
-            {
-                return Err(
-                    "Resume or stop the existing coaching session before starting another".into(),
-                );
+        memory::atomic(&self.connection, || {
+            if let Some(replay) = self.replay_coaching(&input.request_id, &request)? {
+                return Ok(replay);
             }
-            old.status = Status::Invalidated;
-            old.step = "invalidated".into();
-            old.outcome = None;
-            old.resume_step = None;
-            old.revision += 1;
-            old.updated_at = Utc::now().to_rfc3339();
-            self.connection.execute("UPDATE coaching_sessions SET status='invalidated',revision=?1,payload=?2,updated_at=?3 WHERE id=?4", params![old.revision,encode(&old)?,old.updated_at,id]).map_err(db)?;
-        }
-        let now = Utc::now().to_rfc3339();
-        let mut session = Session {
-            id: 0,
-            goal_id: input.goal_id,
-            step_id: input.step_id.clone(),
-            conversation_id: input.conversation_id,
-            strategy_id: strategy.id.into(),
-            strategy_version: strategy.version,
-            revision: 0,
-            target_revision: target.revision,
-            status: Status::Active,
-            step: strategy.initial_step.into(),
-            resume_step: None,
-            outcome: None,
-            data: strategy.handler.initial_data(),
-            created_at: now.clone(),
-            updated_at: now,
-        };
-        self.connection.execute("INSERT INTO coaching_sessions(goal_id,conversation_id,strategy_id,strategy_version,revision,target_revision,status,payload,created_at,updated_at) VALUES(?1,?2,?3,?4,0,?5,'active','',?6,?6)", params![session.goal_id,session.conversation_id,session.strategy_id,session.strategy_version,session.target_revision,session.created_at]).map_err(db)?;
-        session.id = self.connection.last_insert_rowid();
-        self.save_coaching(&session, &input.request_id, &request)?;
-        tx.commit().map_err(db)?;
-        Ok(session)
+            self.coaching_conversation(input.conversation_id)?;
+            let target = self.coaching_target(input.goal_id, input.step_id.as_deref())?;
+            if target.revision != input.expected_target_revision {
+                return Err("Coaching target changed. Reload before starting.".into());
+            }
+            let mut q = self.connection.prepare("SELECT id,conversation_id FROM coaching_sessions WHERE status IN ('active','paused') AND (goal_id=?1 OR conversation_id=?2)").map_err(db)?;
+            let existing = q
+                .query_map(params![input.goal_id, input.conversation_id], |r| {
+                    Ok((r.get::<_, i64>(0)?, r.get::<_, i64>(1)?))
+                })
+                .map_err(db)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(db)?;
+            drop(q);
+            for (id, conversation) in existing {
+                let mut old = self.coaching_session(id, conversation)?;
+                if self
+                    .coaching_target(old.goal_id, old.step_id.as_deref())
+                    .is_ok_and(|t| t.revision == old.target_revision)
+                {
+                    return Err(
+                        "Resume or stop the existing coaching session before starting another"
+                            .into(),
+                    );
+                }
+                old.status = Status::Invalidated;
+                old.step = "invalidated".into();
+                old.outcome = None;
+                old.resume_step = None;
+                old.revision += 1;
+                old.updated_at = Utc::now().to_rfc3339();
+                self.connection.execute("UPDATE coaching_sessions SET status='invalidated',revision=?1,payload=?2,updated_at=?3 WHERE id=?4", params![old.revision,encode(&old)?,old.updated_at,id]).map_err(db)?;
+            }
+            let now = Utc::now().to_rfc3339();
+            let mut session = Session {
+                id: 0,
+                goal_id: input.goal_id,
+                step_id: input.step_id.clone(),
+                conversation_id: input.conversation_id,
+                strategy_id: strategy.id.into(),
+                strategy_version: strategy.version,
+                revision: 0,
+                target_revision: target.revision,
+                status: Status::Active,
+                step: strategy.initial_step.into(),
+                resume_step: None,
+                outcome: None,
+                data: strategy.handler.initial_data(),
+                created_at: now.clone(),
+                updated_at: now,
+            };
+            self.connection.execute("INSERT INTO coaching_sessions(goal_id,conversation_id,strategy_id,strategy_version,revision,target_revision,status,payload,created_at,updated_at) VALUES(?1,?2,?3,?4,0,?5,'active','',?6,?6)", params![session.goal_id,session.conversation_id,session.strategy_id,session.strategy_version,session.target_revision,session.created_at]).map_err(db)?;
+            session.id = self.connection.last_insert_rowid();
+            self.save_coaching(&session, &input.request_id, &request)?;
+            Ok(session)
+        })
     }
 
     pub fn reply_coaching(
@@ -374,94 +384,99 @@ impl Storage {
         let request = encode(
             &json!({"session":id,"conversation":conversation,"revision":expected_revision,"control":control,"proposal":proposal}),
         )?;
-        let tx = self.connection.unchecked_transaction().map_err(db)?;
-        if let Some(replay) = self.replay_coaching(key, &request)? {
-            return Ok(replay);
-        }
-        let mut session = self.coaching_session(id, conversation)?;
-        if session.revision != expected_revision {
-            return Err("Coaching session changed. Reload before replying.".into());
-        }
-        if !session.status.open() {
-            return Err("This coaching session has ended".into());
-        }
-        let strategy = strategy::find(&session.strategy_id, session.strategy_version)?;
-        let stopping = matches!(control, Some(Control::Stop | Control::Pause));
-        if !stopping {
-            if self
-                .coaching_target(session.goal_id, session.step_id.as_deref())?
-                .revision
-                != session.target_revision
-            {
-                return Err(
+        memory::atomic(&self.connection, || {
+            if let Some(replay) = self.replay_coaching(key, &request)? {
+                return Ok(replay);
+            }
+            let mut session = self.coaching_session(id, conversation)?;
+            if session.revision != expected_revision {
+                return Err("Coaching session changed. Reload before replying.".into());
+            }
+            if !session.status.open() {
+                return Err("This coaching session has ended".into());
+            }
+            let strategy = strategy::find(&session.strategy_id, session.strategy_version)?;
+            let stopping = matches!(control, Some(Control::Stop | Control::Pause));
+            if !stopping {
+                if self
+                    .coaching_target(session.goal_id, session.step_id.as_deref())?
+                    .revision
+                    != session.target_revision
+                {
+                    return Err(
                     "Coaching target changed. Stop this session and start with current context."
                         .into(),
                 );
+                }
+                if session.revision >= u64::from(strategy.limits.max_transitions) {
+                    return Err(
+                        "Coaching transition limit reached. Pause or stop this session.".into(),
+                    );
+                }
             }
-            if session.revision >= u64::from(strategy.limits.max_transitions) {
-                return Err(
-                    "Coaching transition limit reached. Pause or stop this session.".into(),
-                );
+            let mut remembered_fact = None;
+            match (control, proposal) {
+                (Some(Control::Pause), None) if session.status == Status::Active => {
+                    session.pause();
+                    session.step = "paused".into();
+                }
+                (Some(Control::Stop), None) => {
+                    session.status = Status::Declined;
+                    session.step = "declined".into();
+                    session.resume_step = None;
+                    session.outcome = Some(Outcome::Declined);
+                }
+                (Some(Control::Resume), None) if session.status == Status::Paused => {
+                    session.step = session
+                        .resume_step
+                        .take()
+                        .ok_or("No coaching step to resume")?;
+                    session.status = Status::Active;
+                    session.outcome = None;
+                }
+                (Some(Control::Reply { reply }), None) if session.status == Status::Active => {
+                    remembered_fact = strategy.handler.reply(&mut session, reply, strategy)?;
+                }
+                (None, Some(proposal)) if session.status == Status::Active => {
+                    strategy.handler.propose(&mut session, proposal, strategy)?;
+                }
+                _ => {
+                    return Err("This operation is not allowed at the current coaching step".into())
+                }
             }
-        }
-        let mut remembered_fact = None;
-        match (control, proposal) {
-            (Some(Control::Pause), None) if session.status == Status::Active => {
-                session.pause();
-                session.step = "paused".into();
+            session.revision = session
+                .revision
+                .checked_add(1)
+                .ok_or("Coaching revision limit reached")?;
+            session.updated_at = Utc::now().to_rfc3339();
+            if let Some(content) = remembered_fact {
+                let controls = self.memory_controls()?;
+                if controls.enabled
+                    && controls.remember_work_context
+                    && controls.learn_from_feedback
+                {
+                    let fact = self.create_memory(memory::MemoryInput {
+                        scope: memory::Scope::goal(session.goal_id),
+                        memory_type: memory::MemoryType::ExplicitFact,
+                        content,
+                    })?;
+                    self.connection
+                        .execute(
+                            "UPDATE memories SET source_key=?1 WHERE id=?2",
+                            params![format!("coaching-micro-action-{}", session.id), fact.id],
+                        )
+                        .map_err(db)?;
+                    self.connection
+                        .execute(
+                            "UPDATE coaching_sessions SET memory_id=?1 WHERE id=?2",
+                            params![fact.id, session.id],
+                        )
+                        .map_err(db)?;
+                }
             }
-            (Some(Control::Stop), None) => {
-                session.status = Status::Declined;
-                session.step = "declined".into();
-                session.resume_step = None;
-                session.outcome = Some(Outcome::Declined);
-            }
-            (Some(Control::Resume), None) if session.status == Status::Paused => {
-                session.step = session
-                    .resume_step
-                    .take()
-                    .ok_or("No coaching step to resume")?;
-                session.status = Status::Active;
-                session.outcome = None;
-            }
-            (Some(Control::Reply { reply }), None) if session.status == Status::Active => {
-                remembered_fact = strategy.handler.reply(&mut session, reply, strategy)?;
-            }
-            (None, Some(proposal)) if session.status == Status::Active => {
-                strategy.handler.propose(&mut session, proposal, strategy)?;
-            }
-            _ => return Err("This operation is not allowed at the current coaching step".into()),
-        }
-        session.revision = session
-            .revision
-            .checked_add(1)
-            .ok_or("Coaching revision limit reached")?;
-        session.updated_at = Utc::now().to_rfc3339();
-        if let Some(content) = remembered_fact {
-            let controls = self.memory_controls()?;
-            if controls.enabled && controls.remember_work_context && controls.learn_from_feedback {
-                let fact = self.create_memory(memory::MemoryInput {
-                    scope: memory::Scope::goal(session.goal_id),
-                    memory_type: memory::MemoryType::ExplicitFact,
-                    content,
-                })?;
-                self.connection
-                    .execute(
-                        "UPDATE memories SET source_key=?1 WHERE id=?2",
-                        params![format!("coaching-micro-action-{}", session.id), fact.id],
-                    )
-                    .map_err(db)?;
-                self.connection
-                    .execute(
-                        "UPDATE coaching_sessions SET memory_id=?1 WHERE id=?2",
-                        params![fact.id, session.id],
-                    )
-                    .map_err(db)?;
-            }
-        }
-        self.save_coaching(&session, key, &request)?;
-        tx.commit().map_err(db)?;
-        Ok(session)
+            self.save_coaching(&session, key, &request)?;
+            Ok(session)
+        })
     }
 
     /// Callers must supply current backend sharing permission; this performs no network call.

@@ -3,7 +3,7 @@ import { CoachingPanel } from "../coaching/CoachingPanel";
 import { Markdown } from "./Markdown";
 import { MessageMeta, Sources } from "./MessageParts";
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import "./conversation.css";
 import {
   ArrowUpRight,
@@ -23,6 +23,18 @@ import { readAttachment, recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
+import { coachingApi, type CoachingView } from "../coaching/api";
+
+type PendingMessage = {
+  text: string;
+  attachment: string | null;
+  voiceMessage: boolean;
+  requestId: string;
+  goalId: number | null;
+  coachingSessionId: number | null;
+  coachingRevision: number | null;
+  rememberResult: boolean;
+};
 
 export function Conversation({
   view,
@@ -77,10 +89,21 @@ export function Conversation({
   const fileInput = useRef<HTMLInputElement>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
-  const queued = useRef<
-    Array<{ text: string; attachment: string | null; voiceMessage: boolean }>
-  >([]);
+  const queued = useRef<PendingMessage[]>([]);
   const [waiting, setWaiting] = useState(false);
+  const [coaching, setCoaching] = useState<CoachingView | null>(null);
+  const [rememberResult, setRememberResult] = useState(false);
+  const updateCoaching = useCallback((next: CoachingView | null) => {
+    setCoaching((previous) =>
+      next &&
+      previous &&
+      (previous.session.id > next.session.id ||
+        (previous.session.id === next.session.id &&
+          previous.session.revision > next.session.revision))
+        ? previous
+        : next,
+    );
+  }, []);
   const followLatest = useRef(true);
   // Voice callbacks outlive a render, so they read the latest values from here.
   const latest = useRef({ text, mode, compact });
@@ -262,11 +285,23 @@ export function Conversation({
   // further messages are queued and sent one after another, so typing never has to wait.
   async function submit(prefix = "", override?: string) {
     const body = (override ?? text).trim();
-    if (!body || !desktop) return;
+    if (!body || !desktop || (coaching?.chat_bound && sending.current)) return;
     const outgoing = prefix + body;
     const voiceMessage = voiceDraft.current;
     voiceDraft.current = false;
     const shared = attachment?.text ?? null;
+    const pending: PendingMessage = {
+      text: outgoing,
+      attachment: shared,
+      voiceMessage,
+      requestId: crypto.randomUUID(),
+      goalId: coaching?.chat_bound
+        ? coaching.session.goal_id
+        : (goal?.id ?? null),
+      coachingSessionId: coaching?.chat_bound ? coaching.session.id : null,
+      coachingRevision: coaching?.chat_bound ? coaching.session.revision : null,
+      rememberResult,
+    };
     setText("");
     setAttachment(null);
     setError("");
@@ -278,32 +313,30 @@ export function Conversation({
         role: "user",
         text: outgoing,
         created_at: new Date().toISOString(),
-        goal_id: goal?.id ?? null,
+        goal_id: pending.goalId,
         resources: [],
       },
     ]);
     if (sending.current) {
-      queued.current.push({ text: outgoing, attachment: shared, voiceMessage });
+      queued.current.push(pending);
       return;
     }
     sending.current = true;
     setWaiting(true);
     onState("thinking");
-    let next:
-      | { text: string; attachment: string | null; voiceMessage: boolean }
-      | undefined = {
-      text: outgoing,
-      attachment: shared,
-      voiceMessage,
-    };
+    let next: PendingMessage | undefined = pending;
     try {
       while (next) {
         await aiApi.send(
           next.text,
           next.attachment,
-          goal?.id ?? null,
+          next.goalId,
           conversationId ?? null,
           next.voiceMessage,
+          next.requestId,
+          next.coachingSessionId,
+          next.coachingRevision,
+          next.rememberResult,
         );
         next = queued.current.shift();
       }
@@ -323,6 +356,9 @@ export function Conversation({
     }
     try {
       setMessages(await aiApi.history());
+      if (coaching?.chat_bound)
+        updateCoaching(await coachingApi.inspect(conversationId));
+      setRememberResult(false);
       await onChanged();
     } catch (e) {
       setError(String(e));
@@ -464,6 +500,8 @@ export function Conversation({
       {embedded && !compact && (
         <CoachingPanel
           conversationId={conversationId}
+          onChange={updateCoaching}
+          onRememberChange={setRememberResult}
           requested={/^(?:i (?:cannot|can't) start|help me start|не могу начать|помоги начать)[.!?]*$/i.test(
             text.trim(),
           )}
@@ -571,8 +609,12 @@ export function Conversation({
           value={text}
           maxLength={4000}
           rows={compact ? 2 : 3}
-          disabled={busy}
-          placeholder="Message sumi…"
+          disabled={busy || (!!coaching?.chat_bound && waiting)}
+          placeholder={
+            coaching?.chat_bound
+              ? `Reply about ${coaching.target?.title ?? "this goal"}…`
+              : "Message sumi…"
+          }
           onChange={(e) => {
             setText(e.target.value);
             if (!e.target.value.trim()) voiceDraft.current = false;
@@ -601,7 +643,7 @@ export function Conversation({
               type="button"
               className="companion-icon"
               aria-label="Attach text or PDF"
-              disabled={!desktop || busy}
+              disabled={!desktop || busy || !!coaching?.chat_bound}
               onClick={() => fileInput.current?.click()}
             >
               <Paperclip size={16} />
@@ -637,13 +679,18 @@ export function Conversation({
           {!compact && <span>Enter to send · Shift+Enter for a new line</span>}
           <button
             type="submit"
-            disabled={!desktop || busy || !text.trim()}
+            disabled={
+              !desktop ||
+              busy ||
+              !text.trim() ||
+              (!!coaching?.chat_bound && waiting)
+            }
             aria-label="Send message"
           >
             <Send size={15} />
           </button>
         </div>
-        {view.intent === "task" && (
+        {!coaching?.chat_bound && view.intent === "task" && (
           <button
             type="button"
             className="text-button"
@@ -663,7 +710,7 @@ export function Conversation({
             Add task locally
           </button>
         )}
-        {view.intent === "selection" && (
+        {!coaching?.chat_bound && view.intent === "selection" && (
           <div className="conversation-selection">
             <button
               type="button"

@@ -584,7 +584,7 @@ fn migration_is_idempotent_and_future_versions_are_rejected() {
             .unwrap(),
         session
     );
-    assert_eq!(count(&s, "coaching_migrations"), 1);
+    assert_eq!(count(&s, "coaching_migrations"), 2);
     assert_eq!(
         s.connection
             .query_row("SELECT COUNT(*) FROM pragma_foreign_key_check", [], |r| r
@@ -595,7 +595,7 @@ fn migration_is_idempotent_and_future_versions_are_rejected() {
         0
     );
     s.connection
-        .execute("INSERT INTO coaching_migrations VALUES(2,'2026-10-15')", [])
+        .execute("INSERT INTO coaching_migrations VALUES(3,'2026-10-15')", [])
         .unwrap();
     assert!(s.initialize_coaching().is_err());
 }

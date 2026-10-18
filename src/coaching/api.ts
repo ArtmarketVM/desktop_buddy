@@ -28,6 +28,7 @@ export interface CoachingView {
   target: CoachingTarget | null;
   fresh: boolean;
   can_remember: boolean;
+  chat_bound: boolean;
 }
 export type CoachingReply =
   | { type: "ready"; ready: boolean }

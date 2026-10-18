@@ -1,4 +1,4 @@
-//! Workspace entry points. Providers can propose actions, never submit user replies.
+//! Workspace coaching entry points and synthetic live diagnostics.
 use super::*;
 use crate::{
     commands::AppState,
@@ -12,6 +12,7 @@ pub struct View {
     pub target: Option<Target>,
     pub fresh: bool,
     pub can_remember: bool,
+    pub chat_bound: bool,
 }
 
 fn main_window(window: &WebviewWindow) -> Result<(), String> {
@@ -21,7 +22,7 @@ fn main_window(window: &WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
-fn sharing(storage: &Storage) -> Result<(), String> {
+pub(super) fn sharing(storage: &Storage) -> Result<(), String> {
     let prefs = storage.ai_preferences()?;
     if !prefs.enabled || !prefs.share_goal_context {
         return Err("Enable AI assistance and goal sharing to request a micro-action".into());
@@ -43,31 +44,20 @@ pub(crate) async fn headless_check() -> Result<Value, String> {
     )?;
     let goal = storage.core_snapshot(None)?.goals[0].id;
     let conversation = storage.current_conversation()?;
-    let mut session = storage.start_coaching(&Start {
-        request_id: "live-start".into(),
-        goal_id: goal,
-        step_id: Some("step-0".into()),
-        conversation_id: conversation,
-        expected_target_revision: storage.coaching_target(goal, Some("step-0"))?.revision,
-        strategy_id: "tiny_habits".into(),
-        strategy_version: 1,
-    })?;
-    for reply in [
-        Reply::Ready { ready: true },
-        Reply::Barrier {
-            barrier: Barrier::Overwhelm,
+    let mut session = super::chat::start(
+        &storage,
+        &Start {
+            request_id: "live-start".into(),
+            goal_id: goal,
+            step_id: Some("step-0".into()),
+            conversation_id: conversation,
+            expected_target_revision: storage.coaching_target(goal, Some("step-0"))?.revision,
+            strategy_id: "tiny_habits".into(),
+            strategy_version: 1,
         },
-    ] {
-        session = storage.reply_coaching(
-            session.id,
-            conversation,
-            session.revision,
-            &format!("live-reply-{}", session.revision),
-            &Control::Reply {
-                reply: reply.into(),
-            },
-        )?;
-    }
+    )?;
+    let before = serde_json::to_value(storage.core_snapshot(None)?.goals)
+        .map_err(|_| "Invalid check fixture")?;
     let state = AppState::new(storage)?;
     if state
         .inner
@@ -78,47 +68,58 @@ pub(crate) async fn headless_check() -> Result<Value, String> {
     {
         return Err("Live coaching check requires real provider responses".into());
     }
-    let result = generate(
-        &state,
-        None,
-        session.id,
-        conversation,
-        session.revision,
-        "live-proposal",
-    )
-    .await?;
+    // Synthetic text replies exercise the same interpreter and reducer as the composer.
+    for (index, (text, expected)) in [
+        (
+            "I feel overwhelmed by the size of this proposal and do not know where to begin",
+            "feasibility",
+        ),
+        ("8", "anchor"),
+        ("Skip the anchor", "commitment"),
+        ("Yes, I want to try this small action now", "execution"),
+        ("I did the small action just now", "completed"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let key = format!("live-text-{index}");
+        super::chat::handle(
+            &state,
+            super::chat::Input {
+                conversation: session.conversation_id,
+                text,
+                attachment: "",
+                request_id: &key,
+                session_id: Some(session.id),
+                revision: Some(session.revision),
+                remember: false,
+            },
+            None,
+        )
+        .await?;
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        session = inner
+            .storage
+            .coaching_session(session.id, session.conversation_id)?;
+        if session.step != expected {
+            return Err(format!(
+                "Live coaching text check expected {expected}, received {}",
+                session.step
+            ));
+        }
+    }
     let inner = state
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
-    let before = serde_json::to_value(inner.storage.core_snapshot(None)?.goals)
-        .map_err(|_| "Invalid check fixture")?;
-    session = result.session;
-    // These are synthetic fixture answers, never reports about a user's real work.
-    for reply in [
-        Reply::Ease { score: 8 },
-        Reply::Anchor { anchor: None },
-        Reply::Commit { accepted: true },
-        Reply::Report {
-            completed: true,
-            remember: false,
-        },
-    ] {
-        session = inner.storage.reply_coaching(
-            session.id,
-            conversation,
-            session.revision,
-            &format!("live-reply-{}", session.revision),
-            &Control::Reply {
-                reply: reply.into(),
-            },
-        )?;
-    }
     let unchanged = serde_json::to_value(inner.storage.core_snapshot(None)?.goals)
         .map_err(|_| "Invalid check fixture")?
         == before;
     Ok(
-        json!({"all_passed":session.status == Status::Completed && unchanged,"fixture":"synthetic_in_memory","strategy":"tiny_habits","real_provider_proposal":true,"micro_action_report":"synthetic","parent_goal_unchanged":unchanged}),
+        json!({"all_passed":session.status == Status::Completed && unchanged,"fixture":"synthetic_in_memory","strategy":"tiny_habits","real_provider_text_turns":5,"micro_action_report":"synthetic","parent_goal_unchanged":unchanged}),
     )
 }
 
@@ -130,11 +131,14 @@ fn view(storage: &Storage, session: Session) -> Result<View, String> {
         .as_ref()
         .is_some_and(|t| t.revision == session.target_revision);
     let memory = storage.memory_controls()?;
+    let chat_bound =
+        super::chat::binding(storage, session.conversation_id)?.is_some_and(|s| s.id == session.id);
     Ok(View {
         session,
         target,
         fresh,
         can_remember: memory.enabled && memory.remember_work_context && memory.learn_from_feedback,
+        chat_bound,
     })
 }
 
@@ -206,7 +210,7 @@ pub fn start_coaching_session(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     crate::agent_runtime::begin_explicit(&mut inner, crate::agent_runtime::EventKind::UserMessage);
-    let session = inner.storage.start_coaching(&input)?;
+    let session = super::chat::start(&inner.storage, &input)?;
     // A replay returns the original response; display the current authoritative revision.
     let result = view(
         &inner.storage,
@@ -214,10 +218,6 @@ pub fn start_coaching_session(
             .storage
             .coaching_session(session.id, session.conversation_id)?,
     )?;
-    inner.storage.connection.execute(
-        "UPDATE buddy_conversations SET title=CASE WHEN title='New chat' THEN ?1 ELSE title END,updated_at=?2 WHERE id=?3",
-        params![format!("Help me start: {}", result.target.as_ref().map(|t| t.title.as_str()).unwrap_or("saved goal")), session.updated_at, session.conversation_id],
-    ).map_err(db)?;
     inner.storage.select_conversation(session.conversation_id)?;
     drop(inner);
     let _ = window.emit("buddy://chat-updated", ());
@@ -241,7 +241,8 @@ pub fn reply_coaching_session(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     crate::agent_runtime::begin_explicit(&mut inner, crate::agent_runtime::EventKind::UserMessage);
-    let session = inner.storage.reply_coaching(
+    let session = super::chat::control(
+        &inner.storage,
         session_id,
         conversation_id,
         expected_revision,

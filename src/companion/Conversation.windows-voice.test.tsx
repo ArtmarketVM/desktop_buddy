@@ -77,6 +77,10 @@ it("uses Windows local WAV transcription and the same agent command after review
       null,
       null,
       true,
+      expect.any(String),
+      null,
+      null,
+      false,
     ),
   );
 });
