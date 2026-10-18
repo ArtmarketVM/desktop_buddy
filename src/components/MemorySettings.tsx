@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Hint } from "../core/Hint";
 import { desktop } from "../api/tauri";
 import {
   memoryApi,
@@ -23,6 +24,29 @@ export function memoryCategory(item: MemoryItem): Category {
   if (item.event_kind === "goal_parked") return "Parked contexts";
   return "Work";
 }
+// Plain labels and one-sentence hints for the compact controls on the AI tab.
+const COMPACT: Record<keyof MemoryControls, [string, string]> = {
+  enabled: [
+    "Remember",
+    "Facts you tell sumi, where you stopped on each goal, and the ways of working you confirm. Kept on this Mac.",
+  ],
+  remember_work_context: [
+    "Where I left off",
+    "Facts you ask it to keep, the step you stopped at, and what happened on each goal.",
+  ],
+  remember_preferences: [
+    "How I like to work",
+    "Choices you confirm in chat, and habits sumi notices once you approve them.",
+  ],
+  learn_from_feedback: [
+    "Learn from my feedback",
+    "Your thumbs up or down on suggestions shape the next ones. A habit counts only after it repeats on several days.",
+  ],
+  remember_conversation_context: [
+    "Carry chats forward",
+    "Uses what was said in a chat on the same goal next time, and may suggest a preference for you to approve.",
+  ],
+};
 const toggles: [keyof MemoryControls, string, string][] = [
   [
     "enabled",
@@ -146,15 +170,27 @@ export function MemorySettings({
         <>
           {part !== "browser" &&
             toggles.map(([key, label, help]) => (
-              <label className="toggle-row" key={key}>
-                <span>
-                  {label}
-                  <small id={`memory-help-${key}`}>{help}</small>
-                </span>
+              <label
+                className={`toggle-row ${part === "controls" && key !== "enabled" ? "sub" : ""}`}
+                key={key}
+              >
+                {part === "controls" ? (
+                  <span className="lbl">
+                    {COMPACT[key][0]}
+                    <Hint text={COMPACT[key][1]} />
+                  </span>
+                ) : (
+                  <span>
+                    {label}
+                    <small id={`memory-help-${key}`}>{help}</small>
+                  </span>
+                )}
                 <input
                   type="checkbox"
                   aria-label={label}
-                  aria-describedby={`memory-help-${key}`}
+                  aria-describedby={
+                    part === "controls" ? undefined : `memory-help-${key}`
+                  }
                   checked={data.controls[key]}
                   disabled={
                     blocked || (key !== "enabled" && !data.controls.enabled)

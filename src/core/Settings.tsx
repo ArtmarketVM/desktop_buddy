@@ -9,14 +9,14 @@ import {
   defaultUserSettings,
   type Dashboard,
 } from "../types";
-import { ProviderKey } from "../components/Settings";
+import { ProviderRow } from "./ProviderRow";
+import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WindowActivity } from "./WindowActivity";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
 import { AiSettings } from "../ai/AiSettings";
-import { SidebarAiServices } from "../components/SidebarAiServices";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
@@ -133,6 +133,16 @@ export function CoreSettings({
         ? "Needs attention"
         : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
+  const [services, setServices] = useState<ServiceSnapshot | null>(null);
+  useEffect(() => {
+    if (section !== "AI" || !desktop) return;
+    void serviceStatusApi
+      .read()
+      .then(setServices)
+      .catch(() => undefined);
+  }, [section, data.status.nebius_configured, data.status.tavily_configured]);
+  const serviceState = (id: "nebius" | "tavily") =>
+    services?.services.find((item) => item.id === id)?.status;
   useEffect(() => {
     if (section !== "Privacy" || !desktop) return;
     let active = true;
@@ -614,15 +624,40 @@ export function CoreSettings({
         <details className="core-section" hidden={section !== "AI"} open>
           <summary>AI</summary>
           <div className="settings-cards">
-            <section className="settings-card" aria-label="Services">
+            <section
+              className="settings-card settings-card-full"
+              aria-label="Services"
+            >
               <p className="eyebrow settings-card-title">Services</p>
-              <SidebarAiServices enabled variant="panel" />
-              <label>
-                Vision model (optional)
+              <ProviderRow
+                provider="nebius"
+                name="Nebius"
+                role={
+                  services?.configured_model
+                    ? `runs the AI · ${services.configured_model}`
+                    : "runs the AI"
+                }
+                configured={data.status.nebius_configured}
+                checked={serviceState("nebius")}
+                onChanged={onChanged}
+              />
+              <ProviderRow
+                provider="tavily"
+                name="Tavily"
+                role="web search"
+                configured={data.status.tavily_configured}
+                checked={serviceState("tavily")}
+                onChanged={onChanged}
+              />
+              <label className="setting-row">
+                <span className="svc">
+                  <b>Vision model</b>
+                  <small>optional</small>
+                </span>
                 <input
                   maxLength={160}
                   value={preferences.vision_model}
-                  placeholder="Your provider's vision model ID"
+                  placeholder="Model ID"
                   disabled={blocked}
                   onChange={(e) => {
                     setPreferences({
@@ -633,33 +668,27 @@ export function CoreSettings({
                   }}
                 />
               </label>
-              <ProviderKey
-                provider="nebius"
-                label="Nebius Token Factory"
-                onChanged={onChanged}
-              />
-              <p className="connection">
-                Nebius ·{" "}
-                {data.status.nebius_configured
-                  ? "Key configured"
-                  : "Not configured"}
-              </p>
-              <ProviderKey
-                provider="tavily"
-                label="Tavily"
-                onChanged={onChanged}
-              />
-              <p className="connection">
-                Tavily ·{" "}
-                {data.status.tavily_configured
-                  ? "Key configured"
-                  : "Not configured"}
-              </p>
             </section>
-            <section className="settings-card" aria-label="What the AI may do">
-              <p className="eyebrow settings-card-title">What the AI may do</p>
-              <AiSettings onChanged={onChanged} />
+            <section className="settings-card" aria-label="AI">
+              <p className="eyebrow settings-card-title">AI</p>
+              <AiSettings onChanged={onChanged} compact />
+            </section>
+            <section className="settings-card" aria-label="Memory">
+              <p className="eyebrow settings-card-title">Memory</p>
               <MemorySettings part="controls" onChanged={onChanged} />
+              <div className="setting-row">
+                <span />
+                <button
+                  type="button"
+                  className="text-button row-link"
+                  onClick={() => {
+                    setShowMemory(true);
+                    setSection("Privacy");
+                  }}
+                >
+                  See what sumi remembers ↗
+                </button>
+              </div>
             </section>
           </div>
         </details>

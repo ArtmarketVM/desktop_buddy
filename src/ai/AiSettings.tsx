@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { desktop } from "../api/tauri";
 import { aiApi, defaultAiPreferences, type AiPreferences } from "./api";
-export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
+import { Hint } from "../core/Hint";
+export function AiSettings({
+  onChanged,
+  compact = false,
+}: {
+  onChanged: () => Promise<void>;
+  /** Two plain switches with hints, no small print. */
+  compact?: boolean;
+}) {
   const [preferences, setPreferences] = useState(defaultAiPreferences);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -26,6 +34,42 @@ export function AiSettings({ onChanged }: { onChanged: () => Promise<void> }) {
       setBusy(false);
     }
   }
+  if (compact)
+    return (
+      <section aria-label="sumi AI sharing">
+        <label className="toggle-row">
+          <span className="lbl">
+            Use AI
+            <Hint text="Coach chat, goal suggestions and web search through the services above. Off stops every request." />
+          </span>
+          <input
+            type="checkbox"
+            checked={preferences.enabled}
+            disabled={!desktop || busy}
+            onChange={(e) => void save({ enabled: e.target.checked })}
+          />
+        </label>
+        <label className="toggle-row">
+          <span className="lbl">
+            Match my activity to goals
+            <Hint text="Sends the window in front and your open goals to Nebius, so tracked time lands on the right goal." />
+          </span>
+          <input
+            type="checkbox"
+            checked={preferences.automatic_goal_matching}
+            disabled={!desktop || busy}
+            onChange={(e) =>
+              void save({ automatic_goal_matching: e.target.checked })
+            }
+          />
+        </label>
+        {error && (
+          <p role="alert" className="error">
+            {error}
+          </p>
+        )}
+      </section>
+    );
   return (
     <section aria-label="sumi AI sharing">
       <label className="toggle-row">

@@ -1,0 +1,142 @@
+import { useEffect, useState } from "react";
+import { api, desktop } from "../api/tauri";
+import type { ServiceState } from "../ai/serviceStatus";
+
+/** One provider as a row: name, status dot, and Test / Replace / Remove as small actions. */
+export function ProviderRow({
+  provider,
+  name,
+  role,
+  configured,
+  checked,
+  onChanged,
+}: {
+  provider: "nebius" | "tavily";
+  name: string;
+  role: string;
+  configured: boolean;
+  /** Result of the last background check, when known. */
+  checked?: ServiceState;
+  onChanged: () => Promise<void>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [key, setKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  useEffect(() => {
+    if (!note) return;
+    const timer = window.setTimeout(() => setNote(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [note]);
+  async function act(work: () => Promise<unknown>, done: string) {
+    setBusy(true);
+    try {
+      await work();
+      setNote({ text: done, ok: true });
+      await onChanged();
+    } catch (e) {
+      const text = String(e).replace(/^Error:\s*/, "");
+      setNote({ text: text.length > 40 ? "Failed" : text, ok: false });
+    } finally {
+      setBusy(false);
+    }
+  }
+  const off = !desktop || busy;
+  // Saved is not the same as working: the dot follows the last real check.
+  const verdict = !configured
+    ? ["paused", "No key"]
+    : checked === "verified"
+      ? ["running", "Connected"]
+      : checked === "unavailable" || checked === "expired"
+        ? ["attention", "Not working"]
+        : checked === "offline"
+          ? ["paused", "Offline"]
+          : ["paused", "Key saved, not checked yet"];
+  const state = note ? (note.ok ? "running" : "attention") : verdict[0];
+  return (
+    <>
+      <div className="setting-row provider-row">
+        <span className="svc">
+          <b>{name}</b>
+          <small>{role}</small>
+        </span>
+        <span className="acts">
+          <span className={`tracking-state ${state}`} role="status">
+            <i aria-hidden="true" />
+            {note ? note.text : verdict[1]}
+          </span>
+          {configured && (
+            <button
+              type="button"
+              className="text-button row-link"
+              disabled={off}
+              onClick={() =>
+                void act(() => api.testConnection(provider), "Connected")
+              }
+            >
+              Test
+            </button>
+          )}
+          <button
+            type="button"
+            className="text-button row-link"
+            disabled={off}
+            onClick={() => {
+              setEditing((open) => !open);
+              setKey("");
+            }}
+          >
+            {editing ? "Cancel" : configured ? "Replace" : "Add key"}
+          </button>
+          {configured && !editing && (
+            <button
+              type="button"
+              className="text-button row-link muted"
+              disabled={off}
+              onClick={() =>
+                void act(() => api.providerKey(provider, null), "Key removed")
+              }
+            >
+              Remove
+            </button>
+          )}
+        </span>
+      </div>
+      {editing && (
+        <form
+          className="setting-row provider-key-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!key.trim()) return;
+            void act(
+              () => api.providerKey(provider, key.trim()),
+              "Key saved",
+            ).then(() => {
+              setEditing(false);
+              setKey("");
+            });
+          }}
+        >
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={2048}
+            aria-label={`${name} API key`}
+            placeholder="Paste a new key"
+            value={key}
+            disabled={off}
+            onChange={(event) => setKey(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="small-button"
+            disabled={off || !key.trim()}
+          >
+            Save
+          </button>
+        </form>
+      )}
+    </>
+  );
+}

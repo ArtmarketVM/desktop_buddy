@@ -2791,3 +2791,103 @@ p.error .text-button {
   gap: 16px;
   margin-top: 12px;
 }
+
+/* AI tab: provider rows, hints, compact switch cards. */
+.settings-card-full {
+  grid-column: 1 / -1;
+}
+.settings-card .svc {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.settings-card .svc b {
+  font-weight: 500;
+}
+.settings-card .svc small {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.core-workspace .settings-card .row-link {
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .settings-card .row-link.muted {
+  color: var(--muted);
+}
+.settings-card .provider-key-row {
+  gap: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.core-workspace .settings-card .provider-key-row input,
+.core-workspace .settings-card .setting-row input:not([type="checkbox"]):not([type="time"]) {
+  margin: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .provider-key-row input {
+  flex: 1;
+}
+.core-workspace .settings-card .setting-row > input:not([type="checkbox"]):not([type="time"]) {
+  width: 200px;
+}
+.settings-card .toggle-row.sub {
+  padding-left: 18px;
+}
+.settings-card .lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--muted);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--pix);
+  font-size: 7px;
+  line-height: 1;
+  cursor: help;
+}
+.hint::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: max-content;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-family: var(--sans);
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+}
+.hint:hover::after,
+.hint:focus-visible::after {
+  opacity: 1;
+}
