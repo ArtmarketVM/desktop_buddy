@@ -1816,3 +1816,13 @@ main.desktop-buddy.chatting > .companion-error {
 .sidebar-collapsed .profile-entry:focus-visible::after {
   opacity: 1;
 }
+
+/* Collapsed pages: the hidden label takes no space, so the hover box is the icon square only. */
+.sidebar-collapsed #workspace-navigation .nav-item {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.sidebar-collapsed #workspace-navigation .nav-label {
+  display: none;
+}
