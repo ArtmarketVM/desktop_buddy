@@ -21,6 +21,7 @@ import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
 import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
 import { toast } from "../components/Toasts";
+import { memoryApi } from "../api/memory";
 import { GoalOrder } from "./GoalOrder";
 import { Pager, usePage } from "./Pager";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
@@ -132,6 +133,10 @@ export function GoalRow({
     id: menuId,
   } = useDismissiblePopover();
   const [menuPosition, setMenuPosition] = useState({ left: 0, top: 0 });
+  const [forgetArmed, setForgetArmed] = useState(false);
+  useEffect(() => {
+    if (!menu) setForgetArmed(false);
+  }, [menu]);
   useLayoutEffect(() => {
     if (!menu || !menuSurface.current || !menuTrigger.current) return;
     menuSurface.current
@@ -306,6 +311,30 @@ export function GoalRow({
                     }}
                   >
                     {today ? "Remove from Today" : "Add to Today"}
+                  </button>
+                  <button
+                    disabled={disabled}
+                    onClick={() => {
+                      // Forgetting is permanent, so the first click only arms the item.
+                      if (!forgetArmed) {
+                        setForgetArmed(true);
+                        return;
+                      }
+                      setForgetArmed(false);
+                      setMenu(false);
+                      void run(() => memoryApi.clearGoal(goal.id)).then(
+                        (ok) => {
+                          if (ok)
+                            toast({
+                              message: `Forgot what sumi remembered about “${sentenceCase(goal.title)}”`,
+                            });
+                        },
+                      );
+                    }}
+                  >
+                    {forgetArmed
+                      ? "Click again to forget"
+                      : "Forget what sumi remembers about this goal"}
                   </button>
                   <button
                     className="danger-text"

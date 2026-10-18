@@ -157,33 +157,6 @@ describe("Memory settings", () => {
     await user.click(screen.getByRole("button", { name: "Pin" }));
     await waitFor(() => expect(memoryApi.pin).toHaveBeenCalledWith(1, true));
   });
-  it("clears memory with a separate confirmation and promises to retain goals and history", async () => {
-    const user = await mount();
-    await user.click(
-      screen.getByRole("button", { name: "Clear personal memory" }),
-    );
-    expect(memoryApi.clear).not.toHaveBeenCalled();
-    expect(
-      screen.getByText(
-        /Goals, steps, chats, activity history, settings and API keys stay saved/,
-      ),
-    ).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
-    await waitFor(() => expect(memoryApi.clear).toHaveBeenCalledOnce());
-  });
-  it("forgets only the selected goal after confirmation", async () => {
-    const user = await mount();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Goal" }),
-      "7",
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Forget memories about this goal" }),
-    );
-    expect(memoryApi.clearGoal).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
-    await waitFor(() => expect(memoryApi.clearGoal).toHaveBeenCalledWith(7));
-  });
   it("keeps an actionable error when a stale edit is rejected", async () => {
     vi.mocked(memoryApi.edit).mockRejectedValue(
       new Error("This memory changed. Reload before editing."),

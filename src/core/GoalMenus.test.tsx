@@ -90,6 +90,12 @@ it("Escape closes and restores focus to the exact trigger", async () => {
   );
   await user.tab();
   expect(document.activeElement).toBe(
+    screen.getByRole("button", {
+      name: "Forget what sumi remembers about this goal",
+    }),
+  );
+  await user.tab();
+  expect(document.activeElement).toBe(
     screen.getByRole("button", { name: "Delete goal" }),
   );
   await user.keyboard("{Escape}");

@@ -113,7 +113,6 @@ export function MemorySettings({
     label: string;
     action: () => Promise<unknown>;
   } | null>(null);
-  const [goalId, setGoalId] = useState("");
   const [debug, setDebug] = useState<unknown>(null);
   useEffect(() => {
     let active = true;
@@ -512,57 +511,6 @@ export function MemorySettings({
                   ))}
                 </section>
               )}
-              <div className="danger-zone">
-                <h3>Forget memory</h3>
-                <label>
-                  Goal
-                  <select
-                    value={goalId}
-                    disabled={blocked}
-                    onChange={(e) => setGoalId(e.target.value)}
-                  >
-                    <option value="">Choose a goal</option>
-                    {data.goals.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  disabled={blocked || !goalId}
-                  onClick={() =>
-                    setConfirmation({
-                      label:
-                        "Forget all memories and checkpoints about this goal? The goal and steps will stay saved.",
-                      action: () => memoryApi.clearGoal(Number(goalId)),
-                    })
-                  }
-                >
-                  Forget memories about this goal
-                </button>
-                <p>
-                  Clear personal memory removes remembered facts, preferences,
-                  patterns, events, checkpoints and pending suggestions,
-                  including pinned items. Goals, steps, chats, activity history,
-                  settings and API keys stay saved. New memories can be recorded
-                  afterward if Memory is on.
-                </p>
-                <button
-                  type="button"
-                  disabled={blocked}
-                  onClick={() =>
-                    setConfirmation({
-                      label:
-                        "Clear all personal memory permanently? This cannot be undone.",
-                      action: memoryApi.clear,
-                    })
-                  }
-                >
-                  Clear personal memory
-                </button>
-              </div>
               {confirmation && (
                 <div role="alertdialog" aria-label="Confirm memory deletion">
                   <p>{confirmation.label}</p>
