@@ -86,7 +86,7 @@ export function ProviderRow({
               setKey("");
             }}
           >
-            {editing ? "Cancel" : configured ? "Replace" : "Add key"}
+            {editing ? "Cancel" : configured ? "Replace key" : "Add key"}
           </button>
           {configured && !editing && (
             <button

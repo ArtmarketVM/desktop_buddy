@@ -2897,3 +2897,143 @@ p.error .text-button {
 .hint:focus-visible::after {
   opacity: 1;
 }
+
+/* Privacy: a row of squared buttons under the sentence; only one panel open at a time. */
+.privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.core-workspace .privacy-action {
+  min-height: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.core-workspace .privacy-action:hover {
+  background: var(--raised);
+}
+.core-workspace .privacy-action.on {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--canvas);
+}
+
+/* The memory browser inside a card: chips, tight rows, link-style actions. */
+.settings-card .memory-settings h3 {
+  margin: 14px 0 6px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 400;
+}
+.settings-card .memory-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+.settings-card .memory-items {
+  margin: 0;
+}
+.settings-card .memory-items > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 2px;
+  padding: 7px 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-bottom: 0;
+}
+.settings-card .memory-items > li > p {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+.settings-card .memory-items > li > p.helper,
+.settings-card .memory-items > li > small {
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .memory-items > li > .memory-actions {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  margin: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.core-workspace .settings-card .memory-actions > button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .settings-card .memory-actions > button:last-child {
+  color: var(--danger);
+}
+.core-workspace .settings-card .memory-settings > p[role="status"],
+.core-workspace .settings-card .memory-settings .helper {
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.settings-card .memory-settings .danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+}
+.settings-card .memory-settings .danger-zone h3 {
+  width: 100%;
+  margin: 8px 0 0;
+}
+.settings-card .memory-settings .danger-zone label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .memory-settings .danger-zone select {
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .memory-settings details {
+  margin-top: 10px;
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.settings-card .memory-settings [role="alertdialog"] {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 3px;
+}

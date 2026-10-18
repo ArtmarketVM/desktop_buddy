@@ -105,9 +105,7 @@ export function CoreSettings({
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
   const [retention, setRetention] = useState(data.retention_days);
   const [preview, setPreview] = useState("");
-  const [showRaw, setShowRaw] = useState(false);
-  const [showLog, setShowLog] = useState(false);
-  const [showMemory, setShowMemory] = useState(false);
+  const [panel, setPanel] = useState<"log" | "memory" | "raw" | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const logLast = new Date().toISOString().slice(0, 10);
   const logFirst = new Date(Date.now() - 6 * 86_400_000)
@@ -563,41 +561,42 @@ export function CoreSettings({
           <div className="privacy-sentence">
             <span className="privacy-cell" aria-hidden="true" />
             <p role="status">{privacySentence}</p>
-            <span className="privacy-links">
-              <button
-                type="button"
-                className="text-button privacy-link"
-                onClick={() => void openUrl(PRIVACY_POLICY_URL)}
-              >
-                Privacy policy ↗
-              </button>
-              <button
-                type="button"
-                className="text-button privacy-link"
-                onClick={() => setShowLog((open) => !open)}
-              >
-                {showLog ? "Hide the activity log" : "See the activity log"}
-              </button>
-              <button
-                type="button"
-                className="text-button privacy-link"
-                onClick={() => setShowMemory((open) => !open)}
-              >
-                {showMemory
-                  ? "Hide what sumi remembers"
-                  : "See what sumi remembers"}
-              </button>
-              <button
-                type="button"
-                className="text-button privacy-link muted"
-                disabled={blocked}
-                onClick={() => setShowRaw((open) => !open)}
-              >
-                {showRaw ? "Hide raw data" : "Raw data"}
-              </button>
-            </span>
           </div>
-          {showLog && (
+          <div className="privacy-actions">
+            <button
+              type="button"
+              className={`privacy-action ${panel === "log" ? "on" : ""}`}
+              aria-pressed={panel === "log"}
+              onClick={() => setPanel(panel === "log" ? null : "log")}
+            >
+              See the activity log
+            </button>
+            <button
+              type="button"
+              className={`privacy-action ${panel === "memory" ? "on" : ""}`}
+              aria-pressed={panel === "memory"}
+              onClick={() => setPanel(panel === "memory" ? null : "memory")}
+            >
+              See what sumi remembers
+            </button>
+            <button
+              type="button"
+              className={`privacy-action ${panel === "raw" ? "on" : ""}`}
+              aria-pressed={panel === "raw"}
+              disabled={blocked}
+              onClick={() => setPanel(panel === "raw" ? null : "raw")}
+            >
+              Raw data
+            </button>
+            <button
+              type="button"
+              className="privacy-action"
+              onClick={() => void openUrl(PRIVACY_POLICY_URL)}
+            >
+              Privacy policy ↗
+            </button>
+          </div>
+          {panel === "log" && (
             <section
               className="settings-card activity-log"
               aria-label="Activity log"
@@ -608,7 +607,7 @@ export function CoreSettings({
               <WindowActivity first={logFirst} last={logLast} />
             </section>
           )}
-          {showMemory && (
+          {panel === "memory" && (
             <section
               className="settings-card activity-log"
               aria-label="What sumi remembers"
@@ -617,7 +616,7 @@ export function CoreSettings({
               <MemorySettings part="browser" onChanged={onChanged} />
             </section>
           )}
-          {showRaw && preview && (
+          {panel === "raw" && preview && (
             <pre className="privacy-preview">{preview}</pre>
           )}
         </details>
@@ -682,7 +681,7 @@ export function CoreSettings({
                   type="button"
                   className="text-button row-link"
                   onClick={() => {
-                    setShowMemory(true);
+                    setPanel("memory");
                     setSection("Privacy");
                   }}
                 >

@@ -210,34 +210,24 @@ export function MemorySettings({
             ))}
           {part !== "controls" && (
             <>
-              <h3>View what sumi remembers</h3>
-              <button
-                type="button"
-                disabled={blocked}
-                onClick={() => void run(async () => {}, "Memory reloaded.")}
-              >
-                Reload memories
-              </button>
-              <label>
-                Category
-                <select
-                  value={category}
-                  onChange={(e) => {
-                    setCategory(e.target.value as Category);
-                    setEditing(null);
-                    setConfirmation(null);
-                  }}
-                >
-                  {memoryCategories.map((value) => (
-                    <option key={value}>{value}</option>
-                  ))}
-                </select>
-              </label>
-              <p className="helper">
-                Turning a category off stops saving and recalling it; existing
-                items stay visible here. Archived items are excluded from AI
-                context. Pinning never overrides privacy or scope.
-              </p>
+              {part === "all" && <h3>View what sumi remembers</h3>}
+              <div className="memory-filter" role="group" aria-label="Category">
+                {memoryCategories.map((value) => (
+                  <button
+                    type="button"
+                    key={value}
+                    className="day-chip"
+                    aria-pressed={category === value}
+                    onClick={() => {
+                      setCategory(value);
+                      setEditing(null);
+                      setConfirmation(null);
+                    }}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
               <ul className="memory-items">
                 {data.memories
                   .filter((item) => memoryCategory(item) === category)
@@ -466,10 +456,12 @@ export function MemorySettings({
               {data.proposals.length > 0 && (
                 <section aria-label="Memory suggestions">
                   <h3>Preferences to review</h3>
-                  <p>
-                    These suggestions are not saved memories. Review the exact
-                    text before accepting.
-                  </p>
+                  {part === "all" && (
+                    <p>
+                      These suggestions are not saved memories. Review the exact
+                      text before accepting.
+                    </p>
+                  )}
                   {data.proposals.map((proposal) => (
                     <div key={proposal.id}>
                       <p>{proposal.content}</p>

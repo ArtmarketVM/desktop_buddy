@@ -70,7 +70,12 @@ describe("Memory settings", () => {
       expect(
         screen.getByRole("checkbox", { name: new RegExp(`^${name}`) }),
       ).toBeTruthy();
-    expect(screen.getAllByRole("option").map((x) => x.textContent)).toEqual(
+    const filter = screen.getByRole("group", { name: "Category" });
+    expect(
+      within(filter)
+        .getAllByRole("button")
+        .map((x) => x.textContent),
+    ).toEqual(
       expect.arrayContaining([
         "Work",
         "Preferences",
@@ -211,9 +216,11 @@ describe("Memory settings", () => {
       },
     ];
     const user = await mount();
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "Category" }),
-      "Waiting",
+    await user.click(
+      within(screen.getByRole("group", { name: "Category" })).getByRole(
+        "button",
+        { name: "Waiting" },
+      ),
     );
     expect(screen.getByText("Waiting for review")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Edit" }));
