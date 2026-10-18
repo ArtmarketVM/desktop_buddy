@@ -648,6 +648,12 @@ export function GoalEditor({
   const [description, setDescription] = useState(goal.description ?? "");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [forgetArmed, setForgetArmed] = useState(false);
+  useEffect(() => {
+    if (!forgetArmed) return;
+    const timer = window.setTimeout(() => setForgetArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [forgetArmed]);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -782,6 +788,31 @@ export function GoalEditor({
           </button>
           <button className="text-button" disabled={busy} onClick={close}>
             Cancel
+          </button>
+          <button
+            className="text-button"
+            disabled={busy}
+            onClick={() => {
+              if (!forgetArmed) {
+                setForgetArmed(true);
+                return;
+              }
+              setForgetArmed(false);
+              setBusy(true);
+              void memoryApi
+                .clearGoal(goal.id)
+                .then(() =>
+                  toast({
+                    message: `Forgot what sumi remembered about “${sentenceCase(goal.title)}”`,
+                  }),
+                )
+                .catch((e) => setSaveError(String(e)))
+                .finally(() => setBusy(false));
+            }}
+          >
+            {forgetArmed
+              ? "Click again to forget"
+              : "Forget what sumi remembers about this goal"}
           </button>
           <button
             className="text-button danger-text"

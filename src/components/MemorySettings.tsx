@@ -113,7 +113,6 @@ export function MemorySettings({
     label: string;
     action: () => Promise<unknown>;
   } | null>(null);
-  const [debug, setDebug] = useState<unknown>(null);
   useEffect(() => {
     let active = true;
     if (desktop && !initialData)
@@ -147,7 +146,6 @@ export function MemorySettings({
       setMessage(success);
       setConfirmation(null);
       setEditing(null);
-      setDebug(null);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -532,30 +530,6 @@ export function MemorySettings({
                   </button>
                 </div>
               )}
-              <details>
-                <summary>Memory selection diagnostics</summary>
-                <p className="helper">
-                  Local counts, IDs and selection reasons only. No memory
-                  content, request text or window text is recorded.
-                </p>
-                <button
-                  type="button"
-                  disabled={blocked}
-                  onClick={() => {
-                    void memoryApi
-                      .debug()
-                      .then(setDebug)
-                      .catch((e) => setError(String(e)));
-                  }}
-                >
-                  Show selection metadata
-                </button>
-                {debug != null && (
-                  <pre className="privacy-preview">
-                    {JSON.stringify(debug, null, 2)}
-                  </pre>
-                )}
-              </details>
             </>
           )}
         </>
