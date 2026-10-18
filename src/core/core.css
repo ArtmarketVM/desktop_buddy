@@ -3037,3 +3037,24 @@ p.error .text-button {
   padding: 10px 12px;
   border-radius: 3px;
 }
+/* Memory browser buttons are small and squared; the long clear-memory paragraph goes. */
+.core-workspace .settings-card .memory-settings button:not(.day-chip):not(.memory-actions > button) {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--text);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  color: var(--danger);
+}
+.settings-card .memory-settings .danger-zone > p {
+  display: none;
+}
+.settings-card .memory-settings > p[role="status"] {
+  margin: 6px 0 10px;
+}
