@@ -18,6 +18,7 @@ import { UpdateEntry } from "./Updates";
 import { isMac } from "../api/platform";
 import { readSidebarCollapsed, isSidebarShortcut } from "./sidebar";
 import { SidebarAiServices } from "./SidebarAiServices";
+import { Avatar } from "./Avatar";
 
 export type WorkspacePage =
   | "focus"
@@ -190,6 +191,10 @@ export function AppShell({
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
+            <Avatar
+              appearance={{ ...profile.avatar, visible: true }}
+              state="working"
+            />
             <div>sumi</div>
           </div>
           {!isMac && sidebarButton}

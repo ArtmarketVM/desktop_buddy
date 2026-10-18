@@ -193,7 +193,6 @@
 .sidebar-collapsed .profile-name {
   font-size: var(--text-caption);
 }
-.sidebar-collapsed .workspace-brand,
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .update-entry > span:last-child {
   visibility: hidden;
@@ -1824,5 +1823,21 @@ main.desktop-buddy.chatting > .companion-error {
   justify-content: center;
 }
 .sidebar-collapsed #workspace-navigation .nav-label {
+  display: none;
+}
+
+/* The mascot is the mark: a small working sumi before the wordmark, alone when the sidebar is collapsed. */
+.sidebar .workspace-brand {
+  overflow: visible;
+}
+.sidebar .workspace-brand > .avatar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+.sidebar-collapsed .workspace-brand {
+  justify-content: center;
+}
+.sidebar-collapsed .workspace-brand > div {
   display: none;
 }

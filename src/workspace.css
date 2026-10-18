@@ -1798,20 +1798,10 @@ small,
 /* The wordmark is the one word set in pixels, with a lime cell as its mark. */
 .workspace-brand > div {
   font-family: var(--pix);
-  font-size: var(--text-body);
-  letter-spacing: 0.06em;
+  font-size: 15px;
+  letter-spacing: 0.08em;
   line-height: 1.1;
-}
-.workspace-brand > div:first-child::before {
-  content: "";
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 8px;
-  border-radius: 0;
-  background: var(--lime) !important;
-  background: var(--accent);
-  vertical-align: 1px;
+  color: var(--text);
 }
 .workspace-brand > div > span {
   font-family: var(--sans);
