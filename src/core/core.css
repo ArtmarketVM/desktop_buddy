@@ -2775,3 +2775,19 @@ p.error .text-button {
   border-color: var(--danger);
   color: #ffffff;
 }
+
+/* AI tab cards and About actions. */
+.settings-card .connection {
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .memory-settings {
+  margin-top: 0;
+}
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}

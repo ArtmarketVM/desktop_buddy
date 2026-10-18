@@ -20,15 +20,7 @@ import { SidebarAiServices } from "../components/SidebarAiServices";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
-const sections = [
-  "General",
-  "Profile",
-  "Privacy",
-  "Memory",
-  "Integrations / AI",
-  "AI Monitor",
-  "About",
-] as const;
+const sections = ["General", "Profile", "AI", "Privacy", "About"] as const;
 const time = (value: number) =>
   `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 const minutes = (value: string) => {
@@ -115,6 +107,8 @@ export function CoreSettings({
   const [preview, setPreview] = useState("");
   const [showRaw, setShowRaw] = useState(false);
   const [showLog, setShowLog] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
   const logLast = new Date().toISOString().slice(0, 10);
   const logFirst = new Date(Date.now() - 6 * 86_400_000)
     .toISOString()
@@ -576,6 +570,15 @@ export function CoreSettings({
               </button>
               <button
                 type="button"
+                className="text-button privacy-link"
+                onClick={() => setShowMemory((open) => !open)}
+              >
+                {showMemory
+                  ? "Hide what sumi remembers"
+                  : "See what sumi remembers"}
+              </button>
+              <button
+                type="button"
                 className="text-button privacy-link muted"
                 disabled={blocked}
                 onClick={() => setShowRaw((open) => !open)}
@@ -595,72 +598,91 @@ export function CoreSettings({
               <WindowActivity first={logFirst} last={logLast} />
             </section>
           )}
+          {showMemory && (
+            <section
+              className="settings-card activity-log"
+              aria-label="What sumi remembers"
+            >
+              <p className="eyebrow settings-card-title">What sumi remembers</p>
+              <MemorySettings part="browser" onChanged={onChanged} />
+            </section>
+          )}
           {showRaw && preview && (
             <pre className="privacy-preview">{preview}</pre>
           )}
         </details>
-        <details className="core-section" hidden={section !== "Memory"} open>
-          <summary>Memory</summary>
-          {section === "Memory" && <MemorySettings onChanged={onChanged} />}
+        <details className="core-section" hidden={section !== "AI"} open>
+          <summary>AI</summary>
+          <div className="settings-cards">
+            <section className="settings-card" aria-label="Services">
+              <p className="eyebrow settings-card-title">Services</p>
+              <SidebarAiServices enabled variant="panel" />
+              <label>
+                Vision model (optional)
+                <input
+                  maxLength={160}
+                  value={preferences.vision_model}
+                  placeholder="Your provider's vision model ID"
+                  disabled={blocked}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      vision_model: e.target.value,
+                    });
+                    change();
+                  }}
+                />
+              </label>
+              <ProviderKey
+                provider="nebius"
+                label="Nebius Token Factory"
+                onChanged={onChanged}
+              />
+              <p className="connection">
+                Nebius ·{" "}
+                {data.status.nebius_configured
+                  ? "Key configured"
+                  : "Not configured"}
+              </p>
+              <ProviderKey
+                provider="tavily"
+                label="Tavily"
+                onChanged={onChanged}
+              />
+              <p className="connection">
+                Tavily ·{" "}
+                {data.status.tavily_configured
+                  ? "Key configured"
+                  : "Not configured"}
+              </p>
+            </section>
+            <section className="settings-card" aria-label="What the AI may do">
+              <p className="eyebrow settings-card-title">What the AI may do</p>
+              <AiSettings onChanged={onChanged} />
+              <MemorySettings part="controls" onChanged={onChanged} />
+            </section>
+          </div>
         </details>
-        <details
-          className="core-section"
-          hidden={section !== "Integrations / AI"}
-          open
-        >
-          <summary>Integrations / AI</summary>
-          <SidebarAiServices enabled variant="panel" />
-          <label>
-            Vision model (optional)
-            <input
-              maxLength={160}
-              value={preferences.vision_model}
-              placeholder="Your provider's vision model ID"
-              disabled={blocked}
-              onChange={(e) => {
-                setPreferences({
-                  ...preferences,
-                  vision_model: e.target.value,
-                });
-                change();
-              }}
-            />
-          </label>
-          <ProviderKey
-            provider="nebius"
-            label="Nebius Token Factory"
-            onChanged={onChanged}
-          />
-          <p className="connection">
-            Nebius ·{" "}
-            {data.status.nebius_configured
-              ? "Key configured"
-              : "Not configured"}
-          </p>
-          <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
-          <p className="connection">
-            Tavily ·{" "}
-            {data.status.tavily_configured
-              ? "Key configured"
-              : "Not configured"}
-          </p>
-          <AiSettings onChanged={onChanged} />
-        </details>
-        {section === "AI Monitor" && (
-          <section className="core-section" aria-label="AI Monitor">
-            <PersonalAiEnginePanel initiallyOpen />
-          </section>
-        )}
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>
           <p>sumi · v{data.version}</p>
-          <p className="helper">
-            Everything is stored on this computer. AI requests go to the
-            providers you configure.
-          </p>
-          <button className="outline-button" type="button" onClick={onUpdates}>
-            Check for updates
-          </button>
+          <div className="about-actions">
+            <button
+              className="outline-button"
+              type="button"
+              onClick={onUpdates}
+            >
+              Check for updates
+            </button>
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => setShowDiagnostics((open) => !open)}
+            >
+              {showDiagnostics ? "Hide diagnostics" : "Diagnostics"}
+            </button>
+          </div>
+          {showDiagnostics && <PersonalAiEnginePanel initiallyOpen />}
         </details>
         <div
           className="settings-actions settings-save"
