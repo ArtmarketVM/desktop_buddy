@@ -36,9 +36,7 @@ describe("macOS Accessibility state", () => {
     allowed = true;
     fireEvent.focus(window);
     await waitFor(() =>
-      expect(
-        screen.queryByText(/Switch sumi on when macOS asks/),
-      ).toBeNull(),
+      expect(screen.queryByText(/Switch sumi on when macOS asks/)).toBeNull(),
     );
     expect(screen.queryByRole("button", { name: "Allow access" })).toBeNull();
     // Granted access shows nothing at all; the status row in Settings carries the state.

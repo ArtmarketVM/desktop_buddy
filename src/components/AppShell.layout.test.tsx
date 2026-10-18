@@ -72,9 +72,10 @@ it("keeps Quiet mode available outside Today and exposes its actual state", asyn
       Chats
     </AppShell>,
   );
+  // The pressed state is the only signal now; native titles were replaced by hover labels.
   expect(
-    screen.getByRole("button", { name: "Quiet mode", pressed: true }).title,
-  ).toContain("Chat stays available");
+    screen.getByRole("button", { name: "Quiet mode", pressed: true }),
+  ).toBeTruthy();
   expect(
     within(screen.getByRole("button", { name: "Quiet mode" })).getByText("On"),
   ).toBeTruthy();
