@@ -3058,3 +3058,35 @@ p.error .text-button {
 .settings-card .memory-settings > p[role="status"] {
   margin: 6px 0 10px;
 }
+
+/* Activity log header with a goal filter; diagnostics stack. */
+.activity-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.activity-log-head .settings-card-title {
+  margin-bottom: 0;
+}
+.core-workspace .activity-log-goal select {
+  width: auto;
+  max-width: 260px;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .provider-error {
+  margin: 0 0 8px;
+  font-size: var(--text-caption);
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.diagnostics {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}

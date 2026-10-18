@@ -1,9 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
+import { Hint } from "../core/Hint";
 import { invoke } from "@tauri-apps/api/core";
 import { desktop } from "../api/tauri";
 import { isMac } from "../api/platform";
 
-export function MacPermissions() {
+export function MacPermissions({
+  variant = "callout",
+}: {
+  /** "row" is a Settings row with status and actions; "callout" shows only when access is missing. */
+  variant?: "callout" | "row";
+} = {}) {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState("");
@@ -45,6 +51,75 @@ export function MacPermissions() {
     return () => clearInterval(timer);
   }, [allowed, refresh]);
   if (!isMac || !desktop) return null;
+  const request = () =>
+    void invoke<boolean>("request_accessibility_permission")
+      .then(setAllowed)
+      .catch((e) => setError(String(e)));
+  const reset = () => {
+    setNote("");
+    void invoke<boolean>("reset_accessibility_permission")
+      .then((next) => {
+        setAllowed(next);
+        setNote(
+          next
+            ? "Accessibility access is enabled. Tracking can start."
+            : "Switch sumi on when macOS asks. This page updates by itself.",
+        );
+      })
+      .catch((e) => setError(String(e)));
+  };
+  if (variant === "row")
+    return (
+      <>
+        <div className="setting-row" aria-label="macOS permissions">
+          <span className="lbl">
+            Accessibility access
+            <Hint text="Tracking reads the title of the front window through macOS Accessibility. If it stays blocked after an update, Reset and allow it again in System Settings → Privacy & Security → Accessibility." />
+          </span>
+          <span className="acts">
+            <span
+              className={`tracking-state ${allowed ? "running" : allowed === false ? "attention" : "paused"}`}
+              role="status"
+            >
+              <i aria-hidden="true" />
+              {allowed === null ? "Checking…" : allowed ? "Granted" : "Needed"}
+            </span>
+            {allowed === false && (
+              <button
+                type="button"
+                className="text-button row-link"
+                onClick={request}
+              >
+                Allow access
+              </button>
+            )}
+            <button
+              type="button"
+              className="text-button row-link"
+              disabled={checking}
+              onClick={() => void refresh(true)}
+            >
+              {checking ? "Checking…" : "Check again"}
+            </button>
+            {allowed === false && (
+              <button
+                type="button"
+                className="text-button row-link muted"
+                onClick={reset}
+              >
+                Reset
+              </button>
+            )}
+          </span>
+        </div>
+        {note && (
+          <p className="helper" role="status">
+            {note}
+          </p>
+        )}
+        {error && <p role="alert">{error}</p>}
+      </>
+    );
   return (
     <div className="mac-permissions" aria-label="macOS permissions">
       {allowed === false ? (

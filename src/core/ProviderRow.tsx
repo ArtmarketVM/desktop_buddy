@@ -22,9 +22,15 @@ export function ProviderRow({
   const [editing, setEditing] = useState(false);
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<{ text: string; ok: boolean } | null>(null);
+  const [note, setNote] = useState<{
+    text: string;
+    ok: boolean;
+    detail?: string;
+  } | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   useEffect(() => {
     if (!note) return;
+    if (note.detail) return; // an error waits until the next action
     const timer = window.setTimeout(() => setNote(null), 4000);
     return () => window.clearTimeout(timer);
   }, [note]);
@@ -36,7 +42,13 @@ export function ProviderRow({
       await onChanged();
     } catch (e) {
       const text = String(e).replace(/^Error:\s*/, "");
-      setNote({ text: text.length > 40 ? "Failed" : text, ok: false });
+      // The short word stays in the row; the provider's full message is one click away.
+      setNote({
+        text: text.length > 40 ? "Failed" : text,
+        ok: false,
+        detail: text.length > 40 ? text : undefined,
+      });
+      setShowDetail(false);
     } finally {
       setBusy(false);
     }
@@ -63,7 +75,20 @@ export function ProviderRow({
         <span className="acts">
           <span className={`tracking-state ${state}`} role="status">
             <i aria-hidden="true" />
-            {note ? note.text : verdict[1]}
+            {note?.detail ? (
+              <button
+                type="button"
+                className="text-button row-link"
+                title={note.detail}
+                onClick={() => setShowDetail((open) => !open)}
+              >
+                {note.text} {showDetail ? "▴" : "▾"}
+              </button>
+            ) : note ? (
+              note.text
+            ) : (
+              verdict[1]
+            )}
           </span>
           {configured && (
             <button
@@ -102,6 +127,11 @@ export function ProviderRow({
           )}
         </span>
       </div>
+      {showDetail && note?.detail && (
+        <p className="helper provider-error" role="alert">
+          {note.detail}
+        </p>
+      )}
       {editing && (
         <form
           className="setting-row provider-key-row"

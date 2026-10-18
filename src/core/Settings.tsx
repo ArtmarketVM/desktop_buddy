@@ -1,5 +1,6 @@
 import { MemorySettings } from "../components/MemorySettings";
 import { MacPermissions } from "../components/MacPermissions";
+import { TrackingStatus } from "./TrackingStatus";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
@@ -96,6 +97,8 @@ export function CoreSettings({
   const [autostart, setAutostart] = useState(settings.autostart);
   const [preferences, setPreferences] = useState(emptyCore().preferences);
   const [hours, setHours] = useState(defaultTrackingSettings);
+  const [goals, setGoals] = useState(emptyCore().goals);
+  const [logGoal, setLogGoal] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [colorBusy, setColorBusy] = useState(false);
   const [ready, setReady] = useState(!desktop);
@@ -169,6 +172,7 @@ export function CoreSettings({
         .then(([core, tracking]) => {
           if (active) {
             setPreferences(core.preferences);
+            setGoals(core.goals);
             setHours(tracking);
             setReady(true);
           }
@@ -441,7 +445,7 @@ export function CoreSettings({
                 {trackingLabel}
               </span>
             </div>
-            <MacPermissions />
+            <MacPermissions variant="row" />
             <div className="setting-row">
               <span>Working days</span>
               <span
@@ -601,10 +605,34 @@ export function CoreSettings({
               className="settings-card activity-log"
               aria-label="Activity log"
             >
-              <p className="eyebrow settings-card-title">
-                Activity log · last 7 days
-              </p>
-              <WindowActivity first={logFirst} last={logLast} />
+              <div className="activity-log-head">
+                <p className="eyebrow settings-card-title">
+                  Activity log · last 7 days
+                </p>
+                <label className="activity-log-goal">
+                  <span className="sr-only">Goal</span>
+                  <select
+                    value={logGoal ?? ""}
+                    onChange={(e) =>
+                      setLogGoal(e.target.value ? Number(e.target.value) : null)
+                    }
+                  >
+                    <option value="">All goals</option>
+                    {goals
+                      .filter((goal) => goal.status !== "completed")
+                      .map((goal) => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <WindowActivity
+                first={logFirst}
+                last={logLast}
+                goalId={logGoal}
+              />
             </section>
           )}
           {panel === "memory" && (
@@ -710,7 +738,12 @@ export function CoreSettings({
               {showDiagnostics ? "Hide diagnostics" : "Diagnostics"}
             </button>
           </div>
-          {showDiagnostics && <PersonalAiEnginePanel initiallyOpen />}
+          {showDiagnostics && (
+            <div className="diagnostics">
+              <TrackingStatus dashboard={data} compact />
+              <PersonalAiEnginePanel initiallyOpen />
+            </div>
+          )}
         </details>
         <div
           className="settings-actions settings-save"
