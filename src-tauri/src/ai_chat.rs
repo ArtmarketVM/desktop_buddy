@@ -96,7 +96,16 @@ impl Storage {
     }
     /// Starts a new conversation unless the current one is still empty. Returns whether one was made.
     pub fn start_fresh_conversation(&self) -> Result<bool, String> {
-        if self.chat_history()?.is_empty() {
+        if self.chat_history()?.is_empty()
+            && !self
+                .connection
+                .query_row(
+                    "SELECT EXISTS(SELECT 1 FROM coaching_sessions WHERE conversation_id=?1)",
+                    [self.current_conversation()?],
+                    |r| r.get::<_, bool>(0),
+                )
+                .map_err(|e| e.to_string())?
+        {
             return Ok(false);
         }
         self.create_conversation()?;
@@ -106,7 +115,7 @@ impl Storage {
     pub fn prune_empty_conversations(&self, keep: i64) -> Result<(), String> {
         self.connection
             .execute(
-                "DELETE FROM buddy_conversations WHERE id<>?1 AND NOT EXISTS (SELECT 1 FROM buddy_conversation_messages c WHERE c.conversation_id=buddy_conversations.id)",
+                "DELETE FROM buddy_conversations WHERE id<>?1 AND NOT EXISTS (SELECT 1 FROM buddy_conversation_messages c WHERE c.conversation_id=buddy_conversations.id) AND NOT EXISTS (SELECT 1 FROM coaching_sessions s WHERE s.conversation_id=buddy_conversations.id)",
                 [keep],
             )
             .map(|_| ())
@@ -488,6 +497,12 @@ pub fn clear_buddy_chat(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     let conversation = inner.storage.current_conversation()?;
+    let tx = inner
+        .storage
+        .connection
+        .unchecked_transaction()
+        .map_err(|_| "Conversation storage unavailable")?;
+    inner.storage.forget_coaching(None, Some(conversation))?;
     inner
         .storage
         .connection
@@ -501,6 +516,8 @@ pub fn clear_buddy_chat(
             [conversation],
         )
         .map_err(|e| e.to_string())?;
+    tx.commit()
+        .map_err(|_| "Conversation storage unavailable")?;
     inner.privacy_revision += 1;
     let _ = app.emit("buddy://chat-updated", ());
     Ok(())

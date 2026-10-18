@@ -1,9 +1,47 @@
 # AI coaching integration proposal
 
-Status: repository audit and proposed implementation scope, 2026-10-15.
-This document does not indicate that coaching workflows have been implemented.
-See `AI_COACHING_FOUNDATION.md` for the first backend implementation stage and
-the remaining UI, chat and provider integration work.
+Status: interactive Tiny Habits source integration prepared for 0.36.0,
+2026-10-18. Native macOS validation and a coordinated signed release remain
+pending. `RELEASE_0.36.0.md` records verification and delivery limits.
+
+## Current implementation
+
+- An unfinished goal's action menu offers **Help me start**, bound to its selected
+  unfinished step when present. A confirmation explains local session persistence
+  separately from optional Personal Memory before starting.
+- Full Chats includes the same entry point with an explicit unfinished-goal
+  picker. Typing a short explicit request such as "I cannot start" or "Help me
+  start" also opens the picker; it does not silently select a goal or turn ordinary
+  messages into workflow replies.
+- The existing chat contains structured readiness, barrier, ease, optional anchor,
+  commitment and outcome controls. Pause, resume and stop use revision-checked
+  backend operations. Ordinary messaging remains separate and available.
+- `coaching/gateway.rs` registers `prepare_coaching`, `get_coaching_session`,
+  `start_coaching_session`, `reply_coaching_session` and `propose_coaching_action`.
+  These commands run on workers and are restricted to the main workspace window.
+- Suggestions use the configured real HTTP service, strict typed validation,
+  a 30-second request budget and at most one malformed-response repair. AI mock
+  responses remain explicitly labeled and independent of demo activity. Sharing,
+  privacy revision, target, session and scoped memory are checked before disclosure
+  and again before applying a proposal; repairs also recheck current permissions.
+  No application mutex is held over a network wait. Pause and stop remain usable
+  while a suggestion is pending.
+- The frontend restores the saved session when opening its conversation. Coaching
+  sessions preserve otherwise empty chats; New chat opens another conversation.
+  Clearing a conversation atomically removes its messages and coaching sessions,
+  including linked outcome memories. Existing scoped forgetting and retention apply.
+- The optional remember-result checkbox is off by default and only shown when
+  all required memory controls permit it. Micro-action confirmation never completes
+  a goal or checklist step or starts a timer.
+
+This integration uses shared Rust and React paths on Windows and macOS and adds
+no platform-specific collector or credential access. It introduces no automatic
+coaching offers or free-text classification of psychological barriers. Native
+macOS testing and signed installers for both platforms are required before
+describing it as a delivered cross-platform update.
+
+The remainder records the original 2026-10-15 proposal and later scope.
+See `AI_COACHING_FOUNDATION.md` for the first backend implementation stage.
 The supplied AI Coaching Engine brief is a discussion draft rather than an
 approved specification. Its proposed infrastructure must be adapted to the app.
 

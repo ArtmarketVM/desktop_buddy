@@ -1,4 +1,5 @@
 import { InterventionCard } from "./InterventionCard";
+import { CoachingPanel } from "../coaching/CoachingPanel";
 import { Markdown } from "./Markdown";
 import { MessageMeta, Sources } from "./MessageParts";
 import { listen } from "@tauri-apps/api/event";
@@ -460,6 +461,14 @@ export function Conversation({
           )}
         </div>
       }
+      {embedded && !compact && (
+        <CoachingPanel
+          conversationId={conversationId}
+          requested={/^(?:i (?:cannot|can't) start|help me start|не могу начать|помоги начать)[.!?]*$/i.test(
+            text.trim(),
+          )}
+        />
+      )}
       {!compact && view.inbox.length > 0 && (
         <details className="conversation-context" aria-label="Saved for later">
           <summary>

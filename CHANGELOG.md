@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.36.0 — Tiny Habits coaching (source candidate)
+
+- Add explicit goal/chat entry, persistent session controls and a real provider
+  gateway for 10–60 second micro-actions. Preserve ordinary chat and parent-goal state.
+- Recheck privacy and revisions around provider calls; keep pause/stop available
+  during generation. Include coaching-only chats in conversation lifecycle controls.
+- Native macOS validation and coordinated signed installers remain pending; see
+  `docs/RELEASE_0.36.0.md`.
+
 ## 0.34.0 — one typeface, calmer Settings, Goals and Progress
 
 - One typeface everywhere: Zen Maru Gothic for titles, the wordmark and all text; the serif is gone. Four sizes (34/18/14/11) and two weights, documented in docs/TYPOGRAPHY.md. Text is ink or muted; green marks only links and the selected option of a control.

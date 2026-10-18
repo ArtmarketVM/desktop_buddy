@@ -1,5 +1,9 @@
 # AI coaching foundation
 
+This is the historical backend-stage report for `a3340dc`. For the interactive
+0.36.0 source integration and its validation status, see
+`AI_COACHING_INTEGRATION.md` and `RELEASE_0.36.0.md`.
+
 This source stage implements the shared backend foundation described in
 `AI_COACHING_INTEGRATION.md`. It does not yet connect coaching to the UI, chat
 planner, LLM gateway or background notifications, and does not deliver an installer.

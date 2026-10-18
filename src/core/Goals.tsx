@@ -17,6 +17,7 @@ import {
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
+import { StartCoaching } from "../coaching/StartCoaching";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
 import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
@@ -123,6 +124,7 @@ export function GoalRow({
   initialAdding?: boolean;
 }) {
   const [expanded, setExpanded] = useState(initialExpanded);
+  const [coaching, setCoaching] = useState(false);
   const {
     open: menu,
     setOpen: setMenu,
@@ -273,6 +275,13 @@ export function GoalRow({
   };
   return (
     <article className={`core-goal ${goal.status}`}>
+      {coaching && (
+        <StartCoaching
+          goalId={goal.id}
+          stepId={goal.plan.current_step}
+          onClose={() => setCoaching(false)}
+        />
+      )}
       <div className="goal-heading" onClick={toggleFromBlankSpace}>
         {!readOnly && (
           <div className="goal-overflow" ref={menuRoot}>
@@ -317,6 +326,17 @@ export function GoalRow({
                   >
                     Delete goal
                   </button>
+                  {goal.status === "open" && (
+                    <button
+                      disabled={disabled}
+                      onClick={() => {
+                        setMenu(false);
+                        setCoaching(true);
+                      }}
+                    >
+                      Help me start
+                    </button>
+                  )}
                 </div>,
                 document.body,
               )}

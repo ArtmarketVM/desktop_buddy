@@ -1,4 +1,5 @@
-//! Local coaching foundation. No provider calls, background offers or app mutations.
+//! Persistent coaching workflows with explicit user controls.
+pub mod gateway;
 pub mod strategy;
 pub mod tiny;
 use crate::{memory, storage::Storage};
