@@ -1,0 +1,120 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Privacy: three more layouts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; --danger:#c2453a; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:720px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .opt { margin-bottom:44px; }
+  .opt > h2 { font-size:16px; font-weight:500; margin:0 0 4px; }
+  .opt > p { color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 14px; max-width:760px; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:28px 32px; max-width:860px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--raised); border-radius:6px; padding:14px 18px 6px; min-width:0; }
+  .eyebrow { color:var(--accent); margin:0 0 6px; display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #1f1f1f1a; }
+  .eyebrow + .row { border-top:0; }
+  .row small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .sw { width:28px; height:16px; border-radius:2px; background:var(--accent); position:relative; flex:none; }
+  .sw::before { content:""; position:absolute; top:3px; left:15px; width:10px; height:10px; background:#fff; border-radius:1px; }
+  .status { display:flex; align-items:center; gap:8px; } .dot { width:8px; height:8px; background:var(--lime); outline:1px solid #1f1f1f33; }
+  .sel, .time, .btn { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--canvas); display:inline-flex; align-items:center; gap:8px; font-size:13px; }
+  .btn.danger { color:var(--danger); }
+  .days { display:flex; gap:4px; } .day { height:22px; padding:0 7px; border-radius:3px; display:inline-flex; align-items:center; background:var(--accent); color:#fff; } .day.off { background:var(--canvas); color:var(--muted); border:1px solid var(--line); }
+  .inline { display:flex; align-items:center; gap:8px; } .to { color:var(--muted); font-size:12px; }
+  .ext::after { content:"↗"; font-size:12px; }
+  .link { color:var(--text); text-decoration:underline; text-underline-offset:3px; font-size:13px; }
+  .chip { height:20px; padding:0 7px; border-radius:3px; display:inline-flex; align-items:center; background:var(--canvas); border:1px solid var(--line); color:var(--text); }
+  /* A: ink receipt */
+  .ink { margin-top:14px; background:var(--text); color:var(--canvas); border-radius:6px; padding:18px 20px; display:grid; grid-template-columns:auto 1fr; gap:6px 28px; align-items:baseline; }
+  .ink .big { font-size:34px; font-weight:600; letter-spacing:-.03em; color:var(--lime); line-height:1; grid-row:span 3; align-self:center; }
+  .ink .l { color:#f3f3ef; opacity:.75; font-size:13px; }
+  .ink .v { font-size:14px; }
+  .ink .foot { grid-column:1/-1; margin-top:8px; display:flex; justify-content:space-between; color:#f3f3ef; opacity:.7; font-size:12px; }
+  .ink .foot a { color:inherit; }
+  /* B: per-feature rows */
+  .feat { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #1f1f1f1a; }
+  .feat .what { font-size:13px; }
+  .feat .what small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  /* C: one sentence */
+  .sentence { margin-top:14px; display:flex; gap:16px; align-items:flex-start; padding:16px 18px; border:1px solid var(--line); border-radius:6px; }
+  .sentence .cell { flex:none; width:8px; height:8px; margin-top:7px; background:var(--lime); }
+  .sentence p { margin:0; font-size:15px; line-height:1.6; }
+  .sentence p b { font-weight:500; }
+  .sentence .side { flex:none; display:flex; flex-direction:column; gap:8px; align-items:flex-end; }
+</style>
+<h1>Privacy · three more layouts</h1>
+<p class="lead">You are right that "your data" is tracking too. All three fold the data rows into the Tracking card and give the AI view its own treatment instead of a hidden preview. In all three, the policy is a link that opens the web page.</p>
+
+<div class="opt">
+  <h2>Option A · One card, plus an ink receipt</h2>
+  <p>Everything that can be changed sits in one card. Under it, a tile in the style of the Progress headline states what the next AI check would send, with the one number that matters in lime. Always visible, no button. "Raw data" stays a small link for developers.</p>
+  <div class="frame">
+    <div class="card">
+      <span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Track goals and suggest completed work</span><span class="sw"></span></div>
+      <div class="row"><span>Status</span><span class="status"><span class="dot"></span>Running</span></div>
+      <div class="row"><span>Working days</span><span class="days"><span class="day pix off">Su</span><span class="day pix">Mo</span><span class="day pix">Tu</span><span class="day pix">We</span><span class="day pix">Th</span><span class="day pix">Fr</span><span class="day pix off">Sa</span></span></div>
+      <div class="row"><span>Working hours</span><span class="inline"><span class="time">10:00 AM</span><span class="to">to</span><span class="time">06:00 PM</span></span></div>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+      <div class="row"><span>Clear all local history</span><span class="btn danger">Clear…</span></div>
+    </div>
+    <div class="ink">
+      <div class="big">10</div>
+      <div class="v">window titles and your goal "Update the desktop buddy app" go to Nebius when sumi checks your progress.</div>
+      <div class="l">Not sent: screen text, screenshots, files, passwords, your name.</div>
+      <div class="l">Stored on this Mac only · no sumi server.</div>
+      <div class="foot"><a class="ext">Privacy policy </a><a>Raw data</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>Option B · Two cards: Tracking and What the AI sees</h2>
+  <p>The second card is the AI view itself, not a button: one row per feature, each saying what goes where. Static and readable, nothing live. The policy link closes the card.</p>
+  <div class="frame">
+    <div class="cards">
+      <div class="card">
+        <span class="pix eyebrow">Tracking</span>
+        <div class="row"><span>Track goals and suggest completed work</span><span class="sw"></span></div>
+        <div class="row"><span>Status</span><span class="status"><span class="dot"></span>Running</span></div>
+        <div class="row"><span>Working days</span><span class="days"><span class="day pix off">Su</span><span class="day pix">Mo</span><span class="day pix">Tu</span><span class="day pix">We</span><span class="day pix">Th</span><span class="day pix">Fr</span><span class="day pix off">Sa</span></span></div>
+        <div class="row"><span>Working hours</span><span class="inline"><span class="time">10:00 AM</span><span class="to">to</span><span class="time">06:00 PM</span></span></div>
+        <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+        <div class="row"><span>Clear all local history</span><span class="btn danger">Clear…</span></div>
+      </div>
+      <div class="card">
+        <span class="pix eyebrow">What the AI sees</span>
+        <div class="feat" style="border-top:0"><span class="what">Progress check<small>Your goal and the last 10 window titles</small></span><span class="chip pix">Nebius</span></div>
+        <div class="feat"><span class="what">Suggested resources<small>Your goal and 5 window titles to form a search</small></span><span class="chip pix">Nebius · Tavily</span></div>
+        <div class="feat"><span class="what">Coach chat<small>Your message, the goal, a few memories</small></span><span class="chip pix">Nebius</span></div>
+        <div class="feat"><span class="what">Never<small>Screen text, screenshots, files, passwords, your name</small></span><span class="chip pix" style="background:var(--lime);border-color:var(--lime)">Stays here</span></div>
+        <div class="feat"><span class="what">Full details</span><a class="link ext">Privacy policy </a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>Option C · One card and one sentence</h2>
+  <p>The quietest version. Under the card, a single framed sentence in body type says what is happening right now, with the live numbers written into it. The policy and raw data sit to its right. No tables, no columns.</p>
+  <div class="frame">
+    <div class="card">
+      <span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Track goals and suggest completed work</span><span class="sw"></span></div>
+      <div class="row"><span>Status</span><span class="status"><span class="dot"></span>Running</span></div>
+      <div class="row"><span>Working days</span><span class="days"><span class="day pix off">Su</span><span class="day pix">Mo</span><span class="day pix">Tu</span><span class="day pix">We</span><span class="day pix">Th</span><span class="day pix">Fr</span><span class="day pix off">Sa</span></span></div>
+      <div class="row"><span>Working hours</span><span class="inline"><span class="time">10:00 AM</span><span class="to">to</span><span class="time">06:00 PM</span></span></div>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+      <div class="row"><span>Clear all local history</span><span class="btn danger">Clear…</span></div>
+    </div>
+    <div class="sentence">
+      <span class="cell"></span>
+      <p>Right now sumi knows you have been in <b>Claude for 6 minutes</b>, Safari for 2 and Finder for 1. When it checks your progress it tells Nebius those three titles and your goal, <b>"Update the desktop buddy app"</b>. It never sends what is on your screen, what you type, or who you are.</p>
+      <span class="side"><a class="link ext">Privacy policy </a><a class="link" style="color:var(--muted)">Raw data</a></span>
+    </div>
+  </div>
+</div>
