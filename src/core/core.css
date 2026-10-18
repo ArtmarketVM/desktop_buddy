@@ -2861,10 +2861,16 @@ p.error .text-button {
   border: 1px solid var(--muted);
   border-radius: 2px;
   color: var(--muted);
-  font-family: var(--pix);
-  font-size: 7px;
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
   line-height: 1;
   cursor: help;
+}
+/* In the right-hand card the tooltip opens to the left so it stays on the page. */
+.settings-cards > .settings-card:nth-child(3) .hint::after {
+  left: auto;
+  right: calc(100% + 10px);
 }
 .hint::after {
   content: attr(aria-label);
