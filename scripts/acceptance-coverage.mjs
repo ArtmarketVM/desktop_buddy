@@ -795,7 +795,7 @@ partial(
     ),
     ui(
       "src/components/MemorySettings.test.tsx",
-      "clears memory with a separate confirmation and promises to retain goals and history",
+      "requires confirmation to forget an item and supports cancel",
     ),
   ],
   "Review wording about backups and external provider data on the installed app.",

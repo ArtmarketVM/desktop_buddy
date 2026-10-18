@@ -211,3 +211,14 @@ test("every mapped Rust test exists as an annotated test in source", () => {
         assert.ok(names.has(selector.slice(5)), `${id}: missing ${selector}`);
   }
 });
+
+test("every mapped frontend case still exists in its source file", () => {
+  for (const [id, entry] of Object.entries(coverage)) {
+    for (const selector of entry.evidence) {
+      if (!selector.startsWith("frontend:")) continue;
+      const [file, title] = selector.slice("frontend:".length).split("::");
+      const source = readFileSync(join(projectRoot, file), "utf8");
+      assert.ok(source.includes(JSON.stringify(title)), `${id}: missing ${selector}`);
+    }
+  }
+});

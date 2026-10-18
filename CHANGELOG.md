@@ -1,13 +1,13 @@
 # Changelog
 
-## 0.36.0 — Tiny Habits coaching (source candidate)
+## 0.36.0 — Tiny Habits coaching
 
 - Add explicit goal/chat entry, persistent session controls and a real provider
   gateway for 10–60 second micro-actions. Preserve ordinary chat and parent-goal state.
 - Recheck privacy and revisions around provider calls; keep pause/stop available
   during generation. Include coaching-only chats in conversation lifecycle controls.
-- Native macOS validation and coordinated signed installers remain pending; see
-  `docs/RELEASE_0.36.0.md`.
+- Add an explicit real-provider diagnostic using a synthetic in-memory coaching
+  session. Repair the acceptance map to reference the current memory-deletion test.
 
 ## 0.34.0 — one typeface, calmer Settings, Goals and Progress
 

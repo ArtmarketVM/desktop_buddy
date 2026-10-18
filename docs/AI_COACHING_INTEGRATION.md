@@ -1,8 +1,8 @@
 # AI coaching integration proposal
 
-Status: interactive Tiny Habits source integration prepared for 0.36.0,
-2026-10-18. Native macOS validation and a coordinated signed release remain
-pending. `RELEASE_0.36.0.md` records verification and delivery limits.
+Status: interactive Tiny Habits integration for 0.36.0, 2026-10-18.
+The release workflow enforces native validation and coordinated signed publication.
+`COACHING_0.36.0_VALIDATION.md` records source verification and delivery limits.
 
 ## Current implementation
 

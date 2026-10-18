@@ -64,6 +64,24 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--check-coaching") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(coaching::gateway::headless_check());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Coaching check failed ({}). No user data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
     if std::env::args().any(|arg| arg == "--check-conversation-reliability") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()

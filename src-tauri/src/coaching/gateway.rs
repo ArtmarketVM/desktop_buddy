@@ -29,6 +29,99 @@ fn sharing(storage: &Storage) -> Result<(), String> {
     Ok(())
 }
 
+/// Explicit live probe: synthetic in-memory data only, using the normal provider adapter.
+pub(crate) async fn headless_check() -> Result<Value, String> {
+    use crate::core::GoalDraft;
+    let mut storage = Storage::open(std::path::Path::new(":memory:"))?;
+    storage.core_add_goals(
+        vec![GoalDraft {
+            title: "Draft a short project proposal".into(),
+            area: "Work".into(),
+            steps: vec!["Write an introduction".into()],
+        }],
+        "coaching-live-check",
+    )?;
+    let goal = storage.core_snapshot(None)?.goals[0].id;
+    let conversation = storage.current_conversation()?;
+    let mut session = storage.start_coaching(&Start {
+        request_id: "live-start".into(),
+        goal_id: goal,
+        step_id: Some("step-0".into()),
+        conversation_id: conversation,
+        expected_target_revision: storage.coaching_target(goal, Some("step-0"))?.revision,
+        strategy_id: "tiny_habits".into(),
+        strategy_version: 1,
+    })?;
+    for reply in [
+        Reply::Ready { ready: true },
+        Reply::Barrier {
+            barrier: Barrier::Overwhelm,
+        },
+    ] {
+        session = storage.reply_coaching(
+            session.id,
+            conversation,
+            session.revision,
+            &format!("live-reply-{}", session.revision),
+            &Control::Reply {
+                reply: reply.into(),
+            },
+        )?;
+    }
+    let state = AppState::new(storage)?;
+    if state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?
+        .status
+        .mock_ai
+    {
+        return Err("Live coaching check requires real provider responses".into());
+    }
+    let result = generate(
+        &state,
+        None,
+        session.id,
+        conversation,
+        session.revision,
+        "live-proposal",
+    )
+    .await?;
+    let inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    let before = serde_json::to_value(inner.storage.core_snapshot(None)?.goals)
+        .map_err(|_| "Invalid check fixture")?;
+    session = result.session;
+    // These are synthetic fixture answers, never reports about a user's real work.
+    for reply in [
+        Reply::Ease { score: 8 },
+        Reply::Anchor { anchor: None },
+        Reply::Commit { accepted: true },
+        Reply::Report {
+            completed: true,
+            remember: false,
+        },
+    ] {
+        session = inner.storage.reply_coaching(
+            session.id,
+            conversation,
+            session.revision,
+            &format!("live-reply-{}", session.revision),
+            &Control::Reply {
+                reply: reply.into(),
+            },
+        )?;
+    }
+    let unchanged = serde_json::to_value(inner.storage.core_snapshot(None)?.goals)
+        .map_err(|_| "Invalid check fixture")?
+        == before;
+    Ok(
+        json!({"all_passed":session.status == Status::Completed && unchanged,"fixture":"synthetic_in_memory","strategy":"tiny_habits","real_provider_proposal":true,"micro_action_report":"synthetic","parent_goal_unchanged":unchanged}),
+    )
+}
+
 fn view(storage: &Storage, session: Session) -> Result<View, String> {
     let target = storage
         .coaching_target(session.goal_id, session.step_id.as_deref())
