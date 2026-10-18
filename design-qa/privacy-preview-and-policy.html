@@ -1,0 +1,150 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Privacy: plain preview and policy page</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; --danger:#c2453a; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:720px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .opt { margin-bottom:44px; }
+  .opt > h2 { font-size:16px; font-weight:500; margin:0 0 4px; }
+  .opt > p { color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 14px; max-width:760px; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:28px 32px; max-width:860px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--raised); border-radius:6px; padding:14px 18px 6px; min-width:0; }
+  .eyebrow { color:var(--accent); margin:0 0 6px; display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #1f1f1f1a; }
+  .eyebrow + .row { border-top:0; }
+  .sw { width:28px; height:16px; border-radius:2px; background:var(--accent); position:relative; flex:none; }
+  .sw::before { content:""; position:absolute; top:3px; left:15px; width:10px; height:10px; background:#fff; border-radius:1px; }
+  .status { display:flex; align-items:center; gap:8px; } .dot { width:8px; height:8px; background:var(--lime); outline:1px solid #1f1f1f33; }
+  .sel, .time, .btn { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--canvas); display:inline-flex; align-items:center; gap:8px; font-size:13px; }
+  .btn.on { background:var(--text); color:var(--canvas); border-color:var(--text); }
+  .btn.danger { color:var(--danger); }
+  .days { display:flex; gap:4px; } .day { height:22px; padding:0 7px; border-radius:3px; display:inline-flex; align-items:center; background:var(--accent); color:#fff; } .day.off { background:var(--canvas); color:var(--muted); border:1px solid var(--line); }
+  .inline { display:flex; align-items:center; gap:8px; } .to { color:var(--muted); font-size:12px; }
+  .ext::after { content:"↗"; font-size:12px; }
+  /* P1 panel */
+  .peek { margin-top:14px; background:var(--raised); border-radius:6px; padding:16px 18px; display:grid; grid-template-columns:1fr 1fr; gap:0 28px; position:relative; }
+  .peek h3 { grid-column:1/-1; margin:0 0 10px; font-size:14px; font-weight:500; }
+  .peek .eyebrow { margin-bottom:8px; }
+  .peek ul { margin:0; padding:0; list-style:none; font-size:13px; line-height:1.55; }
+  .peek li { display:flex; gap:8px; align-items:baseline; padding:3px 0; }
+  .peek li b { font-weight:500; }
+  .peek li i { flex:none; width:6px; height:6px; margin-top:1px; background:var(--lime); }
+  .peek .no li i { background:var(--line); }
+  .peek .foot { grid-column:1/-1; margin-top:12px; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:12px; }
+  .peek .foot a { color:var(--muted); text-decoration:underline; text-underline-offset:3px; }
+  /* D1 page */
+  .browser { max-width:860px; border:1px solid var(--line); border-radius:8px; overflow:hidden; background:var(--canvas); }
+  .chrome { height:34px; background:var(--surface); border-bottom:1px solid var(--line); display:flex; align-items:center; gap:8px; padding:0 12px; color:var(--muted); font-size:12px; }
+  .chrome i { width:10px; height:10px; border-radius:50%; background:var(--line); display:inline-block; }
+  .chrome span { margin-left:12px; background:var(--canvas); border:1px solid var(--line); border-radius:4px; padding:3px 10px; }
+  .page { padding:48px 64px 64px; max-width:640px; }
+  .brand { display:flex; align-items:center; gap:8px; margin-bottom:40px; } .brand b { width:8px; height:8px; background:var(--lime); display:inline-block; }
+  .page h1 { font-size:34px; font-weight:600; letter-spacing:-.03em; margin:0 0 6px; }
+  .page .date { color:var(--muted); margin:0 0 32px; }
+  .page .sum { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 36px; }
+  .page .sum div { background:var(--surface); border-radius:6px; padding:12px 14px; font-size:13px; line-height:1.5; }
+  .page .sum div .eyebrow { margin-bottom:4px; }
+  .page h2 { font-size:18px; font-weight:500; margin:28px 0 8px; }
+  .page p, .page li { font-size:14.5px; line-height:1.65; margin:0 0 8px; }
+  .page ul { padding-left:18px; margin:0 0 8px; }
+  .page table { border-collapse:collapse; width:100%; font-size:13.5px; margin:8px 0 12px; }
+  .page th, .page td { text-align:left; padding:8px 10px; border-top:1px solid var(--line); vertical-align:top; }
+  .page th { color:var(--muted); font-weight:400; }
+  .page .toc { display:flex; gap:14px; flex-wrap:wrap; margin:0 0 28px; }
+  .page .toc a { color:var(--accent); text-decoration:none; font-size:13px; }
+  .page footer { margin-top:44px; color:var(--muted); font-size:12.5px; border-top:1px solid var(--line); padding-top:14px; }
+</style>
+<h1>Where the two things live</h1>
+<p class="lead">P1: pressing <b>Preview</b> opens a plain-language panel under the two cards, in the same grey as the cards, with a small "raw data" link for developers. D1: <b>How sumi uses data</b> becomes an external link (↗) that opens the policy page in the browser; nothing unfolds inside Settings.</p>
+
+<div class="opt">
+  <h2>P1 · The preview, in words</h2>
+  <p>The panel appears below the cards when Preview is on (the button turns ink while open). Two columns: what would be sent now, and what never leaves the computer. Values come from the live snapshot, so "last 10 windows" shows real app names and minutes.</p>
+  <div class="frame">
+    <div class="cards">
+      <div class="card">
+        <span class="pix eyebrow">Tracking</span>
+        <div class="row"><span>Track goals and suggest completed work</span><span class="sw"></span></div>
+        <div class="row"><span>Status</span><span class="status"><span class="dot"></span>Running</span></div>
+        <div class="row"><span>Working days</span><span class="days"><span class="day pix off">Su</span><span class="day pix">Mo</span><span class="day pix">Tu</span><span class="day pix">We</span><span class="day pix">Th</span><span class="day pix">Fr</span><span class="day pix off">Sa</span></span></div>
+        <div class="row"><span>Working hours</span><span class="inline"><span class="time">10:00 AM</span><span class="to">to</span><span class="time">06:00 PM</span></span></div>
+      </div>
+      <div class="card">
+        <span class="pix eyebrow">Your data</span>
+        <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+        <div class="row"><span>What the AI can see</span><span class="btn on">Hide</span></div>
+        <div class="row"><span>How sumi uses data</span><span class="btn ext">Privacy policy </span></div>
+        <div class="row"><span>Clear all local history</span><span class="btn danger">Clear…</span></div>
+      </div>
+    </div>
+    <div class="peek">
+      <h3>If sumi checked your progress right now, Nebius would receive:</h3>
+      <div>
+        <span class="pix eyebrow">Sent</span>
+        <ul>
+          <li><i></i><span><b>Your goal</b> · "Update the desktop buddy app"</span></li>
+          <li><i></i><span><b>Current step</b> · none set</span></li>
+          <li><i></i><span><b>Last 10 windows</b> · Claude 6 min, Safari 2 min, Finder 1 min</span></li>
+          <li><i></i><span><b>Idle time</b> · 10 s in total</span></li>
+        </ul>
+      </div>
+      <div class="no">
+        <span class="pix eyebrow">Never sent</span>
+        <ul>
+          <li><i></i><span>Screen text, screenshots or files</span></li>
+          <li><i></i><span>Passwords and what you type</span></li>
+          <li><i></i><span>Your name, email or chats</span></li>
+          <li><i></i><span>Anything while tracking is paused or in quiet hours</span></li>
+        </ul>
+      </div>
+      <div class="foot"><span>Snapshot from 2 seconds ago · nothing has been sent</span><a>Show raw data</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>D1 · The privacy policy, as a web page</h2>
+  <p>One page in the brand (white, ink, a lime cell before the wordmark, pixel eyebrows), hosted from the repo on GitHub Pages so it lives at a stable address and updates without an app release. Structure: a four-tile summary first, then short sections anyone can read; the exact provider details go in one table instead of six paragraphs.</p>
+  <div class="browser">
+    <div class="chrome"><i></i><i></i><i></i><span>sumi.app/privacy</span></div>
+    <div class="page">
+      <div class="brand"><b></b><span class="pix">sumi</span></div>
+      <h1>Privacy</h1>
+      <p class="date">Updated 18 October 2026 · applies to sumi 0.35 and later</p>
+      <div class="sum">
+        <div><span class="pix eyebrow">Stored</span>On your Mac only. Nothing is uploaded to us; we have no server.</div>
+        <div><span class="pix eyebrow">Watched</span>Which app and window is in front, and for how long. Never the screen itself.</div>
+        <div><span class="pix eyebrow">Sent</span>Your goal and a short list of window titles, to the AI provider you chose, only for the features you turn on.</div>
+        <div><span class="pix eyebrow">Deleted</span>Whenever you like, from Settings · Privacy. Keep history for 7, 30 or 90 days, or forever.</div>
+      </div>
+      <div class="toc"><a>What sumi records</a><a>What leaves your computer</a><a>Your keys</a><a>Memory</a><a>Deleting</a><a>Changes</a></div>
+      <h2>What sumi records</h2>
+      <p>While tracking is on and inside your working hours, sumi notes the app in front, its window title and how long you were active or idle. This is how it knows what counted toward a goal. It is saved in a local database that is not encrypted, so treat the Mac's own protection as the lock.</p>
+      <p>sumi never takes screenshots, never reads what you type, and skips password and editing fields when a feature looks at visible text.</p>
+      <h2>What leaves your computer</h2>
+      <p>Only when you use an AI feature, and only to the provider whose key you entered. Each feature sends the minimum it needs:</p>
+      <table>
+        <tr><th>Feature</th><th>Goes to</th><th>What is sent</th></tr>
+        <tr><td>Progress check-in</td><td>Nebius</td><td>Your goal and up to 10 recent windows: app, title, active and idle seconds</td></tr>
+        <tr><td>Suggested resources</td><td>Nebius, then Tavily</td><td>Your goal and up to 5 window titles to form a search; Tavily sees only the search</td></tr>
+        <tr><td>Coach chat</td><td>Nebius</td><td>Your message, the goal, and a few relevant memories if Memory is on</td></tr>
+        <tr><td>Manual search</td><td>Tavily</td><td>The query you typed</td></tr>
+      </table>
+      <p>Providers keep requests under their own policies; deleting data in sumi does not delete it there.</p>
+      <h2>Your keys</h2>
+      <p>API keys are stored in the macOS keychain and sent only to the provider they belong to, as authentication.</p>
+      <h2>Memory</h2>
+      <p>Memory keeps a few facts you tell the coach so it can remember them next time. It never stores screen text. Turn it off in Settings · Memory to stop saving and recalling; existing facts stay until you clear them.</p>
+      <h2>Deleting</h2>
+      <p>Settings · Privacy lets you keep history for a fixed time or clear it all at once. Clearing removes activity, daily app time, suggestions, ratings and finished goals. Your active goal, settings and keys stay.</p>
+      <h2>Changes</h2>
+      <p>When this page changes, the date at the top changes with it. The current version is always the one linked from Settings.</p>
+      <footer>sumi is made by ArtmarketVM · questions: hello@sumi.app</footer>
+    </div>
+  </div>
+</div>
