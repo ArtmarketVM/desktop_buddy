@@ -1765,3 +1765,23 @@ main.desktop-buddy.chatting > .companion-error {
   border-color: var(--lime);
   color: #1f1f1f;
 }
+/* Collapsed sidebar: hover labels open to the right of the icon column instead of being clipped above it. */
+.app-shell.sidebar-collapsed .sidebar {
+  overflow: visible;
+  z-index: 20;
+}
+.sidebar-collapsed .sidebar-utilities .nav-item::after,
+.sidebar-collapsed .sidebar-utilities .update-entry::after,
+.sidebar-collapsed .profile-settings::after {
+  left: calc(100% + 10px);
+  right: auto;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* The profile button gets the same frame as its neighbours when collapsed. */
+.sidebar-collapsed .profile-entry {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
