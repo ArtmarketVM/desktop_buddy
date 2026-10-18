@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Settings · AI: tweaked</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:760px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:28px 32px; max-width:860px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--raised); border-radius:6px; padding:14px 18px 6px; min-width:0; }
+  .card.full { grid-column:1/-1; }
+  .eyebrow { color:var(--accent); margin:0 0 6px; display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #1f1f1f1a; }
+  .eyebrow + .row { border-top:0; }
+  .row.sub { padding-left:18px; }
+  .sw { width:28px; height:16px; border-radius:2px; background:var(--accent); position:relative; flex:none; }
+  .sw::before { content:""; position:absolute; top:3px; left:15px; width:10px; height:10px; background:#fff; border-radius:1px; }
+  .status { display:flex; align-items:center; gap:8px; font-size:13px; }
+  .dot { width:8px; height:8px; background:var(--lime); outline:1px solid #1f1f1f33; }
+  .acts { display:flex; gap:12px; align-items:center; }
+  .lnk { color:var(--text); text-decoration:underline; text-underline-offset:3px; font-size:12px; }
+  .lnk.muted { color:var(--muted); }
+  .field { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--canvas); display:inline-flex; align-items:center; font-size:13px; color:var(--muted); min-width:220px; }
+  .svc { display:flex; align-items:center; gap:10px; } .svc b { font-weight:500; } .svc small { color:var(--muted); font-size:12px; }
+  .ext::after { content:" ↗"; font-size:12px; }
+  .lbl { display:inline-flex; align-items:center; gap:8px; position:relative; }
+  .q { width:14px; height:14px; border:1px solid var(--muted); border-radius:2px; color:var(--muted); font-family:"Silkscreen",monospace; font-size:7px; display:inline-grid; place-items:center; cursor:help; }
+  .tip { position:absolute; left:calc(100% + 10px); top:50%; transform:translateY(-50%); background:var(--text); color:var(--canvas); font-size:12px; line-height:1.45; padding:7px 10px; border-radius:3px; white-space:nowrap; z-index:2; }
+  .tip::before { content:""; position:absolute; right:100%; top:50%; margin-top:-4px; border:4px solid transparent; border-right-color:var(--text); }
+  .notes { margin-top:26px; max-width:860px; color:var(--muted); font-size:13px; line-height:1.6; }
+  .notes b { color:var(--text); font-weight:500; }
+  .notes li { margin-bottom:6px; }
+</style>
+<h1>Settings · AI, tweaked</h1>
+<p class="lead">Option A with your changes: two switches instead of four under AI, a Memory card whose three switches say what they actually keep, and a small pixel "?" that shows a one-line tooltip on hover, the same dark label the sidebar icons use. One tooltip is shown open as an example.</p>
+
+<div class="frame">
+  <div class="cards">
+    <div class="card full">
+      <span class="pix eyebrow">Services</span>
+      <div class="row"><span class="svc"><b>Nebius</b><small>runs the AI</small></span><span class="acts"><span class="status"><span class="dot"></span>Key saved</span><a class="lnk">Test</a><a class="lnk">Replace</a><a class="lnk muted">Remove</a></span></div>
+      <div class="row"><span class="svc"><b>Tavily</b><small>web search</small></span><span class="acts"><span class="status"><span class="dot"></span>Key saved</span><a class="lnk">Test</a><a class="lnk">Replace</a><a class="lnk muted">Remove</a></span></div>
+      <div class="row"><span class="svc"><b>Model</b><small>through Nebius</small></span><span class="status">nvidia/nemotron-3 · <a class="lnk">Change</a></span></div>
+      <div class="row"><span class="svc"><b>Vision model</b><small>optional</small></span><span class="field">Model ID</span></div>
+    </div>
+
+    <div class="card">
+      <span class="pix eyebrow">AI</span>
+      <div class="row"><span class="lbl">Use AI<span class="q">?</span></span><span class="sw"></span></div>
+      <div class="row"><span class="lbl">Match my activity to goals<span class="q">?</span><span class="tip">Sends the window in front and your open goals to Nebius,<br>so tracked time lands on the right goal.</span></span><span class="sw"></span></div>
+    </div>
+
+    <div class="card">
+      <span class="pix eyebrow">Memory</span>
+      <div class="row"><span class="lbl">Remember<span class="q">?</span></span><span class="sw"></span></div>
+      <div class="row sub"><span class="lbl">Where I left off<span class="q">?</span></span><span class="sw"></span></div>
+      <div class="row sub"><span class="lbl">How I like to work<span class="q">?</span></span><span class="sw"></span></div>
+      <div class="row"><span></span><a class="lnk ext">See what sumi remembers</a></div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <ul>
+    <li><b>Use AI</b> · tooltip: "Coach chat, goal suggestions and web search through the services above." Turning it off stops every request. The two removed switches (goals in chat, web search) are on by default in the app and simply follow this one; nobody loses a feature.</li>
+    <li><b>Match my activity to goals</b> stays separate because it is the only switch that sends window titles without you doing anything, and it is off by default.</li>
+    <li><b>Remember</b> · tooltip: "Keeps a few facts on this Mac so the coach does not start from zero each time." This is the master switch; the two below are what it is allowed to keep and go grey when it is off.</li>
+    <li><b>Where I left off</b> (was "work context") · tooltip: "The step you stopped at and what happened on each goal, so sumi can pick up where you were."</li>
+    <li><b>How I like to work</b> (was "preferences") · tooltip: "Choices you confirm in chat, like short replies or no check-ins before noon."</li>
+    <li>The "?" is a 14px pixel square in muted grey; the tooltip appears on hover and on keyboard focus, and reads aloud as the switch's description.</li>
+  </ul>
+</div>
