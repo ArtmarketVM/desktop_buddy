@@ -3124,3 +3124,17 @@ p.error .text-button {
 .settings-card .memory-settings details > button {
   margin-top: 8px;
 }
+
+.core-workspace .settings-card .forget-goal-row select {
+  width: auto;
+  max-width: 220px;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .forget-goal-row .small-button.danger-button {
+  color: #ffffff;
+}

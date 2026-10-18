@@ -14,6 +14,8 @@ import { ProviderRow } from "./ProviderRow";
 import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WindowActivity } from "./WindowActivity";
+import { Hint } from "./Hint";
+import { memoryApi } from "../api/memory";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
@@ -99,6 +101,13 @@ export function CoreSettings({
   const [hours, setHours] = useState(defaultTrackingSettings);
   const [goals, setGoals] = useState(emptyCore().goals);
   const [logGoal, setLogGoal] = useState<number | null>(null);
+  const [forgetGoal, setForgetGoal] = useState<number | null>(null);
+  const [forgetArmed, setForgetArmed] = useState(false);
+  useEffect(() => {
+    if (!forgetArmed) return;
+    const timer = window.setTimeout(() => setForgetArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [forgetArmed]);
   const [busy, setBusy] = useState(false);
   const [colorBusy, setColorBusy] = useState(false);
   const [ready, setReady] = useState(!desktop);
@@ -703,6 +712,51 @@ export function CoreSettings({
             <section className="settings-card" aria-label="Memory">
               <p className="eyebrow settings-card-title">Memory</p>
               <MemorySettings part="controls" onChanged={onChanged} />
+              <div className="setting-row forget-goal-row">
+                <span className="lbl">
+                  Forget a goal
+                  <Hint text="Removes everything sumi remembers about one goal: facts, checkpoints and events. The goal itself stays." />
+                </span>
+                <span className="acts">
+                  <select
+                    aria-label="Goal to forget"
+                    value={forgetGoal ?? ""}
+                    disabled={blocked}
+                    onChange={(e) => {
+                      setForgetGoal(
+                        e.target.value ? Number(e.target.value) : null,
+                      );
+                      setForgetArmed(false);
+                    }}
+                  >
+                    <option value="">Choose a goal</option>
+                    {goals.map((goal) => (
+                      <option key={goal.id} value={goal.id}>
+                        {goal.title}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={`small-button ${forgetArmed ? "danger-button" : "outline-button"}`}
+                    disabled={blocked || forgetGoal === null}
+                    onClick={() => {
+                      if (forgetGoal === null) return;
+                      if (!forgetArmed) {
+                        setForgetArmed(true);
+                        return;
+                      }
+                      const id = forgetGoal;
+                      setForgetArmed(false);
+                      void run(() => memoryApi.clearGoal(id)).then((ok) => {
+                        if (ok) setForgetGoal(null);
+                      });
+                    }}
+                  >
+                    {forgetArmed ? "Click again to forget" : "Forget"}
+                  </button>
+                </span>
+              </div>
               <div className="setting-row">
                 <span />
                 <button
