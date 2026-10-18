@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
-import { WindowActivity } from "./WindowActivity";
-import { Check, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { PeriodPicker, endOfMonth } from "./PeriodPicker";
 import {
   sentenceCase,
@@ -67,7 +66,7 @@ export interface FinishedItem {
   steps: string[];
   completed: boolean;
 }
-/** Today's callout: focused time first, counts on the right, finished work in the dropdown. */
+/** Today's callout: focused time first, finished goals and steps on the right. */
 export function TodaySummary({
   day,
   items,
@@ -89,55 +88,25 @@ export function TodaySummary({
     seconds > 0
       ? `${duration(seconds)} of focused work today`
       : "No focused work recorded yet today";
-  if (!items.length)
-    return (
-      <section className="today-summary" aria-label="Day summary">
-        <div className="today-summary-head">
-          <strong>{headline}</strong>
-        </div>
-      </section>
-    );
   return (
-    <details className="today-summary" aria-label="Day summary">
-      <summary className="today-summary-head">
+    <section className="today-summary" aria-label="Day summary">
+      <div className="today-summary-head">
         <strong>{headline}</strong>
-        <span className="today-summary-counts">
-          {counts.join(" · ")}
-          <ChevronDown
-            size={16}
-            aria-hidden="true"
-            className="summary-chevron"
-          />
-        </span>
-      </summary>
-      <ul className="today-summary-list">
-        {items.map((item) => (
-          <li key={item.id}>
-            <div className="today-summary-row">
-              <span className="today-summary-dot" aria-hidden="true" />
-              <span className={item.completed ? "finished" : ""}>
-                {item.title}
-              </span>
-              <span className="today-summary-time">
-                {item.seconds > 0 ? duration(item.seconds) : "—"}
-              </span>
-            </div>
-            {item.steps.length > 0 && (
-              <p className="today-summary-steps">{item.steps.join(" · ")}</p>
-            )}
-          </li>
-        ))}
-      </ul>
-    </details>
+        {counts.length > 0 && (
+          <span className="today-summary-counts">{counts.join(" · ")}</span>
+        )}
+      </div>
+    </section>
   );
 }
+// Direction A: violet, lime and ink first, then their lighter steps.
 const goalColors = [
-  "#547548",
-  "#7b9fc7",
-  "#c9a24e",
-  "#b07ab5",
-  "#d0795f",
-  "#6bb3a8",
+  "#6c5fff",
+  "#e4fa8e",
+  "#1f1f1f",
+  "#b3acff",
+  "#c8d87a",
+  "#8c8c86",
 ];
 
 type Bucket = {
@@ -254,6 +223,9 @@ export function Progress({
   const bucketTotal = (bucket: Bucket) =>
     [...bucket.goals.values()].reduce((sum, value) => sum + value, 0);
   const maxBucket = Math.max(1, ...buckets.map(bucketTotal));
+  // The tallest day fills the chart; every goal with any time keeps at least one visible block.
+  const blockHeight = (seconds: number) =>
+    Math.max(6, Math.round((seconds / maxBucket) * 110));
   const total = buckets.reduce((sum, bucket) => sum + bucketTotal(bucket), 0);
   const stepSeconds = new Map<string, number>();
   if (selected !== null)
@@ -333,6 +305,26 @@ export function Progress({
       {focus && (
         <h2 className="progress-goal-title">{sentenceCase(focus.title)}</h2>
       )}
+      <div className="progress-headline">
+        <div className="progress-total">
+          {total > 0 ? duration(total) : "0m"}
+        </div>
+        <p className="progress-sub">
+          {focus
+            ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
+            : [
+                `focused ${periodWord}`,
+                periodGoalsDone > 0
+                  ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
+                  : "",
+                periodStepsDone > 0
+                  ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+        </p>
+      </div>
       <div className="progress-bar">
         <div className="progress-nav" role="group" aria-label="Choose period">
           <button
@@ -378,22 +370,6 @@ export function Progress({
           ))}
         </div>
       </div>
-      <div className="progress-total">{total > 0 ? duration(total) : "0m"}</div>
-      <p className="progress-sub">
-        {focus
-          ? `focused ${periodWord} · ${doneSteps.length} of ${allSteps.length} ${allSteps.length === 1 ? "step" : "steps"} done`
-          : [
-              `focused ${periodWord}`,
-              periodGoalsDone > 0
-                ? `${periodGoalsDone} ${periodGoalsDone === 1 ? "goal" : "goals"}`
-                : "",
-              periodStepsDone > 0
-                ? `${periodStepsDone} ${periodStepsDone === 1 ? "step" : "steps"} done`
-                : "",
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-      </p>
       <div className="stack-chart" aria-label="Focused time">
         {buckets.map((bucket) => (
           <div
@@ -423,19 +399,18 @@ export function Progress({
                   ))}
               </div>
             )}
-            <div
-              className="stack-bar"
-              style={{ height: `${(bucketTotal(bucket) / maxBucket) * 100}%` }}
-            >
+            <div className="stack-bar">
               {[...bucket.goals.entries()]
                 .filter(([, seconds]) => seconds > 0)
                 .map(([id, seconds]) => (
                   <i
                     key={id}
-                    style={{
-                      height: `${(seconds / bucketTotal(bucket)) * 100}%`,
-                      background: colorOf(id),
-                    }}
+                    style={
+                      {
+                        height: `${blockHeight(seconds)}px`,
+                        "--bar-color": colorOf(id),
+                      } as React.CSSProperties
+                    }
                   />
                 ))}
             </div>
@@ -500,10 +475,6 @@ export function Progress({
           )}
         </ul>
       )}
-      <details className="progress-details">
-        <summary>Tracked activity</summary>
-        <WindowActivity first={oldest} last={newest} goalId={selected} />
-      </details>
     </section>
   );
 }

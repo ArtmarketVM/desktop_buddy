@@ -54,13 +54,8 @@ it("hover details explain the cloud model and preserve configured-model provenan
   expect(tooltip.textContent).toContain(
     "Runs through Nebius, not on this computer",
   );
-  expect(tooltip.textContent).toContain(
-    "Configured model: nvidia/nemotron-3-super-120b-a12b",
-  );
-  expect(tooltip.textContent).toContain(
-    "Configured response model: Qwen/Qwen3.5-397B-A17B",
-  );
-  expect(tooltip.textContent).toContain("generation is checked separately");
+  // Model identifiers moved to Settings · AI; the popover keeps the plain explanation.
+  expect(tooltip.textContent).not.toContain("Configured model:");
   await user.keyboard("{Escape}");
   expect(screen.queryByRole("tooltip")).toBeNull();
 });

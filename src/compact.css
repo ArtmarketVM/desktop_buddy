@@ -193,7 +193,6 @@
 .sidebar-collapsed .profile-name {
   font-size: var(--text-caption);
 }
-.sidebar-collapsed .workspace-brand,
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .update-entry > span:last-child {
   visibility: hidden;
@@ -309,6 +308,8 @@
 /* Same size and rhythm as the page title on the other screens; the chat pane starts level with it. */
 .chat-conversations > h1 {
   margin: 0 0 28px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   font-size: var(--text-title);
   line-height: 40px;
 }
@@ -552,22 +553,10 @@
 .chat-menu button:hover {
   background: color-mix(in srgb, var(--text) 8%, transparent);
 }
-.chat-menu .danger,
-.chat-confirm .danger {
+.chat-menu .danger {
   color: var(--danger);
 }
-.chat-confirm {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
-  border: 1px solid var(--line);
-  border-bottom: 0;
-  font-size: var(--text-body);
-}
-.chat-confirm span {
-  flex: 1;
-}
+
 .workspace-buddy {
   position: fixed;
   right: 24px;
@@ -1000,6 +989,8 @@ main.desktop-buddy {
 }
 .app-shell .main > .page-title h1 {
   margin: 0;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   font-size: var(--text-title);
   line-height: 40px;
 }
@@ -1007,7 +998,7 @@ main.desktop-buddy {
   margin: 6px 0 0;
 }
 
-/* Switches follow macOS: a 30 x 18 track with a 14px knob. */
+/* Switches on the grid: a 28 x 16 square track with a 10px square knob that jumps, no easing. */
 .toggle-row input[type="checkbox"],
 .core-workspace .toggle-row input[type="checkbox"] {
   appearance: none;
@@ -1015,31 +1006,29 @@ main.desktop-buddy {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  width: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  height: 18px;
+  width: 28px;
+  min-width: 28px;
+  max-width: 28px;
+  height: 16px;
   margin: 0 0 0 16px;
   padding: 0;
   border: 0;
-  border-radius: 9px;
+  border-radius: 2px;
   background: var(--field-line, var(--line));
   cursor: pointer;
-  transition: background 0.18s ease;
 }
 .toggle-row input[type="checkbox"]::before,
 .core-workspace .toggle-row input[type="checkbox"]::before {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  top: 3px;
+  left: 3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--canvas);
   transform: none;
-  transition: transform 0.18s ease;
+  transition: transform 0.12s steps(2, jump-none);
 }
 .toggle-row input[type="checkbox"]:checked,
 .core-workspace .toggle-row input[type="checkbox"]:checked {
@@ -1047,7 +1036,7 @@ main.desktop-buddy {
 }
 .toggle-row input[type="checkbox"]:checked::before,
 .core-workspace .toggle-row input[type="checkbox"]:checked::before {
-  background: #fff;
+  background: #ffffff;
   transform: translateX(12px);
 }
 .toggle-row input[type="checkbox"]:focus-visible {
@@ -1055,7 +1044,6 @@ main.desktop-buddy {
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .toggle-row input[type="checkbox"],
   .toggle-row input[type="checkbox"]::before {
     transition: none;
   }
@@ -1290,13 +1278,16 @@ main.desktop-buddy.chatting > .companion-error {
   margin: 0;
   outline: 2px solid var(--sidebar);
 }
+/* Status in the palette: lime connected, violet needs attention, grey checking. */
 .service-dot.service-verified {
-  background: var(--service-connected);
+  background: var(--lime);
+  outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
+  outline-offset: -1px;
 }
 .service-dot.service-unavailable,
 .service-dot.service-not_configured,
 .service-dot.service-offline {
-  background: var(--service-disconnected);
+  background: var(--accent);
 }
 .service-dot.service-checking {
   background: var(--muted);
@@ -1470,4 +1461,383 @@ main.desktop-buddy.chatting > .companion-error {
 }
 .chat-pane .companion-composer-actions > button:disabled {
   opacity: 0.45;
+}
+
+/* Sidebar layout 2: pages with labels, utilities as a row of square icon buttons, settings beside the name. */
+.sidebar .workspace-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ai-dots {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
+.ai-dot {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+}
+.ai-dot:hover:not(:disabled),
+.ai-dot:focus-visible {
+  background: var(--raised);
+}
+.ai-dot .service-dot {
+  width: 6px;
+  height: 6px;
+  flex-basis: 6px;
+  border-radius: 1px;
+}
+.sidebar .sidebar-utilities {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+}
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sidebar .sidebar-utilities .nav-label,
+.sidebar .sidebar-utilities .quiet-state,
+.sidebar .sidebar-utilities .update-entry > span:last-child {
+  display: none;
+}
+.sidebar .sidebar-utilities .update-entry.update-available {
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.sidebar .sidebar-utilities .quiet-toggle[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+/* The divider above the profile spans the whole sidebar, name and settings together. */
+.sidebar .profile-menu-root {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  margin: 0 10px;
+  border-top: 1px solid var(--line);
+}
+.sidebar .profile-entry {
+  flex: 1;
+  min-width: 0;
+  border-top: 0;
+}
+.sidebar .profile-settings {
+  margin-right: 0;
+}
+.sidebar .profile-settings {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  margin: 0 10px 10px 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+}
+.sidebar .profile-settings.selected {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+.sidebar-collapsed .ai-dots,
+.sidebar-collapsed .profile-settings {
+  visibility: hidden;
+}
+/* The services panel inside Settings loses its sidebar framing. */
+.core-settings .sidebar-ai-services {
+  margin: 0 0 12px;
+  padding: 0;
+  border-top: 0;
+}
+.service-dot {
+  border-radius: 1px;
+}
+
+/* Service status dots sit under the pages, aligned with the icon column. */
+.sidebar-ai-dots {
+  padding: 2px 0 0 19px;
+}
+.ai-dots {
+  gap: 6px;
+}
+/* Hover labels for the icon-only buttons. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings {
+  position: relative;
+}
+.sidebar .sidebar-utilities .nav-item::after,
+.sidebar .sidebar-utilities .update-entry::after,
+.sidebar .profile-settings::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 30;
+  padding: 4px 7px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+.sidebar .profile-settings::after {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+.sidebar .sidebar-utilities > :first-child::after {
+  left: 0;
+  transform: none;
+}
+.sidebar .sidebar-utilities .nav-item:hover::after,
+.sidebar .sidebar-utilities .nav-item:focus-visible::after,
+.sidebar .sidebar-utilities .update-entry:hover::after,
+.sidebar .sidebar-utilities .update-entry:focus-visible::after,
+.sidebar .profile-settings:hover::after,
+.sidebar .profile-settings:focus-visible::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar .sidebar-utilities .nav-item::after,
+  .sidebar .sidebar-utilities .update-entry::after,
+  .sidebar .profile-settings::after {
+    transition: none;
+  }
+}
+
+/* Hover labels must escape the buttons; the dots start where the page icons start. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings,
+.sidebar .sidebar-utilities,
+.sidebar .sidebar-bottom {
+  overflow: visible;
+}
+.sidebar-ai-dots {
+  padding: 0 0 0 13.5px;
+}
+.ai-dots {
+  gap: 4px;
+}
+.ai-dot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  width: 14px;
+  height: 16px;
+}
+.sidebar .profile-menu-root {
+  align-items: center;
+  padding: 6px 0 8px;
+}
+/* The profile row starts where the first utility icon starts. */
+.sidebar .profile-entry {
+  height: 32px;
+  margin-top: 0;
+  padding: 0;
+  gap: 10px;
+}
+.sidebar .profile-entry .profile-icon {
+  flex: none;
+  width: 32px;
+  height: 15px;
+  color: var(--text);
+}
+.sidebar .profile-settings {
+  margin: 0;
+}
+
+.sidebar-ai-dots {
+  padding-top: 10px;
+}
+/* Scrollbars on the grid: a thin square thumb, no track. */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 0;
+  border: 2px solid var(--canvas);
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+/* The Custom chip is a label; later label rules must not resize it. */
+.color-options label.color-custom:not(.toggle-row):not(.small-check) {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 10px;
+  font-family: var(--pix);
+  font-size: 8px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0.12em;
+}
+
+/* Collapsed sidebar: everything stacks in one icon column, nothing is cut off. */
+.sidebar-collapsed .sidebar-ai-dots {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 0;
+}
+.sidebar-collapsed .ai-dots {
+  visibility: visible;
+  flex-direction: column;
+  width: 14px;
+  height: auto;
+}
+.sidebar-collapsed .sidebar-utilities {
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+.sidebar-collapsed .profile-menu-root {
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 6px;
+  padding: 6px 0 8px;
+}
+.sidebar-collapsed .profile-entry {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
+}
+.sidebar-collapsed .profile-entry .profile-icon {
+  width: 15px;
+}
+.sidebar-collapsed .profile-name {
+  display: none;
+}
+.sidebar-collapsed .profile-settings {
+  visibility: visible;
+}
+/* Utility icons are muted like the page icons; the Updates button turns lime when an update is ready. */
+.sidebar .sidebar-utilities .nav-item,
+.sidebar .sidebar-utilities .update-entry,
+.sidebar .profile-settings {
+  color: var(--muted);
+}
+.sidebar .sidebar-utilities .nav-item:hover,
+.sidebar .sidebar-utilities .update-entry:hover,
+.sidebar .profile-settings:hover {
+  color: var(--text);
+}
+.sidebar .sidebar-utilities .update-entry.update-available {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: #1f1f1f;
+}
+/* Collapsed sidebar: hover labels open to the right of the icon column instead of being clipped above it. */
+.app-shell.sidebar-collapsed .sidebar {
+  overflow: visible;
+  z-index: 20;
+}
+.sidebar-collapsed .sidebar-utilities .nav-item::after,
+.sidebar-collapsed .sidebar-utilities .update-entry::after,
+.sidebar-collapsed .profile-settings::after {
+  left: calc(100% + 10px);
+  right: auto;
+  bottom: auto;
+  top: 50%;
+  transform: translateY(-50%);
+}
+/* The profile button gets the same frame as its neighbours when collapsed. */
+.sidebar-collapsed .profile-entry {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+}
+
+/* Collapsed sidebar: page and profile buttons get the same hover label as the utilities. */
+.sidebar-collapsed #workspace-navigation .nav-item,
+.sidebar-collapsed .profile-entry {
+  position: relative;
+  overflow: visible;
+}
+.sidebar-collapsed #workspace-navigation .nav-item::after,
+.sidebar-collapsed .profile-entry::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  padding: 4px 7px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+.sidebar-collapsed #workspace-navigation .nav-item:hover::after,
+.sidebar-collapsed #workspace-navigation .nav-item:focus-visible::after,
+.sidebar-collapsed .profile-entry:hover::after,
+.sidebar-collapsed .profile-entry:focus-visible::after {
+  opacity: 1;
+}
+
+/* Collapsed pages: the hidden label takes no space, so the hover box is the icon square only. */
+.sidebar-collapsed #workspace-navigation .nav-item {
+  width: 44px;
+  padding: 0;
+  justify-content: center;
+}
+.sidebar-collapsed #workspace-navigation .nav-label {
+  display: none;
+}
+
+/* The mascot is the mark: a small working sumi before the wordmark, alone when the sidebar is collapsed. */
+.sidebar .workspace-brand {
+  overflow: visible;
+}
+.sidebar .workspace-brand > .avatar {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+.sidebar-collapsed .workspace-brand {
+  justify-content: center;
+}
+.sidebar-collapsed .workspace-brand > div {
+  display: none;
 }

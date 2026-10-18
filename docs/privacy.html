@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sumi · Privacy</title>
+<meta name="description" content="What sumi records on your Mac, what it sends to AI providers, and how to delete it.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#ffffff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --accent:#6c5fff; --lime:#e4fa8e; }
+  @media (prefers-color-scheme: dark) { :root { --canvas:#1f1f1f; --text:#f3f3ef; --muted:#9a9a94; --line:#3a3a3a; --surface:#2a2a2a; --accent:#8f85ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--canvas); color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:15px; line-height:1.65; }
+  main { max-width:680px; margin:0 auto; padding:56px max(16px, env(safe-area-inset-left)) 80px max(16px, env(safe-area-inset-right)); }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .brand { display:flex; align-items:center; gap:8px; margin-bottom:44px; text-decoration:none; color:inherit; }
+  .brand b { width:8px; height:8px; background:var(--lime); display:inline-block; }
+  h1 { font-size:34px; font-weight:600; letter-spacing:-.03em; margin:0 0 6px; line-height:1.1; }
+  .date { color:var(--muted); margin:0 0 32px; }
+  .sum { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 36px; }
+  .sum div { background:var(--surface); border-radius:6px; padding:12px 14px; font-size:13.5px; line-height:1.5; }
+  .sum .pix { display:block; color:var(--accent); margin-bottom:4px; }
+  nav.toc { display:flex; gap:14px; flex-wrap:wrap; margin:0 0 28px; }
+  nav.toc a { color:var(--accent); text-decoration:none; font-size:13px; }
+  h2 { font-size:18px; font-weight:500; margin:32px 0 8px; }
+  p, li { margin:0 0 8px; }
+  ul { padding-left:18px; margin:0 0 8px; }
+  table { border-collapse:collapse; width:100%; font-size:13.5px; margin:8px 0 12px; }
+  th, td { text-align:left; padding:8px 10px; border-top:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:400; }
+  footer { margin-top:44px; color:var(--muted); font-size:12.5px; border-top:1px solid var(--line); padding-top:14px; }
+  a { color:var(--accent); }
+  @media (max-width:520px) { .sum { grid-template-columns:1fr; } h1 { font-size:28px; } }
+</style>
+</head>
+<body>
+<main>
+  <a class="brand" href="https://github.com/ArtmarketVM/desktop_buddy"><b></b><span class="pix">sumi</span></a>
+  <h1>Privacy</h1>
+  <p class="date">Updated 18 October 2026 · applies to sumi 0.35.0 and later</p>
+
+  <div class="sum">
+    <div><span class="pix">Stored</span>On your Mac. sumi has no accounts, no analytics and no server of its own.</div>
+    <div><span class="pix">Watched</span>Which app and window is in front, and for how long. Never the screen itself.</div>
+    <div><span class="pix">Sent</span>Your goal and a short list of window titles, to the AI provider whose key you entered, only for features you turn on.</div>
+    <div><span class="pix">Deleted</span>Whenever you like, in Settings · Privacy. Keep history for 7, 30 or 90 days, or until you delete it.</div>
+  </div>
+
+  <nav class="toc" aria-label="Sections">
+    <a href="#records">What sumi records</a>
+    <a href="#leaves">What leaves your computer</a>
+    <a href="#keys">Your keys</a>
+    <a href="#memory">Memory</a>
+    <a href="#feedback">Feedback and updates</a>
+    <a href="#deleting">Deleting</a>
+    <a href="#you">Your choices and rights</a>
+    <a href="#changes">Changes</a>
+  </nav>
+
+  <h2 id="who">Who this is from</h2>
+  <p>sumi is made by ArtmarketVM. For anything about this policy or your data, <a href="https://github.com/ArtmarketVM/desktop_buddy/issues">open an issue on GitHub</a> or use Feedback inside the app.</p>
+
+  <h2 id="records">What sumi records</h2>
+  <p>Nothing until you turn tracking on. When you do, macOS asks you to grant Accessibility access, and from then on, inside your working days and hours, sumi notes the app in front, its window title and how long you were active or idle. That is how it knows what counted toward a goal.</p>
+  <p>This history, your goals, steps, chats and settings are saved in a local database in the app's data folder on your Mac. The database is not encrypted; it is protected by your Mac's own login and disk encryption.</p>
+  <p>sumi never takes screenshots and never records what you type. When a feature looks at visible text, password and editing fields are skipped.</p>
+
+  <h2 id="leaves">What leaves your computer</h2>
+  <p>sumi only talks to services when you use a feature that needs them, and only to the provider whose key you entered yourself. Each feature sends the minimum it needs:</p>
+  <table>
+    <thead><tr><th>Feature</th><th>Goes to</th><th>What is sent</th></tr></thead>
+    <tbody>
+      <tr><td>Progress check-in</td><td>Nebius</td><td>Your goal, its completion criterion and current step, and up to 10 recent windows: app, title, active and idle seconds</td></tr>
+      <tr><td>Goal matching</td><td>Nebius</td><td>Your open goals and the app and window title in front (titles are cut at 160 characters)</td></tr>
+      <tr><td>Suggested completions</td><td>Nebius</td><td>Your goal and steps with up to 3,000 characters of the text visible in the window, when you have enabled this check. You confirm every completion.</td></tr>
+      <tr><td>Suggested resources</td><td>Nebius, then Tavily</td><td>Your goal and up to 5 window titles so Nebius can write a search; Tavily receives only that search; Nebius then sees up to 5 result titles and snippets to pick one</td></tr>
+      <tr><td>Coach chat</td><td>Nebius</td><td>Your message, the goal, and a small selection of relevant memories when Memory is on</td></tr>
+      <tr><td>Manual search</td><td>Tavily</td><td>The query you typed</td></tr>
+    </tbody>
+  </table>
+  <p>Nebius and Tavily process these requests under their own terms and privacy policies, and may keep them under their own retention rules. Deleting data in sumi does not delete it there. You can see exactly what the next request would contain under Settings · Privacy · Raw data; that preview is built locally and nothing is sent to produce it.</p>
+
+  <h2 id="keys">Your keys</h2>
+  <p>API keys are stored in the macOS Keychain through a signed helper that only the sumi app can call. A key is sent only to the provider it belongs to, as authentication, and is never included in the content of a request.</p>
+
+  <h2 id="memory">Memory</h2>
+  <p>Memory keeps a few facts you tell the coach so it can remember them next time. It never stores screen text. Turn it off in Settings · Memory to stop saving and recalling; what was already saved stays until you clear it there.</p>
+
+  <h2 id="feedback">Feedback and updates</h2>
+  <p>If you send feedback from the app, your message and the reply address you typed go to the contact service configured for your copy of sumi. Email updates are only sent if you tick the separate consent box, and you can withdraw that at any time through Feedback in the app or an issue on GitHub.</p>
+  <p>On launch, sumi checks GitHub for a newer version. Like any download, that request shows GitHub your IP address and the version you are running. Nothing else is sent, and GitHub's own privacy statement applies to that request.</p>
+
+  <h2 id="deleting">Deleting</h2>
+  <p>Settings · Privacy lets you keep history for 7, 30 or 90 days, or until you delete it; older records are removed on save, on startup and hourly while sumi runs. Clear all local history removes activity, daily app time, suggestions, ratings, and completed or deferred goals with their plans, and pauses tracking. Your active goal and plan, settings and keys stay. Deleting the app's data folder removes everything.</p>
+
+  <h2 id="you">Your choices and rights</h2>
+  <ul>
+    <li>Every feature that sends data is off until you turn it on, and tracking also needs the macOS Accessibility permission you grant.</li>
+    <li>You can pause tracking, limit it to working hours, shorten retention or clear history at any time, without contacting anyone.</li>
+    <li>Because sumi keeps your data on your own Mac, the only personal data ArtmarketVM may hold about you is feedback you chose to send. To have it corrected or deleted, open an issue on GitHub or send a Feedback message from the app.</li>
+    <li>sumi is not directed at children under 16.</li>
+  </ul>
+
+  <h2 id="changes">Changes</h2>
+  <p>When this page changes, the date at the top changes with it, and the app release notes mention it. The version linked from Settings · Privacy is always the current one.</p>
+
+  <footer>sumi · made by ArtmarketVM · <a href="https://github.com/ArtmarketVM/desktop_buddy">source on GitHub</a></footer>
+</main>
+</body>
+</html>

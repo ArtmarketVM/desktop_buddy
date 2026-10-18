@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Clear all local history: button options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; --danger:#c2453a; --danger-soft:#f6e3e1; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:720px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:22px; max-width:1000px; }
+  .opt h2 { font-size:14px; font-weight:500; margin:0 0 4px; }
+  .opt p { color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 10px; min-height:38px; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:18px 20px; }
+  .card { background:var(--raised); border-radius:6px; padding:12px 16px 6px; }
+  .eyebrow { color:var(--accent); margin:0 0 4px; display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:8px 0; border-top:1px solid #1f1f1f1a; font-size:13px; }
+  .eyebrow + .row { border-top:0; }
+  .sel { height:26px; padding:0 9px; border:1px solid var(--line); border-radius:3px; background:var(--canvas); display:inline-flex; align-items:center; font-size:12px; }
+  .sentence { margin-top:12px; display:flex; gap:12px; padding:12px 14px; border:1px solid var(--line); border-radius:6px; font-size:12.5px; line-height:1.5; color:var(--muted); }
+  .sentence i { flex:none; width:8px; height:8px; margin-top:5px; background:var(--lime); }
+  .btn { height:28px; padding:0 12px; border-radius:3px; display:inline-flex; align-items:center; font-size:13px; font-weight:500; }
+  .ghost { border:1px solid var(--line); background:var(--canvas); color:var(--danger); }
+  .ghost-red { border:1px solid var(--danger); background:transparent; color:var(--danger); }
+  .fill { background:var(--danger); color:#fff; }
+  .soft { background:var(--danger-soft); color:var(--danger); }
+  .link { color:var(--danger); text-decoration:underline; text-underline-offset:3px; font-size:13px; }
+  .full { width:100%; justify-content:center; }
+  .right { display:flex; justify-content:flex-end; margin-top:12px; }
+  .pair { display:flex; gap:8px; align-items:center; }
+  .armed { background:var(--danger); color:#fff; }
+  .note { margin-top:26px; max-width:1000px; color:var(--muted); font-size:13px; line-height:1.6; }
+  .note b { color:var(--text); font-weight:500; }
+</style>
+<h1>Clear all local history · the button alone</h1>
+<p class="lead">No label, no sentence. Four placements; the confirm pattern below applies to all of them.</p>
+
+<div class="grid">
+  <div class="opt"><h2>A · Last row of the card, full width</h2><p>A ghost button in red text spanning the row. It belongs to the same list as the other settings and is hard to miss.</p>
+    <div class="frame"><div class="card"><span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Working hours</span><span class="sel">10:00 AM · 06:00 PM</span></div>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+      <div class="row"><span class="btn ghost full">Clear all local history</span></div>
+    </div></div></div>
+
+  <div class="opt"><h2>B · Below the sentence, bottom right</h2><p>Out of the card entirely, where destructive actions usually sit. A red-outlined button, small.</p>
+    <div class="frame"><div class="card"><span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Working hours</span><span class="sel">10:00 AM · 06:00 PM</span></div>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+    </div>
+    <div class="sentence"><i></i>Right now sumi knows you have been in Claude for 18 minutes…</div>
+    <div class="right"><span class="btn ghost-red">Clear all local history</span></div></div></div>
+
+  <div class="opt"><h2>C · Soft red tile row</h2><p>Still the last row, but the button sits on a pale red field and is left-aligned like a danger zone, without the heading or text a danger zone usually has.</p>
+    <div class="frame"><div class="card"><span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Working hours</span><span class="sel">10:00 AM · 06:00 PM</span></div>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it</span></div>
+      <div class="row" style="justify-content:flex-start"><span class="btn soft">Clear all local history</span></div>
+    </div></div></div>
+
+  <div class="opt"><h2>D · Red text link next to Keep history</h2><p>Lightest possible: a red underlined link on the Keep history row, right after the select. Reads as "or clear it now".</p>
+    <div class="frame"><div class="card"><span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Working hours</span><span class="sel">10:00 AM · 06:00 PM</span></div>
+      <div class="row"><span>Keep history</span><span class="pair"><span class="sel">Until I delete it</span><span class="link">Clear all now</span></span></div>
+    </div></div></div>
+</div>
+
+<div class="note">
+  <b>Confirming without text.</b> On the first click the button turns solid red and its label changes to <span class="btn armed" style="height:22px;font-size:12px">Click again to clear</span>; a second click within 5 seconds clears, otherwise it reverts. No checkbox, no sentence, no second button, and still no accidental wipe.
+</div>

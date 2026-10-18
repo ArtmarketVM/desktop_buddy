@@ -330,7 +330,10 @@ export function GoalRow({
             disabled={busy || !desktop}
             onClick={() =>
               void (goal.status === "completed"
-                ? run(() => coreApi.transition(goal.id, "resume", true))
+                ? run(async () => {
+                    await coreApi.transition(goal.id, "resume", true);
+                    if (!today) await coreApi.today(goal.id, true);
+                  })
                 : completeGoal())
             }
           >

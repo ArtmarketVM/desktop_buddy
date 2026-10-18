@@ -37,9 +37,12 @@ const services = [
 export function SidebarAiServices({
   enabled = true,
   collapsed = false,
+  variant = "panel",
 }: {
   enabled?: boolean;
   collapsed?: boolean;
+  /** "dots" is the three status squares beside the wordmark; "panel" is the full list. */
+  variant?: "panel" | "dots";
 }) {
   const [snapshot, setSnapshot] = useState<ServiceSnapshot | null>(null);
   const [busy, setBusy] = useState(desktop && enabled && navigator.onLine);
@@ -200,6 +203,72 @@ export function SidebarAiServices({
   const checkedAt = snapshot?.services.find(
     (service) => service.id === active,
   )?.checked_at;
+  const popover =
+    open &&
+    createPortal(
+      <div
+        ref={surfaceRef}
+        className="service-tooltip"
+        id={id}
+        role="tooltip"
+        style={position}
+        onMouseEnter={keepOpen}
+        onMouseLeave={leave}
+      >
+        <strong>{name(active)}</strong>
+        <p>{item.description}</p>
+        <div className="service-state">
+          <span
+            className={`service-dot service-${state(active)}`}
+            aria-hidden="true"
+          />
+          {serviceStateLabel(active, state(active))}
+        </div>
+        {checkedAt && (
+          <small>
+            Last checked:{" "}
+            {new Date(checkedAt).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </small>
+        )}
+        {readError && (
+          <small>Local status is unavailable. Try again in Settings.</small>
+        )}
+      </div>,
+      document.body,
+    );
+  if (variant === "dots") {
+    return (
+      <div
+        className="ai-dots"
+        role="group"
+        aria-label="AI services"
+        ref={rootRef}
+      >
+        {services.map((service) => (
+          <button
+            key={service.id}
+            type="button"
+            className="ai-dot"
+            aria-label={`${name(service.id)}: ${serviceStateLabel(service.id, state(service.id))}`}
+            aria-describedby={open && active === service.id ? id : undefined}
+            onMouseEnter={(event) => show(service.id, event.currentTarget)}
+            onMouseLeave={leave}
+            onFocus={(event) => show(service.id, event.currentTarget)}
+            onClick={(event) => show(service.id, event.currentTarget)}
+          >
+            <span
+              className={`service-dot service-${state(service.id)}`}
+              aria-hidden="true"
+            />
+          </button>
+        ))}
+        {popover}
+      </div>
+    );
+  }
   return (
     <div
       className="sidebar-ai-services"
@@ -245,59 +314,7 @@ export function SidebarAiServices({
       <span className="service-receipt" role="status">
         {receipt}
       </span>
-      {open &&
-        createPortal(
-          <div
-            ref={surfaceRef}
-            className="service-tooltip"
-            id={id}
-            role="tooltip"
-            style={position}
-            onMouseEnter={keepOpen}
-            onMouseLeave={leave}
-          >
-            <strong>{name(active)}</strong>
-            <p>{item.description}</p>
-            {active === "nvidia" && (
-              <p className="service-model">
-                Configured model:{" "}
-                {snapshot?.configured_model ?? "Not available"}
-                <br />
-                Configured response model:{" "}
-                {snapshot?.configured_response_model ??
-                  snapshot?.configured_model ??
-                  "Not available"}
-              </p>
-            )}
-            <div className="service-state">
-              <span
-                className={`service-dot service-${state(active)}`}
-                aria-hidden="true"
-              />
-              {serviceStateLabel(active, state(active))}
-            </div>
-            {checkedAt && (
-              <small>
-                Last checked:{" "}
-                {new Date(checkedAt).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </small>
-            )}
-            <small>
-              {active === "nvidia"
-                ? "Model-list access only; generation is checked separately in Settings."
-                : active === "nebius"
-                  ? "Authentication check only; generation and billing are not tested."
-                  : "Usage access check only; a search has not been tested."}
-            </small>
-            {readError && (
-              <small>Local status is unavailable. Try again in Settings.</small>
-            )}
-          </div>,
-          document.body,
-        )}
+      {popover}
     </div>
   );
 }

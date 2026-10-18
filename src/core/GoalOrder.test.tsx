@@ -55,23 +55,19 @@ function view(disabled = false, goals = visible) {
 }
 function setup(disabled = false) {
   const result = render(view(disabled));
-  document
-    .querySelectorAll(".ordered-goal")
-    .forEach((row, i) =>
-      vi
-        .spyOn(row, "getBoundingClientRect")
-        .mockReturnValue({
-          top: i * 100,
-          bottom: (i + 1) * 100,
-          height: 100,
-          left: 0,
-          right: 600,
-          width: 600,
-          x: 0,
-          y: i * 100,
-          toJSON: () => ({}),
-        }),
-    );
+  document.querySelectorAll(".ordered-goal").forEach((row, i) =>
+    vi.spyOn(row, "getBoundingClientRect").mockReturnValue({
+      top: i * 100,
+      bottom: (i + 1) * 100,
+      height: 100,
+      left: 0,
+      right: 600,
+      width: 600,
+      x: 0,
+      y: i * 100,
+      toJSON: () => ({}),
+    }),
+  );
   return { ...result, user: userEvent.setup() };
 }
 beforeEach(() => {

@@ -256,7 +256,7 @@ export const defaultUserSettings: UserSettings = {
     applications: [],
     privacy_accepted: false,
     privacy_notice_version: null,
-    avatar: { character: "cat", color: "#A8D8C8", visible: true },
+    avatar: { character: "cat", color: "#E4FA8E", visible: true },
   },
   onboarding: {
     step: 0,

@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Settings · Privacy: proposal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; --danger:#c2453a; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 24px; max-width:720px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:28px 32px; max-width:860px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .card { background:var(--raised); border-radius:6px; padding:14px 18px 6px; min-width:0; }
+  .eyebrow { color:var(--accent); margin:0 0 6px; display:block; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:9px 0; border-top:1px solid #1f1f1f1a; }
+  .eyebrow + .row { border-top:0; }
+  .row span small { display:block; color:var(--muted); font-size:12px; margin-top:2px; line-height:1.45; }
+  .sw { width:28px; height:16px; border-radius:2px; background:var(--accent); position:relative; flex:none; }
+  .sw::before { content:""; position:absolute; top:3px; left:15px; width:10px; height:10px; background:#fff; border-radius:1px; }
+  .status { display:flex; align-items:center; gap:8px; }
+  .dot { width:8px; height:8px; background:var(--lime); outline:1px solid #1f1f1f33; }
+  .sel, .time, .btn { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--canvas); display:inline-flex; align-items:center; gap:10px; font-size:13px; }
+  .sel i { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text); }
+  .time { font-variant-numeric: tabular-nums; }
+  .btn.danger { color:var(--danger); }
+  .days { display:flex; gap:4px; }
+  .day { height:22px; padding:0 7px; border-radius:3px; display:inline-flex; align-items:center; background:var(--accent); color:#fff; }
+  .day.off { background:var(--canvas); color:var(--muted); border:1px solid var(--line); }
+  .inline { display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .to { color:var(--muted); font-size:12px; }
+  .cuts { margin-top:26px; max-width:860px; display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .cuts h2 { font-size:14px; font-weight:500; margin:0 0 8px; }
+  .cuts ul { margin:0; padding-left:18px; color:var(--muted); font-size:13px; line-height:1.6; }
+  .cuts li b { color:var(--text); font-weight:500; }
+</style>
+<h1>Settings · Privacy</h1>
+<p class="lead">Two cards, like General. The left one is about watching your screen, the right one about what is kept and sent. Every setting saves on change, so the tab needs no Save button, no "I understand" checkboxes and no explanations longer than a line. The long policy text moves to one link.</p>
+
+<div class="frame">
+  <div class="cards">
+    <div class="card">
+      <span class="pix eyebrow">Tracking</span>
+      <div class="row"><span>Track goals and suggest completed work<small>Watches which window is in front. You confirm every completion.</small></span><span class="sw"></span></div>
+      <div class="row"><span>Status</span><span class="status"><span class="dot"></span>Running · receiving activity</span></div>
+      <div class="row"><span>Working days</span><span class="days"><span class="day pix off">Su</span><span class="day pix">Mo</span><span class="day pix">Tu</span><span class="day pix">We</span><span class="day pix">Th</span><span class="day pix">Fr</span><span class="day pix off">Sa</span></span></div>
+      <div class="row"><span>Working hours</span><span class="inline"><span class="time">10:00 AM</span><span class="to">to</span><span class="time">06:00 PM</span></span></div>
+    </div>
+    <div class="card">
+      <span class="pix eyebrow">Your data</span>
+      <div class="row"><span>Keep history</span><span class="sel">Until I delete it <i></i></span></div>
+      <div class="row"><span>What the AI can see<small>A local preview of the context sent with a request. Nothing is sent.</small></span><span class="btn">Preview</span></div>
+      <div class="row"><span>How sumi uses data</span><span class="btn">Read</span></div>
+      <div class="row"><span>Clear local history<small>Activity and finished goals go; your active goal, settings and keys stay.</small></span><span class="btn danger">Clear…</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="cuts">
+  <div>
+    <h2>What goes</h2>
+    <ul>
+      <li>The <b>"Privacy and local data"</b> essay and its six bullets: one <b>Read</b> row opens it instead.</li>
+      <li>The <b>"Local data controls"</b> disclosure: its three controls become rows.</li>
+      <li><b>Save retention</b>, <b>Save preferences</b> and both <b>"I understand"</b> checkboxes: changes save on the spot; clearing asks inline, the way deleting a goal does.</li>
+      <li>The <b>"Tracking details"</b> link and the status helper sentence: the status row says it in four words.</li>
+      <li>The permission paragraph with <b>Check permission</b> / <b>Reset and ask again</b>: when access is missing the status row turns into a lime callout with one <b>Allow access</b> action; reset shows only if allowing fails.</li>
+      <li>The "No screenshots are taken" line: it moves into the one-line description under the tracking switch.</li>
+    </ul>
+  </div>
+  <div>
+    <h2>What stays, reworded</h2>
+    <ul>
+      <li><b>Track goals and suggest completed work</b> switch, with a single line under it.</li>
+      <li><b>Status</b>: lime dot "Running · receiving activity", grey dot "Paused", violet dot "Needs access".</li>
+      <li><b>Working days</b> as pixel chips; <b>Working hours</b> as two time fields on one line.</li>
+      <li><b>Keep history</b> select: Until I delete it, 7, 30, 90 days.</li>
+      <li><b>Preview</b> of the AI context (opens the local snapshot below the card).</li>
+      <li><b>Clear…</b> turns the row into "Clear activity and finished goals? · Clear permanently · Keep".</li>
+    </ul>
+  </div>
+</div>

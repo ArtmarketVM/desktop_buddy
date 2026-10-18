@@ -4,7 +4,7 @@ One system for the app, the site and anything else that carries the sumi name.
 
 ## Fonts
 
-One family for everything: **Zen Maru Gothic** (rounded sans). Titles, the sumi wordmark, headings, body, labels, buttons, captions and chat all use it. Hierarchy comes from size, weight, colour and spacing, never from a second typeface. The only exception is a system monospace for code spans and blocks.
+Two faces with strictly separate jobs. **Instrument Sans** is the typeface: titles, the wordmark, headings, body, labels, buttons, chat. **Silkscreen** is the pixel face and appears only as tiny uppercase captions at 8px: priority tags, chart axis labels, section eyebrows such as "Ideas" or "AI services". It never sets a sentence or anything a person has to read at length. Code uses the system monospace.
 
 ## Sizes
 
@@ -12,7 +12,7 @@ Four sizes, exposed as CSS tokens. Nothing else is allowed in a stylesheet.
 
 | Token | Size | Line height | Use |
 | --- | --- | --- | --- |
-| `--text-title` | 34px | 1.2 | The one page title per screen and the wordmark. Nothing else, not even big numbers. |
+| `--text-title` | 34px | 1.2 | The one page title per screen, and the focused-time figure on Progress. Bold (600), tight tracking. |
 | `--text-heading` | 18px | 1.3 | Section headings inside a page, dialog titles, the current chat's title. Sans, medium. |
 | `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, the open chat's name (medium), settings labels, inputs, buttons, navigation. |
 | `--text-caption` | 11px | 1.45 | Secondary information: counts, dates, due dates, tags, timestamps, the rare helper line. |

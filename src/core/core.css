@@ -579,11 +579,12 @@
   justify-content: center;
   border-bottom: 1px solid var(--line);
 }
+/* Bars are stacks of 8px cells, like everything else on the grid. */
 .progress-bar-day span {
   width: 100%;
   max-width: 34px;
   min-height: 4px;
-  border-radius: 6px 6px 0 0;
+  border-radius: 3px;
   background: var(--accent, var(--muted));
 }
 .progress-bar-day strong,
@@ -1110,7 +1111,7 @@
 .goal-log {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 28px;
 }
 .goal-search .quick-goal {
   margin: 0;
@@ -1125,7 +1126,7 @@
   border-top: 0;
 }
 .goal-log .goal-heading {
-  padding: 12px 0;
+  padding: 5px 0;
 }
 .sr-only {
   position: absolute;
@@ -1399,8 +1400,8 @@
   width: 18px;
   height: 18px;
   box-sizing: border-box;
-  border: 1.5px solid var(--muted);
-  border-radius: 50%;
+  border: 1.5px solid var(--text);
+  border-radius: 2px;
 }
 .goal-heading button.goal-status-icon:hover:not(:disabled) > span {
   border-color: var(--text);
@@ -1408,9 +1409,9 @@
 .core-goal.completed .goal-status-icon svg {
   box-sizing: content-box;
   padding: 3px;
-  border-radius: 50%;
+  border-radius: 2px;
   background: var(--accent, var(--accent));
-  color: var(--surface);
+  color: #ffffff;
 }
 .goal-expand-toggle .goal-chevron {
   margin-left: auto;
@@ -1516,15 +1517,31 @@ textarea:focus {
   padding: 2px 6px;
   color: var(--muted);
 }
+/* The week's focus figure is an ink tile with the number in lime; everything below it is secondary. */
+.progress-headline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  border-radius: 4px;
+  background: var(--tile);
+  color: var(--tile-text);
+}
 .progress-total {
-  font-size: var(--text-heading);
-  font-weight: 500;
-  line-height: var(--leading-heading);
+  font-size: var(--text-title);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: var(--leading-title);
+  color: var(--lime);
 }
 .progress-sub {
-  margin: 2px 0 12px;
-  color: var(--muted);
-  font-size: var(--text-caption);
+  margin: 0;
+  color: var(--tile-text);
+  opacity: 0.75;
+  font-size: var(--text-body);
 }
 .stack-chart {
   display: flex;
@@ -1545,10 +1562,10 @@ textarea:focus {
 .stack-bar {
   display: flex;
   flex-direction: column-reverse;
-  border-radius: 3px 3px 0 0;
-  overflow: hidden;
+  gap: 2px;
+  border-radius: 0;
   min-height: 2px;
-  background: var(--line);
+  background: transparent;
 }
 .stack-bar:not(:has(i)) {
   height: 2px !important;
@@ -1701,9 +1718,9 @@ p.update-error {
   margin: 0 0 12px;
   padding: 9px 12px;
   border: 0;
-  border-radius: 6px;
-  background: var(--raised);
-  color: var(--text);
+  border-radius: 3px;
+  background: var(--lime);
+  color: #1f1f1f;
   font-size: var(--text-body);
   line-height: 20px;
 }
@@ -1716,7 +1733,7 @@ p.update-error::before {
   flex: none;
   width: 16px;
   height: 16px;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c0a343' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231f1f1f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636-2.87l-8.106-13.536a1.914 1.914 0 0 0-3.274 0z'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 p.notice::before {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8h.01'/%3E%3Cpath d='M11 12h1v4h1'/%3E%3C/svg%3E");
@@ -2113,11 +2130,15 @@ p.error .text-button {
 }
 .priority-tag {
   display: inline-block;
-  padding: 2px 9px;
-  border-radius: var(--radius-pill);
+  padding: 3px 6px 2px;
+  border-radius: 2px;
   background: var(--accent-soft);
   color: var(--accent-text);
-  font-size: var(--text-caption);
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
   line-height: 16px;
 }
 .priority-tag.urgent {
@@ -2139,11 +2160,11 @@ p.error .text-button {
 }
 
 /* One colour scale for priority: red, orange, yellow, green, grey. */
-.priority-tag.urgent { background: #f7e6e1; color: #8e2e1d; }
-.priority-tag.high { background: #fbecdc; color: #8a4a12; }
-.priority-tag.medium { background: #faf3d2; color: #6e5a0e; }
-.priority-tag.low { background: var(--accent-soft); color: var(--accent-text); }
-.priority-tag.none { background: var(--raised); color: var(--muted); }
+.priority-tag.urgent { background: var(--accent); color: #ffffff; }
+.priority-tag.high { background: var(--lime); color: #1f1f1f; }
+.priority-tag.medium { background: var(--raised); color: var(--text); }
+.priority-tag.low { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.priority-tag.none { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
 :root[data-theme="dark"] .priority-tag.urgent { background: #4a2a24; color: #f0a391; }
 :root[data-theme="dark"] .priority-tag.high { background: #4a3421; color: #f0b989; }
 :root[data-theme="dark"] .priority-tag.medium { background: #45401f; color: #e6d27a; }
@@ -2358,7 +2379,7 @@ details.today-summary > .today-summary-head {
   border-top: 0;
 }
 .today-goals .goal-heading {
-  padding: 12px 0;
+  padding: 5px 0;
 }
 .today-summary {
   margin-top: 12px;
@@ -2438,24 +2459,6 @@ details.today-summary > .today-summary-head {
   background: transparent;
   border: 1.5px solid var(--muted);
 }
-.progress-details {
-  margin-top: 28px;
-}
-.progress-details > summary {
-  display: inline-block;
-  color: var(--muted);
-  font-size: var(--text-body);
-  cursor: pointer;
-  list-style: none;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.progress-details > summary::-webkit-details-marker {
-  display: none;
-}
-.progress-details[open] > summary {
-  margin-bottom: 8px;
-}
 .pager {
   display: flex;
   flex-wrap: wrap;
@@ -2467,7 +2470,7 @@ details.today-summary > .today-summary-head {
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  border-radius: 999px;
+  border-radius: 3px;
   color: var(--muted);
   font-size: var(--text-body);
 }
@@ -2478,7 +2481,7 @@ details.today-summary > .today-summary-head {
 }
 .pager > button[aria-current="page"] {
   background: var(--accent);
-  color: var(--inverse);
+  color: #ffffff;
 }
 .toasts {
   position: fixed;
@@ -2509,4 +2512,629 @@ details.today-summary > .today-summary-head {
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 3px;
+}
+
+/* Pixel captions: the one place the grid becomes letters. */
+.progress-bar-day small,
+.axis-label,
+.ideas-label,
+.finder-label,
+.chat-group,
+.nav-heading,
+.sidebar-ai-heading .sidebar-service-label,
+.section-label,
+.eyebrow {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.goal-expanded .core-steps input[type="checkbox"] {
+  border-radius: 1px;
+}
+
+/* One soft block per goal, sized by its time. */
+.stack-bar > i {
+  border-radius: 3px;
+  background: var(--bar-color, var(--accent));
+}
+
+.callout .callout-action,
+p[role="alert"] .text-button,
+p.error .text-button {
+  color: #1f1f1f;
+}
+
+/* Chart day labels in the pixel face; bricks and bars keep soft 3px corners. */
+.stack-col small {
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.stack-bar > i {
+  border-radius: 3px;
+}
+
+/* Warning callout hugs the block below it; the headline then breathes before the period row. */
+.core-workspace > .callout ~ .progress-screen {
+  margin-top: -32px;
+}
+.core-workspace > .callout:has(~ .progress-screen > .progress-headline:first-child) {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.core-workspace > .callout ~ .progress-screen > .progress-headline:first-child {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.progress-headline {
+  margin-bottom: 28px;
+}
+
+/* Settings · General: the sumi block on top, then two framed cards side by side. */
+.settings-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 18px;
+}
+.settings-card {
+  min-width: 0;
+  padding: 14px 18px 4px;
+  border: 0;
+  border-radius: var(--radius-card);
+  background: var(--raised);
+}
+.settings-card .toggle-row,
+.settings-card .setting-row {
+  border-color: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.settings-card-title {
+  margin: 0 0 6px;
+  color: var(--accent);
+  letter-spacing: 0.12em;
+}
+.settings-card .toggle-row,
+.settings-card .setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 9px 0;
+  border-top: 1px solid var(--line);
+  font-size: var(--text-body);
+  color: var(--text);
+}
+.settings-card > .settings-card-title + .toggle-row,
+.settings-card > .settings-card-title + .setting-row {
+  border-top: 0;
+}
+.settings-card .setting-row > span:first-child {
+  flex: 1;
+}
+.core-workspace .settings-card .setting-row select,
+.core-workspace .settings-card .setting-row input[type="time"] {
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+}
+.settings-card .quiet-hours {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-card .quiet-hours-to {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .helper {
+  margin: 4px 0 8px;
+}
+@media (max-width: 1100px) {
+  .settings-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Privacy tab rows. */
+.tracking-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.tracking-state > i {
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
+}
+.tracking-state.running > i {
+  background: var(--lime);
+  outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
+}
+.tracking-state.attention > i {
+  background: var(--accent);
+}
+.day-chips {
+  display: flex;
+  gap: 4px;
+}
+.core-workspace .day-chip {
+  min-height: 0;
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--muted);
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.core-workspace .day-chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+.core-workspace .settings-card .small-button {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .inline-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.settings-card .mac-permissions .callout {
+  margin: 8px 0;
+}
+.core-settings .privacy-preview,
+.core-settings .privacy-notes {
+  margin-top: 14px;
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+
+/* Privacy: one wide card and one sentence. */
+.settings-card-wide {
+  margin-top: 0;
+}
+.privacy-sentence {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.privacy-sentence .privacy-cell {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  background: var(--lime);
+}
+.privacy-sentence > p {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.privacy-links {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.core-workspace .privacy-link {
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .privacy-link.muted {
+  color: var(--muted);
+}
+
+.activity-log {
+  margin-top: 14px;
+}
+
+/* Clear all local history: one ghost button across the row; the first click arms it. */
+.core-workspace .settings-card .clear-history {
+  flex: 1;
+  min-height: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--danger);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.core-workspace .settings-card .clear-history:hover {
+  border-color: var(--danger);
+}
+.core-workspace .settings-card .clear-history.armed {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
+
+/* AI tab cards and About actions. */
+.settings-card .connection {
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .memory-settings {
+  margin-top: 0;
+}
+.about-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+/* AI tab: provider rows, hints, compact switch cards. */
+.settings-card-full {
+  grid-column: 1 / -1;
+}
+.settings-card .svc {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.settings-card .svc b {
+  font-weight: 500;
+}
+.settings-card .svc small {
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.core-workspace .settings-card .row-link {
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .settings-card .row-link.muted {
+  color: var(--muted);
+}
+.settings-card .provider-key-row {
+  gap: 10px;
+  padding-top: 0;
+  border-top: 0;
+}
+.core-workspace .settings-card .provider-key-row input,
+.core-workspace .settings-card .setting-row input:not([type="checkbox"]):not([type="time"]) {
+  margin: 0;
+  min-height: 28px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .provider-key-row input {
+  flex: 1;
+}
+.core-workspace .settings-card .setting-row > input:not([type="checkbox"]):not([type="time"]) {
+  width: 200px;
+}
+.settings-card .toggle-row.sub {
+  padding-left: 18px;
+}
+.settings-card .lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.hint {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--muted);
+  border-radius: 2px;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+}
+/* In the right-hand card the tooltip opens to the left so it stays on the page. */
+.settings-cards > .settings-card:nth-child(3) .hint::after {
+  left: auto;
+  right: calc(100% + 10px);
+}
+.hint::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  width: max-content;
+  max-width: 320px;
+  padding: 6px 10px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-family: var(--sans);
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  text-align: left;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+}
+.hint:hover::after,
+.hint:focus-visible::after {
+  opacity: 1;
+}
+
+/* Privacy: a row of squared buttons under the sentence; only one panel open at a time. */
+.privacy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.core-workspace .privacy-action {
+  min-height: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.core-workspace .privacy-action:hover {
+  background: var(--raised);
+}
+.core-workspace .privacy-action.on {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--canvas);
+}
+
+/* The memory browser inside a card: chips, tight rows, link-style actions. */
+.settings-card .memory-settings h3 {
+  margin: 14px 0 6px;
+  font-family: var(--pix);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  font-weight: 400;
+}
+.settings-card .memory-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 6px;
+}
+.settings-card .memory-items {
+  margin: 0;
+}
+.settings-card .memory-items > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 2px;
+  padding: 7px 0;
+  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+  border-bottom: 0;
+}
+.settings-card .memory-items > li > p {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: 1.45;
+}
+.settings-card .memory-items > li > p.helper,
+.settings-card .memory-items > li > small {
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.settings-card .memory-items > li > .memory-actions {
+  grid-column: 2;
+  grid-row: 1 / span 4;
+  align-self: center;
+  margin: 0;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+.core-workspace .settings-card .memory-actions > button {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .settings-card .memory-actions > button:last-child {
+  color: var(--danger);
+}
+.core-workspace .settings-card .memory-settings > p[role="status"],
+.core-workspace .settings-card .memory-settings .helper {
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.settings-card .memory-settings .danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 0;
+  border: 0;
+}
+.settings-card .memory-settings .danger-zone h3 {
+  width: 100%;
+  margin: 8px 0 0;
+}
+.settings-card .memory-settings .danger-zone label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .memory-settings .danger-zone select {
+  width: auto;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .memory-settings details {
+  margin-top: 10px;
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+.settings-card .memory-settings [role="alertdialog"] {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 3px;
+}
+/* Memory browser buttons are small and squared; the long clear-memory paragraph goes. */
+.core-workspace .settings-card .memory-settings button:not(.day-chip):not(.memory-actions > button) {
+  min-height: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--text);
+  font-size: var(--text-caption);
+  font-weight: 500;
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  color: var(--danger);
+}
+.settings-card .memory-settings .danger-zone > p {
+  display: none;
+}
+.settings-card .memory-settings > p[role="status"] {
+  margin: 6px 0 10px;
+}
+
+/* Activity log header with a goal filter; diagnostics stack. */
+.activity-log-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.activity-log-head .settings-card-title {
+  margin-bottom: 0;
+}
+.core-workspace .activity-log-goal select {
+  width: auto;
+  max-width: 260px;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.settings-card .provider-error {
+  margin: 0 0 8px;
+  font-size: var(--text-caption);
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+.diagnostics {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+/* Memory browser: quieter footer — small links, one forget row, caption-sized diagnostics. */
+.core-workspace .settings-card .memory-settings > button:not(.day-chip),
+.core-workspace .settings-card .memory-settings section > button:not(.day-chip) {
+  height: 26px;
+  padding: 0 9px;
+  font-weight: 400;
+}
+.settings-card .memory-settings .danger-zone {
+  gap: 10px 12px;
+}
+.settings-card .memory-settings .danger-zone label {
+  flex: none;
+  gap: 8px;
+}
+.core-workspace .settings-card .memory-settings .danger-zone select {
+  width: 220px;
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  height: 26px;
+  font-weight: 400;
+}
+.settings-card .memory-settings details > summary {
+  font-size: var(--text-caption);
+  color: var(--muted);
+  font-weight: 400;
+  cursor: pointer;
+}
+.settings-card .memory-settings details > p {
+  display: none;
+}
+.settings-card .memory-settings details > button {
+  margin-top: 8px;
+}
+
+.core-workspace .settings-card .forget-goal-row select {
+  width: auto;
+  max-width: 220px;
+  min-height: 28px;
+  height: 28px;
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 3px;
+  font-size: var(--text-caption);
+}
+.core-workspace .settings-card .forget-goal-row .small-button.danger-button {
+  color: #ffffff;
 }

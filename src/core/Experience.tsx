@@ -132,12 +132,14 @@ export function Experience({
   const today = snapshot.goals.filter((goal) =>
     snapshot.today.includes(goal.id),
   );
-  // One list: priority first, then the saved drag order within a priority.
+  // One list: open goals by priority, then the saved drag order; finished goals stay at the
+  // bottom, checked, so they can be unchecked again today.
   const openToday = today
-    .filter((goal) => goal.status !== "completed")
     .map((goal, index) => ({ goal, index }))
     .sort(
       (a, b) =>
+        Number(a.goal.status === "completed") -
+          Number(b.goal.status === "completed") ||
         priorityRank(a.goal.priority) - priorityRank(b.goal.priority) ||
         a.index - b.index,
     )

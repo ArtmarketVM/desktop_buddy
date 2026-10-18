@@ -325,21 +325,21 @@ fn avatar_color_is_persisted_without_changing_other_preferences() {
     settings.profile.avatar.visible = false;
     settings.autostart = false;
     s.write_setting("user_settings", &settings).unwrap();
-    let avatar = store_avatar_color(&s, "#C9D3D8").unwrap();
-    assert_eq!(avatar.color, "#C9D3D8");
+    let avatar = store_avatar_color(&s, "#6C5FFF").unwrap();
+    assert_eq!(avatar.color, "#6C5FFF");
     let saved = s.user_settings().unwrap();
-    assert_eq!(saved.profile.avatar.color, "#C9D3D8");
+    assert_eq!(saved.profile.avatar.color, "#6C5FFF");
     assert_eq!(saved.profile.name, settings.profile.name);
     assert!(!saved.profile.avatar.visible);
     assert!(!saved.autostart);
     assert_eq!(saved.theme, settings.theme);
     assert!(store_avatar_color(&s, "invalid").is_err());
-    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#C9D3D8");
+    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#6C5FFF");
 }
 
 #[test]
 fn avatar_color_requires_completed_setup() {
     let s = store();
     assert!(store_avatar_color(&s, "#C9D3D8").is_err());
-    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#A8D8C8");
+    assert_eq!(s.user_settings().unwrap().profile.avatar.color, "#E4FA8E");
 }

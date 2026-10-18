@@ -1,6 +1,6 @@
 import { MemorySettings } from "../components/MemorySettings";
-import { TrackingStatus } from "./TrackingStatus";
 import { MacPermissions } from "../components/MacPermissions";
+import { TrackingStatus } from "./TrackingStatus";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
@@ -10,8 +10,12 @@ import {
   defaultUserSettings,
   type Dashboard,
 } from "../types";
-import { ProviderKey } from "../components/Settings";
-import { PrivacySettings } from "../components/PrivacySettings";
+import { ProviderRow } from "./ProviderRow";
+import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { WindowActivity } from "./WindowActivity";
+import { Hint } from "./Hint";
+import { memoryApi } from "../api/memory";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
@@ -19,22 +23,63 @@ import { AiSettings } from "../ai/AiSettings";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
-const sections = [
-  "General",
-  "Profile",
-  "Privacy",
-  "Memory",
-  "Updates",
-  "Integrations / AI",
-  "AI Monitor",
-  "About",
-] as const;
+const sections = ["General", "Profile", "AI", "Privacy", "About"] as const;
 const time = (value: number) =>
   `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
 const minutes = (value: string) => {
   const [h, m] = value.split(":").map(Number);
   return h * 60 + m;
 };
+
+export const PRIVACY_POLICY_URL =
+  "https://artmarketvm.github.io/desktop_buddy/privacy.html";
+
+/** One plain sentence about what sumi knows right now and what it would send. */
+export function describePrivacy(
+  preview: string,
+  tracking: boolean,
+  goalTitle: string | null,
+): string {
+  if (!tracking)
+    return "Tracking is paused, so sumi records nothing and sends nothing. Turn it on above and this sentence will tell you exactly what it sees.";
+  const never =
+    "It never sends what is on your screen, what you type, or who you are.";
+  const goal = goalTitle ? `your goal, “${goalTitle}”` : "your current goal";
+  let apps: { app: string; seconds: number }[] = [];
+  try {
+    const parsed = JSON.parse(preview) as {
+      focus_check?: {
+        recent_activity?: { app: string; seconds: number }[];
+      };
+    };
+    const totals = new Map<string, number>();
+    for (const item of parsed.focus_check?.recent_activity ?? []) {
+      // The lock screen is not something you "worked in".
+      if (item.app === "loginwindow") continue;
+      totals.set(item.app, (totals.get(item.app) ?? 0) + item.seconds);
+    }
+    apps = [...totals]
+      .map(([app, seconds]) => ({ app, seconds }))
+      .sort((x, y) => y.seconds - x.seconds)
+      .slice(0, 3);
+  } catch {
+    apps = [];
+  }
+  if (!apps.length)
+    return `sumi has not recorded any activity yet. When it checks your progress it will tell Nebius the last window titles and ${goal}. ${never}`;
+  const spell = ({ app, seconds }: { app: string; seconds: number }) => {
+    const m = Math.round(seconds / 60);
+    return `${app} for ${m < 1 ? "under a minute" : `${m} minute${m === 1 ? "" : "s"}`}`;
+  };
+  const list =
+    apps.length === 1
+      ? spell(apps[0])
+      : `${apps
+          .slice(0, -1)
+          .map(spell)
+          .join(", ")} and ${spell(apps[apps.length - 1])}`;
+  return `Right now sumi knows you have been in ${list}. When it checks your progress it tells Nebius those window titles and ${goal}. ${never}`;
+}
 
 export function CoreSettings({
   data,
@@ -54,6 +99,15 @@ export function CoreSettings({
   const [autostart, setAutostart] = useState(settings.autostart);
   const [preferences, setPreferences] = useState(emptyCore().preferences);
   const [hours, setHours] = useState(defaultTrackingSettings);
+  const [goals, setGoals] = useState(emptyCore().goals);
+  const [logGoal, setLogGoal] = useState<number | null>(null);
+  const [forgetGoal, setForgetGoal] = useState<number | null>(null);
+  const [forgetArmed, setForgetArmed] = useState(false);
+  useEffect(() => {
+    if (!forgetArmed) return;
+    const timer = window.setTimeout(() => setForgetArmed(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [forgetArmed]);
   const [busy, setBusy] = useState(false);
   const [colorBusy, setColorBusy] = useState(false);
   const [ready, setReady] = useState(!desktop);
@@ -61,7 +115,62 @@ export function CoreSettings({
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
+  const [retention, setRetention] = useState(data.retention_days);
+  const [preview, setPreview] = useState("");
+  const [panel, setPanel] = useState<"log" | "memory" | "raw" | null>(null);
+  const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const logLast = new Date().toISOString().slice(0, 10);
+  const logFirst = new Date(Date.now() - 6 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  const [clearPending, setClearPending] = useState(false);
+  useEffect(() => {
+    if (!clearPending) return;
+    // An armed button disarms itself after five seconds.
+    const timer = window.setTimeout(() => setClearPending(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [clearPending]);
+  useEffect(() => setRetention(data.retention_days), [data.retention_days]);
+  const trackingState = !data.status.tracking
+    ? "paused"
+    : data.status.tracking_error
+      ? "attention"
+      : "running";
+  const trackingLabel =
+    trackingState === "paused"
+      ? "Paused"
+      : trackingState === "attention"
+        ? "Needs attention"
+        : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
+  const [services, setServices] = useState<ServiceSnapshot | null>(null);
+  useEffect(() => {
+    if (section !== "AI" || !desktop) return;
+    void serviceStatusApi
+      .read()
+      .then(setServices)
+      .catch(() => undefined);
+  }, [section, data.status.nebius_configured, data.status.tavily_configured]);
+  const serviceState = (id: "nebius" | "tavily") =>
+    services?.services.find((item) => item.id === id)?.status;
+  useEffect(() => {
+    if (section !== "Privacy" || !desktop) return;
+    let active = true;
+    void api
+      .privacyPreview()
+      .then((snapshot) => {
+        if (active) setPreview(JSON.stringify(snapshot, null, 2));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [section, data.status.last_collected_at]);
+  const privacySentence = describePrivacy(
+    preview,
+    data.status.tracking,
+    data.goal?.text ?? null,
+  );
   useEffect(() => {
     if (sectionRequest) setSection(sectionRequest.section);
   }, [sectionRequest]);
@@ -72,6 +181,7 @@ export function CoreSettings({
         .then(([core, tracking]) => {
           if (active) {
             setPreferences(core.preferences);
+            setGoals(core.goals);
             setHours(tracking);
             setReady(true);
           }
@@ -196,273 +306,503 @@ export function CoreSettings({
             disabled={blocked}
             onChange={(next) => void selectColor(next)}
           />
-          <p className="helper">Companion color is saved immediately.</p>
-          <label className="toggle-row">
-            <span>
-              Show sumi on desktop
-              <small>
-                Hide the character while keeping check-ins available. Quiet mode
-                pauses check-ins.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={
-                settings.profile.avatar.visible &&
-                !data.buddy.preferences.suggestions_only
-              }
-              disabled={blocked}
-              onChange={(e) => {
-                const visible = e.target.checked;
-                void run(() => api.showBuddy(visible)).then((ok) => {
-                  if (ok)
-                    setProfile((previous) => ({
-                      ...previous,
-                      avatar: { ...previous.avatar, visible },
-                    }));
-                });
-              }}
-            />
-          </label>
-          {!data.buddy.desktop_visible && data.buddy.visibility_reason && (
-            <p className="helper" role="status">
-              {data.buddy.visibility_reason}
-            </p>
-          )}
-          <label className="toggle-row">
-            <span>Start when I sign in</span>
-            <input
-              type="checkbox"
-              checked={autostart}
-              disabled={blocked}
-              onChange={(e) => {
-                setAutostart(e.target.checked);
-                change();
-              }}
-            />
-          </label>
-          <CompanionSettings
-            onChanged={onChanged}
-            currentPreferences={data.buddy.companion?.preferences}
-          />
-          <label className="toggle-row">
-            <span>Remind me to move every 45 minutes</span>
-            <input
-              type="checkbox"
-              checked={preferences.movement_reminders}
-              disabled={blocked}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                setPreferences({ ...preferences, movement_reminders: enabled });
-                change();
-                const companion = data.buddy.companion?.preferences;
-                if (companion)
-                  void run(() =>
-                    api.companionPreferences({
-                      ...companion,
-                      movement_reminder: enabled,
-                    }),
-                  );
-              }}
-            />
-          </label>
+          <div className="settings-cards">
+            <section className="settings-card" aria-label="On your desktop">
+              <p className="eyebrow settings-card-title">On your desktop</p>
+              <label className="toggle-row">
+                <span>Show sumi on desktop</span>
+                <input
+                  type="checkbox"
+                  checked={
+                    settings.profile.avatar.visible &&
+                    !data.buddy.preferences.suggestions_only
+                  }
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const visible = e.target.checked;
+                    void run(() => api.showBuddy(visible)).then((ok) => {
+                      if (ok)
+                        setProfile((previous) => ({
+                          ...previous,
+                          avatar: { ...previous.avatar, visible },
+                        }));
+                    });
+                  }}
+                />
+              </label>
+              {!data.buddy.desktop_visible && data.buddy.visibility_reason && (
+                <p className="helper" role="status">
+                  {data.buddy.visibility_reason}
+                </p>
+              )}
+              <label className="toggle-row">
+                <span>Start when I sign in</span>
+                <input
+                  type="checkbox"
+                  checked={autostart}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    setAutostart(e.target.checked);
+                    change();
+                  }}
+                />
+              </label>
+              <CompanionSettings
+                part="desktop"
+                onChanged={onChanged}
+                currentPreferences={data.buddy.companion?.preferences}
+              />
+              <label className="toggle-row">
+                <span>Remind me to move every 45 minutes</span>
+                <input
+                  type="checkbox"
+                  checked={preferences.movement_reminders}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    const enabled = e.target.checked;
+                    setPreferences({
+                      ...preferences,
+                      movement_reminders: enabled,
+                    });
+                    change();
+                    const companion = data.buddy.companion?.preferences;
+                    if (companion)
+                      void run(() =>
+                        api.companionPreferences({
+                          ...companion,
+                          movement_reminder: enabled,
+                        }),
+                      );
+                  }}
+                />
+              </label>
+            </section>
+            <section className="settings-card" aria-label="Nudges">
+              <p className="eyebrow settings-card-title">Nudges</p>
+              <CompanionSettings
+                part="nudges"
+                onChanged={onChanged}
+                currentPreferences={data.buddy.companion?.preferences}
+              />
+            </section>
+          </div>
         </details>
         <details className="core-section" hidden={section !== "Privacy"} open>
           <summary>Privacy</summary>
-          <MacPermissions />
-          <label className="toggle-row">
-            <span>
-              Track goals and suggest completed work
-              <small>
-                Records active windows locally and may send a small text sample
-                to Nebius. You confirm every completion.
-              </small>
-            </span>
-            <input
-              type="checkbox"
-              checked={data.status.tracking}
-              disabled={blocked}
-              onChange={(e) => {
-                const enabled = e.target.checked;
-                if (enabled) {
-                  setTrackingConsentPending(true);
-                  return;
-                }
-                void run(() => api.goalMonitoring(enabled));
-              }}
-            />
-          </label>
-          {data.status.tracking &&
-            !data.buddy.companion?.preferences.screen_task_detection && (
-              <button
-                className="text-button"
+          <section
+            className="settings-card settings-card-wide"
+            aria-label="Tracking"
+          >
+            <p className="eyebrow settings-card-title">Tracking</p>
+            <label className="toggle-row">
+              <span>Track goals and suggest completed work</span>
+              <input
+                type="checkbox"
+                checked={data.status.tracking}
                 disabled={blocked}
-                onClick={() => setTrackingConsentPending(true)}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  if (enabled) {
+                    setTrackingConsentPending(true);
+                    return;
+                  }
+                  void run(() => api.goalMonitoring(enabled));
+                }}
+              />
+            </label>
+            {trackingConsentPending && (
+              <div
+                className="card"
+                aria-label="Confirm local activity tracking"
               >
-                Enable completion checks
-              </button>
+                <p>
+                  Record foreground apps, window/tab titles and active time on
+                  this computer, and send up to 3,000 characters of visible text
+                  with your goal and steps to Nebius for progress checks?
+                  Password and edit controls are skipped. Provider charges may
+                  apply.
+                </p>
+                <button
+                  disabled={blocked}
+                  onClick={() => {
+                    void run(() => api.goalMonitoring(true)).then(
+                      async (ok) => {
+                        if (ok) setTrackingConsentPending(false);
+                        if (ok && isMac)
+                          await invoke<boolean>(
+                            "request_accessibility_permission",
+                          ).catch((e) => setError(String(e)));
+                      },
+                    );
+                  }}
+                >
+                  Enable goal tracking
+                </button>
+                <button
+                  className="text-button"
+                  disabled={blocked}
+                  onClick={() => setTrackingConsentPending(false)}
+                >
+                  Cancel
+                </button>
+              </div>
             )}
-          {trackingConsentPending && (
-            <div className="card" aria-label="Confirm local activity tracking">
-              <p>
-                Record foreground apps, window/tab titles and active time on
-                this computer, and send up to 3,000 characters of visible text
-                with your goal and steps to Nebius for progress checks? Password
-                and edit controls are skipped. Provider charges may apply.
-              </p>
-              <button
+            <div className="setting-row">
+              <span>Status</span>
+              <span className={`tracking-state ${trackingState}`}>
+                <i aria-hidden="true" />
+                {trackingLabel}
+              </span>
+            </div>
+            <MacPermissions variant="row" />
+            <div className="setting-row">
+              <span>Working days</span>
+              <span
+                className="day-chips"
+                role="group"
+                aria-label="Working days"
+              >
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
+                  (label, day) => {
+                    const on = preferences.working_days.includes(day);
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        className="day-chip"
+                        aria-pressed={on}
+                        disabled={blocked}
+                        onClick={() => {
+                          const next = {
+                            ...preferences,
+                            working_days: on
+                              ? preferences.working_days.filter(
+                                  (d) => d !== day,
+                                )
+                              : [...preferences.working_days, day].sort(),
+                          };
+                          setPreferences(next);
+                          void run(() => coreApi.preferences(next));
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  },
+                )}
+              </span>
+            </div>
+            <div
+              className="setting-row"
+              role="group"
+              aria-label="Working hours"
+            >
+              <span>Working hours</span>
+              <span className="quiet-hours">
+                <input
+                  type="time"
+                  aria-label="Start time"
+                  value={time(hours.working_start_minute)}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const next = {
+                      ...hours,
+                      working_start_minute: minutes(e.target.value),
+                    };
+                    setHours(next);
+                    void run(() => api.saveTrackingSettings(next));
+                  }}
+                />
+                <span className="quiet-hours-to">to</span>
+                <input
+                  type="time"
+                  aria-label="End time"
+                  value={time(hours.working_end_minute)}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const next = {
+                      ...hours,
+                      working_end_minute: minutes(e.target.value),
+                    };
+                    setHours(next);
+                    void run(() => api.saveTrackingSettings(next));
+                  }}
+                />
+              </span>
+            </div>
+            <label className="setting-row">
+              <span>Keep history</span>
+              <select
+                value={retention}
                 disabled={blocked}
-                onClick={() => {
-                  void run(() => api.goalMonitoring(true)).then(async (ok) => {
-                    if (ok) setTrackingConsentPending(false);
-                    if (ok && isMac)
-                      await invoke<boolean>(
-                        "request_accessibility_permission",
-                      ).catch((e) => setError(String(e)));
-                  });
+                onChange={(e) => {
+                  const days = Number(e.target.value);
+                  setRetention(days);
+                  void run(() => api.retention(days));
                 }}
               >
-                Enable goal tracking
-              </button>
+                <option value={0}>Until I delete it</option>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+              </select>
+            </label>
+            <div className="setting-row">
               <button
-                className="text-button"
+                type="button"
+                className={`clear-history ${clearPending ? "armed" : ""}`}
                 disabled={blocked}
-                onClick={() => setTrackingConsentPending(false)}
+                onClick={() => {
+                  if (!clearPending) {
+                    setClearPending(true);
+                    return;
+                  }
+                  void run(async () => {
+                    await api.clearHistory();
+                    setPreview("");
+                  }).then(() => setClearPending(false));
+                }}
               >
-                Cancel
+                {clearPending
+                  ? "Click again to clear everything"
+                  : "Clear all local history"}
               </button>
             </div>
-          )}
-          <TrackingStatus dashboard={data} compact />
-          <fieldset disabled={blocked}>
-            <div className="working-days">
-              <span>Working days</span>
-              <div>
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
-                  (label, day) => (
-                    <label key={day}>
-                      <input
-                        type="checkbox"
-                        checked={preferences.working_days.includes(day)}
-                        onChange={(e) => {
-                          setPreferences({
-                            ...preferences,
-                            working_days: e.target.checked
-                              ? [...preferences.working_days, day]
-                              : preferences.working_days.filter(
-                                  (d) => d !== day,
-                                ),
-                          });
-                          change();
-                        }}
-                      />
-                      {label}
-                    </label>
-                  ),
-                )}
-              </div>
-            </div>
-            <div className="working-hours">
-              {(["working_start_minute", "working_end_minute"] as const).map(
-                (key, index) => (
-                  <label key={key}>
-                    {index === 0 ? "Start time" : "End time"}
-                    <input
-                      type="time"
-                      value={time(hours[key])}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          setHours({
-                            ...hours,
-                            [key]: minutes(e.target.value),
-                          });
-                          change();
-                        }
-                      }}
-                    />
-                  </label>
-                ),
-              )}
-            </div>
-          </fieldset>
-          <details className="core-section">
-            <summary>Local data controls</summary>
-            <PrivacySettings
-              preferences={data.buddy.preferences}
-              retentionDays={data.retention_days}
-              onChanged={onChanged}
-              onHistoryCleared={onChanged}
-              showExclusions={false}
-            />
-          </details>
-        </details>
-        <details className="core-section" hidden={section !== "Memory"} open>
-          <summary>Memory</summary>
-          {section === "Memory" && <MemorySettings onChanged={onChanged} />}
-        </details>
-        <details className="core-section" hidden={section !== "Updates"} open>
-          <summary>Updates</summary>
-          <p>Installed version {data.version}</p>
-          <button className="outline-button" type="button" onClick={onUpdates}>
-            Check for updates
-          </button>
-        </details>
-        <details
-          className="core-section"
-          hidden={section !== "Integrations / AI"}
-          open
-        >
-          <summary>Integrations / AI</summary>
-          <label>
-            Vision model (optional)
-            <input
-              maxLength={160}
-              value={preferences.vision_model}
-              placeholder="Your provider's vision model ID"
-              disabled={blocked}
-              onChange={(e) => {
-                setPreferences({
-                  ...preferences,
-                  vision_model: e.target.value,
-                });
-                change();
-              }}
-            />
-          </label>
-          <ProviderKey
-            provider="nebius"
-            label="Nebius Token Factory"
-            onChanged={onChanged}
-          />
-          <p className="connection">
-            Nebius ·{" "}
-            {data.status.nebius_configured
-              ? "Key configured"
-              : "Not configured"}
-          </p>
-          <ProviderKey provider="tavily" label="Tavily" onChanged={onChanged} />
-          <p className="connection">
-            Tavily ·{" "}
-            {data.status.tavily_configured
-              ? "Key configured"
-              : "Not configured"}
-          </p>
-          <AiSettings onChanged={onChanged} />
-        </details>
-        {section === "AI Monitor" && (
-          <section className="core-section" aria-label="AI Monitor">
-            <PersonalAiEnginePanel initiallyOpen />
           </section>
-        )}
+          <div className="privacy-sentence">
+            <span className="privacy-cell" aria-hidden="true" />
+            <p role="status">{privacySentence}</p>
+          </div>
+          <div className="privacy-actions">
+            <button
+              type="button"
+              className={`privacy-action ${panel === "log" ? "on" : ""}`}
+              aria-pressed={panel === "log"}
+              onClick={() => setPanel(panel === "log" ? null : "log")}
+            >
+              See the activity log
+            </button>
+            <button
+              type="button"
+              className={`privacy-action ${panel === "memory" ? "on" : ""}`}
+              aria-pressed={panel === "memory"}
+              onClick={() => setPanel(panel === "memory" ? null : "memory")}
+            >
+              See what sumi remembers
+            </button>
+            <button
+              type="button"
+              className={`privacy-action ${panel === "raw" ? "on" : ""}`}
+              aria-pressed={panel === "raw"}
+              disabled={blocked}
+              onClick={() => setPanel(panel === "raw" ? null : "raw")}
+            >
+              Raw data
+            </button>
+            <button
+              type="button"
+              className="privacy-action"
+              onClick={() => void openUrl(PRIVACY_POLICY_URL)}
+            >
+              Privacy policy ↗
+            </button>
+          </div>
+          {panel === "log" && (
+            <section
+              className="settings-card activity-log"
+              aria-label="Activity log"
+            >
+              <div className="activity-log-head">
+                <p className="eyebrow settings-card-title">
+                  Activity log · last 7 days
+                </p>
+                <label className="activity-log-goal">
+                  <span className="sr-only">Goal</span>
+                  <select
+                    value={logGoal ?? ""}
+                    onChange={(e) =>
+                      setLogGoal(e.target.value ? Number(e.target.value) : null)
+                    }
+                  >
+                    <option value="">All goals</option>
+                    {goals
+                      .filter((goal) => goal.status !== "completed")
+                      .map((goal) => (
+                        <option key={goal.id} value={goal.id}>
+                          {goal.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              </div>
+              <WindowActivity
+                first={logFirst}
+                last={logLast}
+                goalId={logGoal}
+              />
+            </section>
+          )}
+          {panel === "memory" && (
+            <section
+              className="settings-card activity-log"
+              aria-label="What sumi remembers"
+            >
+              <p className="eyebrow settings-card-title">What sumi remembers</p>
+              <MemorySettings part="browser" onChanged={onChanged} />
+            </section>
+          )}
+          {panel === "raw" && preview && (
+            <pre className="privacy-preview">{preview}</pre>
+          )}
+        </details>
+        <details className="core-section" hidden={section !== "AI"} open>
+          <summary>AI</summary>
+          <div className="settings-cards">
+            <section
+              className="settings-card settings-card-full"
+              aria-label="Services"
+            >
+              <p className="eyebrow settings-card-title">Services</p>
+              <ProviderRow
+                provider="nebius"
+                name="Nebius"
+                role={
+                  services?.configured_model
+                    ? `runs the AI · ${services.configured_model}`
+                    : "runs the AI"
+                }
+                configured={data.status.nebius_configured}
+                checked={serviceState("nebius")}
+                onChanged={onChanged}
+              />
+              <ProviderRow
+                provider="tavily"
+                name="Tavily"
+                role="web search"
+                configured={data.status.tavily_configured}
+                checked={serviceState("tavily")}
+                onChanged={onChanged}
+              />
+              <label className="setting-row">
+                <span className="svc">
+                  <b>Vision model</b>
+                  <small>optional</small>
+                </span>
+                <input
+                  maxLength={160}
+                  value={preferences.vision_model}
+                  placeholder="Model ID"
+                  disabled={blocked}
+                  onChange={(e) => {
+                    setPreferences({
+                      ...preferences,
+                      vision_model: e.target.value,
+                    });
+                    change();
+                  }}
+                />
+              </label>
+            </section>
+            <section className="settings-card" aria-label="AI">
+              <p className="eyebrow settings-card-title">AI</p>
+              <AiSettings onChanged={onChanged} compact />
+            </section>
+            <section className="settings-card" aria-label="Memory">
+              <p className="eyebrow settings-card-title">Memory</p>
+              <MemorySettings part="controls" onChanged={onChanged} />
+              <div className="setting-row forget-goal-row">
+                <span className="lbl">
+                  Forget a goal
+                  <Hint text="Removes everything sumi remembers about one goal: facts, checkpoints and events. The goal itself stays." />
+                </span>
+                <span className="acts">
+                  <select
+                    aria-label="Goal to forget"
+                    value={forgetGoal ?? ""}
+                    disabled={blocked}
+                    onChange={(e) => {
+                      setForgetGoal(
+                        e.target.value ? Number(e.target.value) : null,
+                      );
+                      setForgetArmed(false);
+                    }}
+                  >
+                    <option value="">Choose a goal</option>
+                    {goals.map((goal) => (
+                      <option key={goal.id} value={goal.id}>
+                        {goal.title}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className={`small-button ${forgetArmed ? "danger-button" : "outline-button"}`}
+                    disabled={blocked || forgetGoal === null}
+                    onClick={() => {
+                      if (forgetGoal === null) return;
+                      if (!forgetArmed) {
+                        setForgetArmed(true);
+                        return;
+                      }
+                      const id = forgetGoal;
+                      setForgetArmed(false);
+                      void run(() => memoryApi.clearGoal(id)).then((ok) => {
+                        if (ok) setForgetGoal(null);
+                      });
+                    }}
+                  >
+                    {forgetArmed ? "Click again to forget" : "Forget"}
+                  </button>
+                </span>
+              </div>
+              <div className="setting-row">
+                <span />
+                <button
+                  type="button"
+                  className="text-button row-link"
+                  onClick={() => {
+                    setPanel("memory");
+                    setSection("Privacy");
+                  }}
+                >
+                  See what sumi remembers ↗
+                </button>
+              </div>
+            </section>
+          </div>
+        </details>
         <details className="core-section" hidden={section !== "About"} open>
           <summary>About</summary>
           <p>sumi · v{data.version}</p>
-          <p className="helper">
-            Everything is stored on this computer. AI requests go to the
-            providers you configure.
-          </p>
+          <div className="about-actions">
+            <button
+              className="outline-button"
+              type="button"
+              onClick={onUpdates}
+            >
+              Check for updates
+            </button>
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => setShowDiagnostics((open) => !open)}
+            >
+              {showDiagnostics ? "Hide diagnostics" : "Diagnostics"}
+            </button>
+          </div>
+          {showDiagnostics && (
+            <div className="diagnostics">
+              <TrackingStatus dashboard={data} compact />
+              <PersonalAiEnginePanel initiallyOpen />
+            </div>
+          )}
         </details>
-        <div className="settings-actions settings-save">
+        <div
+          className="settings-actions settings-save"
+          hidden={section === "Privacy"}
+        >
           <button
             type="button"
             onClick={() => void save()}

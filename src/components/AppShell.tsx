@@ -11,13 +11,14 @@ import {
   UserRound,
   LogOut,
   MessageSquare,
-} from "lucide-react";
+} from "./PixelIcons";
 import type { UserProfile } from "../types";
 import type { UpdateSnapshot } from "../updates/controller";
 import { UpdateEntry } from "./Updates";
 import { isMac } from "../api/platform";
 import { readSidebarCollapsed, isSidebarShortcut } from "./sidebar";
 import { SidebarAiServices } from "./SidebarAiServices";
+import { Avatar } from "./Avatar";
 
 export type WorkspacePage =
   | "focus"
@@ -37,13 +38,13 @@ export const pages = [
   },
   {
     id: "activity",
-    label: "Progress",
+    label: "My progress",
     icon: BarChart3,
     description: "",
   },
   {
     id: "history",
-    label: "Goals",
+    label: "All goals",
     icon: History,
     description: "",
   },
@@ -190,6 +191,10 @@ export function AppShell({
       <aside className="sidebar" aria-label="Workspace navigation">
         <div className="sidebar-header">
           <div className="workspace-brand" aria-hidden={collapsed || undefined}>
+            <Avatar
+              appearance={{ ...profile.avatar, visible: true }}
+              state="working"
+            />
             <div>sumi</div>
           </div>
           {!isMac && sidebarButton}
@@ -203,7 +208,6 @@ export function AppShell({
                 page === item.id && !onboarding ? "page" : undefined
               }
               disabled={onboarding}
-              title={item.label}
               aria-label={item.label}
               onClick={() => onNavigate(item.id)}
             >
@@ -212,21 +216,15 @@ export function AppShell({
             </button>
           ))}
         </nav>
+        <div className="sidebar-ai-dots">
+          <SidebarAiServices
+            enabled={!onboarding}
+            collapsed={collapsed}
+            variant="dots"
+          />
+        </div>
         <div className="sidebar-bottom">
           <nav className="sidebar-utilities" aria-label="Workspace controls">
-            <button
-              className={`nav-item ${page === "settings" && !onboarding ? "selected" : ""}`}
-              disabled={onboarding}
-              onClick={() => onNavigate("settings")}
-              aria-label="Settings"
-              aria-current={
-                page === "settings" && !onboarding ? "page" : undefined
-              }
-              title="Settings"
-            >
-              <Settings size={17} />
-              <span className="nav-label">Settings</span>
-            </button>
             <UpdateEntry snapshot={update} onClick={onUpdates} />
             <button
               className={`nav-item ${page === "feedback" ? "selected" : ""}`}
@@ -236,7 +234,6 @@ export function AppShell({
               aria-current={
                 page === "feedback" && !onboarding ? "page" : undefined
               }
-              title="Feedback"
             >
               <MessageSquare size={17} />
               <span className="nav-label">Feedback</span>
@@ -245,7 +242,6 @@ export function AppShell({
               className="nav-item theme-toggle"
               onClick={() => onTheme?.(theme === "light" ? "dark" : "light")}
               aria-label={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
-              title={`Switch to ${theme === "light" ? "dark" : "light"} theme`}
             >
               {theme === "light" ? <Moon size={17} /> : <Sun size={17} />}
               <span className="nav-label">
@@ -256,11 +252,6 @@ export function AppShell({
               className="nav-item quiet-toggle"
               aria-label="Quiet mode"
               aria-pressed={quietMode}
-              title={
-                quietMode
-                  ? "Quiet mode is on. Turn off to resume nudges and pop-ups. Chat stays available."
-                  : "Quiet mode is off. Turn on to pause nudges and pop-ups. Chat stays available."
-              }
               disabled={onboarding || quietModeDisabled || !onQuietMode}
               onClick={onQuietMode}
             >
@@ -271,7 +262,6 @@ export function AppShell({
               </span>
             </button>
           </nav>
-          <SidebarAiServices enabled={!onboarding} collapsed={collapsed} />
           <div className="profile-menu-root" ref={menuRoot}>
             {menu && (
               <div className="profile-menu" aria-label="Profile actions">
@@ -305,12 +295,23 @@ export function AppShell({
               disabled={onboarding}
               onClick={() => setMenu(!menu)}
               aria-expanded={menu}
-              aria-label="Open profile menu"
-              title={profile.name || "Your profile"}
+              aria-label="Profile"
             >
+              <UserRound size={15} className="profile-icon" />
               <span className="profile-name">
                 {profile.name || "Your profile"}
               </span>
+            </button>
+            <button
+              className={`profile-settings ${page === "settings" && !onboarding ? "selected" : ""}`}
+              disabled={onboarding}
+              onClick={() => onNavigate("settings")}
+              aria-label="Settings"
+              aria-current={
+                page === "settings" && !onboarding ? "page" : undefined
+              }
+            >
+              <Settings size={15} />
             </button>
           </div>
         </div>

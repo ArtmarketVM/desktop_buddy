@@ -31,8 +31,8 @@ export function RoleResearch({
     <details className="inline-details role-research">
       <summary>Help us understand your role (optional)</summary>
       <p className="helper">
-        Share only the email, role and apps entered above with the sumi team.
-        No activity, installed-app inventory or goal is sent. This does not
+        Share only the email, role and apps entered above with the sumi team. No
+        activity, installed-app inventory or goal is sent. This does not
         subscribe you to email updates.
       </p>
       {!connected && (

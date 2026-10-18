@@ -99,6 +99,12 @@ export function Settings({
       </details>
       <TrackingSettings onChanged={onChanged} />
       <CompanionSettings
+        part="desktop"
+        onChanged={onChanged}
+        currentPreferences={companionPreferences}
+      />
+      <CompanionSettings
+        part="nudges"
         onChanged={onChanged}
         currentPreferences={companionPreferences}
       />

@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Sidebar profile row options</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#1f1f1f; --text:#f3f3ef; --muted:#9a9a94; --line:#3a3a3a; --surface:#2a2a2a; --accent:#8f85ff; --accent-soft:#2d2a4a; --lime:#e4fa8e; }
+  body { margin:0; padding:40px; background:#111; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 24px; }
+  .row { display:flex; gap:28px; flex-wrap:wrap; }
+  .opt { width:220px; }
+  .opt h2 { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.1em; text-transform:uppercase; color:var(--lime); margin:0 0 8px; font-weight:400; }
+  .opt p { color:var(--muted); font-size:12px; line-height:1.5; margin:8px 0 0; }
+  .side { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:12px 10px 8px; }
+  .utils { display:flex; gap:6px; margin:0 3.5px 6px; }
+  .utils i { width:32px; height:32px; border:1px solid var(--line); border-radius:3px; background:var(--surface); display:block; }
+  .prof { display:flex; align-items:center; gap:8px; border-top:1px solid var(--line); padding:6px 0 0; }
+  .name { flex:1; display:flex; align-items:center; gap:10px; height:32px; padding:0 13.5px; }
+  .gear { width:32px; height:32px; border:1px solid var(--line); border-radius:3px; background:var(--surface); display:grid; place-items:center; }
+  .gear svg { width:15px; height:15px; fill:var(--text); }
+  .px { width:16px; height:16px; display:grid; grid-template-columns:repeat(8,1fr); image-rendering:pixelated; }
+  .px b { display:block; }
+  .lime b.on { background:var(--lime); } .violet b.on { background:var(--accent); }
+  .mono { width:18px; height:18px; border-radius:3px; background:var(--accent); color:#fff; display:grid; place-items:center; font-size:11px; font-weight:600; }
+  .mono.lime { background:var(--lime); color:#1f1f1f; }
+  .square { width:8px; height:8px; background:var(--lime); }
+  .ghost { flex:1; height:32px; border:1px solid var(--line); border-radius:3px; background:var(--surface); display:flex; align-items:center; gap:10px; padding:0 10px; box-sizing:border-box; }
+  .head { width:16px; height:16px; display:grid; grid-template-columns:repeat(8,1fr); }
+  .head b { display:block; } .head b.on { background:var(--text); }
+</style>
+<h1>Sidebar profile row: five ways to give the name an anchor</h1>
+<div class="row">
+
+<div class="opt"><h2>A · pixel mascot</h2>
+<div class="side"><div class="utils"><i></i><i></i><i></i><i></i></div>
+<div class="prof"><div class="name"><span class="px lime" id="pxA"></span><span>katya</span></div><div class="gear"><svg viewBox="0 0 13 13"><use href="#g"/></svg></div></div></div>
+<p>A tiny version of sumi in your companion colour. Ties the user to their buddy; changes colour with the mascot setting.</p></div>
+
+<div class="opt"><h2>B · monogram tile</h2>
+<div class="side"><div class="utils"><i></i><i></i><i></i><i></i></div>
+<div class="prof"><div class="name"><span class="mono">K</span><span>katya</span></div><div class="gear"><svg viewBox="0 0 13 13"><use href="#g"/></svg></div></div></div>
+<p>First letter on a violet square, same radius as the buttons. Reads like an account chip; works for any name.</p></div>
+
+<div class="opt"><h2>C · lime cell, like the wordmark</h2>
+<div class="side"><div class="utils"><i></i><i></i><i></i><i></i></div>
+<div class="prof"><div class="name"><span class="square"></span><span>katya</span></div><div class="gear"><svg viewBox="0 0 13 13"><use href="#g"/></svg></div></div></div>
+<p>The same 8px lime square that sits before SUMI at the top. Top and bottom of the sidebar rhyme; quietest option.</p></div>
+
+<div class="opt"><h2>D · pixel head</h2>
+<div class="side"><div class="utils"><i></i><i></i><i></i><i></i></div>
+<div class="prof"><div class="name"><span class="head" id="pxD"></span><span>katya</span></div><div class="gear"><svg viewBox="0 0 13 13"><use href="#g"/></svg></div></div></div>
+<p>A plain pixel user icon in text colour, matching the four utility icons above. Most conventional.</p></div>
+
+<div class="opt"><h2>E · name as a button</h2>
+<div class="side"><div class="utils"><i></i><i></i><i></i><i></i></div>
+<div class="prof"><div class="ghost"><span class="mono lime">K</span><span>katya</span></div><div class="gear"><svg viewBox="0 0 13 13"><use href="#g"/></svg></div></div></div>
+<p>The name gets the same framed button as the gear, so the row is two controls of one family. Clearer that the name opens a menu.</p></div>
+
+</div>
+<svg width="0" height="0" style="position:absolute"><defs><g id="g">
+<path d="M5 0h3v1h2v1h1v2h1v1h1v3h-1v1h-1v2h-1v1h-2v1h-3v-1h-2v-1h-1v-2h-1v-1h-1v-3h1v-1h1v-2h1v-1h2zM5 4v5h3v-5z" fill-rule="evenodd"/></g></defs></svg>
+<script>
+  const body = ["00111100","01111110","11011011","11111111","11111111","01111110","00100100","00100100"];
+  const head = ["00011000","00111100","00111100","00011000","00000000","01111110","11111111","11111111"];
+  for (const [id, rows] of [["pxA", body],["pxD", head]]) {
+    const el = document.getElementById(id);
+    rows.forEach(r => [...r].forEach(c => { const b = document.createElement("b"); if (c === "1") b.className = "on"; el.appendChild(b); }));
+  }
+</script>

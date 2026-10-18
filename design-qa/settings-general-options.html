@@ -1,0 +1,119 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Settings · General: two layouts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Silkscreen&display=swap">
+<style>
+  :root { --canvas:#fff; --text:#1f1f1f; --muted:#8c8c86; --line:#e3e3df; --surface:#f6f6f3; --raised:#ececea; --accent:#6c5fff; --lime:#e4fa8e; }
+  body { margin:0; padding:40px; background:#efefec; color:var(--text); font-family:"Instrument Sans",system-ui,sans-serif; font-size:14px; }
+  h1 { font-size:18px; font-weight:500; margin:0 0 6px; }
+  .lead { color:var(--muted); margin:0 0 28px; max-width:720px; line-height:1.5; }
+  .pix { font-family:"Silkscreen",monospace; font-size:8px; letter-spacing:.12em; text-transform:uppercase; }
+  .opt { margin-bottom:40px; }
+  .opt > h2 { font-size:16px; font-weight:500; margin:0 0 4px; }
+  .opt > p { color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 14px; max-width:720px; }
+  .frame { background:var(--canvas); border:1px solid var(--line); border-radius:6px; padding:28px 32px; max-width:860px; }
+  .eyebrow { color:var(--accent); margin:0 0 10px; display:block; }
+  .block { padding: 18px 0 22px; border-top:1px solid var(--line); }
+  .block:first-child { border-top:0; padding-top:0; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:16px; min-height:36px; }
+  .row + .row { border-top:1px solid var(--line); }
+  .row span small { display:block; color:var(--muted); font-size:12px; margin-top:2px; }
+  .sw { width:28px; height:16px; border-radius:2px; background:var(--accent); position:relative; flex:none; }
+  .sw::before { content:""; position:absolute; top:3px; left:15px; width:10px; height:10px; background:#fff; border-radius:1px; }
+  .sw.off { background:var(--line); } .sw.off::before { left:3px; background:var(--canvas); }
+  .sel { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--surface); display:inline-flex; align-items:center; gap:10px; font-size:13px; }
+  .sel i { width:0; height:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid var(--text); }
+  .inline { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .sprites { display:flex; gap:26px; align-items:flex-end; margin:4px 0 14px; }
+  .sprite { width:56px; height:56px; background: conic-gradient(var(--lime) 0 100%); border-radius:12px; clip-path: polygon(25% 0,75% 0,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%); position:relative; }
+  .sprite::before,.sprite::after { content:""; position:absolute; top:22px; width:4px; height:10px; background:#1f1f1f; }
+  .sprite::before { left:18px } .sprite::after { left:34px }
+  .cap { text-align:center; color:var(--muted); margin-top:6px; }
+  .chips { display:flex; gap:8px; }
+  .chip { height:22px; padding:0 10px; border-radius:3px; display:inline-flex; align-items:center; color:#1f1f1f; }
+  .chip.on { outline:2px solid var(--text); outline-offset:2px; }
+  .save { margin-top:22px; display:flex; align-items:center; gap:14px; }
+  .btn { height:32px; padding:0 14px; border-radius:3px; background:var(--accent); color:#fff; display:inline-flex; align-items:center; font-weight:500; }
+  .btn.ghost { background:var(--surface); color:var(--text); border:1px solid var(--line); }
+  .status { color:var(--muted); }
+  /* option B: two columns */
+  .cols { display:grid; grid-template-columns: 1fr 1fr; gap: 0 40px; }
+  .card { border:1px solid var(--line); border-radius:6px; padding:16px 18px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px; }
+  .quiet { display:flex; align-items:center; gap:10px; }
+  .time { height:28px; padding:0 10px; border:1px solid var(--line); border-radius:3px; background:var(--surface); display:inline-flex; align-items:center; font-size:13px; font-variant-numeric: tabular-nums; }
+</style>
+<h1>Settings · General</h1>
+<p class="lead">Both layouts flatten the "Desktop companion" disclosure into named sections with pixel eyebrows, use square switches and squared fields, and turn the quiet-hours pair into one sentence. Option A is one column of sections; option B keeps the sumi block full width and puts the two settings groups side by side.</p>
+
+<div class="opt">
+  <h2>Option A · one column, three sections</h2>
+  <p>Reads top to bottom: who sumi is, where it lives, how often it talks. Rows are plain lines; the only colour is the switches and the chips. The save bar stays at the bottom but sits on the same grid as the rows.</p>
+  <div class="frame">
+    <div class="block">
+      <span class="pix eyebrow">Your sumi</span>
+      <div class="sprites">
+        <div><div class="sprite"></div><div class="pix cap">Working</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Listening</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Thinking</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Done</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Resting</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Stretching</div></div>
+      </div>
+      <div class="chips"><span class="chip pix on" style="background:var(--lime)">Lime</span><span class="chip pix" style="background:var(--accent);color:#fff">Violet</span><span class="chip pix" style="background:#f3f3ef">Cloud</span><span class="chip pix" style="background:var(--surface);border:1px solid var(--line)">Custom</span></div>
+    </div>
+    <div class="block">
+      <span class="pix eyebrow">On your desktop</span>
+      <div class="row"><span>Show sumi on the desktop</span><span class="sw"></span></div>
+      <div class="row"><span>Start when I sign in</span><span class="sw"></span></div>
+      <div class="row"><span>Hide in full-screen apps</span><span class="sw"></span></div>
+      <div class="row"><span>Remind me to move every 45 minutes</span><span class="sw"></span></div>
+    </div>
+    <div class="block">
+      <span class="pix eyebrow">Nudges</span>
+      <div class="row"><span>Daily check-ins<small>Morning plan, midday review, evening wrap-up</small></span><span class="sw"></span></div>
+      <div class="row"><span>Suggest completed work from what is on screen</span><span class="sw"></span></div>
+      <div class="row"><span>Wait after sign-in</span><span class="sel">10 minutes <i></i></span></div>
+      <div class="row"><span>Pause between prompts</span><span class="sel">60 minutes <i></i></span></div>
+      <div class="row"><span>Quiet hours</span><span class="quiet"><span class="time">7:00 PM</span><span class="status">to</span><span class="time">9:00 AM</span></span></div>
+    </div>
+    <div class="save"><span class="btn">Save preferences</span><span class="status">Saved</span></div>
+  </div>
+</div>
+
+<div class="opt">
+  <h2>Option B · sumi on top, two cards below</h2>
+  <p>Same content, less scrolling: the mascot block spans the width, then "On your desktop" and "Nudges" sit side by side as two framed cards. Works well at the current window size; stacks to one column when narrow.</p>
+  <div class="frame">
+    <div class="block">
+      <span class="pix eyebrow">Your sumi</span>
+      <div class="sprites">
+        <div><div class="sprite"></div><div class="pix cap">Working</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Listening</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Thinking</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Done</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Resting</div></div>
+        <div><div class="sprite"></div><div class="pix cap">Stretching</div></div>
+      </div>
+      <div class="chips"><span class="chip pix on" style="background:var(--lime)">Lime</span><span class="chip pix" style="background:var(--accent);color:#fff">Violet</span><span class="chip pix" style="background:#f3f3ef">Cloud</span><span class="chip pix" style="background:var(--surface);border:1px solid var(--line)">Custom</span></div>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <span class="pix eyebrow">On your desktop</span>
+        <div class="row"><span>Show sumi on the desktop</span><span class="sw"></span></div>
+        <div class="row"><span>Start when I sign in</span><span class="sw"></span></div>
+        <div class="row"><span>Hide in full-screen apps</span><span class="sw"></span></div>
+        <div class="row"><span>Remind me to move every 45 minutes</span><span class="sw"></span></div>
+      </div>
+      <div class="card">
+        <span class="pix eyebrow">Nudges</span>
+        <div class="row"><span>Daily check-ins</span><span class="sw"></span></div>
+        <div class="row"><span>Suggest completed work from the screen</span><span class="sw"></span></div>
+        <div class="row"><span>Wait after sign-in</span><span class="sel">10 min <i></i></span></div>
+        <div class="row"><span>Pause between prompts</span><span class="sel">60 min <i></i></span></div>
+        <div class="row"><span>Quiet hours</span><span class="quiet"><span class="time">7:00 PM</span><span class="status">to</span><span class="time">9:00 AM</span></span></div>
+      </div>
+    </div>
+    <div class="save"><span class="btn">Save preferences</span><span class="status">Saved</span></div>
+  </div>
+</div>

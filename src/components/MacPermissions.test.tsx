@@ -36,21 +36,20 @@ describe("macOS Accessibility state", () => {
     allowed = true;
     fireEvent.focus(window);
     await waitFor(() =>
-      expect(
-        screen.queryByText(/Switch sumi on when macOS asks/),
-      ).toBeNull(),
+      expect(screen.queryByText(/Switch sumi on when macOS asks/)).toBeNull(),
     );
     expect(screen.queryByRole("button", { name: "Allow access" })).toBeNull();
-    expect(screen.getByText(/Accessibility access is enabled/)).toBeTruthy();
+    // Granted access shows nothing at all; the status row in Settings carries the state.
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("checks an existing grant after remount without requesting or resetting it", async () => {
     vi.mocked(invoke).mockResolvedValue(true);
     const first = render(<MacPermissions />);
-    await screen.findByText(/Accessibility access is enabled/);
+    await waitFor(() => expect(vi.mocked(invoke)).toHaveBeenCalledTimes(1));
     first.unmount();
     render(<MacPermissions />);
-    await screen.findByText(/Accessibility access is enabled/);
+    await waitFor(() => expect(vi.mocked(invoke)).toHaveBeenCalledTimes(2));
     expect(vi.mocked(invoke).mock.calls.map(([command]) => command)).toEqual([
       "get_accessibility_permission",
       "get_accessibility_permission",

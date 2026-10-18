@@ -62,7 +62,7 @@ it("color autosaves without saving unrelated name drafts", async () => {
   );
   await waitFor(() =>
     expect(
-      (screen.getByRole("button", { name: "Mist" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Violet" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false),
   );
@@ -71,12 +71,12 @@ it("color autosaves without saving unrelated name drafts", async () => {
     target: { value: "Unsaved name" },
   });
   fireEvent.click(screen.getByRole("button", { name: "General" }));
-  fireEvent.click(screen.getByRole("button", { name: "Mist" }));
+  fireEvent.click(screen.getByRole("button", { name: "Violet" }));
   expect(
-    screen.getByRole("button", { name: "Mist" }).getAttribute("aria-pressed"),
+    screen.getByRole("button", { name: "Violet" }).getAttribute("aria-pressed"),
   ).toBe("true");
   await waitFor(() => expect(changed).toHaveBeenCalledOnce());
-  expect(api.setAvatarColor).toHaveBeenCalledWith("#C9D3D8");
+  expect(api.setAvatarColor).toHaveBeenCalledWith("#6C5FFF");
   expect(coreApi.identity).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Profile" }));
   expect(
@@ -97,14 +97,14 @@ it("a rejected color save restores the previous selection and shows the error", 
   );
   await waitFor(() =>
     expect(
-      (screen.getByRole("button", { name: "Mist" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Violet" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Mist" }));
+  fireEvent.click(screen.getByRole("button", { name: "Violet" }));
   await screen.findByText("Error: Could not save color");
   expect(
-    screen.getByRole("button", { name: "Matcha" }).getAttribute("aria-pressed"),
+    screen.getByRole("button", { name: "Lime" }).getAttribute("aria-pressed"),
   ).toBe("true");
 });
 it("a dashboard refresh failure does not undo a color already committed", async () => {
@@ -118,13 +118,13 @@ it("a dashboard refresh failure does not undo a color already committed", async 
   );
   await waitFor(() =>
     expect(
-      (screen.getByRole("button", { name: "Mist" }) as HTMLButtonElement)
+      (screen.getByRole("button", { name: "Violet" }) as HTMLButtonElement)
         .disabled,
     ).toBe(false),
   );
-  fireEvent.click(screen.getByRole("button", { name: "Mist" }));
+  fireEvent.click(screen.getByRole("button", { name: "Violet" }));
   await screen.findByText("Error: Dashboard unavailable");
   expect(
-    screen.getByRole("button", { name: "Mist" }).getAttribute("aria-pressed"),
+    screen.getByRole("button", { name: "Violet" }).getAttribute("aria-pressed"),
   ).toBe("true");
 });
