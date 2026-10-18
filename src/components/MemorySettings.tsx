@@ -24,6 +24,21 @@ export function memoryCategory(item: MemoryItem): Category {
   if (item.event_kind === "goal_parked") return "Parked contexts";
   return "Work";
 }
+/** Stored preference keys like "companion_preferences.screen_task_detection = true" read as words. */
+export function readable(content: string): string {
+  const match = /^([a-z_]+)\.([a-z_]+) = (\S+)$/.exec(content);
+  if (!match) return content;
+  const [, , key, value] = match;
+  const words = key.replaceAll("_", " ");
+  const label = words.charAt(0).toUpperCase() + words.slice(1);
+  const state =
+    value === "true"
+      ? "on"
+      : value === "false"
+        ? "off"
+        : value.replaceAll("_", " ");
+  return `${label} · ${state}`;
+}
 // Plain labels and one-sentence hints for the compact controls on the AI tab.
 const COMPACT: Record<keyof MemoryControls, [string, string]> = {
   enabled: [
@@ -233,7 +248,7 @@ export function MemorySettings({
                   .filter((item) => memoryCategory(item) === category)
                   .map((item) => (
                     <li key={`memory-${item.id}`}>
-                      <p>{item.content}</p>
+                      <p>{readable(item.content)}</p>
                       <small>
                         {item.scope.scope_type === "goal"
                           ? (data.goals.find(

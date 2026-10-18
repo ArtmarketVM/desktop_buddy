@@ -33,7 +33,7 @@ it("keeps utility controls in the requested reading order, with services by the 
   ).toEqual(["Updates", "Feedback", "Switch to dark theme", "Quiet mode"]);
   const services = screen.getByRole("group", { name: "AI services" });
   const pages = screen.getByRole("navigation", { name: "Workspace pages" });
-  const profile = screen.getByRole("button", { name: "Open profile menu" });
+  const profile = screen.getByRole("button", { name: "Profile" });
   const settings = screen.getByRole("button", { name: "Settings" });
   expect(
     pages.compareDocumentPosition(services) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -125,9 +125,9 @@ it("keeps the user's name and profile actions accessible in the collapsed sideba
       Today
     </AppShell>,
   );
-  const profile = screen.getByRole("button", { name: "Open profile menu" });
+  const profile = screen.getByRole("button", { name: "Profile" });
   expect(profile.textContent).toBe("Mark");
-  expect(profile.title).toBe("Mark");
+  // The hover label says "Profile"; the name itself stays in the button text.
   await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
   expect(profile.textContent).toBe("Mark");
   await user.click(profile);

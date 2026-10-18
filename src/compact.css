@@ -1785,3 +1785,34 @@ main.desktop-buddy.chatting > .companion-error {
   border-radius: 3px;
   background: var(--surface);
 }
+
+/* Collapsed sidebar: page and profile buttons get the same hover label as the utilities. */
+.sidebar-collapsed #workspace-navigation .nav-item,
+.sidebar-collapsed .profile-entry {
+  position: relative;
+  overflow: visible;
+}
+.sidebar-collapsed #workspace-navigation .nav-item::after,
+.sidebar-collapsed .profile-entry::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 30;
+  padding: 4px 7px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+}
+.sidebar-collapsed #workspace-navigation .nav-item:hover::after,
+.sidebar-collapsed #workspace-navigation .nav-item:focus-visible::after,
+.sidebar-collapsed .profile-entry:hover::after,
+.sidebar-collapsed .profile-entry:focus-visible::after {
+  opacity: 1;
+}

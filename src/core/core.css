@@ -3090,3 +3090,37 @@ p.error .text-button {
   gap: 14px;
   margin-top: 14px;
 }
+
+/* Memory browser: quieter footer — small links, one forget row, caption-sized diagnostics. */
+.core-workspace .settings-card .memory-settings > button:not(.day-chip),
+.core-workspace .settings-card .memory-settings section > button:not(.day-chip) {
+  height: 26px;
+  padding: 0 9px;
+  font-weight: 400;
+}
+.settings-card .memory-settings .danger-zone {
+  gap: 10px 12px;
+}
+.settings-card .memory-settings .danger-zone label {
+  flex: none;
+  gap: 8px;
+}
+.core-workspace .settings-card .memory-settings .danger-zone select {
+  width: 220px;
+}
+.core-workspace .settings-card .memory-settings .danger-zone > button {
+  height: 26px;
+  font-weight: 400;
+}
+.settings-card .memory-settings details > summary {
+  font-size: var(--text-caption);
+  color: var(--muted);
+  font-weight: 400;
+  cursor: pointer;
+}
+.settings-card .memory-settings details > p {
+  display: none;
+}
+.settings-card .memory-settings details > button {
+  margin-top: 8px;
+}

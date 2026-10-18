@@ -49,7 +49,7 @@ export const pages = [
   },
   {
     id: "chats",
-    label: "Coach chats",
+    label: "Chats",
     icon: MessageSquare,
     description: "",
   },
@@ -203,7 +203,6 @@ export function AppShell({
                 page === item.id && !onboarding ? "page" : undefined
               }
               disabled={onboarding}
-              title={item.label}
               aria-label={item.label}
               onClick={() => onNavigate(item.id)}
             >
@@ -291,8 +290,7 @@ export function AppShell({
               disabled={onboarding}
               onClick={() => setMenu(!menu)}
               aria-expanded={menu}
-              aria-label="Open profile menu"
-              title={profile.name || "Your profile"}
+              aria-label="Profile"
             >
               <UserRound size={15} className="profile-icon" />
               <span className="profile-name">
