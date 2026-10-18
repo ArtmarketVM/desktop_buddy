@@ -2740,3 +2740,48 @@ p.error .text-button {
   font-size: var(--text-caption);
   color: var(--muted);
 }
+
+/* Privacy: one wide card and one sentence. */
+.settings-card-wide {
+  margin-top: 0;
+}
+.privacy-sentence {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+}
+.privacy-sentence .privacy-cell {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 7px;
+  background: var(--lime);
+}
+.privacy-sentence > p {
+  flex: 1;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+.privacy-links {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+.core-workspace .privacy-link {
+  min-height: 0;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--text-caption);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.core-workspace .privacy-link.muted {
+  color: var(--muted);
+}

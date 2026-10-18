@@ -10,7 +10,7 @@ import {
   type Dashboard,
 } from "../types";
 import { ProviderKey } from "../components/Settings";
-import { PrivacyNotes } from "../components/PrivacySettings";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
@@ -34,6 +34,53 @@ const minutes = (value: string) => {
   const [h, m] = value.split(":").map(Number);
   return h * 60 + m;
 };
+
+export const PRIVACY_POLICY_URL =
+  "https://artmarketvm.github.io/desktop_buddy/privacy.html";
+
+/** One plain sentence about what sumi knows right now and what it would send. */
+export function describePrivacy(
+  preview: string,
+  tracking: boolean,
+  goalTitle: string | null,
+): string {
+  if (!tracking)
+    return "Tracking is paused, so sumi records nothing and sends nothing. Turn it on above and this sentence will tell you exactly what it sees.";
+  const never =
+    "It never sends what is on your screen, what you type, or who you are.";
+  const goal = goalTitle ? `your goal, “${goalTitle}”` : "your current goal";
+  let apps: { app: string; seconds: number }[] = [];
+  try {
+    const parsed = JSON.parse(preview) as {
+      focus_check?: {
+        recent_activity?: { app: string; seconds: number }[];
+      };
+    };
+    const totals = new Map<string, number>();
+    for (const item of parsed.focus_check?.recent_activity ?? [])
+      totals.set(item.app, (totals.get(item.app) ?? 0) + item.seconds);
+    apps = [...totals]
+      .map(([app, seconds]) => ({ app, seconds }))
+      .sort((x, y) => y.seconds - x.seconds)
+      .slice(0, 3);
+  } catch {
+    apps = [];
+  }
+  if (!apps.length)
+    return `sumi has not recorded any activity yet. When it checks your progress it will tell Nebius the last window titles and ${goal}. ${never}`;
+  const spell = ({ app, seconds }: { app: string; seconds: number }) => {
+    const m = Math.round(seconds / 60);
+    return `${app} for ${m < 1 ? "under a minute" : `${m} minute${m === 1 ? "" : "s"}`}`;
+  };
+  const list =
+    apps.length === 1
+      ? spell(apps[0])
+      : `${apps
+          .slice(0, -1)
+          .map(spell)
+          .join(", ")} and ${spell(apps[apps.length - 1])}`;
+  return `Right now sumi knows you have been in ${list}. When it checks your progress it tells Nebius those window titles and ${goal}. ${never}`;
+}
 
 export function CoreSettings({
   data,
@@ -62,7 +109,7 @@ export function CoreSettings({
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
   const [retention, setRetention] = useState(data.retention_days);
   const [preview, setPreview] = useState("");
-  const [showPolicy, setShowPolicy] = useState(false);
+  const [showRaw, setShowRaw] = useState(false);
   const [clearPending, setClearPending] = useState(false);
   useEffect(() => setRetention(data.retention_days), [data.retention_days]);
   const trackingState = !data.status.tracking
@@ -77,6 +124,24 @@ export function CoreSettings({
         ? "Needs attention"
         : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
+  useEffect(() => {
+    if (section !== "Privacy" || !desktop) return;
+    let active = true;
+    void api
+      .privacyPreview()
+      .then((snapshot) => {
+        if (active) setPreview(JSON.stringify(snapshot, null, 2));
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, [section, data.status.last_collected_at]);
+  const privacySentence = describePrivacy(
+    preview,
+    data.status.tracking,
+    data.goal?.text ?? null,
+  );
   useEffect(() => {
     if (sectionRequest) setSection(sectionRequest.section);
   }, [sectionRequest]);
@@ -294,241 +359,230 @@ export function CoreSettings({
         </details>
         <details className="core-section" hidden={section !== "Privacy"} open>
           <summary>Privacy</summary>
-          <div className="settings-cards">
-            <section className="settings-card" aria-label="Tracking">
-              <p className="eyebrow settings-card-title">Tracking</p>
-              <label className="toggle-row">
-                <span>Track goals and suggest completed work</span>
-                <input
-                  type="checkbox"
-                  checked={data.status.tracking}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    const enabled = e.target.checked;
-                    if (enabled) {
-                      setTrackingConsentPending(true);
-                      return;
-                    }
-                    void run(() => api.goalMonitoring(enabled));
-                  }}
-                />
-              </label>
-              {trackingConsentPending && (
-                <div
-                  className="card"
-                  aria-label="Confirm local activity tracking"
-                >
-                  <p>
-                    Record foreground apps, window/tab titles and active time on
-                    this computer, and send up to 3,000 characters of visible
-                    text with your goal and steps to Nebius for progress checks?
-                    Password and edit controls are skipped. Provider charges may
-                    apply.
-                  </p>
-                  <button
-                    disabled={blocked}
-                    onClick={() => {
-                      void run(() => api.goalMonitoring(true)).then(
-                        async (ok) => {
-                          if (ok) setTrackingConsentPending(false);
-                          if (ok && isMac)
-                            await invoke<boolean>(
-                              "request_accessibility_permission",
-                            ).catch((e) => setError(String(e)));
-                        },
-                      );
-                    }}
-                  >
-                    Enable goal tracking
-                  </button>
-                  <button
-                    className="text-button"
-                    disabled={blocked}
-                    onClick={() => setTrackingConsentPending(false)}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-              <div className="setting-row">
-                <span>Status</span>
-                <span className={`tracking-state ${trackingState}`}>
-                  <i aria-hidden="true" />
-                  {trackingLabel}
-                </span>
-              </div>
-              <MacPermissions />
-              <div className="setting-row">
-                <span>Working days</span>
-                <span
-                  className="day-chips"
-                  role="group"
-                  aria-label="Working days"
-                >
-                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
-                    (label, day) => {
-                      const on = preferences.working_days.includes(day);
-                      return (
-                        <button
-                          type="button"
-                          key={day}
-                          className="day-chip"
-                          aria-pressed={on}
-                          disabled={blocked}
-                          onClick={() => {
-                            const next = {
-                              ...preferences,
-                              working_days: on
-                                ? preferences.working_days.filter(
-                                    (d) => d !== day,
-                                  )
-                                : [...preferences.working_days, day].sort(),
-                            };
-                            setPreferences(next);
-                            void run(() => coreApi.preferences(next));
-                          }}
-                        >
-                          {label}
-                        </button>
-                      );
-                    },
-                  )}
-                </span>
-              </div>
+          <section
+            className="settings-card settings-card-wide"
+            aria-label="Tracking"
+          >
+            <p className="eyebrow settings-card-title">Tracking</p>
+            <label className="toggle-row">
+              <span>Track goals and suggest completed work</span>
+              <input
+                type="checkbox"
+                checked={data.status.tracking}
+                disabled={blocked}
+                onChange={(e) => {
+                  const enabled = e.target.checked;
+                  if (enabled) {
+                    setTrackingConsentPending(true);
+                    return;
+                  }
+                  void run(() => api.goalMonitoring(enabled));
+                }}
+              />
+            </label>
+            {trackingConsentPending && (
               <div
-                className="setting-row"
-                role="group"
-                aria-label="Working hours"
+                className="card"
+                aria-label="Confirm local activity tracking"
               >
-                <span>Working hours</span>
-                <span className="quiet-hours">
-                  <input
-                    type="time"
-                    aria-label="Start time"
-                    value={time(hours.working_start_minute)}
-                    disabled={blocked}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const next = {
-                        ...hours,
-                        working_start_minute: minutes(e.target.value),
-                      };
-                      setHours(next);
-                      void run(() => api.saveTrackingSettings(next));
-                    }}
-                  />
-                  <span className="quiet-hours-to">to</span>
-                  <input
-                    type="time"
-                    aria-label="End time"
-                    value={time(hours.working_end_minute)}
-                    disabled={blocked}
-                    onChange={(e) => {
-                      if (!e.target.value) return;
-                      const next = {
-                        ...hours,
-                        working_end_minute: minutes(e.target.value),
-                      };
-                      setHours(next);
-                      void run(() => api.saveTrackingSettings(next));
-                    }}
-                  />
-                </span>
-              </div>
-            </section>
-            <section className="settings-card" aria-label="Your data">
-              <p className="eyebrow settings-card-title">Your data</p>
-              <label className="setting-row">
-                <span>Keep history</span>
-                <select
-                  value={retention}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    const days = Number(e.target.value);
-                    setRetention(days);
-                    void run(() => api.retention(days));
-                  }}
-                >
-                  <option value={0}>Until I delete it</option>
-                  <option value={7}>7 days</option>
-                  <option value={30}>30 days</option>
-                  <option value={90}>90 days</option>
-                </select>
-              </label>
-              <div className="setting-row">
-                <span>What the AI can see</span>
+                <p>
+                  Record foreground apps, window/tab titles and active time on
+                  this computer, and send up to 3,000 characters of visible text
+                  with your goal and steps to Nebius for progress checks?
+                  Password and edit controls are skipped. Provider charges may
+                  apply.
+                </p>
                 <button
-                  type="button"
-                  className="outline-button small-button"
                   disabled={blocked}
                   onClick={() => {
-                    if (preview) {
-                      setPreview("");
-                      return;
-                    }
-                    void run(async () => {
-                      setPreview(
-                        JSON.stringify(await api.privacyPreview(), null, 2),
-                      );
-                    });
+                    void run(() => api.goalMonitoring(true)).then(
+                      async (ok) => {
+                        if (ok) setTrackingConsentPending(false);
+                        if (ok && isMac)
+                          await invoke<boolean>(
+                            "request_accessibility_permission",
+                          ).catch((e) => setError(String(e)));
+                      },
+                    );
                   }}
                 >
-                  {preview ? "Hide" : "Preview"}
+                  Enable goal tracking
                 </button>
-              </div>
-              <div className="setting-row">
-                <span>How sumi uses data</span>
                 <button
-                  type="button"
-                  className="outline-button small-button"
-                  onClick={() => setShowPolicy((open) => !open)}
+                  className="text-button"
+                  disabled={blocked}
+                  onClick={() => setTrackingConsentPending(false)}
                 >
-                  {showPolicy ? "Hide" : "Read"}
+                  Cancel
                 </button>
               </div>
-              <div className="setting-row">
-                <span>Clear all local history</span>
-                {clearPending ? (
-                  <span className="inline-confirm">
-                    <button
-                      type="button"
-                      className="danger-button small-button"
-                      disabled={blocked}
-                      onClick={() =>
-                        void run(async () => {
-                          await api.clearHistory();
-                          setPreview("");
-                        }).then((ok) => {
-                          if (ok) setClearPending(false);
-                        })
-                      }
-                    >
-                      Clear permanently
-                    </button>
-                    <button
-                      type="button"
-                      className="text-button"
-                      disabled={blocked}
-                      onClick={() => setClearPending(false)}
-                    >
-                      Keep
-                    </button>
-                  </span>
-                ) : (
+            )}
+            <div className="setting-row">
+              <span>Status</span>
+              <span className={`tracking-state ${trackingState}`}>
+                <i aria-hidden="true" />
+                {trackingLabel}
+              </span>
+            </div>
+            <MacPermissions />
+            <div className="setting-row">
+              <span>Working days</span>
+              <span
+                className="day-chips"
+                role="group"
+                aria-label="Working days"
+              >
+                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
+                  (label, day) => {
+                    const on = preferences.working_days.includes(day);
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        className="day-chip"
+                        aria-pressed={on}
+                        disabled={blocked}
+                        onClick={() => {
+                          const next = {
+                            ...preferences,
+                            working_days: on
+                              ? preferences.working_days.filter(
+                                  (d) => d !== day,
+                                )
+                              : [...preferences.working_days, day].sort(),
+                          };
+                          setPreferences(next);
+                          void run(() => coreApi.preferences(next));
+                        }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  },
+                )}
+              </span>
+            </div>
+            <div
+              className="setting-row"
+              role="group"
+              aria-label="Working hours"
+            >
+              <span>Working hours</span>
+              <span className="quiet-hours">
+                <input
+                  type="time"
+                  aria-label="Start time"
+                  value={time(hours.working_start_minute)}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const next = {
+                      ...hours,
+                      working_start_minute: minutes(e.target.value),
+                    };
+                    setHours(next);
+                    void run(() => api.saveTrackingSettings(next));
+                  }}
+                />
+                <span className="quiet-hours-to">to</span>
+                <input
+                  type="time"
+                  aria-label="End time"
+                  value={time(hours.working_end_minute)}
+                  disabled={blocked}
+                  onChange={(e) => {
+                    if (!e.target.value) return;
+                    const next = {
+                      ...hours,
+                      working_end_minute: minutes(e.target.value),
+                    };
+                    setHours(next);
+                    void run(() => api.saveTrackingSettings(next));
+                  }}
+                />
+              </span>
+            </div>
+            <label className="setting-row">
+              <span>Keep history</span>
+              <select
+                value={retention}
+                disabled={blocked}
+                onChange={(e) => {
+                  const days = Number(e.target.value);
+                  setRetention(days);
+                  void run(() => api.retention(days));
+                }}
+              >
+                <option value={0}>Until I delete it</option>
+                <option value={7}>7 days</option>
+                <option value={30}>30 days</option>
+                <option value={90}>90 days</option>
+              </select>
+            </label>
+            <div className="setting-row">
+              <span>Clear all local history</span>
+              {clearPending ? (
+                <span className="inline-confirm">
                   <button
                     type="button"
-                    className="outline-button small-button danger-text"
+                    className="danger-button small-button"
                     disabled={blocked}
-                    onClick={() => setClearPending(true)}
+                    onClick={() =>
+                      void run(async () => {
+                        await api.clearHistory();
+                        setPreview("");
+                      }).then((ok) => {
+                        if (ok) setClearPending(false);
+                      })
+                    }
                   >
-                    Clear…
+                    Clear permanently
                   </button>
-                )}
-              </div>
-            </section>
+                  <button
+                    type="button"
+                    className="text-button"
+                    disabled={blocked}
+                    onClick={() => setClearPending(false)}
+                  >
+                    Keep
+                  </button>
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  className="outline-button small-button danger-text"
+                  disabled={blocked}
+                  onClick={() => setClearPending(true)}
+                >
+                  Clear…
+                </button>
+              )}
+            </div>
+          </section>
+          <div className="privacy-sentence">
+            <span className="privacy-cell" aria-hidden="true" />
+            <p role="status">{privacySentence}</p>
+            <span className="privacy-links">
+              <button
+                type="button"
+                className="text-button privacy-link"
+                onClick={() => void openUrl(PRIVACY_POLICY_URL)}
+              >
+                Privacy policy ↗
+              </button>
+              <button
+                type="button"
+                className="text-button privacy-link muted"
+                disabled={blocked}
+                onClick={() => setShowRaw((open) => !open)}
+              >
+                {showRaw ? "Hide raw data" : "Raw data"}
+              </button>
+            </span>
           </div>
-          {preview && <pre className="privacy-preview">{preview}</pre>}
-          {showPolicy && <PrivacyNotes />}
+          {showRaw && preview && (
+            <pre className="privacy-preview">{preview}</pre>
+          )}
         </details>
         <details className="core-section" hidden={section !== "Memory"} open>
           <summary>Memory</summary>
