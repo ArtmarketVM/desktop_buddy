@@ -333,6 +333,33 @@ async fn ambiguous_text_clarifies_without_assigning_a_barrier() {
     assert_eq!(current(&state, &s), s);
 }
 
+#[tokio::test]
+async fn barrier_without_proposal_accepts_an_explicit_text_request_for_a_small_action() {
+    let (state, s) = fixture();
+    let s = turn(
+        &state,
+        &s,
+        "I do not know where to begin",
+        json!({"type":"barrier","barrier":"unclear_first_step"}),
+        Value::Null,
+        false,
+    )
+    .await;
+    assert_eq!(s.step, "tiny_action");
+    let server = MockServer::start().await;
+    provider(&server,json!({"reply":null,"evidence":null,"action":{"title":"Open the account requirements","estimated_seconds":10}})).await;
+    handle(
+        &state,
+        input(&s, "Please suggest a small action", "ask-for-action"),
+        Some(&service(&state, &server)),
+    )
+    .await
+    .unwrap();
+    let next = current(&state, &s);
+    assert_eq!(next.step, "feasibility");
+    assert_eq!(next.data["action"]["estimated_seconds"], 10);
+}
+
 #[test]
 fn provider_cannot_confirm_questions_negations_future_plans_or_memory_writes() {
     let (state, s) = fixture();

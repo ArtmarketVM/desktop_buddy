@@ -68,6 +68,8 @@ pub(crate) async fn headless_check() -> Result<Value, String> {
     {
         return Err("Live coaching check requires real provider responses".into());
     }
+    let service = Service::configured(&state.client)?;
+    let mut text_turns = 0;
     // Synthetic text replies exercise the same interpreter and reducer as the composer.
     for (index, (text, expected)) in [
         (
@@ -94,21 +96,53 @@ pub(crate) async fn headless_check() -> Result<Value, String> {
                 revision: Some(session.revision),
                 remember: false,
             },
-            None,
+            Some(&service),
         )
         .await?;
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        session = inner
-            .storage
-            .coaching_session(session.id, session.conversation_id)?;
+        text_turns += 1;
+        session = {
+            let inner = state
+                .inner
+                .lock()
+                .map_err(|_| "Application state unavailable")?;
+            inner
+                .storage
+                .coaching_session(session.id, session.conversation_id)?
+        };
+        // A valid barrier can lead to an explicit suggestion request before feasibility.
+        if index == 0 && session.step == "tiny_action" {
+            super::chat::handle(
+                &state,
+                super::chat::Input {
+                    conversation: session.conversation_id,
+                    text: "Please suggest one concrete action I can do in 10 to 60 seconds",
+                    attachment: "",
+                    request_id: "live-text-action",
+                    session_id: Some(session.id),
+                    revision: Some(session.revision),
+                    remember: false,
+                },
+                Some(&service),
+            )
+            .await?;
+            text_turns += 1;
+            let inner = state
+                .inner
+                .lock()
+                .map_err(|_| "Application state unavailable")?;
+            session = inner
+                .storage
+                .coaching_session(session.id, session.conversation_id)?;
+        }
         if session.step != expected {
-            return Err(format!(
-                "Live coaching text check expected {expected}, received {}",
-                session.step
-            ));
+            let inner = state
+                .inner
+                .lock()
+                .map_err(|_| "Application state unavailable")?;
+            let diagnostics = crate::engine_observability::view(&inner)?;
+            return Ok(json!({"all_passed":false,"fixture":"synthetic_in_memory",
+                "failed_turn":index,"expected_step":expected,"actual_step":session.step,
+                "events":diagnostics["events"]}));
         }
     }
     let inner = state
@@ -119,7 +153,7 @@ pub(crate) async fn headless_check() -> Result<Value, String> {
         .map_err(|_| "Invalid check fixture")?
         == before;
     Ok(
-        json!({"all_passed":session.status == Status::Completed && unchanged,"fixture":"synthetic_in_memory","strategy":"tiny_habits","real_provider_text_turns":5,"micro_action_report":"synthetic","parent_goal_unchanged":unchanged}),
+        json!({"all_passed":session.status == Status::Completed && unchanged,"fixture":"synthetic_in_memory","strategy":"tiny_habits","real_provider_text_turns":text_turns,"micro_action_report":"synthetic","parent_goal_unchanged":unchanged}),
     )
 }
 

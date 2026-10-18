@@ -318,6 +318,8 @@ pub(crate) fn deliberate_operation(name: &str) -> bool {
     matches!(
         name,
         "buddy_skill_plan"
+            | "buddy_coaching_interpretation"
+            | "buddy_coaching_response"
             | "buddy_dialogue_response"
             | "buddy_research_synthesis"
             | "buddy_park_checkpoint"
@@ -330,6 +332,8 @@ pub(crate) fn response_operation(name: &str) -> bool {
     matches!(
         name,
         "buddy_research_evidence"
+            | "buddy_coaching_interpretation"
+            | "buddy_coaching_response"
             | "buddy_skill_plan"
             | "buddy_chat_research_authorization"
             | "buddy_dialogue_response"
@@ -445,7 +449,8 @@ impl<'a> Service<'a> {
         // This opt-in CLI uses only synthetic in-memory fixtures. Never trace normal
         // app prompts, credentials, provider reasoning_content or personal memory.
         if std::env::var("BUDDY_DIALOGUE_TRACE").as_deref() == Ok("true")
-            && std::env::args().any(|a| a == "--check-agent-dialogue")
+            && std::env::args()
+                .any(|a| matches!(a.as_str(), "--check-agent-dialogue" | "--check-coaching"))
         {
             if let Ok(value) = &result {
                 if let Ok(content) = response_text(value) {

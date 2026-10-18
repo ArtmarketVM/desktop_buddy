@@ -31,7 +31,8 @@ changes and memory opt-in. UI tests cover compact controls, dedicated entry and
 the composer route with a different globally focused goal. Ordinary voice and
 queued chat retain their existing regression coverage.
 
-`--check-coaching` exercises five real-provider text turns with synthetic in-memory
+`--check-coaching` exercises the five required text answers and, when needed,
+an explicit action-suggestion request through the real provider, with synthetic in-memory
 data only; it does not open the installed user database. Live success establishes
 one scenario, not general model quality. Native Windows x64 and Apple Silicon
 macOS validation and signed artifact checks are required before publication.
@@ -39,8 +40,8 @@ Trusted updater keys and the reviewed macOS internal signing identity are unchan
 
 Local Windows validation passed:
 
-- `cargo test --locked --manifest-path src-tauri/Cargo.toml`: 543 passed, zero
-  failed, two existing opt-in tests ignored. Eleven coaching-chat fixtures and
+- `cargo test --locked --manifest-path src-tauri/Cargo.toml`: 544 passed, zero
+  failed, two existing opt-in tests ignored. Twelve coaching-chat fixtures and
   the ordinary send-route regression are included.
 - `npm test -- --exclude '.tools/**'`: 221 passed across 39 files. The two coaching
   UI files also passed a focused run: eight tests.
@@ -52,3 +53,11 @@ The local historical checkout under ignored `.tools` is excluded from Vitest.
 HTTP fixtures require loopback access outside the execution sandbox. Manual
 installation and visual checks on physical Windows and Mac systems are not
 established by these automated checks.
+
+The live probe passed all five required text turns through the shared dialogue
+model adapter. It reached a synthetic reported micro-action completion while
+preserving the parent goal and checklist. One response incorrectly repeated an
+action at the anchor step; validation rejected it and the bounded repair returned
+the valid skip response. An additional fixture covers requesting a suggestion
+when the barrier answer does not include one. The diagnostic now reports safe
+stage/event metadata on failure rather than hiding the failed step.

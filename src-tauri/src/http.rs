@@ -175,6 +175,12 @@ mod tests {
         assert_eq!(resolve_response_model("custom", None, Some("")), "custom");
         assert!(crate::goal_analysis::response_operation("buddy_skill_plan"));
         assert!(crate::goal_analysis::response_operation(
+            "buddy_coaching_interpretation"
+        ));
+        assert!(crate::goal_analysis::response_operation(
+            "buddy_coaching_response"
+        ));
+        assert!(crate::goal_analysis::response_operation(
             "buddy_chat_research_authorization"
         ));
         assert!(!crate::goal_analysis::response_operation(
