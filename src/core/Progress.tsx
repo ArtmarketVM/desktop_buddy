@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { WindowActivity } from "./WindowActivity";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { PeriodPicker, endOfMonth } from "./PeriodPicker";
 import {
@@ -476,10 +475,6 @@ export function Progress({
           )}
         </ul>
       )}
-      <details className="progress-details">
-        <summary>Tracked activity</summary>
-        <WindowActivity first={oldest} last={newest} goalId={selected} />
-      </details>
     </section>
   );
 }

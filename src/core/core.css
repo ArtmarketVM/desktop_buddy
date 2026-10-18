@@ -2459,42 +2459,6 @@ details.today-summary > .today-summary-head {
   background: transparent;
   border: 1.5px solid var(--muted);
 }
-.progress-details {
-  margin-top: 28px;
-}
-.progress-details > summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: var(--text-body);
-  font-weight: 500;
-  cursor: pointer;
-  list-style: none;
-}
-.progress-details > summary:hover {
-  background: var(--raised);
-}
-.progress-details > summary::after {
-  content: "";
-  width: 6px;
-  height: 6px;
-  background: var(--accent);
-  border-radius: 1px;
-}
-.progress-details[open] > summary::after {
-  background: var(--lime);
-}
-.progress-details > summary::-webkit-details-marker {
-  display: none;
-}
-.progress-details[open] > summary {
-  margin-bottom: 8px;
-}
 .pager {
   display: flex;
   flex-wrap: wrap;
@@ -2784,4 +2748,8 @@ p.error .text-button {
 }
 .core-workspace .privacy-link.muted {
   color: var(--muted);
+}
+
+.activity-log {
+  margin-top: 14px;
 }

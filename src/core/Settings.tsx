@@ -11,6 +11,7 @@ import {
 } from "../types";
 import { ProviderKey } from "../components/Settings";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { WindowActivity } from "./WindowActivity";
 import { AvatarPicker } from "../components/ProfileFields";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
@@ -57,8 +58,11 @@ export function describePrivacy(
       };
     };
     const totals = new Map<string, number>();
-    for (const item of parsed.focus_check?.recent_activity ?? [])
+    for (const item of parsed.focus_check?.recent_activity ?? []) {
+      // The lock screen is not something you "worked in".
+      if (item.app === "loginwindow") continue;
       totals.set(item.app, (totals.get(item.app) ?? 0) + item.seconds);
+    }
     apps = [...totals]
       .map(([app, seconds]) => ({ app, seconds }))
       .sort((x, y) => y.seconds - x.seconds)
@@ -110,6 +114,11 @@ export function CoreSettings({
   const [retention, setRetention] = useState(data.retention_days);
   const [preview, setPreview] = useState("");
   const [showRaw, setShowRaw] = useState(false);
+  const [showLog, setShowLog] = useState(false);
+  const logLast = new Date().toISOString().slice(0, 10);
+  const logFirst = new Date(Date.now() - 6 * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const [clearPending, setClearPending] = useState(false);
   useEffect(() => setRetention(data.retention_days), [data.retention_days]);
   const trackingState = !data.status.tracking
@@ -572,6 +581,13 @@ export function CoreSettings({
               </button>
               <button
                 type="button"
+                className="text-button privacy-link"
+                onClick={() => setShowLog((open) => !open)}
+              >
+                {showLog ? "Hide the activity log" : "See the activity log"}
+              </button>
+              <button
+                type="button"
                 className="text-button privacy-link muted"
                 disabled={blocked}
                 onClick={() => setShowRaw((open) => !open)}
@@ -580,6 +596,17 @@ export function CoreSettings({
               </button>
             </span>
           </div>
+          {showLog && (
+            <section
+              className="settings-card activity-log"
+              aria-label="Activity log"
+            >
+              <p className="eyebrow settings-card-title">
+                Activity log · last 7 days
+              </p>
+              <WindowActivity first={logFirst} last={logLast} />
+            </section>
+          )}
           {showRaw && preview && (
             <pre className="privacy-preview">{preview}</pre>
           )}
