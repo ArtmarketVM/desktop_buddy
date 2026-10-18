@@ -120,6 +120,12 @@ export function CoreSettings({
     .toISOString()
     .slice(0, 10);
   const [clearPending, setClearPending] = useState(false);
+  useEffect(() => {
+    if (!clearPending) return;
+    // An armed button disarms itself after five seconds.
+    const timer = window.setTimeout(() => setClearPending(false), 5000);
+    return () => window.clearTimeout(timer);
+  }, [clearPending]);
   useEffect(() => setRetention(data.retention_days), [data.retention_days]);
   const trackingState = !data.status.tracking
     ? "paused"
@@ -529,43 +535,25 @@ export function CoreSettings({
               </select>
             </label>
             <div className="setting-row">
-              <span>Clear all local history</span>
-              {clearPending ? (
-                <span className="inline-confirm">
-                  <button
-                    type="button"
-                    className="danger-button small-button"
-                    disabled={blocked}
-                    onClick={() =>
-                      void run(async () => {
-                        await api.clearHistory();
-                        setPreview("");
-                      }).then((ok) => {
-                        if (ok) setClearPending(false);
-                      })
-                    }
-                  >
-                    Clear permanently
-                  </button>
-                  <button
-                    type="button"
-                    className="text-button"
-                    disabled={blocked}
-                    onClick={() => setClearPending(false)}
-                  >
-                    Keep
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  className="outline-button small-button danger-text"
-                  disabled={blocked}
-                  onClick={() => setClearPending(true)}
-                >
-                  Clear…
-                </button>
-              )}
+              <button
+                type="button"
+                className={`clear-history ${clearPending ? "armed" : ""}`}
+                disabled={blocked}
+                onClick={() => {
+                  if (!clearPending) {
+                    setClearPending(true);
+                    return;
+                  }
+                  void run(async () => {
+                    await api.clearHistory();
+                    setPreview("");
+                  }).then(() => setClearPending(false));
+                }}
+              >
+                {clearPending
+                  ? "Click again to clear everything"
+                  : "Clear all local history"}
+              </button>
             </div>
           </section>
           <div className="privacy-sentence">

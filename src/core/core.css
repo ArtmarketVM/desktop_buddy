@@ -2753,3 +2753,25 @@ p.error .text-button {
 .activity-log {
   margin-top: 14px;
 }
+
+/* Clear all local history: one ghost button across the row; the first click arms it. */
+.core-workspace .settings-card .clear-history {
+  flex: 1;
+  min-height: 0;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--canvas);
+  color: var(--danger);
+  font-size: var(--text-body);
+  font-weight: 500;
+}
+.core-workspace .settings-card .clear-history:hover {
+  border-color: var(--danger);
+}
+.core-workspace .settings-card .clear-history.armed {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #ffffff;
+}
