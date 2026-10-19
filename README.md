@@ -2,7 +2,19 @@
 
 A local-first focus companion for Windows and macOS. Set an intention, see your foreground activity, and optionally let NVIDIA Nemotron on Nebius offer a gentle check-in. Tavily provides on-demand web search when you need help.
 
-Version 0.23.0 extends the shared compact workspace to macOS: clean Today, local Chats, compact desktop Buddy, local Apple Speech transcription and Apple Silicon/Intel build jobs. See [compact workspace](docs/compact-workspace.md) and [macOS build and validation](docs/COMPACT_MACOS.md) for setup and the remaining native checks.
+## Personal AI and demo validation
+
+The current agent observes significant activity and workflow events, retrieves scoped local memory, requests structured reasoning from Nebius Token Factory, and validates the result in Rust. Explicit text and local speech transcripts use the same bounded read/plan/skill loop. Park/Resume checkpoints, confirmed progress and research attachments persist in SQLite across restarts. Background events can offer help; they cannot authorize destructive actions or web searches on the user's behalf.
+
+The configured background model is NVIDIA `nvidia/nemotron-3-super-120b-a12b`; dialogue planning and reviewed responses use `moonshotai/Kimi-K3`, also through Token Factory. Tavily receives a consented search query, returns sources, and supports context-bound research. These integrations make real HTTP calls unless `AI_MOCK` explicitly replaces provider responses. `DEMO_MODE` separately simulates foreground activity and does not establish native tracking coverage.
+
+See the [hackathon demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) for setup, the isolated `--check-hero` real-provider rehearsal in current development builds, and the native acceptance checklist. The check uses synthetic data in a temporary database. Its output distinguishes backend success from unverified microphone capture, actual popup interaction and full application relaunch. macOS local speech also requires Dictation to be enabled and the chosen language model download to finish. No cloud speech fallback is enabled.
+
+Supported desktop targets are **Windows x64** and **Apple Silicon macOS 14.5+**. A delivered update must contain both platforms at the same release version. Mac local builds need the reviewed internal code-signing identity to access saved credentials; internal signing is not Apple Developer ID signing or notarization.
+
+The following sections describe earlier milestones and may retain historical behavior; use the runbook and current Settings for demo acceptance.
+
+Version 0.23.0 extended the shared compact workspace to macOS: clean Today, local Chats, compact desktop Buddy and local Apple Speech transcription. See [compact workspace](docs/compact-workspace.md) and [macOS build and validation](docs/COMPACT_MACOS.md) for historical context.
 
 Version 0.20.0 adds three-step onboarding, a shared Today/desktop conversation, saved goal ordering, multiple AI-step acceptance, structured settings and quick Do Not Disturb. Nebius Token Factory can identify the active goal without a running timer after a separate opt-in. See [Daily UX and automatic goal matching](docs/UX_ONBOARDING_GOALS_SETTINGS.md), [Core experience](docs/CORE_EXPERIENCE.md) and [Companion MVP](docs/COMPANION_MVP.md). **Updates** checks real GitHub Releases; **Update available** appears for a newer signed Windows installer. Select **Update & restart** to download, verify and install it. See [Windows updates and local signing](UPDATES.md) and [design QA](design-qa.md).
 

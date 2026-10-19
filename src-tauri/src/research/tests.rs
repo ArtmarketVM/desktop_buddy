@@ -59,8 +59,8 @@ async fn intent(server: &MockServer, n: u64) {
             let request:Value=serde_json::from_slice(&r.body).unwrap();
             let context:Value=serde_json::from_str(request["messages"][1]["content"].as_str().unwrap()).unwrap();
             let sources=context["sources"].as_array().unwrap().iter().enumerate().map(|(index,s)| {
-                let quote:String=s["content"].as_str().unwrap().chars().take(900).collect();
-                json!({"source_index":index,"applicability":if quote.len()>=8 {"applicable"}else{"unverified"},"reason":"Synthetic source","quotes":if quote.len()>=8 {vec![quote]}else{vec![]}})
+                let available = s["excerpts"].as_array().unwrap();
+                json!({"source_index":index,"applicability":if !available.is_empty() {"applicable"}else{"unverified"},"reason":"Synthetic source","excerpt_ids":if !available.is_empty() {vec![0]}else{vec![]}})
             }).collect::<Vec<_>>();
             response(json!({"sources":sources}))
         }).mount(server).await;
@@ -556,6 +556,45 @@ async fn malformed_intent_and_hallucinated_source_indices_never_attach() {
             .research
             .is_empty());
     }
+}
+
+#[tokio::test]
+async fn synthesis_repairs_with_source_bounds_without_chat_action_instructions() {
+    let (state, goal, step) = state();
+    let nebius = MockServer::start().await;
+    let tavily = MockServer::start().await;
+    intent(&nebius, 1).await;
+    search(&tavily, sources(), 1).await;
+    let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let observed = calls.clone();
+    Mock::given(method("POST"))
+        .and(body_partial_json(json!({"response_format":{"json_schema":{"name":"buddy_contextual_research_result"}}})))
+        .respond_with(move |request:&wiremock::Request| {
+            let body:Value=serde_json::from_slice(&request.body).unwrap();
+            let context:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            assert_eq!(context["sources"][0]["source_index"],0);
+            assert_eq!(body["response_format"]["json_schema"]["schema"]["properties"]["source_indices"]["items"]["maximum"],0);
+            let first=observed.fetch_add(1,std::sync::atomic::Ordering::SeqCst)==0;
+            if !first {
+                let instructions=body["messages"][0]["content"].as_str().unwrap();
+                assert!(!instructions.contains("Copy instruction verbatim"));
+                assert!(!instructions.contains("Use only registered skills"));
+            }
+            response(json!({"summary":"Use an owned value for the async task.","next_action":"Try the documented example.","source_indices":[if first {99}else{0}]}))
+        }).expect(2).mount(&nebius).await;
+    let id = authorize(&state, goal, &step);
+    let result = run_with_service(
+        &state,
+        goal,
+        id,
+        &service(&state, &nebius),
+        &tavily.uri(),
+        "fixture",
+    )
+    .await
+    .unwrap();
+    assert_eq!(result.sources.len(), 1);
+    assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
 }
 #[tokio::test]
 async fn privacy_revoked_during_intent_cancels_before_tavily() {

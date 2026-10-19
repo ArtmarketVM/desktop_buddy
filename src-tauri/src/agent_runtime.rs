@@ -1,6 +1,7 @@
 //! One dispatcher for local observation, bounded reasoning and existing specialist services.
 mod check;
 mod observe;
+pub(crate) use check::hero_stuck;
 pub use check::run as headless_background_check;
 pub mod reasoning;
 #[cfg(test)]

@@ -56,13 +56,29 @@ pub fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
 
 fn transcript(json: &str) -> Result<String, String> {
     #[derive(serde::Deserialize)]
+    struct Failure {
+        domain: String,
+        code: i64,
+    }
+    #[derive(serde::Deserialize)]
     struct Response {
         error: Option<String>,
         candidates: Option<serde_json::Value>,
+        failure: Option<Failure>,
     }
     let response: Response =
         serde_json::from_str(json).map_err(|_| "macOS returned an unreadable speech response")?;
     if let Some(error) = response.error {
+        if let Some(failure) = response.failure {
+            return Err(match (failure.domain.as_str(),failure.code) {
+                ("kLSRErrorDomain",201)=>"Dictation is disabled on this Mac. Enable it in System Settings > Keyboard > Dictation, then select your spoken language. Buddy uses on-device recognition only.".into(),
+                ("kLSRErrorDomain",102)=>"The local speech model for this language is not installed. Open System Settings > Keyboard > Dictation > Languages and wait for the language download to finish. Each language needs its own downloaded model.".into(),
+                ("kAFAssistantErrorDomain",1700)=>"Allow Desktop Buddy in System Settings > Privacy & Security > Speech Recognition.".into(),
+                ("kAFAssistantErrorDomain",1100)=>"The local speech recognizer is busy. Finish the current recording and try again.".into(),
+                ("kAFAssistantErrorDomain",1101|1107)=>"The local speech service stopped. Check that Dictation is enabled and the spoken language has finished downloading, then retry the recording.".into(),
+                _=>error,
+            });
+        }
         return Err(error);
     }
     crate::core_import::select_transcript(
@@ -97,6 +113,21 @@ mod tests {
             r#"{"candidates":[{"text":"noise","confidence":0.1,"start":0,"end":2}]}"#,
         ] {
             assert!(transcript(invalid).is_err());
+        }
+    }
+    #[test]
+    fn system_speech_failures_explain_disabled_dictation_and_missing_assets() {
+        for (domain, code, expected) in [
+            ("kLSRErrorDomain", 201, "Dictation is disabled"),
+            ("kLSRErrorDomain", 102, "not installed"),
+            ("kAFAssistantErrorDomain", 1700, "Privacy & Security"),
+            ("kAFAssistantErrorDomain", 1100, "busy"),
+            ("kAFAssistantErrorDomain", 1101, "speech service stopped"),
+        ] {
+            let value = serde_json::json!({"error":"Local speech recognition failed.","failure":{"domain":domain,"code":code}});
+            assert!(transcript(&value.to_string())
+                .unwrap_err()
+                .contains(expected));
         }
     }
 
