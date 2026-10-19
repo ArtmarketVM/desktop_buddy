@@ -45,6 +45,8 @@ export const coreApi = {
     invoke<CoreSnapshot>("reorder_core_goals", { ids }),
   planDay: (noPlan: boolean) =>
     invoke<CoreSnapshot>("plan_core_day", { noPlan }),
+  planGoals: (ids: number[]) =>
+    invoke<CoreSnapshot>("plan_core_goals", { ids }),
   timer: (id: number | null) => invoke<CoreSnapshot>("set_core_timer", { id }),
   tick: () => invoke<CoreSnapshot>("tick_core_timer"),
   preferences: (preferences: CorePreferences) =>

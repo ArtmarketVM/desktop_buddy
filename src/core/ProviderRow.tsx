@@ -30,16 +30,17 @@ export function ProviderRow({
   const [showDetail, setShowDetail] = useState(false);
   useEffect(() => {
     if (!note) return;
-    if (note.detail) return; // an error waits until the next action
+    if (!note.ok) return; // an error waits until the next action
     const timer = window.setTimeout(() => setNote(null), 4000);
     return () => window.clearTimeout(timer);
   }, [note]);
   async function act(work: () => Promise<unknown>, done: string) {
     setBusy(true);
+    setNote(null);
+    setShowDetail(false);
     try {
       await work();
       setNote({ text: done, ok: true });
-      await onChanged();
     } catch (e) {
       const text = String(e).replace(/^Error:\s*/, "");
       // The short word stays in the row; the provider's full message is one click away.
@@ -50,7 +51,15 @@ export function ProviderRow({
       });
       setShowDetail(false);
     } finally {
-      setBusy(false);
+      // Refresh the authoritative check after successes and failures alike.
+      // A failed dashboard refresh must not turn a verified key into a failed key.
+      try {
+        await onChanged();
+      } catch {
+        // The parent owns refresh errors; the provider result above still stands.
+      } finally {
+        setBusy(false);
+      }
     }
   }
   const off = !desktop || busy;
@@ -59,11 +68,15 @@ export function ProviderRow({
     ? ["paused", "No key"]
     : checked === "verified"
       ? ["running", "Connected"]
-      : checked === "unavailable" || checked === "expired"
-        ? ["attention", "Not working"]
-        : checked === "offline"
-          ? ["paused", "Offline"]
-          : ["paused", "Key saved, not checked yet"];
+      : checked === "unavailable"
+        ? ["attention", "Could not verify access"]
+        : checked === "expired"
+          ? ["paused", "Check again"]
+          : checked === "checking"
+            ? ["paused", "Checking…"]
+            : checked === "offline"
+              ? ["paused", "Offline"]
+              : ["paused", "Key saved, not checked yet"];
   const state = note ? (note.ok ? "running" : "attention") : verdict[0];
   return (
     <>

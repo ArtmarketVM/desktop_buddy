@@ -445,7 +445,11 @@ impl<'a> Service<'a> {
                 payload["top_p"] = json!(0.95);
             }
         }
-        let result = http::post_json(self.client, &self.endpoint, &self.key, &payload).await;
+        let result = if deliberate || response_operation(name) {
+            http::post_reasoning_json(self.client, &self.endpoint, &self.key, &payload).await
+        } else {
+            http::post_json(self.client, &self.endpoint, &self.key, &payload).await
+        };
         // This opt-in CLI uses only synthetic in-memory fixtures. Never trace normal
         // app prompts, credentials, provider reasoning_content or personal memory.
         if std::env::var("BUDDY_DIALOGUE_TRACE").as_deref() == Ok("true")
@@ -663,6 +667,10 @@ pub fn user_error(operation: &str, error: &str) -> String {
         "access"
     } else if error.contains("429") {
         "quota"
+    } else if error.contains("timed out") || error.contains("could not be reached") {
+        "network"
+    } else if error.contains("HTTP 5") {
+        "provider"
     } else if error.contains("changed") || error.contains("discarded") {
         "context"
     } else if error.contains("400")
@@ -695,6 +703,8 @@ pub fn user_error(operation: &str, error: &str) -> String {
         "credentials" => "Connect or replace the provider key in Settings → Integrations / AI, then retry.",
         "access" => "Check your provider access and credits in Settings, then retry.",
         "quota" => "sumi's provider is busy. Wait a moment and retry; your draft is kept.",
+        "network" => "sumi's AI provider took too long to respond or could not be reached. Your message is saved. Check the chat and your goals before retrying.",
+        "provider" => "sumi's AI provider is temporarily unavailable. Your message is saved; try again in a moment.",
         "context" => "Your goal or sharing choices changed. Retry with the current context.",
         "configuration" => "Check that your provider endpoint and model are supported, then retry. Your draft is kept.",
         "settings" => "AI assistance is paused. Enable it in Settings → Integrations / AI to continue.",

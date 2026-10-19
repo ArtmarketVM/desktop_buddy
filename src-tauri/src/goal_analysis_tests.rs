@@ -222,6 +222,22 @@ fn user_errors_never_echo_provider_diagnostics_or_credentials() {
     }
 }
 
+#[test]
+fn chat_timeouts_are_not_reported_as_unreliable_answers_or_bad_keys() {
+    for error in [
+        "The provider response timed out. Your saved API key has not been removed.",
+        "The agent request timed out. Check the verified app state before retrying.",
+        "Dialogue review timed out",
+    ] {
+        let message = user_error("chat", error);
+        assert!(message.contains("took too long"));
+        assert!(message.contains("message is saved"));
+        assert!(!message.contains("more specifically"));
+        assert!(!message.contains("replace"));
+    }
+    assert!(user_error("chat", "HTTP 503: unavailable").contains("temporarily unavailable"));
+}
+
 #[tokio::test]
 async fn invalid_structured_answers_get_one_bounded_repair_without_changing_context() {
     let server = MockServer::start().await;

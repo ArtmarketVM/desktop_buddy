@@ -245,7 +245,7 @@ pub(crate) fn begin_connection_check(inner: &mut Inner, provider: &str) -> Resul
         return Err("A connection check is already running".into());
     }
     if inner.engine.connections[index].as_ref().is_some_and(|c| {
-        c.privacy == inner.privacy_revision && c.checked.elapsed() < Duration::from_secs(10)
+        c.privacy == inner.last_consent_change && c.checked.elapsed() < Duration::from_secs(10)
     }) {
         return Err("Wait a few seconds before checking this connection again".into());
     }
@@ -263,7 +263,7 @@ pub(crate) fn finish_connection_check(
         return;
     };
     inner.engine.checking_connections[index] = false;
-    if inner.privacy_revision != revision {
+    if inner.last_consent_change != revision {
         return;
     }
     // Startup metadata can predate Keychain authorization or a completed app update.
@@ -301,7 +301,7 @@ fn service_status_view(inner: &Inner) -> Value {
     .map(|(id, index, configured)| {
         let check = inner.engine.connections[index]
             .as_ref()
-            .filter(|c| c.privacy == inner.privacy_revision);
+            .filter(|c| c.privacy == inner.last_consent_change);
         let status = if inner.status.mock_ai {
             "mock"
         } else if !configured {

@@ -34,6 +34,7 @@ mod macos;
 #[cfg(any(target_os = "macos", test))]
 mod macos_speech;
 mod memory;
+mod mixed_action_check;
 mod models;
 mod nebius;
 mod privacy;
@@ -81,6 +82,25 @@ pub fn run() {
             Err(error) => {
                 eprintln!(
                     "Hero rehearsal unavailable ({}). No personal data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+
+    if std::env::args().any(|arg| arg == "--check-mixed-actions") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(mixed_action_check::bounded_run());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Mixed-action check failed ({}). No user data was changed.",
                     engine_observability::error_category(&error)
                 );
                 std::process::exit(1);
@@ -352,6 +372,7 @@ pub fn run() {
             core::set_core_today,
             core::reorder_core_goals,
             core::plan_core_day,
+            core::plan_core_goals,
             core::dismiss_core_carryover,
             core::set_core_timer,
             core::tick_core_timer,

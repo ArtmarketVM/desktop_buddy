@@ -10,6 +10,50 @@ fn draft(title: &str, area: &str) -> GoalDraft {
     }
 }
 #[test]
+fn planning_previous_goals_saves_the_whole_selection_and_retries_without_duplicates() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![
+            draft("First", "Work"),
+            draft("Second", "Work"),
+            draft("Existing", "Work"),
+        ],
+        "picker",
+    )
+    .unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    let ids: Vec<_> = snap.goals.iter().map(|goal| goal.id).collect();
+    s.core_today(ids[2], true, &snap.date).unwrap();
+    s.core_plan_goals(&ids[..2], &snap.date).unwrap();
+    s.core_plan_goals(&[ids[0], ids[1], ids[0]], &snap.date)
+        .unwrap();
+    let next = s.core_snapshot(None).unwrap();
+    assert_eq!(next.today.len(), 3);
+    assert!(ids.iter().all(|id| next.today.contains(id)));
+    assert_eq!(next.day_mode, "plan");
+}
+
+#[test]
+fn stale_previous_goal_rolls_back_the_entire_selection() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![draft("Open", "Work"), draft("Closed", "Work")],
+        "picker",
+    )
+    .unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    let ids: Vec<_> = snap.goals.iter().map(|goal| goal.id).collect();
+    s.core_transition(ids[1], "complete").unwrap();
+    s.core_plan_day(&snap.date, true).unwrap();
+    for selection in [vec![ids[0], ids[1]], vec![ids[0], i64::MAX], vec![]] {
+        assert!(s.core_plan_goals(&selection, &snap.date).is_err());
+        let next = s.core_snapshot(None).unwrap();
+        assert!(next.today.is_empty());
+        assert_eq!(next.day_mode, "no_plan");
+    }
+}
+
+#[test]
 fn goal_order_is_persistent_and_rejects_stale_or_duplicate_lists() {
     let mut storage = store();
     storage
