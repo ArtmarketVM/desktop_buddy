@@ -237,6 +237,52 @@ fn response(raw: Value) -> ResponseTemplate {
     ResponseTemplate::new(200).set_body_json(envelope(raw))
 }
 
+#[tokio::test]
+async fn slow_optional_prose_returns_verified_receipt_without_repeating_committed_action() {
+    let (state, ids) = fixture(&case()).unwrap();
+    let goal = ids["Psychology assignment"];
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |request:&Request| {
+        let (body,context)=body(request);
+        if body["response_format"]["json_schema"]["name"]=="buddy_skill_plan" {
+            response(action(&context,"complete_step",json!({"goal":{"goal_id":goal,"reference":null},"step":{"step_id":null,"ordinal":1,"reference":null}}),"change",true))
+        } else {
+            assert_eq!(context["verified_execution"]["status"],"executed");
+            response(json!({"message":"Late optional prose","resources":[],"memory_update":null,"verified_result_indices":[0]})).set_delay(Duration::from_secs(3))
+        }
+    }).expect(2).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let outcome = run_with_deadline(
+        &json!({"latest_request":"Mark the first step done","conversation":case().history}),
+        conversation,
+        &state,
+        0,
+        true,
+        &service,
+        Instant::now() + Duration::from_secs(1),
+    )
+    .await
+    .unwrap();
+    assert!(outcome.committed);
+    assert!(!outcome.reply.message.contains("Late optional prose"));
+    assert!(outcome.reply.message.contains("classical conditioning"));
+    let plan = state.inner.lock().unwrap().storage.goal_plan(goal).unwrap();
+    assert!(plan.steps[0].done);
+    assert!(!plan.steps[1].done);
+}
+
 fn goal_update(target: i64, priority: Value) -> Value {
     json!({"goal":{"goal_id":target,"reference":null},"title":null,"area":null,"description":null,"due_at":null,"priority":priority,"done_when":null,"clear_fields":[]})
 }
