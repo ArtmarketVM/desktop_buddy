@@ -53,6 +53,18 @@ fn goal_id(state: &AppState, title: &str) -> Result<i64, String> {
         .map(|g| g.id)
         .ok_or_else(|| "Expected synthetic goal was not created".into())
 }
+fn persisted_facts(state: &AppState, a: i64, b: i64) -> Result<Value, String> {
+    let inner = state.inner.lock().map_err(|_| "Demo state unavailable")?;
+    let context = inner.storage.work_context(a)?.ok_or("Checkpoint missing")?;
+    let research = inner.storage.context_research(context.id)?;
+    require(
+        !research.is_empty(),
+        "Research attachment missing before restart",
+    )?;
+    Ok(
+        json!({"context":context,"research":research,"plan_a":inner.storage.goal_plan(a)?,"plan_b":inner.storage.goal_plan(b)?}),
+    )
+}
 async fn send(
     state: &AppState,
     service: &Service<'_>,
@@ -187,10 +199,12 @@ pub async fn run() -> Result<Value, String> {
         passed(&mut rows,stage,started);
 
         stage="restart_and_context_retrieval";let started=Instant::now();
+        // Compare the latest verified state, not the original pre-research checkpoint.
+        // Completing its step correctly invalidates an obsolete next_action.
+        let before_restart=persisted_facts(&state,a,b)?;
         drop(state);
         state=AppState::new(Storage::open(&workspace.database())?)?;
-        {let i=state.inner.lock().unwrap();let context=i.storage.work_context(a)?.ok_or("Checkpoint did not survive restart")?;
-            require(context.context.summary==checkpoint.context.summary && context.context.next_action.is_some() && !i.storage.context_research(context.id)?.is_empty() && i.storage.goal_plan(b)?.steps[0].done,"Restart lost context, research or confirmed completion")?;}
+        require(persisted_facts(&state,a,b)?==before_restart,"Restart changed the latest context, research or confirmed progress")?;
         let reply=send(&state,&service,"Where did I stop on AI DEMO Hackathon? Use the saved work context and the recorded remaining step.",false).await?;
         require(!reply.trim().is_empty(),"Restart reply was empty")?;
         passed(&mut rows,stage,started);
