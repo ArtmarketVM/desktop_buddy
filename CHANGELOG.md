@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.36.10 — AI reliability and clearer daily planning
+
+- Publish the AI connection, generation timeout, saved-goal search and progress
+  improvements validated in the local 0.36.2–0.36.9 builds.
+- Choose multiple previous goals for Today before confirming with Done.
+- Include the goal-bound coaching fixes from 0.36.1 in the coordinated release.
+
+## 0.36.9 — choose today's goals before confirming
+
+- Keep the initial Today picker open while selecting multiple previous goals.
+  Plus buttons toggle selections; Done saves the full selection together.
+- Explain that the list contains previous goals and preserve selections if saving fails.
+
+## 0.36.8 — lime progress total in dark mode
+
+- Use the shared lime colour for the My progress time total in dark mode,
+  keeping the violet total in light mode.
+
+## 0.36.7 — violet progress total
+
+- Use the shared violet accent for the My progress time total, keeping the
+  neutral card surface and normal description text.
+
+## 0.36.6 — neutral progress summary
+
+- Use the shared light-grey card surface and normal primary text for the
+  My progress result block, with the existing theme colours in dark mode.
+
+## 0.36.5 — cleaner saved-goal search
+
+- Remove dismiss crosses from saved-goal search results. Clicking a goal row
+  still adds it to Today.
+
+## 0.36.4 — simpler saved-goal suggestions
+
+- Remove redundant plus icons from saved-goal suggestions. Clicking a goal row
+  continues to add it to Today.
+
+## 0.36.3 — interactive AI latency
+
+- Set Kimi K3 to its supported low reasoning effort for interactive requests,
+  instead of inheriting the model's maximum-effort default.
+- Report provider timeouts as timeouts, with the saved message retained.
+- Preserve provider authentication checks across goal and chat edits; still
+  invalidate them after consent or credential changes.
+- Add an isolated live check for a mixed goal-creation, completion and checkpoint
+  request followed by confirmation, including unanswered retry history.
+
+## 0.36.2 — provider connection and chat reliability
+
+- Refresh provider check results in Settings so successful tests remain connected.
+- Show expired checks as needing a new check, rather than a broken key.
+- Allow up to 60 seconds for interactive AI reasoning and do not automatically
+  resubmit timed-out generation. Keep authentication errors distinct from timeouts.
+
 ## 0.36.1 — goal-bound coaching conversations
 
 - Route messages in a coaching chat through its saved session and selected goal,

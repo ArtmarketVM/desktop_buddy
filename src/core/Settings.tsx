@@ -3,7 +3,7 @@ import { MacPermissions } from "../components/MacPermissions";
 import { TrackingStatus } from "./TrackingStatus";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
   defaultTrackingSettings,
@@ -144,13 +144,41 @@ export function CoreSettings({
         : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
   const [services, setServices] = useState<ServiceSnapshot | null>(null);
+  const serviceRead = useRef(0);
+  const refreshServices = useCallback(async () => {
+    const read = ++serviceRead.current;
+    try {
+      const snapshot = await serviceStatusApi.read();
+      if (read === serviceRead.current) setServices(snapshot);
+    } catch {
+      if (read === serviceRead.current) setServices(null);
+    }
+  }, []);
+  const providerChanged = async () => {
+    await refreshServices();
+    await onChanged();
+  };
   useEffect(() => {
     if (section !== "AI" || !desktop) return;
-    void serviceStatusApi
-      .read()
-      .then(setServices)
-      .catch(() => undefined);
-  }, [section, data.status.nebius_configured, data.status.tavily_configured]);
+    const refresh = () => {
+      if (!document.hidden) void refreshServices();
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      ++serviceRead.current;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [
+    section,
+    data.status.nebius_configured,
+    data.status.tavily_configured,
+    refreshServices,
+  ]);
   const serviceState = (id: "nebius" | "tavily") =>
     services?.services.find((item) => item.id === id)?.status;
   useEffect(() => {
@@ -675,7 +703,7 @@ export function CoreSettings({
                 }
                 configured={data.status.nebius_configured}
                 checked={serviceState("nebius")}
-                onChanged={onChanged}
+                onChanged={providerChanged}
               />
               <ProviderRow
                 provider="tavily"
@@ -683,8 +711,12 @@ export function CoreSettings({
                 role="web search"
                 configured={data.status.tavily_configured}
                 checked={serviceState("tavily")}
-                onChanged={onChanged}
+                onChanged={providerChanged}
               />
+              <p className="helper">
+                Connection tests verify key access. AI generation and web search
+                can still fail or time out separately.
+              </p>
               <label className="setting-row">
                 <span className="svc">
                   <b>Vision model</b>

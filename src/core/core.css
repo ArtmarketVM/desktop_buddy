@@ -442,6 +442,15 @@
   display: flex;
   justify-content: space-between;
 }
+.today-picker > .helper {
+  margin: 0;
+}
+.today-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
 .morning-plan {
   background: var(--raised);
   padding: 16px;
@@ -1517,7 +1526,7 @@ textarea:focus {
   padding: 2px 6px;
   color: var(--muted);
 }
-/* The week's focus figure is an ink tile with the number in lime; everything below it is secondary. */
+/* A neutral card with a theme-specific total and primary description text. */
 .progress-headline {
   display: flex;
   flex-wrap: wrap;
@@ -1527,20 +1536,22 @@ textarea:focus {
   margin: 0 0 18px;
   padding: 14px 18px;
   border-radius: 4px;
-  background: var(--tile);
-  color: var(--tile-text);
+  background: var(--raised);
+  color: var(--text);
 }
 .progress-total {
   font-size: var(--text-title);
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: var(--leading-title);
+  color: var(--accent);
+}
+:root[data-theme="dark"] .progress-total {
   color: var(--lime);
 }
 .progress-sub {
   margin: 0;
-  color: var(--tile-text);
-  opacity: 0.75;
+  color: inherit;
   font-size: var(--text-body);
 }
 .stack-chart {
@@ -2011,21 +2022,6 @@ p.error .text-button {
 .finder-row:hover,
 .finder-row.selected {
   background: var(--raised);
-}
-.finder-dismiss {
-  flex: none;
-  display: grid;
-  place-items: center;
-  margin-right: 4px;
-  padding: 4px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-}
-.finder-dismiss:hover {
-  background: color-mix(in srgb, var(--text) 8%, transparent);
-  color: var(--text);
 }
 @media (max-width: 650px) {
   .today-actions {

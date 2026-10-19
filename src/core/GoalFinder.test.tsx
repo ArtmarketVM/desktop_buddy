@@ -60,7 +60,6 @@ describe("goal finder", () => {
         showRecent={false}
         create={create}
         addToToday={addToToday}
-        dismissCarryover={vi.fn().mockResolvedValue(true)}
       />,
     );
     const input = screen.getByLabelText(
@@ -95,7 +94,6 @@ describe("goal finder", () => {
         showRecent={false}
         create={vi.fn()}
         addToToday={vi.fn().mockResolvedValue(true)}
-        dismissCarryover={vi.fn()}
       />,
     );
     fireEvent.focus(screen.getByLabelText("Search or add a goal"));

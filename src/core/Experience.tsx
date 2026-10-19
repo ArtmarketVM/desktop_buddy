@@ -13,7 +13,8 @@ import {
   type CoreGoal,
   type CoreSnapshot,
 } from "./types";
-import { GoalFinder } from "./GoalFinder";
+import { GoalFinder, browseGoals } from "./GoalFinder";
+import { TodayPlanner } from "./TodayPlanner";
 import { CapturedGoal } from "./CapturedGoal";
 import type { GoalEnhancement } from "./analysis";
 import type { Dashboard } from "../types";
@@ -51,6 +52,7 @@ export function Experience({
   const [editor, setEditor] = useState<CoreGoal | null>(null);
   const [composerDirty, setComposerDirty] = useState(false);
   const [quickDirty, setQuickDirty] = useState(false);
+  const [skipPlanningDate, setSkipPlanningDate] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [drafts, setDrafts] = useState<Array<{ id: string; text: string }>>([]);
   const snapshotAnchor = page === "activity" ? anchor : null;
@@ -145,6 +147,11 @@ export function Experience({
     )
     .map(({ goal }) => goal);
   const finishedToday = today.filter((goal) => goal.status === "completed");
+  const planningToday =
+    ready &&
+    snapshot.day_mode === "plan" &&
+    today.length === 0 &&
+    browseGoals(snapshot).length > 0;
   const timeFor = (id: number) =>
     snapshot.summary.goals.find((goal) => goal.goal_id === id)
       ?.relevant_seconds ?? 0;
@@ -231,23 +238,38 @@ export function Experience({
           )}
           <div className="today-layout">
             <section className="core-section today-goals">
-              <div className="section-heading today-actions">
-                <GoalFinder
+              {planningToday && skipPlanningDate !== snapshot.date ? (
+                <TodayPlanner
+                  key={snapshot.date}
                   snapshot={snapshot}
                   disabled={busy || !desktop}
                   onDirty={setQuickDirty}
-                  showRecent={
-                    today.length === 0 && snapshot.day_mode === "plan"
-                  }
-                  create={(title, batch) =>
-                    run(() => coreApi.create(title, batch))
-                  }
-                  addToToday={(id) => run(() => coreApi.today(id, true))}
-                  dismissCarryover={(id) =>
-                    run(() => coreApi.dismissCarryover(id))
-                  }
+                  save={(ids) => run(() => coreApi.planGoals(ids))}
+                  createNew={() => setSkipPlanningDate(snapshot.date)}
                 />
-              </div>
+              ) : (
+                <div className="section-heading today-actions">
+                  <GoalFinder
+                    snapshot={snapshot}
+                    disabled={busy || !desktop}
+                    onDirty={setQuickDirty}
+                    showRecent={false}
+                    create={(title, batch) =>
+                      run(() => coreApi.create(title, batch))
+                    }
+                    addToToday={(id) => run(() => coreApi.today(id, true))}
+                  />
+                </div>
+              )}
+              {planningToday && skipPlanningDate === snapshot.date && (
+                <button
+                  className="text-button"
+                  disabled={busy}
+                  onClick={() => setSkipPlanningDate(null)}
+                >
+                  Choose from previous goals
+                </button>
+              )}
               {drafts.length > 0 && (
                 <section aria-label="Selected text drafts">
                   <h3>Drafts to review</h3>

@@ -374,7 +374,7 @@ fn sidebar_invalidates_checks_and_discards_results_when_credentials_or_privacy_c
         service_status_view(&inner)["services"][1]["status"],
         "verified"
     );
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     assert_eq!(
         service_status_view(&inner)["services"][1]["status"],
         "not_checked"
@@ -414,11 +414,32 @@ fn failed_or_stale_probe_cannot_restore_removed_credential_status() {
     inner.status.tavily_configured = false;
     let revision = inner.privacy_revision;
     finish_connection_check(&mut inner, "nebius", revision, false, None);
-    inner.privacy_revision += 1;
+    inner.mark_consent_change();
     finish_connection_check(&mut inner, "tavily", revision, true, None);
     assert!(!inner.status.nebius_configured && !inner.status.tavily_configured);
     assert_eq!(
         service_status_view(&inner)["services"][2]["status"],
         "not_configured"
     );
+}
+
+#[test]
+fn goal_edits_do_not_invalidate_provider_authentication_or_in_flight_checks() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.nebius_configured = true;
+    inner.status.tavily_configured = true;
+    let revision = inner.last_consent_change;
+    finish_connection_check(&mut inner, "nebius", revision, true, Some(true));
+    begin_connection_check(&mut inner, "tavily").unwrap();
+    // Goal and chat edits advance the domain revision, without changing consent.
+    inner.privacy_revision += 1;
+    finish_connection_check(&mut inner, "tavily", revision, true, None);
+    for service in service_status_view(&inner)["services"].as_array().unwrap() {
+        assert_eq!(service["status"], "verified");
+    }
+    inner.mark_consent_change();
+    for service in service_status_view(&inner)["services"].as_array().unwrap() {
+        assert_eq!(service["status"], "not_checked");
+    }
 }
