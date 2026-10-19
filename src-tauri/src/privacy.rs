@@ -203,7 +203,7 @@ pub async fn test_provider_connection(
             .lock()
             .map_err(|_| "Application state unavailable")?;
         crate::engine_observability::begin_connection_check(&mut inner, &provider)?;
-        inner.privacy_revision
+        inner.last_consent_change
     };
     let result = async {
         let (endpoint, key, model) = if provider == "nebius" {
@@ -241,7 +241,7 @@ pub async fn test_provider_connection(
         result.is_ok(),
         result.as_ref().ok().and_then(|r| r.model_available),
     );
-    if inner.privacy_revision != revision {
+    if inner.last_consent_change != revision {
         return Err("Connection settings changed during the check. Try again.".into());
     }
     result.map(|r| r.message)

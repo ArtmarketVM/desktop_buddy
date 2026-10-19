@@ -5,7 +5,7 @@ import {
   useState,
   type KeyboardEvent,
 } from "react";
-import { Check, Plus, Search, X } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import type { CoreGoal, CoreSnapshot } from "./types";
 import { sentenceCase } from "./types";
 import { stepCount } from "./Goals";
@@ -59,16 +59,12 @@ export function recentGoals(
 function Row({
   goal,
   selected,
-  onToday,
   carryover,
-  onDismiss,
   action,
 }: {
   goal: CoreGoal;
   selected?: boolean;
-  onToday: boolean;
   carryover?: boolean;
-  onDismiss?: () => void;
   action: () => void;
 }) {
   return (
@@ -83,22 +79,7 @@ function Row({
           <small>{stepCount(goal.plan.steps.length)}</small>
           {carryover && <em>unfinished</em>}
         </span>
-        {onToday ? (
-          <Check size={14} aria-label="On Today" />
-        ) : (
-          <Plus size={14} aria-hidden="true" />
-        )}
       </button>
-      {onDismiss && (
-        <button
-          type="button"
-          className="finder-dismiss"
-          aria-label={`Stop suggesting ${goal.title}`}
-          onClick={onDismiss}
-        >
-          <X size={13} />
-        </button>
-      )}
     </li>
   );
 }
@@ -110,7 +91,6 @@ export function GoalFinder({
   onDirty,
   create,
   addToToday,
-  dismissCarryover,
   showRecent,
 }: {
   snapshot: CoreSnapshot;
@@ -118,7 +98,6 @@ export function GoalFinder({
   onDirty?: (dirty: boolean) => void;
   create: (title: string, batch: string) => Promise<boolean>;
   addToToday: (id: number) => Promise<boolean>;
-  dismissCarryover: (id: number) => Promise<boolean>;
   /** Show the recent goals under the field even when it is not focused (empty Today). */
   showRecent: boolean;
 }) {
@@ -177,13 +156,7 @@ export function GoalFinder({
           key={goal.id}
           goal={goal}
           selected={focused && trimmed !== "" && i === index}
-          onToday={false}
           carryover={snapshot.carryover.includes(goal.id)}
-          onDismiss={
-            snapshot.carryover.includes(goal.id)
-              ? () => void dismissCarryover(goal.id)
-              : undefined
-          }
           action={() => void add(goal.id)}
         />
       ))}

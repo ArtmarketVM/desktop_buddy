@@ -677,6 +677,35 @@ impl Storage {
         }
         tx.commit().map_err(db)
     }
+    pub fn core_plan_goals(&mut self, ids: &[i64], date: &str) -> Result<(), String> {
+        day(date)?;
+        if ids.is_empty() {
+            return Err("Choose at least one goal for Today".into());
+        }
+        let tx = self.connection.savepoint().map_err(db)?;
+        for id in ids {
+            let state: String = tx
+                .query_row("SELECT state FROM core_goals WHERE goal_id=?1", [id], |r| {
+                    r.get(0)
+                })
+                .map_err(|_| {
+                    "A selected goal no longer exists. Review your selection and try again."
+                })?;
+            if state != "open" {
+                return Err(
+                    "A selected goal is no longer open. Review your selection and try again."
+                        .into(),
+                );
+            }
+            tx.execute(
+                "INSERT OR IGNORE INTO core_day_items(day,goal_id) VALUES(?1,?2)",
+                params![date, id],
+            )
+            .map_err(db)?;
+        }
+        tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
+        tx.commit().map_err(db)
+    }
     pub fn core_plan_day(&mut self, date: &str, no_plan: bool) -> Result<(), String> {
         day(date)?;
         let tx = self.connection.savepoint().map_err(db)?;
@@ -1366,6 +1395,16 @@ pub fn reorder_core_goals(
     ids: Vec<i64>,
 ) -> Result<CoreSnapshot, String> {
     mutate(&state, &app, |storage| storage.core_reorder(ids))
+}
+#[tauri::command(async)]
+pub fn plan_core_goals(
+    state: State<AppState>,
+    app: AppHandle,
+    ids: Vec<i64>,
+) -> Result<CoreSnapshot, String> {
+    mutate(&state, &app, |storage| {
+        storage.core_plan_goals(&ids, &Local::now().date_naive().to_string())
+    })
 }
 #[tauri::command(async)]
 pub fn plan_core_day(

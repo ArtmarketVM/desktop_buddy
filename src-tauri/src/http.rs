@@ -47,6 +47,28 @@ pub async fn post_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
+    post_json_with_timeout(client, url, key, payload, Duration::from_secs(20), true).await
+}
+
+/// Interactive reasoning can outlast the short background/search timeout. Do not
+/// resubmit a timed-out generation: the provider may still be processing it.
+pub(crate) async fn post_reasoning_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+) -> Result<Value, String> {
+    post_json_with_timeout(client, url, key, payload, Duration::from_secs(60), false).await
+}
+
+async fn post_json_with_timeout(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+    timeout: Duration,
+    retry_timeouts: bool,
+) -> Result<Value, String> {
     let payload = constrained_payload(payload);
     let mut last = "Service unavailable".to_string();
     for attempt in 0..3 {
@@ -54,14 +76,19 @@ pub async fn post_json(
             .post(url)
             .bearer_auth(key)
             .json(&payload)
+            .timeout(timeout)
             .send()
             .await
         {
             Ok(response) if response.status().is_success() => {
-                return response
-                    .json()
-                    .await
-                    .map_err(|_| "Service returned invalid JSON".into())
+                return response.json().await.map_err(|error| {
+                    if error.is_timeout() {
+                        "The provider response timed out. Your saved API key has not been removed."
+                            .into()
+                    } else {
+                        "Service returned invalid JSON".into()
+                    }
+                })
             }
             Ok(response) => {
                 let status = response.status();
@@ -69,6 +96,12 @@ pub async fn post_json(
                 if status.as_u16() != 429 && !status.is_server_error() {
                     return Err(last);
                 }
+            }
+            Err(error) if error.is_timeout() && !retry_timeouts => {
+                return Err(
+                    "The provider response timed out. Your saved API key has not been removed."
+                        .into(),
+                );
             }
             Err(_) => last = "Service could not be reached or timed out".into(),
         }
@@ -78,8 +111,7 @@ pub async fn post_json(
     }
     Err(last)
 }
-/// Nemotron's reasoning tokens otherwise consume the budget intended for strict action JSON.
-/// Other models and non-inference tools retain their existing request contract.
+/// Keep interactive output within its budget using verified model-specific controls.
 pub(crate) fn constrained_payload(payload: &Value) -> Value {
     let mut result = payload.clone();
     if payload["model"]
@@ -89,6 +121,15 @@ pub(crate) fn constrained_payload(payload: &Value) -> Value {
         && payload["chat_template_kwargs"]["enable_thinking"].is_null()
     {
         result["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
+    }
+    // Kimi K3 always reasons and defaults to maximum effort. Its supported
+    // top-level control is reasoning_effort, not a boolean thinking template flag.
+    if payload["model"]
+        .as_str()
+        .is_some_and(|m| m.eq_ignore_ascii_case("moonshotai/Kimi-K3"))
+        && payload["reasoning_effort"].is_null()
+    {
+        result["reasoning_effort"] = serde_json::json!("low");
     }
     result
 }
@@ -203,6 +244,84 @@ mod tests {
         matchers::{method, path},
         Mock, MockServer, ResponseTemplate,
     };
+    #[tokio::test]
+    async fn reasoning_request_can_outlast_the_clients_background_timeout() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(100))
+                    .set_body_json(serde_json::json!({"ok":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_millis(20))
+            .build()
+            .unwrap();
+        let response = post_reasoning_json(
+            &client,
+            &server.uri(),
+            "test",
+            &serde_json::json!({"model":"test-model"}),
+        )
+        .await
+        .unwrap();
+        assert_eq!(response["ok"], true);
+    }
+    #[tokio::test]
+    async fn kimi_requests_send_supported_low_effort_without_overriding_explicit_effort() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(|request: &wiremock::Request| {
+                let payload: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(payload["reasoning_effort"], "low");
+                assert!(payload["chat_template_kwargs"].is_null());
+                ResponseTemplate::new(200).set_body_json(serde_json::json!({"ok":true}))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        post_reasoning_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "synthetic-key",
+            &serde_json::json!({"model":"moonshotai/Kimi-K3","max_tokens":8192}),
+        )
+        .await
+        .unwrap();
+        let explicit = serde_json::json!({"model":"moonshotai/Kimi-K3","reasoning_effort":"high"});
+        assert_eq!(constrained_payload(&explicit), explicit);
+        let other = serde_json::json!({"model":"moonshotai/Kimi-K2.6"});
+        assert_eq!(constrained_payload(&other), other);
+    }
+    #[tokio::test]
+    async fn timed_out_reasoning_is_not_resubmitted_or_reported_as_a_bad_key() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_millis(300))
+                    .set_body_json(serde_json::json!({"ok":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let error = post_json_with_timeout(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "secret-canary",
+            &serde_json::json!({"model":"test-model"}),
+            Duration::from_millis(100),
+            false,
+        )
+        .await
+        .unwrap_err();
+        assert!(error.contains("timed out"));
+        assert!(error.contains("saved API key has not been removed"));
+        assert!(!error.contains("secret-canary"));
+    }
     #[tokio::test]
     async fn retries_transient_errors_twice() {
         let server = MockServer::start().await;
