@@ -1,5 +1,22 @@
 # Quality gates and visual handoff
 
+## Final handoff: 20 October 2026
+
+Infrastructure is published on `codex/quality-gates`. Merge this branch first; Developers 1 and 2 should then rebase onto it. Application source remains unchanged from the agreed base. No Linux, Docker, installer release, version bump, Pages-setting change, or direct developer messaging was used.
+
+| Area | Final result and evidence |
+| --- | --- |
+| Visual baselines | All **34** captured and strictly compared in [Windows CI](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488577476), with zero differing pixels. The owner reviewed and explicitly approved all 34 in chat on 20 October. Exact CI PNGs, environment and SHA-256 hashes are committed under `visual/baselines/`; provenance and approval are in `review.json`. |
+| Visual gate | Blocking after baseline approval; comparison never updates expectations. Failed screenshots/diffs/traces and a clickable review gallery are retained as CI artifacts. |
+| Windows native checks | [Native build job](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488229545/job/118854177460) passed acceptance, Rust formatting and Windows x64 installer validation on `f5ab8ff8852e6ee2cae6c98f3240429489428861`. The initial visual job in that run failed due to shallow history; it was fixed and passed separately in the visual run above. |
+| macOS native checks | [Apple Silicon CI](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39487091175) passed acceptance, formatting, `.app` and `.dmg` validation on `71d556390085dbe3e583da3c29098d5430633866`: 242 frontend and 606 Rust tests passed, 2 Rust tests ignored. |
+| Lint rollout | Non-blocking. ESLint: 16 errors / 16 warnings. Local Windows Clippy: 61 unique warnings; macOS CI Clippy: 79. Detailed reports are CI artifacts. No blanket suppressions or application rewrites. |
+| Privacy | **Integration blocker remains explicit:** the app constant is owned by Developer 2 and still opens the 404 URL. Developer 2 must set `/docs/privacy.html`; merge the policy/font assets into `main` for existing Pages publication, then run `npm run verify:privacy`. The canonical URL currently returns 200 but the public page still has Google Fonts. |
+
+CI native results remain valid for this handoff: later changes affect only visual tests, reviewed PNGs, review tooling, CI orchestration and documentation; application source, Rust dependencies and production npm dependencies are unchanged. Native builds are CI validation artifacts, not installed signed releases or complete manual product acceptance. Existing manual/live-account acceptance cases remain required.
+
+Developer 1: at width 720, Settings Privacy already clips at the right edge. The owner approved this as the unchanged starting appearance; treat a layout fix as an intentional change and request review of updated screenshots. Developer 2: inspect the intermittent `NoticedWork` title test described below; do not weaken its assertion to accommodate stale data.
+
 ## Shared base and ownership
 
 - Branch: `codex/quality-gates`; isolated worktree: `.tools/worktrees/quality-gates`.
@@ -29,6 +46,9 @@ npm run test:visual:update
 # Strict comparison: missing images and diffs fail; never rewrite expectations.
 npm run test:visual
 npx playwright show-report
+# Build a full-size clickable gallery in the repository or an extracted CI artifact.
+node scripts/visual-review.mjs
+node scripts/visual-review.mjs PATH_TO_EXTRACTED_VISUAL_ARTIFACT
 ```
 
 Canonical candidates: dispatch the existing **Windows build** workflow on this branch with `visual_candidates=true`. Download the `visual-windows-2022` artifact and inspect every candidate alongside the application at the recorded base. Capture twice in that same job: the second run must compare with zero differing pixels. Preserve the runner image/version artifact with the review record. Human reviewers must approve all 34 images before committing them under `visual/baselines/`. Never automatically approve snapshots from a pull request or hide changed areas with screenshot masks. Future updates use the same procedure and must explain each intentional visual change in the PR.
@@ -64,9 +84,9 @@ Run `npm run verify:privacy` after integration/publication. It fetches the actua
 
 Pages currently publishes `main` from `/`, exposing repository-root files as website paths. Whether this broad website publication is intentional is **unconfirmed and needs the owner's decision**. Do not change Pages settings. Alternatives to discuss: use `/docs` as the source, or publish only policy assets through a dedicated Pages deployment. Either changes public website content/paths and needs owner approval.
 
-## Validation and outstanding work
+## Validation chronology and intermediate findings
 
-Results are recorded here as checks complete. No installers, release versions, signing configuration, or updater trust keys are changed by this infrastructure branch. Existing acceptance and Windows x64 / Apple Silicon macOS 14.5+ build paths remain required.
+The checkpoints below retain the investigation history, including intermediate failures and pending states. The final status table above supersedes those intermediate pending states. No release versions, signing configuration, or updater trust keys are changed by this infrastructure branch. Existing acceptance and Windows x64 / Apple Silicon macOS 14.5+ build paths remain required.
 
 - Initial baseline review and canonical Windows CI execution: pending.
 - Public app URL correction: pending Developer 2 integration.
@@ -87,3 +107,6 @@ Results are recorded here as checks complete. No installers, release versions, s
 - Developer 2 finding: `src/core/NoticedWork.test.tsx`, test "recovers noticed work, displays measured minutes, and lets the user rename it before confirmation", observed `Handle unrelated emails` submitted instead of `Reply to customer emails`. Earlier full `npm test` passed all 242 tests on identical application source. Investigate the initial suggestion/title effect and test scheduling before changing application logic or weakening assertions; this branch does not suppress or retry the failure automatically.
 - macOS CI run `https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39487091175` on `71d556390085dbe3e583da3c29098d5430633866`: acceptance and Rust formatting passed; Apple Silicon app/DMG build was still running at this checkpoint. Subsequent paused-clock changes affect browser test files only, so they do not invalidate this native source/dependency validation.
 - Canonical Windows CI captures, their human review, and final CI job results remain to be recorded. Developer handoff is through this branch/document, as requested by the owner; no direct messages to other chats are required.
+- macOS CI completed successfully: the run above passed acceptance (**242 frontend / 606 Rust passed, 2 Rust ignored**), formatting, and the Apple Silicon `.app` / `.dmg` validation build. Runner: macOS 15, Darwin 24.6.0 arm64; deployment target 14.5. This validates the CI build, not an installed, signed release or a manual test on macOS 14.5. Its lint report has 16 ESLint errors / 16 warnings and **79 unique Clippy/Rust warnings**, all visible and non-blocking.
+- The failing Windows `NoticedWork` file subsequently passed all **5 tests** in isolation without source changes. Retain the original failure evidence and treat it as an intermittent finding for Developer 2; no automatic retries or changed expectations were introduced.
+- Pages configuration independently verified through GitHub API: legacy publication, `main`, `/`, built successfully from `11760017314095d75374449690c2a1c42c5af08a`. Repeated `npm run verify:privacy` confirms the configured app URL still returns 404, canonical `/docs/privacy.html` returns 200, and the public page still references Google Fonts. Required actions remain Developer 2's constant change and publication of this branch's policy assets through the existing Pages source. No Pages settings were changed.

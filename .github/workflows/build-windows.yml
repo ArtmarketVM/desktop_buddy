@@ -69,9 +69,8 @@ jobs:
           path: .tools/quality/
           if-no-files-found: warn
   visual:
-    name: Windows browser visual coverage (non-blocking rollout)
+    name: Windows browser visual coverage
     runs-on: windows-2022
-    continue-on-error: true
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -103,6 +102,9 @@ jobs:
       - name: Compare reviewed baselines without updating them
         if: github.event_name != 'workflow_dispatch' || !inputs.visual_candidates
         run: npm run test:visual
+      - name: Build a gallery for human review
+        if: always()
+        run: node scripts/visual-review.mjs
       - name: Upload screenshots, diffs, traces and environment even on failure
         if: always()
         uses: actions/upload-artifact@v4
