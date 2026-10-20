@@ -1,4 +1,4 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../data/ipc";
 import type {
   GoalAnalysisInput,
   GoalAnalysisResult,

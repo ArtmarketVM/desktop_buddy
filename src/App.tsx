@@ -14,6 +14,8 @@ import { ResetProfileDialog } from "./components/ResetProfileDialog";
 import { Experience } from "./core/Experience";
 import { CoreSettings } from "./core/Settings";
 import { goalEnhancement } from "./ai/api";
+import { queryClient } from "./data/client";
+import { useQuery } from "./data/useQuery";
 import { CoreOnboarding } from "./core/Onboarding";
 import { WorkspaceOverview } from "./core/WorkspaceOverview";
 import { FeedbackCard } from "./components/FeedbackCard";
@@ -45,12 +47,14 @@ const empty: Dashboard = {
     tavily_configured: false,
   },
 };
+const dashboardQuery = queryClient.query("dashboard", ["dashboard"], empty, () => api.dashboard(), 15_000);
 export default function App() {
-  const [data, setData] = useState<Dashboard>(empty);
+  const dashboard = useQuery(dashboardQuery, desktop);
+  const data = dashboard.data;
+  const setData = dashboardQuery.setData;
   useAvatarColorSync(setData);
   const [error, setError] = useState("");
-  const [dashboardError, setDashboardError] = useState("");
-  const displayedError = error || dashboardError;
+  const displayedError = error || dashboard.error;
   const [busy, setBusy] = useState(false);
   const [draftDirty, setDraftDirty] = useState(false);
   const [settingsDirty, setSettingsDirty] = useState(false);
@@ -61,7 +65,7 @@ export default function App() {
     section: "Privacy";
     revision: number;
   }>();
-  const [loaded, setLoaded] = useState(!desktop);
+  const loaded = !desktop || dashboard.ready;
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [overview, setOverview] = useState(false);
@@ -117,34 +121,7 @@ export default function App() {
     localStorage.setItem("buddy-theme", theme);
   }, [theme]);
   const refresh = useCallback(async () => {
-    if (desktop) {
-      setData(await api.dashboard());
-      setDashboardError("");
-      setLoaded(true);
-    }
-  }, []);
-  useEffect(() => {
-    let active = true;
-    const poll = async () => {
-      try {
-        if (desktop) {
-          const next = await api.dashboard();
-          if (active) {
-            setData(next);
-            setDashboardError("");
-            setLoaded(true);
-          }
-        }
-      } catch (e) {
-        if (active) setDashboardError(String(e));
-      }
-    };
-    void poll();
-    const id = setInterval(() => void poll(), 3000);
-    return () => {
-      active = false;
-      clearInterval(id);
-    };
+    if (desktop) await dashboardQuery.refresh();
   }, []);
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -154,7 +131,7 @@ export default function App() {
       await refresh();
       return true;
     } catch (e) {
-      setError(String(e));
+      setError(queryClient.recordError("workspace action", e));
       return false;
     } finally {
       setBusy(false);
