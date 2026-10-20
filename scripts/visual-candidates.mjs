@@ -24,6 +24,7 @@ for (const mode of ["all", "none"]) {
       "node_modules/@playwright/test/cli.js",
       "test",
       `--update-snapshots=${mode}`,
+      ...process.argv.slice(2),
     ],
     { stdio: "inherit", windowsHide: true },
   );

@@ -2,7 +2,10 @@ import { test, expect, type Page } from "@playwright/test";
 import { NOW } from "./fixtures";
 
 async function open(page: Page, theme: string, extra = "") {
-  await page.clock.setFixedTime(new Date(NOW));
+  // Pause JS timers as well as Date: the avatar gallery advances SVG frames
+  // from setInterval, which reduced motion and CSS overrides alone cannot stop.
+  await page.clock.install({ time: new Date(Date.parse(NOW) - 1000) });
+  await page.clock.pauseAt(new Date(NOW));
   const external: string[] = [];
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
