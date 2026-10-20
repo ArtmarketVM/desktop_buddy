@@ -15,3 +15,5 @@ Windows x64 and Apple Silicon macOS 14.5+ use the same release version. macOS re
 ## Validation
 
 Release is gated on strict Windows browser comparisons against the reviewed baselines, frontend tests and production build, release-integrity checks, locked Rust tests, formatting and both platform builds. Detailed results are recorded in the release workflow and integration handoff. Browser screenshots do not establish native window, permission or installed-app behavior.
+
+Integrated frontend validation passed 265 tests across 51 files, TypeScript/Vite build and all 18 release-integrity checks. Strict comparison against the existing owner-reviewed Windows browser baselines passed in [the integration CI job](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39501993396/job/118901518103); no baseline was regenerated. Existing non-blocking frontend lint findings remain visible (11 errors / 13 warnings), as documented in Developer 2's quality handoff.

@@ -244,3 +244,17 @@ Evidence includes `before/`, `before-windows/`, `before-idle/`, `after/`, `after
 A final fetch still found `origin/main` at `1176001`; no newer main changes were integrated or overwritten.
 
 This is a local Developer 1 handoff, not a published update or a claim that all three parallel tasks are complete.
+
+## Release integration: 21 October 2026
+
+The preceding local-handoff limitations describe the pre-integration checkpoint. The owner subsequently authorized publishing and updating both installers. The branch now integrates `origin/main` at `15078df`, including Developers 2 and 3's shared data, settings fixes, reviewed Windows baselines and quality infrastructure. The merge had no conflicts. No approved baseline PNG was modified.
+
+On integrated application source `ccc7fe8`:
+
+- `npm test`: **51 files / 265 tests passed**.
+- `npm run build`: passed synchronized-version validation, TypeScript and Vite production build.
+- `npm run test:release`: **18 passed**; updater trust, internal macOS signing identity and credential-helper protections are unchanged.
+- Strict Windows browser visual gate: **passed**, comparing the integrated CSS against the existing owner-reviewed baselines without updating snapshots. Evidence: [Windows CI visual job](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39501993396/job/118901518103). This closes the earlier fallback-harness pixel acceptance gap. The canonical environment is Windows, not the Linux environment initially anticipated by this local handoff.
+- Frontend lint: **11 existing errors / 13 existing warnings**, matching Developer 2's documented non-blocking rollout. No CSS-related rule was disabled or new suppression added.
+
+Release version **0.39.1** is synchronized across the five manifests. Signed distribution remains gated on successful Windows x64 and Apple Silicon macOS build/test jobs and the release workflow. Native credential, microphone, notification and click-through behavior is not established by browser screenshots. The previous synthetic fallback evidence and its failures remain retained locally; they are not substituted for the passing canonical CI comparison.
