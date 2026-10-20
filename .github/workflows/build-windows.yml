@@ -9,10 +9,15 @@ on:
         description: Generate visual candidates for human review and verify a second capture in the same Windows environment
         type: boolean
         default: false
+      visual_only:
+        description: Run only browser coverage; native validation must still pass in a separate full run
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch' || !inputs.visual_only
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +75,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: Fetch the agreed application base for the source comparison
+        run: git fetch --no-tags --depth=1 origin 11760017314095d75374449690c2a1c42c5af08a
       - uses: actions/setup-node@v4
         with:
           node-version: 24

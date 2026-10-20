@@ -33,6 +33,8 @@ npx playwright show-report
 
 Canonical candidates: dispatch the existing **Windows build** workflow on this branch with `visual_candidates=true`. Download the `visual-windows-2022` artifact and inspect every candidate alongside the application at the recorded base. Capture twice in that same job: the second run must compare with zero differing pixels. Preserve the runner image/version artifact with the review record. Human reviewers must approve all 34 images before committing them under `visual/baselines/`. Never automatically approve snapshots from a pull request or hide changed areas with screenshot masks. Future updates use the same procedure and must explain each intentional visual change in the PR.
 
+The visual job explicitly fetches the agreed base commit because Actions' default shallow checkout does not include it. To iterate browser infrastructure while a full native run is already validating the same application source/dependencies, dispatch with `visual_only=true`; the default remains false, and normal push/PR/full-dispatch native checks remain intact. A visual-only run never counts as native validation.
+
 CI always uploads the HTML report, actual/expected/diff images, traces, candidate images and environment metadata, including failures. Browser visual coverage does **not** validate native Tauri window behaviour, updater, signing, credentials, permissions, or macOS rendering.
 
 ## Initial lint rollout
