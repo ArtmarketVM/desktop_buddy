@@ -1,10 +1,4 @@
-.desktop-buddy.chatting {
-  padding: 8px;
-  gap: 4px;
-}
-.desktop-buddy .desktop-character {
-  touch-action: none;
-}
+/* Companion chat and interventions; native anchor refinements remain in compact.css. */
 .desktop-buddy .desktop-character .avatar {
   pointer-events: none;
 }
@@ -18,7 +12,7 @@
   border-radius: 18px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 8px 25px #00000012;
+  box-shadow: 0 8px 25px var(--color-fixed-00000012);
   overflow: hidden;
 }
 .companion-chat header {
@@ -189,11 +183,6 @@
   text-decoration: line-through;
   color: var(--muted);
 }
-.desktop-buddy .companion-prompt {
-  background: var(--surface);
-  color: var(--text);
-  border-color: var(--line);
-}
 .companion-bubble {
   position: relative;
   width: 100%;
@@ -224,6 +213,9 @@
   display: none;
 }
 .desktop-buddy .companion-prompt {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line);
   padding: 12px 14px;
   border-radius: 17px;
   box-shadow: none;

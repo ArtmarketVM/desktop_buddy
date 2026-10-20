@@ -125,9 +125,7 @@
   max-height: none;
   height: 100%;
 }
-.workspace-chat .conversation-message p {
-  font-size: var(--text-body);
-}
+.workspace-chat .conversation-message p,
 .workspace-chat .conversation-empty {
   font-size: var(--text-body);
 }

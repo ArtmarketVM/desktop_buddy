@@ -1,36 +1,47 @@
 # Typography
 
-One system for the app, the site and anything else that carries the sumi name.
+This document records the current typography and the conflicts still awaiting an owner decision. CSS consolidation keeps the rendered values; it does not resolve conflicting design rules by changing the UI.
 
-## Fonts
+## Fonts and primary scale
 
-Two faces with strictly separate jobs. **Instrument Sans** is the typeface: titles, the wordmark, headings, body, labels, buttons, chat. **Silkscreen** is the pixel face and appears only as tiny uppercase captions at 8px: priority tags, chart axis labels, section eyebrows such as "Ideas" or "AI services". It never sets a sentence or anything a person has to read at length. Code uses the system monospace.
+Instrument Sans (`--sans`) is the primary typeface for titles, headings, body text, labels, buttons and chat. Silkscreen (`--pix`) is used for tiny uppercase captions and tags. Code uses the existing monospace treatment. Font assets remain imported in `src/style.css`; shared tokens are defined in `:root` in `src/workspace.css`.
 
-## Sizes
+| Token            | Shipped value | Typical role                                         |
+| ---------------- | ------------- | ---------------------------------------------------- |
+| `--text-title`   | 34px          | Page titles and the Progress focus figure            |
+| `--text-heading` | 18px          | Section/dialog headings and chat titles              |
+| `--text-body`    | 14px          | Goal/step text, messages, controls and navigation    |
+| `--text-caption` | 11px          | Counts, dates, timestamps and supporting information |
 
-Four sizes, exposed as CSS tokens. Nothing else is allowed in a stylesheet.
+The corresponding unitless line-height tokens are `--leading-title` (1.2), `--leading-heading` (1.3), `--leading-body` (1.5) and `--leading-caption` (1.45). The workspace title row retains its explicit `--page-title-leading` (40px).
 
-| Token | Size | Line height | Use |
-| --- | --- | --- | --- |
-| `--text-title` | 34px | 1.2 | The one page title per screen, and the focused-time figure on Progress. Bold (600), tight tracking. |
-| `--text-heading` | 18px | 1.3 | Section headings inside a page, dialog titles, the current chat's title. Sans, medium. |
-| `--text-body` | 14px | 1.5 | Goal titles and steps, chat messages, the open chat's name (medium), settings labels, inputs, buttons, navigation. |
-| `--text-caption` | 11px | 1.45 | Secondary information: counts, dates, due dates, tags, timestamps, the rare helper line. |
+Regular 400 and medium 500 remain the normal weights. Primary text uses `--text`, secondary text uses `--muted`, and links/selected controls use their existing accent tokens. Preserve existing hover, focus and selected states.
 
-Markdown inside chat uses the body size; its headings use the heading size; code shrinks by 10% relative to the text around it.
+## Preserved special values
 
-## Weights
+These are named exceptions, not permission to introduce arbitrary sizes. Stylesheet declarations use the tokens rather than literal pixel font sizes.
 
-Two weights: 400 regular and 500 medium. Medium is for headings, the selected state, and the one primary action on a screen. Body text, descriptions and captions are regular. No bold inside sentences.
+| Token                      | Value                    | Existing use                                                                          |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------------------------- |
+| `--text-pix`               | 8px                      | Silkscreen eyebrows, priority/day/chart labels, memory headings and custom-color chip |
+| `--text-wordmark`          | 15px                     | Sidebar wordmark                                                                      |
+| `--text-privacy`           | 15px                     | Privacy summary sentence                                                              |
+| `--text-hint`              | 10px                     | The hint `?` glyph                                                                    |
+| `--text-rating-mark`       | 30px                     | Feedback rating glyph                                                                 |
+| `--text-orbit-mark`        | 35px                     | Existing decorative orbit mark                                                        |
+| `--text-star-large`        | 27px                     | Existing large decorative star                                                        |
+| `--text-star-small`        | 16px                     | Existing small decorative star                                                        |
+| `--text-onboarding`        | `clamp(25px, 3vw, 31px)` | Shipped onboarding title override                                                     |
+| `--text-onboarding-legacy` | `clamp(26px, 4vw, 35px)` | Historical, fully overridden onboarding size retained as a named value                |
+| `--weight-emphasis`        | 600                      | Existing title, brand, focus-figure and hint emphasis                                 |
 
-## Colour of text
+Decorative glyphs are drawings, but their existing font-based dimensions are also tokenized. Tokenization does not change the selected face or the amount of emphasis.
 
-Primary text uses `--text`. Captions and descriptions use `--muted`. The accent colour is for links and for the selected item of a control (a segmented button, a selected day), never for titles, labels, tags inside a list or status words. If something needs emphasis, make it medium weight, not green.
+## Owner decisions still open
 
-## Rules of thumb
+1. **Weight:** AGENTS.md permits 400/500 only; the previous typography document explicitly requested 600 for titles and the shipped CSS uses it. The base has five such declarations; the refactor preserves their values for: `h1, .workspace-brand > div, .onboarding-brand`; `.chat-conversations > h1`; `.app-shell .main > .page-title h1`; `.progress-total`; and `.hint` (the grouped first rule counts as one declaration). Decide separately whether 600 should remain in all those contexts.
+2. **Four-size limit:** the earlier document allowed only four sizes while also requiring 8px pixel captions. The shipped UI additionally has 15px wordmark/privacy text, a 10px hint, responsive onboarding sizes and decorative sizes. All are preserved above; any removal or resizing is a visible design proposal.
+3. **Wordmark face:** the earlier prose said Instrument Sans everywhere except tiny captions, while the shipped wordmark rule selects `--pix` at 15px. Preserve that face until the owner chooses a separate design change.
+4. **Title rhythm:** the scale lists a 1.2 line height, while the shared workspace title uses 40px. The current row geometry is preserved rather than forced to 40.8px.
 
-- One title per screen at 34px. If a screen has no title (the chat pane, a dialog), its largest text is a heading at 18px.
-- A row is body text in ink, including items in a list such as saved chats; whatever qualifies it (count, due date, duration) is a caption beside it in the muted colour.
-- Helper text under a control is one caption line. If it needs two sentences, the control is doing too much.
-- Buttons and inputs are body size; they never shrink to captions to fit.
-- Decorative glyphs (stars, mascot marks) are drawings, not text, so they are exempt.
+No visible typography change is part of this refactor. Any future proposal to normalize weights, faces or special sizes must be reviewed separately and must not be hidden in baseline updates.

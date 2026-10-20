@@ -1,13 +1,17 @@
+/* Final shared layout, sidebar, conversation and native companion refinements. */
 .app-shell {
-  --sidebar-width: 192px;
+  display: flex;
+  min-height: 100vh;
+  background: var(--canvas);
+  --sidebar-width: var(--sidebar-width-expanded);
   --sidebar-motion: 180ms cubic-bezier(0.2, 0, 0, 1);
   --window-toolbar-height: 0px;
 }
 .app-shell.macos-window {
-  --window-toolbar-height: 44px;
+  --window-toolbar-height: var(--window-toolbar-size);
 }
 .app-shell.sidebar-collapsed {
-  --sidebar-width: 72px;
+  --sidebar-width: var(--sidebar-width-collapsed);
 }
 .app-shell .sidebar {
   top: var(--window-toolbar-height);
@@ -15,15 +19,6 @@
   padding: 16px 14px 12px;
   overflow-x: hidden;
   transition: width var(--sidebar-motion);
-}
-.app-shell .main {
-  padding-top: var(--window-toolbar-height);
-  margin-left: var(--sidebar-width);
-  width: calc(100% - var(--sidebar-width));
-  min-width: 0;
-  transition:
-    margin-left var(--sidebar-motion),
-    width var(--sidebar-motion);
 }
 .sidebar-header {
   display: grid;
@@ -83,16 +78,12 @@
   outline: 2px solid var(--accent);
   outline-offset: -3px;
 }
-.sidebar .workspace-brand {
-  padding: 0;
-  min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-}
 .sidebar .workspace-brand > div {
   min-width: 0;
 }
 .sidebar nav {
+  display: grid;
+  gap: 4px;
   margin-top: 0;
   flex-shrink: 0;
 }
@@ -100,10 +91,24 @@
   margin-top: 18px;
 }
 .sidebar-bottom {
+  margin-top: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 5px;
   flex-shrink: 0;
   padding-top: 24px;
 }
 .sidebar .nav-item {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted);
+  gap: 11px;
+  text-align: left;
+  font-size: var(--text-body);
+  font-weight: 400;
   height: 40px;
   min-height: 40px;
   justify-content: flex-start;
@@ -173,12 +178,6 @@
 .sidebar-collapsed .quiet-state {
   visibility: hidden;
 }
-.sidebar .profile-entry {
-  height: 60px;
-  padding: 14px 13.5px 6px;
-  justify-content: flex-start;
-  overflow: hidden;
-}
 .sidebar .profile-name {
   flex: 1;
   min-width: 0;
@@ -186,12 +185,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-body);
-}
-.sidebar-collapsed .profile-entry {
-  padding-inline: 6px;
-}
-.sidebar-collapsed .profile-name {
-  font-size: var(--text-caption);
 }
 .sidebar-collapsed .nav-label,
 .sidebar-collapsed .update-entry > span:last-child {
@@ -204,7 +197,7 @@
 }
 @media (max-width: 1100px) {
   .app-shell:not(.sidebar-collapsed) {
-    --sidebar-width: 192px;
+    --sidebar-width: var(--sidebar-width-expanded);
   }
 }
 @media (max-width: 850px) {
@@ -217,9 +210,6 @@
     --sidebar-motion: 0s;
   }
 }
-.page-focus .page-title {
-  margin-top: 44px;
-}
 .page-focus .today-layout {
   display: block;
 }
@@ -227,18 +217,9 @@
   display: none;
 }
 .page-focus .page-title {
+  margin-top: 44px;
   max-width: none;
   align-items: center;
-}
-.goal-heading .goal-expand-toggle {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-left: 0;
-  margin-right: 8px;
-  color: var(--text);
-  text-align: left;
-  font-size: var(--text-body);
 }
 .goal-heading .goal-expand-toggle:hover:not(:disabled),
 .goal-heading .goal-expand-toggle:focus-visible {
@@ -308,7 +289,7 @@
 /* Same size and rhythm as the page title on the other screens; the chat pane starts level with it. */
 .chat-conversations > h1 {
   margin: 0 0 28px;
-  font-weight: 600;
+  font-weight: var(--weight-emphasis);
   letter-spacing: -0.03em;
   font-size: var(--text-title);
   line-height: 40px;
@@ -390,7 +371,6 @@
   color: var(--muted);
 }
 .chat-item > .chat-row {
-  display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -399,11 +379,8 @@
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--text);
   font-size: var(--text-body);
   text-align: left;
-}
-.chat-item > .chat-row {
   display: block;
   flex: 1;
   min-width: 0;
@@ -469,6 +446,9 @@
   right: 4px;
 }
 .chat-group {
+  font-family: var(--pix);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   margin: 6px 10px 4px;
   color: var(--muted);
   font-size: var(--text-caption);
@@ -536,7 +516,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 8px 24px #0002;
+  box-shadow: 0 8px 24px var(--color-fixed-0002);
 }
 .chat-menu button {
   display: flex;
@@ -556,36 +536,8 @@
 .chat-menu .danger {
   color: var(--danger);
 }
-
-.workspace-buddy {
-  position: fixed;
-  right: 24px;
-  bottom: 24px;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  flex-direction: column;
-  gap: 6px;
-}
-.workspace-buddy-avatar {
-  padding: 0;
-  border: 0;
-  background: transparent;
-  width: 88px;
-  height: 88px;
-}
 .workspace-buddy-avatar:hover:not(:disabled) {
   background: transparent;
-}
-.workspace-buddy-avatar .avatar {
-  width: 100%;
-  height: 100%;
-}
-.workspace-buddy-input {
-  position: absolute;
-  bottom: 142px;
-  right: 0;
-  width: min(400px, calc(100vw - 110px));
 }
 .compact-goal-context {
   display: flex;
@@ -599,14 +551,6 @@
 .compact-goal-context > button {
   margin-left: auto;
 }
-.buddy-action-bar {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 32px;
-  pointer-events: none;
-}
 .buddy-action-surface {
   position: absolute;
   top: -8px;
@@ -619,7 +563,7 @@
   overflow: hidden;
   border-radius: 999px;
   background: var(--buddy-control-color, var(--mochi-sleepy));
-  box-shadow: 0 2px 8px #0002;
+  box-shadow: 0 2px 8px var(--color-fixed-0002);
   pointer-events: auto;
   transition:
     width 220ms cubic-bezier(0.2, 0.8, 0.2, 1),
@@ -675,17 +619,47 @@
   outline: 2px solid var(--buddy-control-ink);
   outline-offset: -2px;
 }
-.desktop-character,
-.workspace-buddy-avatar,
 .buddy-action-bar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 32px;
+  pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
 }
 /* Only painted SVG geometry receives pointer input, not the avatar's box. */
-.desktop-character,
-.workspace-buddy-avatar,
+.desktop-character {
+  position: relative;
+  flex-shrink: 0;
+  width: 88px;
+  height: 82px;
+  padding: 0;
+  background: var(--accent);
+  border: 2px solid var(--accent);
+  border-radius: 46% 46% 38% 38%;
+  box-shadow: 0 5px 9px var(--color-fixed-253b2925);
+  cursor: grab;
+  animation: buddy-float 3s ease-in-out infinite;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
+.workspace-buddy-avatar {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  width: 88px;
+  height: 88px;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: none;
+}
 .desktop-character .avatar,
 .workspace-buddy-avatar .avatar {
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 .desktop-character
@@ -696,14 +670,25 @@
   :is(path, text, circle, ellipse, rect, polygon, polyline) {
   pointer-events: visiblePainted;
 }
-.workspace-buddy,
-main.desktop-buddy {
+.workspace-buddy {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 6px;
   pointer-events: none;
 }
 .desktop-buddy :is(.companion-chat, .suggestion-card, .companion-error) {
   pointer-events: auto;
 }
 .workspace-buddy-input {
+  position: absolute;
+  bottom: 142px;
+  right: 0;
+  width: min(400px, calc(100vw - 110px));
   pointer-events: auto;
 }
 @media (prefers-reduced-motion: reduce) {
@@ -711,33 +696,6 @@ main.desktop-buddy {
   .buddy-action-buttons {
     transition: none;
   }
-}
-.companion-chat.compact-conversation {
-  position: relative;
-  max-height: 100%;
-  border-radius: 24px;
-  box-shadow: 0 5px 24px #0002;
-}
-.compact-conversation .conversation-composer {
-  position: relative;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  border: 0;
-  padding: 6px 32px 6px 10px;
-  gap: 4px;
-}
-.compact-conversation .conversation-composer textarea {
-  min-height: 34px;
-  height: 34px;
-  max-height: 34px;
-  background: transparent;
-  border: 0;
-  padding: 6px 8px;
-  flex: 1;
-  order: 1;
-  min-width: 0;
-  white-space: pre;
 }
 .compact-conversation .companion-composer-actions {
   display: contents;
@@ -771,11 +729,6 @@ main.desktop-buddy {
   border: 0;
   background: transparent;
   color: var(--muted);
-}
-.compact-conversation .conversation-history {
-  max-height: 150px;
-  overflow-y: auto;
-  padding: 10px 12px 0;
 }
 
 .compact-conversation .companion-error {
@@ -832,9 +785,15 @@ main.desktop-buddy {
   max-height: 196px;
 }
 .desktop-buddy.chatting {
+  padding: 8px;
   gap: 6px;
 }
 .desktop-buddy .desktop-character {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  animation: none;
+  touch-action: none;
   width: 88px;
   height: 88px;
 }
@@ -911,7 +870,7 @@ main.desktop-buddy {
   background: var(--accent);
 }
 .tracking-settings-status.attention .tracking-health-dot {
-  background: #b78034;
+  background: var(--color-fixed-b78034);
 }
 .tracking-health-label {
   color: var(--muted);
@@ -950,23 +909,30 @@ main.desktop-buddy {
  * - side gutters shrink with the window (48px wide, 40px normal, 24px narrow, 16px very narrow).
  */
 .app-shell .main {
-  --page-max: 1040px;
-  --page-gutter: 40px;
+  padding-top: var(--window-toolbar-height);
+  margin-left: var(--sidebar-width);
+  width: calc(100% - var(--sidebar-width));
+  min-width: 0;
+  transition:
+    margin-left var(--sidebar-motion),
+    width var(--sidebar-motion);
+  --page-max: var(--page-column-max);
+  --page-gutter: var(--page-gutter-default);
   padding-inline: var(--page-gutter);
 }
 @media (min-width: 1500px) {
   .app-shell .main {
-    --page-gutter: 48px;
+    --page-gutter: var(--page-gutter-wide);
   }
 }
 @media (max-width: 1100px) {
   .app-shell .main {
-    --page-gutter: 24px;
+    --page-gutter: var(--page-gutter-narrow);
   }
 }
 @media (max-width: 650px) {
   .app-shell .main {
-    --page-gutter: 16px;
+    --page-gutter: var(--page-gutter-small);
   }
 }
 .app-shell .main > * {
@@ -989,10 +955,10 @@ main.desktop-buddy {
 }
 .app-shell .main > .page-title h1 {
   margin: 0;
-  font-weight: 600;
+  font-weight: var(--weight-emphasis);
   letter-spacing: -0.03em;
   font-size: var(--text-title);
-  line-height: 40px;
+  line-height: var(--page-title-leading);
 }
 .app-shell .main > .page-title p {
   margin: 6px 0 0;
@@ -1006,10 +972,10 @@ main.desktop-buddy {
   position: relative;
   flex: none;
   box-sizing: border-box;
-  width: 28px;
-  min-width: 28px;
-  max-width: 28px;
-  height: 16px;
+  width: var(--switch-width);
+  min-width: var(--switch-width);
+  max-width: var(--switch-width);
+  height: var(--switch-height);
   margin: 0 0 0 16px;
   padding: 0;
   border: 0;
@@ -1021,10 +987,10 @@ main.desktop-buddy {
 .core-workspace .toggle-row input[type="checkbox"]::before {
   content: "";
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 10px;
-  height: 10px;
+  top: var(--switch-offset);
+  left: var(--switch-offset);
+  width: var(--switch-knob);
+  height: var(--switch-knob);
   border-radius: 1px;
   background: var(--canvas);
   transform: none;
@@ -1036,8 +1002,8 @@ main.desktop-buddy {
 }
 .toggle-row input[type="checkbox"]:checked::before,
 .core-workspace .toggle-row input[type="checkbox"]:checked::before {
-  background: #ffffff;
-  transform: translateX(12px);
+  background: var(--inverse);
+  transform: translateX(var(--switch-travel));
 }
 .toggle-row input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--accent);
@@ -1052,6 +1018,7 @@ main.desktop-buddy {
 /* The native anchor is shared by idle, chat and suggestion windows. Keep the
    avatar and its controls at the same offset from it as the card grows above. */
 main.desktop-buddy {
+  pointer-events: none;
   position: relative;
 }
 main.desktop-buddy > button.desktop-character {
@@ -1078,21 +1045,22 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   height: 100%;
   max-height: none;
 }
-.compact-header {
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-}
 .compact-header:active {
   cursor: grabbing;
 }
 .companion-chat.compact-conversation {
+  position: relative;
+  border-radius: 24px;
+  box-shadow: 0 5px 24px var(--color-fixed-0002);
   display: flex;
   flex-direction: column;
   height: 100%;
   max-height: none;
 }
 .compact-header {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1130,11 +1098,22 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   font-size: var(--text-body);
 }
 .compact-conversation .conversation-composer {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  border: 0;
+  gap: 4px;
   align-items: flex-end;
   padding: 8px 10px 10px;
   border-top: 1px solid var(--line);
 }
 .compact-conversation .conversation-composer textarea {
+  background: transparent;
+  border: 0;
+  padding: 6px 8px;
+  flex: 1;
+  order: 1;
+  min-width: 0;
   height: auto;
   min-height: 44px;
   max-height: 110px;
@@ -1143,6 +1122,14 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 
 /* Secondary goal context stays on the title line until explicitly opened. */
 .goal-heading .goal-expand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: 0;
+  margin-right: 8px;
+  color: var(--text);
+  text-align: left;
+  font-size: var(--text-body);
   min-width: 0;
   flex: 1;
 }
@@ -1172,7 +1159,7 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 12px 36px #0002;
+  box-shadow: 0 12px 36px var(--color-fixed-0002);
   font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
@@ -1263,14 +1250,6 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.service-dot {
-  display: inline-block;
-  flex: 0 0 8px;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--muted);
-}
 .sidebar-service .service-dot {
   position: absolute;
   left: 25px;
@@ -1303,7 +1282,7 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   border-radius: 12px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 12px 36px #0003;
+  box-shadow: 0 12px 36px var(--color-fixed-0003);
   font-size: var(--text-caption);
   max-height: calc(100vh - 24px);
   overflow-y: auto;
@@ -1466,28 +1445,6 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 }
 
 /* Sidebar layout 2: pages with labels, utilities as a row of square icon buttons, settings beside the name. */
-.sidebar .workspace-brand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ai-dots {
-  display: flex;
-  gap: 3px;
-  flex: none;
-}
-.ai-dot {
-  display: grid;
-  place-items: center;
-  width: 16px;
-  height: 16px;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 2px;
-  background: transparent;
-}
 .ai-dot:hover:not(:disabled),
 .ai-dot:focus-visible {
   background: var(--raised);
@@ -1498,32 +1455,10 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   flex-basis: 6px;
   border-radius: 1px;
 }
-.sidebar .sidebar-utilities {
-  display: flex;
-  gap: 4px;
-  padding: 0 10px;
-}
-.sidebar .sidebar-utilities .nav-item,
-.sidebar .sidebar-utilities .update-entry {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
-  padding: 0;
-  justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
-  color: var(--text);
-}
 .sidebar .sidebar-utilities .nav-label,
 .sidebar .sidebar-utilities .quiet-state,
 .sidebar .sidebar-utilities .update-entry > span:last-child {
   display: none;
-}
-.sidebar .sidebar-utilities .update-entry.update-available {
-  border-color: var(--accent);
-  color: var(--accent-text);
 }
 .sidebar .sidebar-utilities .quiet-toggle[aria-pressed="true"] {
   background: var(--accent-soft);
@@ -1531,43 +1466,10 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   border-color: var(--accent);
 }
 /* The divider above the profile spans the whole sidebar, name and settings together. */
-.sidebar .profile-menu-root {
-  display: flex;
-  align-items: flex-end;
-  gap: 4px;
-  margin: 0 10px;
-  border-top: 1px solid var(--line);
-}
-.sidebar .profile-entry {
-  flex: 1;
-  min-width: 0;
-  border-top: 0;
-}
-.sidebar .profile-settings {
-  margin-right: 0;
-}
-.sidebar .profile-settings {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  min-height: 32px;
-  margin: 0 10px 10px 0;
-  padding: 0;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  background: var(--surface);
-  color: var(--text);
-}
 .sidebar .profile-settings.selected {
   background: var(--accent-soft);
   color: var(--accent-text);
   border-color: var(--accent);
-}
-.sidebar-collapsed .ai-dots,
-.sidebar-collapsed .profile-settings {
-  visibility: hidden;
 }
 /* The services panel inside Settings loses its sidebar framing. */
 .core-settings .sidebar-ai-services {
@@ -1576,25 +1478,18 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   border-top: 0;
 }
 .service-dot {
+  display: inline-block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  background: var(--muted);
   border-radius: 1px;
 }
 
 /* Service status dots sit under the pages, aligned with the icon column. */
-.sidebar-ai-dots {
-  padding: 2px 0 0 19px;
-}
-.ai-dots {
-  gap: 6px;
-}
 /* Hover labels for the icon-only buttons. */
-.sidebar .sidebar-utilities .nav-item,
-.sidebar .sidebar-utilities .update-entry,
-.sidebar .profile-settings {
-  position: relative;
-}
 .sidebar .sidebar-utilities .nav-item::after,
-.sidebar .sidebar-utilities .update-entry::after,
-.sidebar .profile-settings::after {
+.sidebar .sidebar-utilities .update-entry::after {
   content: attr(aria-label);
   position: absolute;
   left: 50%;
@@ -1613,6 +1508,20 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   transition: opacity 0.12s;
 }
 .sidebar .profile-settings::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 30;
+  padding: 4px 7px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--canvas);
+  font-size: var(--text-caption);
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s;
   left: auto;
   right: 0;
   transform: none;
@@ -1638,20 +1547,27 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 }
 
 /* Hover labels must escape the buttons; the dots start where the page icons start. */
-.sidebar .sidebar-utilities .nav-item,
-.sidebar .sidebar-utilities .update-entry,
-.sidebar .profile-settings,
-.sidebar .sidebar-utilities,
+.sidebar .sidebar-utilities {
+  display: flex;
+  gap: 4px;
+  padding: 0 10px;
+  overflow: visible;
+}
 .sidebar .sidebar-bottom {
   overflow: visible;
 }
-.sidebar-ai-dots {
-  padding: 0 0 0 13.5px;
-}
 .ai-dots {
+  display: flex;
+  flex: none;
   gap: 4px;
 }
 .ai-dot {
+  place-items: center;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1659,11 +1575,20 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   height: 16px;
 }
 .sidebar .profile-menu-root {
+  display: flex;
+  gap: 4px;
+  margin: 0 10px;
+  border-top: 1px solid var(--line);
   align-items: center;
   padding: 6px 0 8px;
 }
 /* The profile row starts where the first utility icon starts. */
 .sidebar .profile-entry {
+  justify-content: flex-start;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+  border-top: 0;
   height: 32px;
   margin-top: 0;
   padding: 0;
@@ -1675,11 +1600,9 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   height: 15px;
   color: var(--text);
 }
-.sidebar .profile-settings {
-  margin: 0;
-}
 
 .sidebar-ai-dots {
+  padding: 0 0 0 13.5px;
   padding-top: 10px;
 }
 /* Scrollbars on the grid: a thin square thumb, no track. */
@@ -1705,7 +1628,7 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   height: 22px;
   padding: 0 10px;
   font-family: var(--pix);
-  font-size: 8px;
+  font-size: var(--text-pix);
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0.12em;
@@ -1734,17 +1657,11 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   margin: 0 6px;
   padding: 6px 0 8px;
 }
-.sidebar-collapsed .profile-entry {
-  flex: none;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  justify-content: center;
-}
 .sidebar-collapsed .profile-entry .profile-icon {
   width: 15px;
 }
 .sidebar-collapsed .profile-name {
+  font-size: var(--text-caption);
   display: none;
 }
 .sidebar-collapsed .profile-settings {
@@ -1752,8 +1669,35 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 }
 /* Utility icons are muted like the page icons; the Updates button turns lime when an update is ready. */
 .sidebar .sidebar-utilities .nav-item,
-.sidebar .sidebar-utilities .update-entry,
+.sidebar .sidebar-utilities .update-entry {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  position: relative;
+  overflow: visible;
+  color: var(--muted);
+}
 .sidebar .profile-settings {
+  margin-right: 0;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--surface);
+  position: relative;
+  overflow: visible;
+  margin: 0;
   color: var(--muted);
 }
 .sidebar .sidebar-utilities .nav-item:hover,
@@ -1764,7 +1708,7 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 .sidebar .sidebar-utilities .update-entry.update-available {
   background: var(--lime);
   border-color: var(--lime);
-  color: #1f1f1f;
+  color: var(--buddy-control-ink);
 }
 /* Collapsed sidebar: hover labels open to the right of the icon column instead of being clipped above it. */
 .app-shell.sidebar-collapsed .sidebar {
@@ -1781,15 +1725,18 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   transform: translateY(-50%);
 }
 /* The profile button gets the same frame as its neighbours when collapsed. */
+
+/* Collapsed sidebar: page and profile buttons get the same hover label as the utilities. */
 .sidebar-collapsed .profile-entry {
+  padding-inline: 6px;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  justify-content: center;
   border: 1px solid var(--line);
   border-radius: 3px;
   background: var(--surface);
-}
-
-/* Collapsed sidebar: page and profile buttons get the same hover label as the utilities. */
-.sidebar-collapsed #workspace-navigation .nav-item,
-.sidebar-collapsed .profile-entry {
   position: relative;
   overflow: visible;
 }
@@ -1820,6 +1767,8 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 
 /* Collapsed pages: the hidden label takes no space, so the hover box is the icon square only. */
 .sidebar-collapsed #workspace-navigation .nav-item {
+  position: relative;
+  overflow: visible;
   width: 44px;
   padding: 0;
   justify-content: center;
@@ -1830,6 +1779,13 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 
 /* The mascot is the mark: a small working sumi before the wordmark, alone when the sidebar is collapsed. */
 .sidebar .workspace-brand {
+  padding: 0;
+  min-width: 0;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   overflow: visible;
 }
 .sidebar .workspace-brand > .avatar {
