@@ -20,7 +20,7 @@ Global import order in `src/main.tsx` must remain:
 
 Component imports are `companion/conversation.css` (Conversation), `ai/engine.css` (Personal AI Engine) and `coaching/coaching.css` (coaching components). Their cascade relationship to global styles must be preserved as well.
 
-The eight stylesheets initially contain **8,953 lines**. Across the five globals, the audit counted **1,776 individual selector occurrences, 1,358 distinct selectors and 280 selectors occurring more than once**, including legitimate responsive/state rules. Across all eight files, there are **14 important declarations**, **16 literal font-size declarations** (including two `clamp` values), and **six 600-weight declarations**. Counts are derived from parsed CSS, excluding keyframe steps; grouped selectors are counted individually.
+The eight stylesheets initially contain **8,953 lines**. Across the five globals, the audit counted **1,776 individual selector occurrences, 1,358 distinct selectors and 280 selectors occurring more than once**, including legitimate responsive/state rules. Across all eight files, there are **14 important declarations**, **17 literal font-size declarations** (including two `clamp` values), and **five 600-weight declarations**. Counts are derived from parsed CSS, excluding keyframe steps; grouped selectors are counted individually.
 
 Repeated selectors are not automatically interchangeable: equal-specificity selectors, shorthands, media queries and component styles can depend on their position. Consolidation must preserve those ordering constraints rather than treating the last rule as a complete replacement.
 
@@ -31,3 +31,12 @@ No selector is renamed or removed from the component contract, and no TSX/import
 ## Validation record
 
 Implementation, exact commands, exception inventory, visual evidence and remaining platform limitations are recorded below as milestones complete. No push, PR, release or installer is authorized in this task.
+
+### Milestone: shared tokens
+
+- Moved the four primary type sizes/leading values from `style.css` to `workspace.css`.
+- Preserved special typography through named tokens, including all five 600-weight declarations. See the owner-decision list in `TYPOGRAPHY.md`.
+- Centralized 35 fixed color values in addition to the existing semantic palette. Fixed colors retain their original light/dark behavior; no palette substitution is made merely on a light-theme match.
+- Centralized sidebar widths, toolbar size, page widths/gutters, title leading and square-switch geometry.
+- Local reference matrix: 48 populated synthetic states, light/dark, 1280×873 and 600×873; shipped Instrument Sans 400/500/600 and Silkscreen 400 confirmed loaded. Before screenshots and fixture/replay tools are under the ignored `.tools/css-audit/` directory in this worktree.
+- Computed-style comparison includes every standard computed property, element geometry and `::before`/`::after`, excluding newly added custom-property names. Hover transitions must settle before sampling both sides. No real credentials, activity or provider calls are used.

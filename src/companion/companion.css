@@ -18,7 +18,7 @@
   border-radius: 18px;
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 8px 25px #00000012;
+  box-shadow: 0 8px 25px var(--color-fixed-00000012);
   overflow: hidden;
 }
 .companion-chat header {

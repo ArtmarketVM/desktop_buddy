@@ -41,6 +41,74 @@
   font-size: var(--text-body);
   color: var(--text);
   background: var(--canvas);
+  --text-title: 34px;
+  --text-heading: 18px;
+  --text-body: 14px;
+  --text-caption: 11px;
+  --leading-title: 1.2;
+  --leading-heading: 1.3;
+  --leading-body: 1.5;
+  --leading-caption: 1.45;
+  --text-pix: 8px;
+  --text-hint: 10px;
+  --text-wordmark: 15px;
+  --text-rating-mark: 30px;
+  --text-orbit-mark: 35px;
+  --text-star-large: 27px;
+  --text-star-small: 16px;
+  --text-onboarding-legacy: clamp(26px, 4vw, 35px);
+  --text-onboarding: clamp(25px, 3vw, 31px);
+  --text-privacy: 15px;
+  --weight-emphasis: 600;
+  --color-fixed-253b2925: #253b2925;
+  --color-fixed-253b2915: #253b2915;
+  --color-fixed-white: white;
+  --color-fixed-9fb88244: #9fb88244;
+  --color-fixed-9eac7d24: #9eac7d24;
+  --color-fixed-d5b570: #d5b570;
+  --color-fixed-0009: #0009;
+  --color-fixed-0007: #0007;
+  --color-fixed-0002: #0002;
+  --color-fixed-e76f51: #e76f51;
+  --color-fixed-f4a261: #f4a261;
+  --color-fixed-e9c46a: #e9c46a;
+  --color-fixed-8ab17d: #8ab17d;
+  --color-fixed-2a9d8f: #2a9d8f;
+  --color-fixed-457b9d: #457b9d;
+  --color-fixed-8e7dbe: #8e7dbe;
+  --color-fixed-00000012: #00000012;
+  --color-fixed-rgb-0-0-0-30: rgb(0 0 0 / 30%);
+  --color-fixed-dec783: #dec783;
+  --color-fixed-rgba-0-0-0-0-14: rgba(0, 0, 0, 0.14);
+  --color-fixed-c8544012: #c8544012;
+  --color-fixed-896b28: #896b28;
+  --color-fixed-c0a34312: #c0a34312;
+  --color-fixed-54754812: #54754812;
+  --color-fixed-rgba-0-0-0-0-06: rgba(0, 0, 0, 0.06);
+  --color-fixed-rgba-0-0-0-0-16: rgba(0, 0, 0, 0.16);
+  --color-fixed-79a7b8: #79a7b8;
+  --color-fixed-4a2a24: #4a2a24;
+  --color-fixed-f0a391: #f0a391;
+  --color-fixed-4a3421: #4a3421;
+  --color-fixed-f0b989: #f0b989;
+  --color-fixed-45401f: #45401f;
+  --color-fixed-e6d27a: #e6d27a;
+  --color-fixed-b78034: #b78034;
+  --color-fixed-0003: #0003;
+  --sidebar-width-expanded: 192px;
+  --sidebar-width-collapsed: 72px;
+  --window-toolbar-size: 44px;
+  --page-column-max: 1040px;
+  --page-gutter-default: 40px;
+  --page-gutter-wide: 48px;
+  --page-gutter-narrow: 24px;
+  --page-gutter-small: 16px;
+  --page-title-leading: 40px;
+  --switch-width: 28px;
+  --switch-height: 16px;
+  --switch-knob: 10px;
+  --switch-offset: 3px;
+  --switch-travel: 12px;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -370,7 +438,7 @@ a {
   flex-shrink: 0;
   font-size: var(--text-caption);
   background: var(--accent);
-  color: white;
+  color: var(--color-fixed-white);
 }
 .profile-entry > svg {
   color: var(--muted);
@@ -735,7 +803,7 @@ a {
   border-color: var(--accent);
 }
 .toggle-row input[type="checkbox"]:checked::before {
-  background: white;
+  background: var(--color-fixed-white);
   transform: translateX(16px);
 }
 .toggle-row input[type="checkbox"]:disabled {
@@ -776,7 +844,7 @@ a {
   padding-top: 0;
 }
 .product-feedback .star-rating label {
-  color: #d5b570;
+  color: var(--color-fixed-d5b570);
 }
 .inline-details,
 .disclosure-card {
@@ -878,7 +946,7 @@ footer > span {
   color: var(--accent);
 }
 .onboarding-card h1 {
-  font-size: clamp(25px, 3vw, 31px);
+  font-size: var(--text-onboarding);
   color: var(--text);
   letter-spacing: -0.7px;
 }
@@ -913,7 +981,7 @@ footer > span {
   font-size: var(--text-caption);
 }
 .star-rating label {
-  color: #d5b570;
+  color: var(--color-fixed-d5b570);
 }
 .star-rating input {
   width: auto;
@@ -1002,7 +1070,7 @@ footer > span {
 }
 .update-available .update-icon {
   background: var(--accent);
-  color: white;
+  color: var(--color-fixed-white);
 }
 .update-available {
   color: var(--accent);
@@ -1022,7 +1090,7 @@ footer > span {
   z-index: 100;
   display: grid;
   place-items: center;
-  background: #0009;
+  background: var(--color-fixed-0009);
   padding: 24px;
   backdrop-filter: blur(4px);
 }
@@ -1035,7 +1103,7 @@ footer > span {
   border: 1px solid var(--line);
   border-radius: 13px;
   background: var(--raised);
-  box-shadow: 0 24px 70px #0007;
+  box-shadow: 0 24px 70px var(--color-fixed-0007);
   outline: none;
 }
 .update-dialog h2 {
@@ -1303,7 +1371,7 @@ a,
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 9px;
-  box-shadow: 0 12px 40px #0002;
+  box-shadow: 0 12px 40px var(--color-fixed-0002);
 }
 .profile-menu p {
   margin: 6px 8px 10px;
@@ -1370,14 +1438,14 @@ a,
 }
 .color-options .color-wheel {
   background: conic-gradient(
-    #e76f51,
-    #f4a261,
-    #e9c46a,
-    #8ab17d,
-    #2a9d8f,
-    #457b9d,
-    #8e7dbe,
-    #e76f51
+    var(--color-fixed-e76f51),
+    var(--color-fixed-f4a261),
+    var(--color-fixed-e9c46a),
+    var(--color-fixed-8ab17d),
+    var(--color-fixed-2a9d8f),
+    var(--color-fixed-457b9d),
+    var(--color-fixed-8e7dbe),
+    var(--color-fixed-e76f51)
   );
 }
 .color-options button > span,
@@ -1385,7 +1453,7 @@ a,
   width: 15px;
   height: 15px;
   border-radius: 50%;
-  border: 1px solid #0002;
+  border: 1px solid var(--color-fixed-0002);
 }
 .color-options .color-custom {
   position: relative;
@@ -1768,7 +1836,7 @@ h1,
 .workspace-brand > div,
 .onboarding-brand {
   font-family: var(--sans);
-  font-weight: 600;
+  font-weight: var(--weight-emphasis);
   letter-spacing: -0.03em;
 }
 h2,
@@ -1798,7 +1866,7 @@ small,
 /* The wordmark is the one word set in pixels, with a lime cell as its mark. */
 .workspace-brand > div {
   font-family: var(--pix);
-  font-size: 15px;
+  font-size: var(--text-wordmark);
   letter-spacing: 0.08em;
   line-height: 1.1;
   color: var(--text);
@@ -1820,7 +1888,7 @@ small,
 }
 .sumi-picker .avatar-gallery small {
   font-family: var(--pix);
-  font-size: 8px;
+  font-size: var(--text-pix);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -1834,15 +1902,15 @@ small,
   border: 0;
   border-radius: 3px;
   font-family: var(--pix);
-  font-size: 8px;
+  font-size: var(--text-pix);
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #1f1f1f;
+  color: var(--buddy-control-ink);
   background: var(--raised);
   cursor: pointer;
 }
 .color-options .color-chip-dark {
-  color: #ffffff;
+  color: var(--inverse);
 }
 .color-options .color-custom {
   background: var(--surface);
