@@ -255,7 +255,7 @@ async fn slow_optional_prose_returns_verified_receipt_without_repeating_committe
             response(action(&context,"complete_step",json!({"goal":{"goal_id":goal,"reference":null},"step":{"step_id":null,"ordinal":1,"reference":null}}),"change",true))
         } else {
             assert_eq!(context["verified_execution"]["status"],"executed");
-            response(json!({"message":"Late optional prose","resources":[],"memory_update":null,"verified_result_indices":[0]})).set_delay(Duration::from_secs(3))
+            response(json!({"message":"Late optional prose","resources":[],"memory_update":null,"verified_result_indices":[0]})).set_delay(Duration::from_secs(30))
         }
     }).expect(2).mount(&server).await;
     let service = Service {
@@ -271,7 +271,10 @@ async fn slow_optional_prose_returns_verified_receipt_without_repeating_committe
         0,
         true,
         &service,
-        Instant::now() + Duration::from_secs(1),
+        // Leave room for planning/execution on busy CI. The independent eight-second
+        // optional-response cap must cancel the slow reply, rather than skipping it
+        // because the overall deadline expired before the HTTP request even started.
+        Instant::now() + Duration::from_secs(60),
     )
     .await
     .unwrap();
