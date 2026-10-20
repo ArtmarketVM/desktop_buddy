@@ -66,6 +66,7 @@ pub enum Kind {
     Research,
     EndOfDay,
     Movement,
+    Deadline,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

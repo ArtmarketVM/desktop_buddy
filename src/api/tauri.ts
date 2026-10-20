@@ -4,6 +4,7 @@ import type {
   CompanionView,
   CompanionReply,
   CompanionAction,
+  InterventionResponse,
 } from "../companion/types";
 import type {
   BuddyPreferences,
@@ -48,10 +49,8 @@ export const api = {
       goalId,
       revision,
     }),
-  companionRespond: (
-    id: string,
-    action: "accept" | "ignore" | "tomorrow" | "summary",
-  ) => invoke<void>("respond_companion_intervention", { id, action }),
+  companionRespond: (id: string, action: InterventionResponse) =>
+    invoke<void>("respond_companion_intervention", { id, action }),
   companionInbox: (id: string, action: "complete" | "remove") =>
     invoke<void>("update_companion_inbox", { id, action }),
   theme: (theme: "light" | "dark") => invoke<void>("set_user_theme", { theme }),

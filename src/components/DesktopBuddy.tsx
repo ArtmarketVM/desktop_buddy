@@ -138,7 +138,7 @@ export function DesktopBuddy({
             void action(
               () => api.companionRespond(companion.intervention!.id, response),
               response === "accept" &&
-                ["new_task", "completion"].includes(
+                ["new_task", "completion", "deadline"].includes(
                   companion.intervention!.kind,
                 ),
             )

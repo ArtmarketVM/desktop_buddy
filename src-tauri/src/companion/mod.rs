@@ -1,3 +1,4 @@
+mod deadlines;
 pub mod engine;
 #[cfg(windows)]
 pub mod windows;
@@ -70,6 +71,7 @@ pub struct Runtime {
     pub memory: Memory,
     started: Instant,
     next_detection: i64,
+    next_deadline_check: i64,
     previous_app: String,
     previous_goal: Option<i64>,
     sampled_context: String,
@@ -91,6 +93,7 @@ impl Runtime {
                 .unwrap_or_default(),
             started: Instant::now(),
             next_detection: 0,
+            next_deadline_check: 0,
             previous_app: String::new(),
             previous_goal: None,
             sampled_context: String::new(),
@@ -256,7 +259,14 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     let goal = inner.storage.goal()?;
     let goal_id = goal.as_ref().map(|g| g.id);
     if inner.companion.previous_goal != goal_id {
+        let deadline = inner
+            .companion
+            .view
+            .intervention
+            .take()
+            .filter(|p| p.kind == Kind::Deadline);
         inner.companion.invalidate();
+        inner.companion.view.intervention = deadline;
         inner.companion.previous_goal = goal_id;
         emit(app, "goal.active", &goal);
     }
@@ -290,9 +300,14 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     }
     let plan = goal_id.map(|id| inner.storage.goal_plan(id)).transpose()?;
     if inner.companion.view.intervention.as_ref().is_some_and(|p| {
-        p.expires_at <= now
-            || p.goal_id != goal_id
-            || (p.plan_revision.is_some() && p.plan_revision != plan.as_ref().map(|p| p.revision))
+        if p.kind == Kind::Deadline {
+            deadlines::validate(&inner.storage, p, &day, now).is_err()
+        } else {
+            p.expires_at <= now
+                || p.goal_id != goal_id
+                || (p.plan_revision.is_some()
+                    && p.plan_revision != plan.as_ref().map(|p| p.revision))
+        }
     }) {
         inner.companion.view.intervention = None;
     }
@@ -302,7 +317,9 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         .intervention
         .as_ref()
         .is_some_and(|prompt| {
-            if matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion) {
+            if prompt.kind == Kind::Deadline {
+                !deadline_context_allowed(inner, minute)
+            } else if matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion) {
                 inner.companion.view.preferences.paused || !inner.status.tracking
             } else {
                 suppressed(inner)
@@ -350,6 +367,16 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         || !can_offer(inner, goal_id, false, now, minute)
     {
         return Ok(());
+    }
+    if deadline_allowed(inner, now, minute) && now >= inner.companion.next_deadline_check {
+        // No database scan on each collector tick; suppressed checks do not consume a reminder.
+        inner.companion.next_deadline_check = now + 30;
+        if let Some(prompt) =
+            deadlines::next(&inner.storage, &inner.companion.memory, goal_id, &day, now)?
+        {
+            offer(app, inner, prompt, now)?;
+            return Ok(());
+        }
     }
     let (total, completed, average): (u32,u32,f64) = inner.storage.connection.query_row("SELECT COUNT(*),COALESCE(SUM(status='completed'),0),COALESCE(AVG(CASE WHEN status='completed' THEN MAX(0,(julianday(completed_at)-julianday(created_at))*86400) END),0) FROM (SELECT status,created_at,completed_at FROM goals ORDER BY id DESC LIMIT 30)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| "Nudge history unavailable")?;
     inner.companion.memory.completion_samples = total;
@@ -423,6 +450,24 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         }
     }
     Ok(())
+}
+fn deadline_context_allowed(inner: &Inner, minute: u32) -> bool {
+    inner.companion.view.preferences.daily_checkins
+        && inner.status.tracking
+        && inner.status.tracking_error.is_none()
+        && inner.buddy.foreground.as_ref().is_some_and(|a| {
+            !sensitive_window(a)
+                && !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name)
+        })
+        && inner.tracking_settings.working_at(minute)
+        && !inner.companion.view.preferences.quiet(minute)
+        && !suppressed(inner)
+}
+fn deadline_allowed(inner: &Inner, now: i64, minute: u32) -> bool {
+    deadline_context_allowed(inner, minute)
+        && inner.companion.started.elapsed().as_secs()
+            >= inner.companion.view.preferences.morning_delay_minutes as u64 * 60
+        && can_offer(inner, None, false, now, minute)
 }
 pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, String> {
     let snapshot = storage.core_snapshot(None)?;
@@ -1136,7 +1181,33 @@ pub fn respond_companion_intervention(
     } else {
         None
     };
-    if action == "accept" {
+    if prompt.kind == Kind::Deadline && action != "ignore" {
+        let was_active = inner
+            .storage
+            .goal()?
+            .is_some_and(|g| Some(g.id) == prompt.goal_id);
+        let goal_id = deadlines::respond(
+            &mut inner.storage,
+            &prompt,
+            &action,
+            &chrono::Local::now().date_naive().to_string(),
+            now,
+        )?;
+        if action == "accept" {
+            if was_active {
+                inner.storage.ensure_today_focus()?;
+                inner.usage = Default::default();
+                inner.activity_state.stop(true);
+                inner.buddy.foreground = None;
+                inner.goal_matching.clear();
+            }
+            inner.companion.memory.last_progress = now;
+            emit(&app, "goal.completed", &prompt);
+            let _ = app.emit("buddy://goal-completed", &prompt);
+        } else {
+            emit(&app, "goal.rescheduled", json!({"goal_id":goal_id}));
+        }
+    } else if action == "accept" {
         match prompt.kind {
             Kind::Research => {
                 inner.companion.view.chat_open = true;
@@ -1243,6 +1314,7 @@ pub fn respond_companion_intervention(
             Kind::Movement,
             Kind::Midday,
             Kind::Research,
+            Kind::Deadline,
         ]
         .contains(&prompt.kind)
         || action == "summary"
@@ -1289,6 +1361,81 @@ pub fn update_companion_inbox(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn deadline_checkins_respect_attention_privacy_cooldown_and_startup_delay() {
+        let state =
+            AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        inner.status.tracking = true;
+        inner.companion.started = Instant::now() - std::time::Duration::from_secs(601);
+        inner.companion.view.preferences.quiet_start_minute = 0;
+        inner.companion.view.preferences.quiet_end_minute = 0;
+        inner.companion.memory = Memory::default();
+        inner.buddy.foreground = Some(ActivitySnapshot {
+            process_name: "editor".into(),
+            idle_seconds: 10,
+            ..Default::default()
+        });
+        assert!(deadline_allowed(&inner, 10000, 600));
+        for gate in [
+            "dnd",
+            "quiet",
+            "paused",
+            "chat",
+            "fullscreen",
+            "meeting",
+            "media",
+            "idle",
+            "private",
+            "excluded",
+            "hours",
+            "startup",
+            "cooldown",
+            "budget",
+            "tracking",
+            "error",
+            "disabled",
+            "no_window",
+        ] {
+            inner.status.dnd = gate == "dnd";
+            inner.status.tracking = gate != "tracking";
+            inner.status.tracking_error = (gate == "error").then(|| "fixture".into());
+            inner.companion.view.chat_open = gate == "chat";
+            inner.companion.view.preferences.paused = gate == "paused";
+            inner.companion.view.preferences.daily_checkins = gate != "disabled";
+            inner.companion.view.preferences.quiet_start_minute =
+                if gate == "quiet" { 500 } else { 0 };
+            inner.companion.view.preferences.quiet_end_minute =
+                if gate == "quiet" { 700 } else { 0 };
+            inner.companion.started = Instant::now()
+                - std::time::Duration::from_secs(if gate == "startup" { 1 } else { 601 });
+            inner.companion.memory.last_prompt = if gate == "cooldown" { 9999 } else { 0 };
+            inner.companion.memory.shown = if gate == "budget" { 3 } else { 0 };
+            inner.buddy.fullscreen = gate == "fullscreen";
+            inner.buddy.view.preferences.excluded_apps = if gate == "excluded" {
+                vec!["editor".into()]
+            } else {
+                vec![]
+            };
+            inner.buddy.foreground = (gate != "no_window").then(|| ActivitySnapshot {
+                process_name: "editor".into(),
+                window_title: if gate == "meeting" {
+                    "Zoom Meeting".into()
+                } else if gate == "private" {
+                    ".env — Editor".into()
+                } else {
+                    "Work".into()
+                },
+                media_playing: gate == "media",
+                idle_seconds: if gate == "idle" { 86400 } else { 10 },
+                ..Default::default()
+            });
+            assert!(
+                !deadline_allowed(&inner, 10000, if gate == "hours" { 0 } else { 600 }),
+                "{gate}"
+            );
+        }
+    }
     #[test]
     fn hidden_character_does_not_suppress_checkins_but_attention_gates_do() {
         let state =
