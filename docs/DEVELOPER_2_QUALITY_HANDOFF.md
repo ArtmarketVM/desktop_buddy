@@ -26,6 +26,8 @@ ESLint on the integrated source initially reported **16 errors / 15 warnings**. 
 - Remaining hook warnings concern activation-only voice recording cleanup, onboarding synchronization, exclusion-list value synchronization, carousel initialization, drag cancellation, stable popover refs and an allocated progress fallback. Adding all dependencies mechanically can restart recording or erase drafts/drag state. They remain visible for focused behavior changes with dedicated tests; no blanket suppressions or gate weakening were added.
 - Other historical Rust warnings remain part of the non-blocking rollout; no broad Rust cleanup was attempted.
 
+`npm run lint:rust` completed with **0 errors / 78 unique warnings, exit 0**, and no `clippy::await_holding_lock` finding. The first attempt reported that the repository-local toolchain lacked Clippy (exit 1); it was not counted as a clean result. Installed that toolchain's Clippy component, then generated `.tools/quality/clippy.jsonl` and `clippy-summary.json` with the documented script. The test lock warning is resolved; other warnings remain visible.
+
 ## Validation
 
 Local frontend validation on Apple Silicon macOS: `npm ci`, **265 tests passed across 51 files**, and `npm run build` passed. Targeted settings, noticed-work, App and conversation tests also passed. The first-paint regression failed before the fix; its assertions were not weakened. `cargo fmt --manifest-path src-tauri/Cargo.toml` and `git diff --check` passed.
