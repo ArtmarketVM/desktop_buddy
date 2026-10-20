@@ -131,9 +131,10 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("buddy-window", popup);
   }, [popup]);
+  const savedTheme = data.user_settings?.theme;
   useEffect(() => {
-    if (data.user_settings) setTheme(data.user_settings.theme);
-  }, [data.user_settings?.theme]);
+    if (savedTheme) setTheme(savedTheme);
+  }, [savedTheme]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("buddy-theme", theme);

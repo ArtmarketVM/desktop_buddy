@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { invoke } from "../data/ipc";
 import { useQuery } from "../data/useQuery";
-import { noticedQuery } from "../data/resources";
+import { noticedQuery, type NoticedSuggestion } from "../data/resources";
 import { queryClient } from "../data/client";
 import { desktop } from "../api/tauri";
 import { duration } from "./types";
@@ -12,14 +12,31 @@ export function NoticedWork({ onChanged }: { onChanged: () => Promise<void> }) {
     noticedQuery,
     desktop,
   );
-  const [title, setTitle] = useState("");
+  if (!suggestion) return null;
+  return (
+    <NoticedWorkOffer
+      key={suggestion.id}
+      suggestion={suggestion}
+      loadError={loadError}
+      onChanged={onChanged}
+    />
+  );
+}
+
+function NoticedWorkOffer({
+  suggestion,
+  loadError,
+  onChanged,
+}: {
+  suggestion: NoticedSuggestion;
+  loadError: string;
+  onChanged: () => Promise<void>;
+}) {
+  // Initialize with the offer, before edits can arrive. Refreshing the same
+  // offer preserves its draft; a different offer mounts a fresh form.
+  const [title, setTitle] = useState(suggestion.title);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => {
-    setTitle(suggestion?.title ?? "");
-    setError("");
-  }, [suggestion?.id]);
-  if (!suggestion) return null;
   const respond = async (action: "add" | "dismiss" | "not_now") => {
     setBusy(true);
     setError("");
@@ -29,7 +46,9 @@ export function NoticedWork({ onChanged }: { onChanged: () => Promise<void> }) {
         action,
         title: action === "add" ? title.trim() : null,
       });
-      noticedQuery.setData(null);
+      noticedQuery.setData((current) =>
+        current?.id === suggestion.id ? null : current,
+      );
       await onChanged().catch(() => {});
     } catch (error) {
       const message = String(error);
