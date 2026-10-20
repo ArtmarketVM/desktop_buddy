@@ -19,3 +19,4 @@ src-tauri/icons/*.icns
 src-tauri/icons/Square*.png
 src-tauri/icons/StoreLogo.png
 artifacts/
+src-tauri/test-data/results/

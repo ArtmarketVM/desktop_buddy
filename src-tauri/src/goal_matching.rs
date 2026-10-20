@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 use tauri::AppHandle;
+pub(crate) mod check;
 
 #[cfg(test)]
 mod cascade_tests;

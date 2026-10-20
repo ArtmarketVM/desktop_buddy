@@ -1,3 +1,4 @@
+mod accuracy_check;
 mod agent_dialogue;
 mod agent_runtime;
 mod ai_chat;
@@ -66,6 +67,27 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if let Some(flag) = std::env::args().find(|arg| {
+        matches!(
+            arg.as_str(),
+            "--check-goal-matching" | "--check-coaching-voice"
+        )
+    }) {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            if flag == "--check-goal-matching" {
+                goal_matching::check::run().await
+            } else {
+                coaching::chat::voice_check::run().await
+            }
+        });
+        match result {
+            Ok(complete) => std::process::exit(if complete { 0 } else { 1 }),
+            Err(error) => {
+                eprintln!("Accuracy check failed: {error}. No installed data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
     if std::env::args().any(|arg| arg == "--check-hero") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()

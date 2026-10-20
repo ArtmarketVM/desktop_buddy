@@ -5,6 +5,60 @@ use wiremock::{
     Mock, MockServer, ResponseTemplate,
 };
 
+#[tokio::test]
+async fn coaching_response_receives_only_its_bounded_prior_chat_history() {
+    let (state, session) = fixture();
+    {
+        let mut inner = state.inner.lock().unwrap();
+        for index in 0..20 {
+            append(
+                &inner.storage,
+                &session,
+                "user",
+                &format!("own-note-{index}: {}", "é🙂\n".repeat(500)),
+            )
+            .unwrap();
+        }
+        inner.storage.create_conversation().unwrap();
+        inner
+            .storage
+            .save_chat_turn(
+                "FOREIGN-CHAT-CANARY",
+                &ChatReply {
+                    message: "FOREIGN-ANSWER-CANARY".into(),
+                    ..Default::default()
+                },
+                None,
+            )
+            .unwrap();
+    }
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(|request: &wiremock::Request| {
+        let body:Value=serde_json::from_slice(&request.body).unwrap();
+        assert!(!body.to_string().contains("FOREIGN-CHAT-CANARY"));
+        let content = if body["response_format"]["json_schema"]["name"]=="buddy_coaching_response" {
+            let source:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+            let history=&source["context"]["history"];
+            assert!(history.as_array().unwrap().len()<=12);
+            assert!(history.to_string().len()<=6000);
+            assert!(history.as_array().unwrap().last().unwrap()["content"].as_str().unwrap().contains("own-note-19"));
+            assert!(!history.to_string().contains("CURRENT-ONLY"));
+            assert_eq!(source["context"]["latest_message"],"CURRENT-ONLY");
+            json!({"message":"Use your last note to choose a heading."})
+        } else { json!({"reply":null,"evidence":null,"action":null}) };
+        ResponseTemplate::new(200).set_body_json(json!({"choices":[{"finish_reason":"stop","message":{"content":content.to_string()}}]}))
+    }).expect(2).mount(&server).await;
+    let result = handle(
+        &state,
+        input(&session, "CURRENT-ONLY", "history-check"),
+        Some(&service(&state, &server)),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(result.message, "Use your last note to choose a heading.");
+}
+
 fn fixture() -> (AppState, Session) {
     let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
     storage

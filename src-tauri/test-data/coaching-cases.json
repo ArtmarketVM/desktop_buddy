@@ -1,0 +1,85 @@
+[
+  {
+    "id": "placeholder-01",
+    "goal": "Draft the project proposal",
+    "unfinished_steps": [
+      "Write one heading",
+      "Review one sentence"
+    ],
+    "session_step": "readiness",
+    "history": [],
+    "latest_message": "I have the draft open but do not know where to start."
+  },
+  {
+    "id": "placeholder-02",
+    "goal": "Draft the project proposal",
+    "unfinished_steps": [
+      "Write one heading",
+      "Review one sentence"
+    ],
+    "session_step": "barrier",
+    "history": [
+      {
+        "role": "assistant",
+        "content": "What is making it hard to start this goal?"
+      }
+    ],
+    "latest_message": "The introduction feels too big to start."
+  },
+  {
+    "id": "placeholder-03",
+    "goal": "Draft the project proposal",
+    "unfinished_steps": [
+      "Write one heading",
+      "Review one sentence"
+    ],
+    "session_step": "tiny_action",
+    "history": [
+      {
+        "role": "user",
+        "content": "I want a smaller start."
+      },
+      {
+        "role": "assistant",
+        "content": "We can consider one small action for the proposal."
+      }
+    ],
+    "latest_message": "Could I just write one heading first?"
+  },
+  {
+    "id": "placeholder-04",
+    "goal": "Draft the project proposal",
+    "unfinished_steps": [
+      "Write one heading",
+      "Review one sentence"
+    ],
+    "session_step": "feasibility",
+    "history": [
+      {
+        "role": "assistant",
+        "content": "The proposed small action is to write one heading."
+      }
+    ],
+    "latest_message": "Writing one heading feels manageable, maybe eight out of ten."
+  },
+  {
+    "id": "placeholder-05",
+    "goal": "Draft the project proposal",
+    "unfinished_steps": [
+      "Write one heading",
+      "Review one sentence"
+    ],
+    "session_step": "execution",
+    "history": [
+      {
+        "role": "user",
+        "content": "I will try writing one heading."
+      },
+      {
+        "role": "assistant",
+        "content": "Take your time with the heading."
+      }
+    ],
+    "latest_message": "I have not written the heading yet; I got distracted."
+  }
+]
