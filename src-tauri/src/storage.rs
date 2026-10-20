@@ -18,6 +18,8 @@ impl Storage {
         store.initialize_continuity()?;
         store.initialize_coaching()?;
         store.initialize_skills()?;
+        store.initialize_goal_matching()?;
+        store.initialize_unplanned_work()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -118,6 +120,10 @@ impl Storage {
             .transpose()
             .map_err(|e| e.to_string())?;
         tx.execute(
+            "DELETE FROM goal_match_negatives WHERE ?1 IS NULL OR created_at<?1 OR expires_at<=unixepoch()",
+            [cutoff_unix],
+        ).map_err(|e| e.to_string())?;
+        tx.execute(
             "DELETE FROM deleted_goal_backups WHERE ?1 IS NULL OR deleted_at<?1",
             [cutoff_unix],
         )
@@ -139,6 +145,8 @@ impl Storage {
         .map_err(|e| e.to_string())?;
         tx.execute("DELETE FROM continuity_checkpoints WHERE (?1 IS NULL OR day<?1) AND NOT EXISTS(SELECT 1 FROM work_contexts w WHERE w.id=continuity_checkpoints.context_id AND w.pinned=1)",[cutoff_day.as_deref()]).map_err(|e|e.to_string())?;
         for table in [
+            "unplanned_work_intervals",
+            "unplanned_work_decisions",
             "core_time",
             "core_events",
             "core_day_items",

@@ -2498,6 +2498,8 @@ details.today-summary > .today-summary-head {
   background: var(--text);
   color: var(--canvas);
   font-size: var(--text-body);
+  max-width: min(700px, calc(100vw - 32px));
+  flex-wrap: wrap;
 }
 .toast button {
   min-height: 0;
@@ -3134,3 +3136,20 @@ p.error .text-button {
 .core-workspace .settings-card .forget-goal-row .small-button.danger-button {
   color: #ffffff;
 }
+
+.noticed-work {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  background: var(--surface);
+}
+.noticed-work-heading, .noticed-work-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.noticed-work-heading { justify-content: space-between; }
+.noticed-work h2 { font-size: var(--text-heading); font-weight: 500; margin: 0; }
+.noticed-work-heading span, .noticed-work p { color: var(--muted); font-size: var(--text-caption); }
+.noticed-work input { width: 100%; margin-block: 0 16px; font-size: var(--text-body); }

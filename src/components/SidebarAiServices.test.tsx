@@ -50,14 +50,16 @@ it("hover details explain the cloud model and preserve configured-model provenan
   await user.hover(
     await screen.findByRole("button", { name: "NVIDIA Nemotron: Not checked" }),
   );
-  const tooltip = screen.getByRole("tooltip");
+  const tooltip = screen.getByRole("dialog", {
+    name: "NVIDIA Nemotron connection",
+  });
   expect(tooltip.textContent).toContain(
     "Runs through Nebius, not on this computer",
   );
   // Model identifiers moved to Settings · AI; the popover keeps the plain explanation.
   expect(tooltip.textContent).not.toContain("Configured model:");
   await user.keyboard("{Escape}");
-  expect(screen.queryByRole("tooltip")).toBeNull();
+  expect(screen.queryByRole("dialog")).toBeNull();
 });
 it("manual refresh checks both providers again after startup", async () => {
   const user = userEvent.setup();
@@ -231,4 +233,26 @@ it("disabling before metadata arrives prevents startup probes", async () => {
   view.rerender(<SidebarAiServices enabled={false} />);
   await act(async () => pending.resolve());
   expect(api.testConnection).not.toHaveBeenCalled();
+});
+
+it("refreshes expired connections directly from a status-dot card", async () => {
+  const user = userEvent.setup();
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({ ...s, status: "expired" })),
+  });
+  render(<SidebarAiServices variant="dots" />);
+  await user.click(
+    await screen.findByRole("button", { name: "Nebius: Check again" }),
+  );
+  const refresh = screen.getByRole("button", {
+    name: "Refresh Nebius connection",
+  });
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    services: fixture.services.map((s) => ({ ...s, status: "verified" })),
+  });
+  await user.click(refresh);
+  await screen.findByRole("button", { name: "Nebius: Connected" });
+  expect(api.testConnection).toHaveBeenCalledTimes(4);
 });

@@ -176,7 +176,7 @@ export function SidebarAiServices({
     triggerRef.current = element;
     setPosition({
       left: Math.min(rect.right + 14, window.innerWidth - 278),
-      top: Math.max(12, Math.min(rect.top, window.innerHeight - 240)),
+      top: Math.max(12, Math.min(rect.top, window.innerHeight - 320)),
     });
     setActive(service);
     setOpen(true);
@@ -210,13 +210,28 @@ export function SidebarAiServices({
         ref={surfaceRef}
         className="service-tooltip"
         id={id}
-        role="tooltip"
+        role="dialog"
+        aria-label={`${name(active)} connection`}
         style={position}
         onMouseEnter={keepOpen}
         onMouseLeave={leave}
       >
         <strong>{name(active)}</strong>
         <p>{item.description}</p>
+        <button
+          type="button"
+          className="text-button service-check"
+          aria-label={`Refresh ${name(active)} connection`}
+          disabled={!desktop || !enabled || busy || offline}
+          onClick={() => void check()}
+        >
+          <RefreshCw
+            size={14}
+            className={busy ? "spin" : undefined}
+            aria-hidden="true"
+          />
+          {busy ? "Checking…" : "Check connection"}
+        </button>
         <div className="service-state">
           <span
             className={`service-dot service-${state(active)}`}
@@ -234,7 +249,9 @@ export function SidebarAiServices({
           </small>
         )}
         {readError && (
-          <small>Local status is unavailable. Try again in Settings.</small>
+          <small>
+            Local status is unavailable. Check the connection again.
+          </small>
         )}
       </div>,
       document.body,
@@ -254,6 +271,8 @@ export function SidebarAiServices({
             className="ai-dot"
             aria-label={`${name(service.id)}: ${serviceStateLabel(service.id, state(service.id))}`}
             aria-describedby={open && active === service.id ? id : undefined}
+            aria-haspopup="dialog"
+            aria-expanded={open && active === service.id}
             onMouseEnter={(event) => show(service.id, event.currentTarget)}
             onMouseLeave={leave}
             onFocus={(event) => show(service.id, event.currentTarget)}
@@ -298,6 +317,8 @@ export function SidebarAiServices({
           className="sidebar-service text-button"
           aria-label={`${name(service.id)}: ${serviceStateLabel(service.id, state(service.id))}`}
           aria-describedby={open && active === service.id ? id : undefined}
+          aria-haspopup="dialog"
+          aria-expanded={open && active === service.id}
           onMouseEnter={(event) => show(service.id, event.currentTarget)}
           onMouseLeave={leave}
           onFocus={(event) => show(service.id, event.currentTarget)}

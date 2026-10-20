@@ -52,7 +52,7 @@ export function AiSettings({
         <label className="toggle-row">
           <span className="lbl">
             Match my activity to goals
-            <Hint text="Sends the window in front and your open goals to Nebius, so tracked time lands on the right goal." />
+            <Hint text="Sends your open goals, foreground app, window/page titles and browser domain to Nebius. With on-screen task detection enabled, also sends up to 400 characters of redacted visible text." />
           </span>
           <input
             type="checkbox"
@@ -128,10 +128,12 @@ export function AiSettings({
           Let Nebius identify the active goal
           <small>
             With tracking and AI assistance on, send up to 20 open goal titles
-            and their next steps, plus the foreground app and up to 160
-            characters of its window title, to Nebius Token Factory. A matching
-            attempt starts at most once per minute; transient errors may be
-            retried. Uncertain activity stays unassigned.
+            and their next steps, plus the foreground app, available browser
+            domain and window/page titles (up to 160 characters each), to Nebius
+            Token Factory. With on-screen task detection enabled, also send up
+            to 400 characters of redacted visible text. A matching attempt
+            starts at most once per minute; transient errors may be retried.
+            Uncertain activity stays unassigned.
           </small>
         </span>
         <input

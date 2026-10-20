@@ -1,3 +1,4 @@
+mod accuracy_check;
 mod agent_dialogue;
 mod agent_runtime;
 mod ai_chat;
@@ -51,6 +52,7 @@ mod storage;
 mod tavily;
 mod tracking;
 mod tray;
+mod unplanned_work;
 mod updates;
 mod window_history;
 mod work_context;
@@ -66,6 +68,27 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if let Some(flag) = std::env::args().find(|arg| {
+        matches!(
+            arg.as_str(),
+            "--check-goal-matching" | "--check-coaching-voice"
+        )
+    }) {
+        let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+            if flag == "--check-goal-matching" {
+                goal_matching::check::run().await
+            } else {
+                coaching::chat::voice_check::run().await
+            }
+        });
+        match result {
+            Ok(complete) => std::process::exit(if complete { 0 } else { 1 }),
+            Err(error) => {
+                eprintln!("Accuracy check failed: {error}. No installed data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
     if std::env::args().any(|arg| arg == "--check-hero") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()
@@ -101,6 +124,24 @@ pub fn run() {
             Err(error) => {
                 eprintln!(
                     "Mixed-action check failed ({}). No user data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+    if std::env::args().any(|arg| arg == "--check-unplanned-work") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(unplanned_work::check::run());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Unplanned-work check failed ({}). No user data was changed.",
                     engine_observability::error_category(&error)
                 );
                 std::process::exit(1);
@@ -321,6 +362,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_accessibility_permission,
             tracking::set_goal_monitoring,
+            unplanned_work::get_unplanned_work_suggestion,
+            unplanned_work::respond_unplanned_work_suggestion,
             commands::request_accessibility_permission,
             commands::reset_accessibility_permission,
             companion::get_companion_view,
@@ -336,6 +379,8 @@ pub fn run() {
             goal_analysis::complete_goal_step,
             automatic_goals::retry_core_goal_analysis,
             automatic_goals::select_core_goal,
+            goal_matching::suggestions::get_goal_match_suggestion,
+            goal_matching::suggestions::respond_goal_match_suggestion,
             relevance::get_goal_progress,
             ai_chat::get_buddy_chat_history,
             ai_chat::get_buddy_conversations,

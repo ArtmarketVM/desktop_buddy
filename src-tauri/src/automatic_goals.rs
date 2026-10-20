@@ -125,6 +125,10 @@ pub fn select_core_goal(id: i64, app: AppHandle, state: State<AppState>) -> Resu
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
+    focus_goal_inner(&mut inner, id)?;
+    crate::buddy::sync(&app, &mut inner)
+}
+pub(crate) fn focus_goal_inner(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String> {
     let snapshot = inner.storage.core_snapshot(None)?;
     if !snapshot.today.contains(&id)
         || !snapshot
@@ -144,7 +148,7 @@ pub fn select_core_goal(id: i64, app: AppHandle, state: State<AppState>) -> Resu
     inner.buddy.clear();
     inner.privacy_revision += 1;
     inner.companion.invalidate();
-    crate::buddy::sync(&app, &mut inner)
+    Ok(())
 }
 pub fn input(goal: &CoreGoal) -> AnalysisInput {
     AnalysisInput {

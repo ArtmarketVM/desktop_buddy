@@ -1,0 +1,282 @@
+[
+  {
+    "id": "placeholder-01",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Visual Studio Code",
+      "window_title": "Project proposal \u2014 introduction",
+      "domain": null,
+      "visible_text": "Writing the proposal introduction."
+    },
+    "expected_goal_id": 1
+  },
+  {
+    "id": "placeholder-02",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Mail",
+      "window_title": "Customer reply \u2014 draft",
+      "domain": null,
+      "visible_text": "Drafting the customer reply."
+    },
+    "expected_goal_id": 2
+  },
+  {
+    "id": "placeholder-03",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Safari",
+      "window_title": "New Tab",
+      "domain": null,
+      "visible_text": ""
+    },
+    "expected_goal_id": null
+  },
+  {
+    "id": "placeholder-04",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Spotify",
+      "window_title": "Music library",
+      "domain": null,
+      "visible_text": "Listening to music."
+    },
+    "expected_goal_id": null
+  },
+  {
+    "id": "placeholder-05",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Notes",
+      "window_title": "Project proposal budget",
+      "domain": null,
+      "visible_text": "Reviewing the proposal budget."
+    },
+    "expected_goal_id": 1
+  },
+  {
+    "id": "placeholder-06",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Safari",
+      "window_title": "Weather forecast",
+      "domain": "weather.example",
+      "visible_text": "Tomorrow weather forecast."
+    },
+    "expected_goal_id": null
+  },
+  {
+    "id": "placeholder-07",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Mail",
+      "window_title": "Customer question",
+      "domain": "mail.example",
+      "visible_text": "Reading the customer question."
+    },
+    "expected_goal_id": 2
+  },
+  {
+    "id": "placeholder-08",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "TextEdit",
+      "window_title": "Untitled",
+      "domain": null,
+      "visible_text": ""
+    },
+    "expected_goal_id": null
+  },
+  {
+    "id": "placeholder-09",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Safari",
+      "window_title": "Draft proposal and customer reply",
+      "domain": "docs.example",
+      "visible_text": "Two unrelated tasks are visible."
+    },
+    "expected_goal_id": null
+  },
+  {
+    "id": "placeholder-10",
+    "open_goals": [
+      {
+        "id": 1,
+        "title": "Draft the project proposal",
+        "steps": [
+          "Write the introduction",
+          "Review the budget"
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Prepare the customer reply",
+        "steps": [
+          "Read the customer question",
+          "Draft a short reply"
+        ]
+      }
+    ],
+    "activity": {
+      "app": "Calendar",
+      "window_title": "Personal appointment",
+      "domain": null,
+      "visible_text": "An appointment unrelated to either goal."
+    },
+    "expected_goal_id": null
+  }
+]

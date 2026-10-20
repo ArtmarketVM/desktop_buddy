@@ -41,7 +41,7 @@
 
   <div class="sum">
     <div><span class="pix">Stored</span>On your Mac. sumi has no accounts, no analytics and no server of its own.</div>
-    <div><span class="pix">Watched</span>Which app and window is in front, and for how long. Never the screen itself.</div>
+    <div><span class="pix">Watched</span>Which app and window is in front, and for how long. No screenshots or keystroke recording.</div>
     <div><span class="pix">Sent</span>Your goal and a short list of window titles, to the AI provider whose key you entered, only for features you turn on.</div>
     <div><span class="pix">Deleted</span>Whenever you like, in Settings · Privacy. Keep history for 7, 30 or 90 days, or until you delete it.</div>
   </div>
@@ -63,7 +63,7 @@
   <h2 id="records">What sumi records</h2>
   <p>Nothing until you turn tracking on. When you do, macOS asks you to grant Accessibility access, and from then on, inside your working days and hours, sumi notes the app in front, its window title and how long you were active or idle. That is how it knows what counted toward a goal.</p>
   <p>This history, your goals, steps, chats and settings are saved in a local database in the app's data folder on your Mac. The database is not encrypted; it is protected by your Mac's own login and disk encryption.</p>
-  <p>sumi never takes screenshots and never records what you type. When a feature looks at visible text, password and editing fields are skipped.</p>
+  <p>sumi never takes screenshots and never records what you type. When a feature looks at visible text, password and editing fields and password-manager apps are skipped, and lines containing API keys or other recognized secrets are omitted.</p>
 
   <h2 id="leaves">What leaves your computer</h2>
   <p>sumi only talks to services when you use a feature that needs them, and only to the provider whose key you entered yourself. Each feature sends the minimum it needs:</p>
@@ -71,7 +71,8 @@
     <thead><tr><th>Feature</th><th>Goes to</th><th>What is sent</th></tr></thead>
     <tbody>
       <tr><td>Progress check-in</td><td>Nebius</td><td>Your goal, its completion criterion and current step, and up to 10 recent windows: app, title, active and idle seconds</td></tr>
-      <tr><td>Goal matching</td><td>Nebius</td><td>Your open goals and the app and window title in front (titles are cut at 160 characters)</td></tr>
+      <tr><td>Unlisted work suggestions</td><td>Nebius</td><td>Only with on-screen task detection and goal sharing enabled: existing goal titles and unfinished steps, foreground app, minimized window/browser titles and domain, and up to 400 characters of the same redacted Accessibility sample. No screenshots or typing are captured; password/edit controls, password-manager apps and recognized secret lines are skipped. Screen text is transient. Local app/context intervals measure active time even without a selected goal and follow your history retention and deletion controls. Today asks before adding a completed goal, lets you rename it, and attaches only observed time up to your confirmation. Existing time is moved rather than counted twice. Dismiss suppresses that context for the day; Not now waits ten minutes.</td></tr>
+      <tr><td>Goal matching</td><td>Nebius</td><td>Your open goals, foreground app, window title, and available browser domain and page title (titles are cut at 160 characters). When you enable the same on-screen task detection used for suggested completions, matching may also send up to 400 characters of redacted visible text; otherwise no visible text is sent. This uses the same protected Accessibility sample as completion detection, reused from a local memory cache for up to 60 seconds and the sample itself is never saved in history.</td></tr>
       <tr><td>Suggested completions</td><td>Nebius</td><td>Your goal and steps with up to 3,000 characters of the text visible in the window, when you have enabled this check. You confirm every completion.</td></tr>
       <tr><td>Suggested resources</td><td>Nebius, then Tavily</td><td>Your goal and up to 5 window titles so Nebius can write a search; Tavily receives only that search; Nebius then sees up to 5 result titles and snippets to pick one</td></tr>
       <tr><td>Coach chat</td><td>Nebius</td><td>Your message, the goal, and a small selection of relevant memories when Memory is on</td></tr>

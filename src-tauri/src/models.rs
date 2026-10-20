@@ -132,6 +132,7 @@ pub struct Suggestion {
 }
 #[derive(Clone, Serialize)]
 pub struct BuddyView {
+    pub mascot_offset: [f64; 2],
     pub companion: crate::companion::View,
     pub avatar: crate::profile::AvatarPreferences,
     pub activity_state: crate::tracking::ActivityState,

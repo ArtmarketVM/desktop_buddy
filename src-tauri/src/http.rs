@@ -3,6 +3,7 @@ use std::time::Duration;
 
 pub const DEFAULT_PRIMARY_MODEL: &str = "nvidia/nemotron-3-super-120b-a12b";
 pub const DEFAULT_RESPONSE_MODEL: &str = "moonshotai/Kimi-K3";
+pub(crate) type Preflight<'a> = &'a (dyn Fn() -> Result<(), String> + Send + Sync);
 fn resolve_response_model(
     primary: &str,
     primary_override: Option<&str>,
@@ -47,7 +48,16 @@ pub async fn post_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
-    post_json_with_timeout(client, url, key, payload, Duration::from_secs(20), true).await
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(20),
+        true,
+        true,
+    )
+    .await
 }
 
 /// Interactive reasoning can outlast the short background/search timeout. Do not
@@ -58,7 +68,103 @@ pub(crate) async fn post_reasoning_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
-    post_json_with_timeout(client, url, key, payload, Duration::from_secs(60), false).await
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(60),
+        false,
+        true,
+    )
+    .await
+}
+
+/// Background screen classification is a single, bounded disclosure. A privacy
+/// change must not be followed by an automatic retry of an earlier screen packet.
+pub(crate) async fn post_background_once_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+) -> Result<Value, String> {
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(30),
+        false,
+        false,
+    )
+    .await
+}
+
+/// Evaluation uses its explicitly supplied judge model and one request only.
+/// Never restart a timed-out generation or silently change the judge model.
+pub(crate) async fn post_evaluation_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+) -> Result<Value, String> {
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(60),
+        false,
+        false,
+    )
+    .await
+}
+
+/// An interactive response proposes data only; it cannot execute a skill. If the
+/// default reasoning model stalls, try the configured default primary model once
+/// with the exact same messages and schema. Never replay an executed action.
+pub(crate) async fn post_default_interactive_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+    budget: Duration,
+    preflight: Option<Preflight<'_>>,
+) -> Result<Value, String> {
+    if let Some(check) = preflight {
+        check()?;
+    }
+    let first = tokio::time::timeout(
+        budget,
+        post_json_with_timeout(client, url, key, payload, budget, false, false),
+    )
+    .await;
+    match first {
+        Ok(Ok(value)) => return Ok(value),
+        Ok(Err(error))
+            if !error.contains("timed out")
+                && !error.contains("could not be reached")
+                && !error.contains("HTTP 5") =>
+        {
+            return Err(error)
+        }
+        _ => {}
+    }
+    if let Some(check) = preflight {
+        check()?;
+    }
+    let mut fallback = payload.clone();
+    fallback["model"] = serde_json::json!(DEFAULT_PRIMARY_MODEL);
+    fallback["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
+    fallback.as_object_mut().unwrap().remove("reasoning_effort");
+    tokio::time::timeout(
+        budget,
+        post_json_with_timeout(client, url, key, &fallback, budget, false, false),
+    )
+    .await
+    .map_err(|_| {
+        "The AI response models timed out. Your saved API key has not been removed.".to_string()
+    })?
 }
 
 async fn post_json_with_timeout(
@@ -68,10 +174,12 @@ async fn post_json_with_timeout(
     payload: &Value,
     timeout: Duration,
     retry_timeouts: bool,
+    retry_transient: bool,
 ) -> Result<Value, String> {
     let payload = constrained_payload(payload);
     let mut last = "Service unavailable".to_string();
-    for attempt in 0..3 {
+    let attempts = if retry_transient { 3 } else { 1 };
+    for attempt in 0..attempts {
         match client
             .post(url)
             .bearer_auth(key)
@@ -93,7 +201,7 @@ async fn post_json_with_timeout(
             Ok(response) => {
                 let status = response.status();
                 last = status_error(status.as_u16());
-                if status.as_u16() != 429 && !status.is_server_error() {
+                if !retry_transient || (status.as_u16() != 429 && !status.is_server_error()) {
                     return Err(last);
                 }
             }
@@ -105,7 +213,7 @@ async fn post_json_with_timeout(
             }
             Err(_) => last = "Service could not be reached or timed out".into(),
         }
-        if attempt < 2 {
+        if attempt + 1 < attempts {
             tokio::time::sleep(Duration::from_millis(500 * (1 << attempt))).await;
         }
     }
@@ -315,6 +423,7 @@ mod tests {
             &serde_json::json!({"model":"test-model"}),
             Duration::from_millis(100),
             false,
+            true,
         )
         .await
         .unwrap_err();
@@ -359,5 +468,151 @@ mod tests {
             .unwrap_err(),
             status_error(401)
         );
+    }
+    #[tokio::test]
+    async fn stalled_default_planning_uses_one_fast_model_with_identical_schema_and_messages() {
+        use wiremock::matchers::body_partial_json;
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(5))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let payload = serde_json::json!({"model":DEFAULT_RESPONSE_MODEL,"max_tokens":8192,"messages":[{"role":"system","content":"Existing instructions"},{"role":"user","content":"Synthetic request"}],"response_format":{"type":"json_schema","json_schema":{"strict":true,"schema":{"type":"object"}}}});
+        let expected = payload.clone();
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_PRIMARY_MODEL}),
+            ))
+            .respond_with(move |request: &wiremock::Request| {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(body["messages"], expected["messages"]);
+                assert_eq!(body["response_format"], expected["response_format"]);
+                assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"model":DEFAULT_PRIMARY_MODEL,"ok":true}))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        let result = post_default_interactive_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &payload,
+            Duration::from_millis(300),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result["model"], DEFAULT_PRIMARY_MODEL);
+    }
+    #[tokio::test]
+    async fn planning_does_not_fail_over_rejected_keys_quota_or_invalid_responses() {
+        for status in [400, 401, 402, 403, 404, 429] {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .respond_with(ResponseTemplate::new(status))
+                .expect(1)
+                .mount(&server)
+                .await;
+            let payload = serde_json::json!({"model":DEFAULT_RESPONSE_MODEL});
+            let error = post_default_interactive_json(
+                &reqwest::Client::new(),
+                &server.uri(),
+                "fixture",
+                &payload,
+                Duration::from_millis(300),
+                None,
+            )
+            .await
+            .unwrap_err();
+            assert!(error.contains(&format!("HTTP {status}")));
+        }
+    }
+    #[tokio::test]
+    async fn planning_fallback_stops_after_two_models_and_rejects_invalid_json_without_retry() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(5))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(2)
+            .mount(&server)
+            .await;
+        assert!(post_default_interactive_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            Duration::from_millis(300),
+            None,
+        )
+        .await
+        .unwrap_err()
+        .contains("timed out"));
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("broken-json"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert_eq!(
+            post_default_interactive_json(
+                &reqwest::Client::new(),
+                &server.uri(),
+                "fixture",
+                &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+                Duration::from_millis(300),
+                None,
+            )
+            .await
+            .unwrap_err(),
+            "Service returned invalid JSON"
+        );
+    }
+    #[tokio::test]
+    async fn interactive_fallback_rechecks_consent_before_another_disclosure() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(2))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let checks = AtomicUsize::new(0);
+        let check = || {
+            if checks.fetch_add(1, Ordering::SeqCst) == 0 {
+                Ok(())
+            } else {
+                Err("Coaching context or privacy changed".to_string())
+            }
+        };
+        let error = post_default_interactive_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            Duration::from_millis(300),
+            Some(&check),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error, "Coaching context or privacy changed");
+        assert_eq!(checks.load(Ordering::SeqCst), 2);
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
 }

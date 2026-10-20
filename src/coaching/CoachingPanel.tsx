@@ -10,11 +10,13 @@ import "./coaching.css";
 export function CoachingPanel({
   conversationId,
   requested = false,
+  allowStart = true,
   onChange,
   onRememberChange,
 }: {
   conversationId?: number;
   requested?: boolean;
+  allowStart?: boolean;
   onChange?: (view: CoachingView | null) => void;
   onRememberChange?: (remember: boolean) => void;
 }) {
@@ -133,9 +135,10 @@ export function CoachingPanel({
   const session = view?.session;
   const bound = !!view?.chat_bound;
   const open = session?.status === "active" || session?.status === "paused";
+  if (!allowStart && !bound) return null;
   return (
     <section className="coaching-panel" aria-label="Goal coaching">
-      {!bound && loaded && (
+      {allowStart && !bound && loaded && (
         <button
           className="text-button"
           onClick={() => setChoosing(!choosing)}
@@ -144,7 +147,7 @@ export function CoachingPanel({
           Help me start
         </button>
       )}
-      {choosing && !bound && (
+      {allowStart && choosing && !bound && (
         <label>
           Which goal would you like help starting?
           <select

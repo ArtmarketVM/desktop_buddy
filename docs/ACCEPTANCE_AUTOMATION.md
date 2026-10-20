@@ -55,3 +55,10 @@ The existing Windows and Apple Silicon macOS build workflows run `npm run test:a
 Run `npm run test:acceptance:runner` when changing parsing or reporting. Its regressions check missing/duplicate IDs, skipped tests, incomplete evidence, failure exit codes, and separation of partial coverage from complete acceptance. Keep live and hardware checks marked separately until real evidence exists. No installer version bump is needed for this test infrastructure change.
 
 Four additional backend regressions cover the exact default memory limits with long UTF-8 entries, a seventh independent Park/Resume goal, ordinal references that include completed steps, and positive feedback reducing cooldown without crossing goal boundaries.
+
+## Labelled-corpus accuracy checks
+
+See [Live accuracy checks](ACCURACY_CHECKS.md) for `--check-goal-matching` and
+`--check-coaching-voice`. These are separate, opt-in Nebius evaluations; the
+acceptance runner never starts paid provider calls. Their `AI_MOCK=true` mode
+checks canned-result parsing/reporting only and does not establish live accuracy.

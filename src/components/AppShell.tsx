@@ -11,6 +11,7 @@ import {
   UserRound,
   LogOut,
   MessageSquare,
+  Mail,
 } from "./PixelIcons";
 import type { UserProfile } from "../types";
 import type { UpdateSnapshot } from "../updates/controller";
@@ -69,7 +70,7 @@ export const pages = [
   {
     id: "feedback",
     label: "Feedback",
-    icon: MessageSquare,
+    icon: Mail,
     description: "Tell us what would make sumi more useful.",
   },
 ] as const;
@@ -235,7 +236,7 @@ export function AppShell({
                 page === "feedback" && !onboarding ? "page" : undefined
               }
             >
-              <MessageSquare size={17} />
+              <Mail size={17} />
               <span className="nav-label">Feedback</span>
             </button>
             <button

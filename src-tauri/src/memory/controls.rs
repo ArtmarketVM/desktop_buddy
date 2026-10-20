@@ -74,7 +74,7 @@ impl Storage {
     pub fn clear_personal_memory(&self) -> Result<(), String> {
         atomic(&self.connection, || {
             self.forget_coaching(None, None)?;
-            self.connection.execute_batch("DELETE FROM contextual_research; DELETE FROM memory_evidence; DELETE FROM memories; DELETE FROM work_contexts; DELETE FROM memory_proposals; DELETE FROM memory_retrieval_debug;").map_err(db_error)
+            self.connection.execute_batch("DELETE FROM goal_match_negatives; DELETE FROM contextual_research; DELETE FROM memory_evidence; DELETE FROM memories; DELETE FROM work_contexts; DELETE FROM memory_proposals; DELETE FROM memory_retrieval_debug;").map_err(db_error)
         })
     }
     pub fn memory_overview(&self, offset: u32) -> Result<MemoryOverview, String> {

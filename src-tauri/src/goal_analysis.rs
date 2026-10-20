@@ -344,6 +344,24 @@ pub(crate) fn response_operation(name: &str) -> bool {
             | "buddy_target_clarification"
     )
 }
+fn default_interactive_fallback(
+    name: &str,
+    primary: &str,
+    model: &str,
+    explicit: Option<&str>,
+) -> bool {
+    matches!(
+        name,
+        "buddy_skill_plan"
+            | "buddy_dialogue_authorization"
+            | "buddy_dialogue_review"
+            | "buddy_coaching_interpretation"
+            | "buddy_coaching_response"
+    ) && primary == http::DEFAULT_PRIMARY_MODEL
+        && model == http::DEFAULT_RESPONSE_MODEL
+        && explicit.is_none_or(|m| m.trim().is_empty())
+}
+
 impl<'a> Service<'a> {
     pub fn configured(client: &'a reqwest::Client) -> Result<Self, String> {
         Ok(Self {
@@ -360,13 +378,24 @@ impl<'a> Service<'a> {
         name: &str,
         schema: Value,
     ) -> Result<Value, String> {
-        self.request_formatted(system, context, name, Some(schema))
+        self.request_formatted(system, context, name, Some(schema), None)
+            .await
+    }
+    pub(crate) async fn request_guarded(
+        &self,
+        system: &str,
+        context: Value,
+        name: &str,
+        schema: Value,
+        preflight: http::Preflight<'_>,
+    ) -> Result<Value, String> {
+        self.request_formatted(system, context, name, Some(schema), Some(preflight))
             .await
     }
     /// Free-form writing is not an action protocol. Keep strict JSON for planning,
     /// receipts and reviews, but allow the response model to finish natural prose.
     pub async fn request_prose(&self, system: &str, context: Value) -> Result<Value, String> {
-        self.request_formatted(system, context, "buddy_dialogue_response", None)
+        self.request_formatted(system, context, "buddy_dialogue_response", None, None)
             .await
     }
     async fn request_formatted(
@@ -375,6 +404,7 @@ impl<'a> Service<'a> {
         context: Value,
         name: &str,
         schema: Option<Value>,
+        preflight: Option<http::Preflight<'_>>,
     ) -> Result<Value, String> {
         if matches!(
             name,
@@ -429,23 +459,56 @@ impl<'a> Service<'a> {
                 .ok_or("Missing current dialogue request")?;
             messages.push(json!({"role":"user","content":latest}));
         }
-        let deliberate = deliberate_operation(name);
+        let deliberate = deliberate_operation(name) || name == "buddy_unplanned_work";
         let model = if response_operation(name) {
             http::response_model(&self.model)
         } else {
             self.model.clone()
         };
         let mut payload = json!({"model":model,"temperature":if deliberate && model.to_ascii_lowercase().contains("nemotron") {1.0}else{0.2},"max_tokens":if deliberate {8192}else{6144},"messages":messages});
+        if name == "buddy_unplanned_work" {
+            payload["max_tokens"] = json!(4096);
+        }
+        if name == "buddy_coaching_voice_judge" {
+            payload["temperature"] = json!(1.0);
+            payload["max_tokens"] = json!(4096);
+        }
         if let Some(schema) = schema {
             payload["response_format"] = json!({"type":"json_schema","json_schema":{"name":name,"strict":true,"schema":schema}});
         }
         if model.to_ascii_lowercase().contains("nemotron") {
-            payload["chat_template_kwargs"] = json!({"enable_thinking":deliberate});
+            payload["chat_template_kwargs"] =
+                json!({"enable_thinking":deliberate || name == "buddy_coaching_voice_judge"});
             if deliberate {
                 payload["top_p"] = json!(0.95);
             }
         }
-        let result = if deliberate || response_operation(name) {
+        let default_interactive = default_interactive_fallback(
+            name,
+            &self.model,
+            &model,
+            std::env::var("NEBIUS_REASONING_MODEL_ID").ok().as_deref(),
+        );
+        if let Some(check) = preflight {
+            check()?;
+        }
+        let result = if name == "buddy_unplanned_work" {
+            http::post_background_once_json(self.client, &self.endpoint, &self.key, &payload).await
+        } else if name == "buddy_coaching_voice_judge" {
+            http::post_evaluation_json(self.client, &self.endpoint, &self.key, &payload).await
+        } else if default_interactive {
+            // Two ten-second generation attempts fit inside the review's 25-second
+            // bound. Both are proposals and still pass the same independent checks.
+            http::post_default_interactive_json(
+                self.client,
+                &self.endpoint,
+                &self.key,
+                &payload,
+                std::time::Duration::from_secs(10),
+                preflight,
+            )
+            .await
+        } else if deliberate || response_operation(name) {
             http::post_reasoning_json(self.client, &self.endpoint, &self.key, &payload).await
         } else {
             http::post_json(self.client, &self.endpoint, &self.key, &payload).await

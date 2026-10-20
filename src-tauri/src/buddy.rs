@@ -22,6 +22,7 @@ impl Runtime {
     pub fn new(preferences: BuddyPreferences) -> Self {
         Self {
             view: BuddyView {
+                mascot_offset: [0.0; 2],
                 companion: Default::default(),
                 avatar: Default::default(),
                 activity_state: Default::default(),
@@ -120,10 +121,15 @@ pub fn remember_position(
     }
     if let Some(window) = app.get_webview_window("buddy") {
         if let (Ok(p), Ok(s)) = (window.outer_position(), window.outer_size()) {
-            let position = BuddyPosition {
-                x: p.x + s.width as i32 / 2,
-                y: p.y + s.height as i32,
-            };
+            let scale = window
+                .scale_factor()
+                .map_err(|_| "Could not read sumi scale")?;
+            let position = window_anchor(
+                p,
+                (s.width, s.height),
+                inner.buddy.view.mascot_offset,
+                scale,
+            );
             if inner.buddy.position.as_ref() != Some(&position) {
                 inner.storage.write_setting("buddy_position", &position)?;
                 inner.buddy.position = Some(position);
@@ -131,6 +137,29 @@ pub fn remember_position(
         }
     }
     Ok(())
+}
+
+fn window_anchor(
+    position: PhysicalPosition<i32>,
+    size: (u32, u32),
+    offset: [f64; 2],
+    scale: f64,
+) -> BuddyPosition {
+    BuddyPosition {
+        x: (position.x as f64 + size.0 as f64 / 2.0 + offset[0] * scale).round() as i32,
+        y: position.y + size.1 as i32 - (offset[1] * scale).round() as i32,
+    }
+}
+fn mascot_offset(
+    anchor: &BuddyPosition,
+    position: PhysicalPosition<i32>,
+    size: (u32, u32),
+    scale: f64,
+) -> [f64; 2] {
+    [
+        (anchor.x as f64 - position.x as f64 - size.0 as f64 / 2.0) / scale,
+        (position.y + size.1 as i32 - anchor.y) as f64 / scale,
+    ]
 }
 
 pub fn clamp_position(
@@ -335,6 +364,15 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
                     max_x.saturating_sub(20).max(min_x),
                     max_y.saturating_sub(20).max(min_y),
                 ));
+            let scale = window
+                .scale_factor()
+                .map_err(|_| "Could not read sumi scale")?;
+            inner.buddy.view.mascot_offset = inner
+                .buddy
+                .position
+                .as_ref()
+                .map(|anchor| mascot_offset(anchor, position, (size.width, size.height), scale))
+                .unwrap_or([0.0; 2]);
             window
                 .set_position(position)
                 .map_err(|_| "Could not position sumi")?;

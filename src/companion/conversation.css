@@ -154,11 +154,6 @@
 .desktop-buddy.chatting {
   position: relative;
 }
-.desktop-buddy.chatting > .desktop-character {
-  position: absolute;
-  bottom: 10px;
-  right: 10px;
-}
 .card-position-controls {
   display: flex;
   gap: 10px;

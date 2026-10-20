@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
@@ -114,6 +114,12 @@ export function DesktopBuddy({
   return (
     <main
       ref={root}
+      style={
+        {
+          "--mascot-offset-x": `${view.mascot_offset?.[0] ?? 0}px`,
+          "--mascot-offset-y": `${view.mascot_offset?.[1] ?? 0}px`,
+        } as CSSProperties
+      }
       className={`desktop-buddy ${appearance.visible ? "" : "character-hidden"} ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
     >
       {companion.chat_open ? (
@@ -125,6 +131,18 @@ export function DesktopBuddy({
             onChanged={onChanged}
             onState={setChatState}
             compact
+            onMove={(event) => {
+              if (
+                event.button !== 0 ||
+                !desktop ||
+                (event.target as Element).closest(
+                  "button, input, textarea, a, select",
+                )
+              )
+                return;
+              event.preventDefault();
+              void action(() => getCurrentWindow().startDragging());
+            }}
             mode={mode}
             onMode={setMode}
             onClose={() => void action(api.closeChat)}

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 
 export interface ToastRequest {
   message: string;
+  key?: string;
+  durationMs?: number;
+  actions?: Array<{ label: string; run: () => Promise<unknown> }>;
   undoLabel?: string;
   undo?: () => Promise<unknown>;
 }
@@ -15,10 +18,13 @@ export function Toasts() {
     const onToast = (event: Event) => {
       const detail = (event as CustomEvent<ToastRequest>).detail;
       const id = Date.now() + Math.random();
-      setItems((previous) => [...previous.slice(-2), { ...detail, id }]);
+      setItems((previous) => [
+        ...previous.filter((item) => !detail.key || item.key !== detail.key).slice(-2),
+        { ...detail, id },
+      ]);
       window.setTimeout(
         () => setItems((previous) => previous.filter((item) => item.id !== id)),
-        8000,
+        detail.durationMs ?? 8000,
       );
     };
     window.addEventListener("buddy:toast", onToast);
@@ -53,6 +59,20 @@ export function Toasts() {
       {items.map((item) => (
         <div className="toast" key={item.id}>
           <span>{item.message}</span>
+          {item.actions?.map((action) => (
+            <button
+              type="button"
+              key={action.label}
+              onClick={() => {
+                setItems((previous) => previous.filter((t) => t.id !== item.id));
+                void action.run().catch(() =>
+                  toast({ message: "Couldn't confirm that choice. Check your current focus before trying again." }),
+                );
+              }}
+            >
+              {action.label}
+            </button>
+          ))}
           {item.undo && (
             <button
               type="button"

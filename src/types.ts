@@ -123,6 +123,7 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   excluded_apps: [],
 };
 export interface BuddyView {
+  mascot_offset?: [number, number];
   companion?: CompanionView;
   avatar?: AvatarPreferences;
   activity_state?: "focused" | "paused" | "drifting";

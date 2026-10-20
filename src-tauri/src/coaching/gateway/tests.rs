@@ -125,6 +125,10 @@ async fn real_http_proposal_completes_only_the_confirmed_micro_action() {
         "buddy_coaching_proposal"
     );
     assert!(payload.to_string().contains("Draft project proposal"));
+    let system = payload["messages"][0]["content"].as_str().unwrap();
+    assert!(system.contains("Sound like a calm colleague, not a coach."));
+    assert!(system.contains("Write the title in the language of the goal text"));
+    assert!(!system.contains(super::super::voice::VOICE_EXAMPLES));
     assert!(!payload.to_string().contains("synthetic-test-key"));
 }
 

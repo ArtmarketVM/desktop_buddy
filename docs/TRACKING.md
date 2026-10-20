@@ -10,11 +10,19 @@ Neither brief was fully implemented in the original 0.7.1 checkout. Prompt 1 had
 
 The adapter uses `GetForegroundWindow`, `GetWindowTextW`, `GetWindowThreadProcessId`, `QueryFullProcessImageNameW`, `GetLastInputInfo`, and Windows UI Automation (`CUIAutomation8`, `ElementFromHandle`, control-view traversal, `IUIAutomationValuePattern`). A bounded COM worker reads only a known address-bar control. It skips document subtrees, password controls, focused address bars (which may contain unfinished typed text) and offscreen controls. It never focuses or changes a window or requests keystroke contents. Control traversal, queue depth and caller waiting are bounded; late replies are discarded. Foreground/window-title changes during sampling invalidate the sample.
 
-Only a normalized public HTTP(S) hostname survives the address-bar adapter. URL paths, query strings, fragments, embedded credentials, internal browser pages, local addresses and address-bar search text are not retained. Recognizable address tokens in browser titles are also reduced to hostnames or omitted. Titles are limited to 160 characters and may still contain sensitive user-defined text. Page body, forms, clipboard and screenshots are neither read nor stored. Existing exclusions prevent address-bar probing for excluded apps. Turning off **Browser domain metadata** prevents address-bar reads on subsequent samples; existing retained metadata follows the normal retention/deletion controls. New domains are not added to provider requests by this change.
+Only a normalized public HTTP(S) hostname survives the address-bar adapter. URL paths, query strings, fragments, embedded credentials, internal browser pages, local addresses and address-bar search text are not retained. Recognizable address tokens in browser titles are also reduced to hostnames or omitted. Titles are limited to 160 characters and may still contain sensitive user-defined text. The address-bar metadata adapter does not read page bodies, forms, clipboard or screenshots. Existing exclusions prevent address-bar probing for excluded apps. Turning off **Browser domain metadata** prevents address-bar reads on subsequent samples; existing retained metadata follows the normal retention/deletion controls. Automatic goal matching may send the collected domain and bounded page title to Nebius as described below.
 
 Address-bar accessibility depends on browser/version/language and Windows permissions. Chrome/Edge support recognized English, Russian and Hebrew address-bar names; Firefox's ID is preferred. Unknown/localized controls safely fall back to titles. Fullscreen, protected windows and edited address bars may provide no domain. Distinct pages sharing a domain and title cannot be distinguished; there is no stable browser tab ID, browser extension or DOM inspection. Swapping tabs or URLs between samples can be missed.
 
 References: [Microsoft UI Automation element lookup](https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-obtainingelements), [ElementFromHandle](https://learn.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomation-elementfromhandle).
+
+## Cloud goal matching and opted-in visible text
+
+With automatic matching and AI goal-context sharing enabled, Nebius receives the open-goal candidates, foreground app, window title (first 160 characters), and available browser domain and page title (first 160 characters). Missing browser fields are `null`; full address-bar URLs, paths, queries and fragments are not added.
+
+Only while **Suggest completed work from what is on screen** (`screen_task_detection`) is enabled, matching may also include the first **400 characters** of redacted visible window text. Without this preference, without available text, or for a sensitive/excluded app or window, `visible_text` is `null`. Matching uses the same Accessibility sampling path as completion detection, with selected-text capture disabled. Password and editable controls are skipped by the Windows/macOS adapters, password-manager apps and sensitive windows are excluded, and secret-bearing lines (including `api_key`) are omitted before truncation. Screen text is untrusted evidence; instructions in it must be ignored.
+
+The two consumers share one serialized read and a transient, redacted sample of at most 3,000 characters. A sample from the same foreground window ID, app, title and browser context is reused for up to 60 seconds. Failed/unavailable reads are shared too. Changes to consent, opt-out or the foreground context prevent reuse; an in-flight read is rechecked before its result can be sent. The cache stays in memory; the sample itself is not written to disk, SQLite or diagnostics. Matching does not add a second Accessibility read in the same tick. Existing matching confidence thresholds, debounce, request cooldowns and completion-check cadence are unchanged. No screenshots, clipboard access or keystroke recording are introduced.
 
 ## State and avatar contract
 
@@ -87,3 +95,52 @@ Small integration changes: `Settings.tsx`, `ActivityTimeline.tsx`, `ActivityInsi
 Automated tests cover state transitions, settings persistence and boundaries, URL minimization, disjoint usage, migrations, completion/restart, history/recommendation persistence and notification suppression. Native browser behavior across browser versions/languages and real playback remains a manual QA item.
 
 Verified in this checkout: 74 Rust tests passed (one Credential Manager integration test intentionally ignored), 32 frontend tests passed, TypeScript/Vite production build passed, `cargo build --locked` produced the Windows executable, Rustfmt/Prettier and `git diff --check` passed. No lint script is defined in `package.json`. Rust was installed locally under ignored `.tools`; Visual Studio C++ Build Tools and Windows SDK were installed with the user's explicit approval. Run `./scripts/dev.ps1` to activate the native build environment. A release installer and live browser/media manual QA were not produced by these checks.
+
+## Unlisted work in Today
+
+With the existing on-screen task-detection opt-in and AI goal-context sharing enabled,
+sumi can suggest work that is absent from the goal list. It uses the same protected
+Accessibility sample on Windows and macOS: no screenshots, clipboard or keystrokes,
+no password/edit-control capture, the same sensitive-window/app exclusions and
+secret-line redaction. Only a 400-character excerpt, minimized app/window/browser
+metadata and existing goal titles/unfinished steps are sent to Nebius. The text is
+untrusted evidence, never authorization. Raw excerpts remain transient and are
+not stored in the activity journal, diagnostics or the completed goal.
+
+The collector journals actual active intervals within each continuous foreground
+session, including activity without a selected goal. Returning to the same app
+later starts a separate session; a new screen excerpt cannot relabel earlier work. It uses existing goal-owned intervals where available and the same disjoint
+UsageTracker boundaries otherwise. Idle/media/meeting contexts, excluded/sensitive
+windows, manual timer sessions, gaps over 15 seconds and midnight transition
+intervals are omitted. Neither model estimates nor app downtime contribute time.
+After at least two observed active minutes and 60 seconds in a stable foreground
+context, a classifier may identify concrete unlisted work. It compares every open/
+deferred goal plus goals completed in Today, including unfinished steps. Unclear
+context, a plausible existing goal, entertainment or confidence below 0.85 stays
+silent. Requests are limited to one per five minutes, share the existing provider
+lock, respect quiet/working-hour rules, and use one reasoning-enabled HTTP disclosure with a 30-second bound and
+consent and context checks before sending and before offering.
+
+Today shows a persistent **Work noticed** card with an editable title and the
+observed duration so far. **Add to completed** confirms that observed work as a
+completed Today goal, without selecting it as focus or starting a timer. The
+backend owns the offer and duration; the frontend cannot supply intervals or time.
+Existing interval/daily/step totals are transferred atomically, so the same time
+is not counted twice under the previously focused goal. No new goal is created
+before confirmation. **Not now** snoozes for ten minutes; **Dismiss** suppresses
+that context for the local day. Adding also suppresses repeat offers for that
+context that day. Only work observed up to acceptance is attached; later work is
+not silently added to a goal the user has already confirmed as completed.
+
+Local metadata-only `unplanned_work_intervals` and day/context review decisions
+follow configured history retention and **Clear local history**. Source interval
+deletion cascades to unconfirmed references. Completed goals and their time use
+the existing goal deletion/history paths. Pending offers are in memory, expire
+after 30 minutes/day change, and are revoked by consent or goal-context changes.
+The card is recovered when Today opens while the process is running; pending
+screen text is never persisted across restart.
+
+Synthetic live check (no installed data or desktop sampling):
+`cargo run --locked --manifest-path src-tauri/Cargo.toml -- --check-unplanned-work`.
+Native Accessibility coverage still depends on app controls and OS permission;
+unavailable text leaves the feature silent.

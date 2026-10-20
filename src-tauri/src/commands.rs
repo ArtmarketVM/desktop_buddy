@@ -14,6 +14,7 @@ pub struct Inner {
     pub activity_state: crate::tracking::StateTracker,
     pub usage: crate::insights::UsageTracker,
     pub window_history: crate::window_history::Recorder,
+    pub unplanned_work: crate::unplanned_work::Runtime,
     pub retention_days: u32,
     pub last_cleanup: Instant,
     pub privacy_revision: u64,
@@ -33,6 +34,8 @@ impl Inner {
     /// Records a consent-affecting change: sharing, privacy, tracking or provider settings.
     pub fn mark_consent_change(&mut self) {
         self.privacy_revision += 1;
+        self.companion.invalidate_screen_context();
+        self.unplanned_work.clear();
         self.last_consent_change = self.privacy_revision;
     }
     /// Whether consent changed after a request captured `revision`.
@@ -42,6 +45,7 @@ impl Inner {
 }
 
 pub struct AppState {
+    pub(crate) screen_context_read: tokio::sync::Mutex<()>,
     pub companion_request: tokio::sync::Mutex<()>,
     pub recommendation: tokio::sync::Mutex<()>,
     pub inner: Mutex<Inner>,
@@ -66,6 +70,7 @@ impl AppState {
         }
         let tracking = crate::tracking::requested(&storage)?;
         Ok(Self {
+            screen_context_read: tokio::sync::Mutex::new(()),
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
@@ -77,6 +82,7 @@ impl AppState {
                 activity_state: Default::default(),
                 usage: Default::default(),
                 window_history: Default::default(),
+                unplanned_work: Default::default(),
                 retention_days,
                 last_cleanup: Instant::now(),
                 privacy_revision: 0,
@@ -377,6 +383,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             Err(error) => {
                 inner.usage = Default::default();
                 inner.window_history.clear();
+                inner.unplanned_work.reset_sample();
                 if error == collector::CONTEXT_CHANGED {
                     return Ok(());
                 }
@@ -422,6 +429,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             );
         }
         let Some(goal) = inner.storage.goal()? else {
+            crate::unplanned_work::observe(&mut inner, &snapshot, allowed, None)?;
             inner.usage = Default::default();
             inner.activity_state.stop(false);
             return Ok(());
@@ -435,6 +443,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 .storage
                 .tracking_event(goal.id, inner.activity_state.event)?;
         }
+        let mut observed_interval = None;
         if let Some(interval) = inner
             .usage
             .observe(goal.id, &snapshot, allowed, activity_state)
@@ -443,7 +452,14 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             inner
                 .storage
                 .record_interval_with_match(goal.id, &interval, Some(attribution))?;
+            observed_interval = Some(interval);
         }
+        crate::unplanned_work::observe(
+            &mut inner,
+            &snapshot,
+            allowed,
+            observed_interval.as_ref().map(|i| (goal.id, i)),
+        )?;
         inner.buddy.foreground = allowed.then(|| snapshot.clone());
         if allowed {
             inner.storage.activity(goal.id, &snapshot)?;

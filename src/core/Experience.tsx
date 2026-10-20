@@ -24,6 +24,8 @@ import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
 import { TrackingStatus } from "./TrackingStatus";
 import { Toasts } from "../components/Toasts";
+import { NoticedWork } from "./NoticedWork";
+import { GoalMatchToasts } from "../components/GoalMatchToasts";
 
 export function Experience({
   page,
@@ -345,6 +347,7 @@ export function Experience({
               )}
             </section>
           </div>
+          <NoticedWork onChanged={refresh} />
           {(focusedSeconds > 0 || finishedItems.length > 0) && (
             <TodaySummary day={snapshot.summary} items={finishedItems} />
           )}
@@ -412,6 +415,7 @@ export function Experience({
         />
       )}
       <Toasts />
+      <GoalMatchToasts onChanged={refresh} />
     </div>
   );
 }
