@@ -4,13 +4,12 @@ A local-first desktop companion that helps you keep track of goals, return to un
 
 ## Download
 
-[Get the latest release](https://github.com/ArtmarketVM/desktop_buddy/releases/latest).
-The current published version is [0.37.0](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.37.0), released on October 20, 2026.
+[Get the latest release](https://github.com/ArtmarketVM/desktop_buddy/releases/latest) for the current version, release notes and verified installer assets. Replace `<version>` below with that release’s version.
 
-| Platform | Installer                            | Support                    |
-| -------- | ------------------------------------ | -------------------------- |
-| Windows  | `Desktop.Buddy_0.37.0_x64-setup.exe` | Windows 10/11, x64         |
-| macOS    | `Desktop.Buddy_0.37.0_aarch64.dmg`   | Apple Silicon, macOS 14.5+ |
+| Platform | Installer                               | Support                    |
+| -------- | --------------------------------------- | -------------------------- |
+| Windows  | `Desktop.Buddy_<version>_x64-setup.exe` | Windows 10/11, x64         |
+| macOS    | `Desktop.Buddy_<version>_aarch64.dmg`   | Apple Silicon, macOS 14.5+ |
 
 Intel and universal Mac installers are not supported. Both platforms ship under the same release version. The application checks GitHub Releases for updates and verifies trusted updater signatures before installation.
 
@@ -150,7 +149,7 @@ Unit/integration tests include mocked HTTP calls and do not require live provide
 
 The [hackathon demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) documents `--check-hero`, the real-provider backend rehearsal, and a separate manual native checklist. The backend rehearsal uses synthetic workspaces and can incur provider charges. Its transcript fixture is not a microphone test; programmatic consent is not evidence of a native button click; database reopen is not a full process-restart test.
 
-The [0.37.0 release verification](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39387590776) passed frontend tests/build, Rust tests on both supported systems and release safeguards. Keep physical microphone, actual foreground tracking, displayed interventions and full restart acceptance separate from mocked/backend evidence.
+The [release workflow](.github/workflows/release.yml) runs frontend tests/build, locked Rust tests on both supported systems and release safeguards before publishing both signed update channels. [Quality gates](docs/QUALITY_GATES.md) describe strict Windows browser comparisons against owner-reviewed baselines and the non-blocking lint rollout. Keep physical microphone, actual foreground tracking, displayed interventions and full restart acceptance separate from mocked/backend evidence.
 
 ## Architecture entry points
 
