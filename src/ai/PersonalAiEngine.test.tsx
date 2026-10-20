@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   cleanup,
@@ -59,6 +60,7 @@ const fixture: PersonalAiEngine = {
   ai_mock: false,
 };
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.resetAllMocks();
   vi.mocked(engineApi.status).mockResolvedValue(fixture);
 });
@@ -154,7 +156,7 @@ it("handles local status errors without rendering raw IPC content", async () => 
   details.setAttribute("open", "");
   fireEvent(details, new Event("toggle"));
   await waitFor(() =>
-    expect(screen.getByRole("alert").textContent).toContain("unavailable"),
+    expect(screen.getByRole("alert").textContent).toContain("Couldn't refresh this information"),
   );
   expect(document.body.textContent).not.toContain("secret-canary");
   expect(engineApi.health).not.toHaveBeenCalled();

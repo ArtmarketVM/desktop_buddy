@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useQuery } from "../data/useQuery";
+import { conversationsQuery } from "../data/resources";
+import { queryClient } from "../data/client";
 import { MoreHorizontal, Plus, Search, Trash2, X } from "lucide-react";
 import { desktop } from "../api/tauri";
-import { aiApi, type ChatConversation } from "../ai/api";
+import { aiApi } from "../ai/api";
 import type { Dashboard } from "../types";
 import { defaultCompanionView } from "./types";
 import { Conversation } from "./Conversation";
@@ -15,7 +17,8 @@ export function Chats({
   dashboard: Dashboard;
   onChanged: () => Promise<void>;
 }) {
-  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const conversationState = useQuery(conversationsQuery, desktop);
+  const conversations = conversationState.data;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   // A deleted chat leaves the list at once and is removed for real when the undo toast expires.
@@ -30,44 +33,15 @@ export function Chats({
     },
     [],
   );
-  useEffect(() => {
-    let active = true;
-    let stop: (() => void) | undefined;
-    const refresh = () => {
-      if (desktop)
-        void aiApi
-          .conversations()
-          .then((items) => {
-            if (active) setConversations(items);
-          })
-          .catch((e) => {
-            if (active) setError(String(e));
-          });
-    };
-    refresh();
-    if (desktop)
-      void listen("buddy://chat-updated", refresh)
-        .then((unlisten) => {
-          if (active) stop = unlisten;
-          else unlisten();
-        })
-        .catch((e) => {
-          if (active) setError(String(e));
-        });
-    return () => {
-      active = false;
-      stop?.();
-    };
-  }, []);
   async function run(work: () => Promise<unknown>) {
     setBusy(true);
     setError("");
     try {
       await work();
-      setConversations(await aiApi.conversations());
+      await conversationsQuery.refresh();
       await onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(queryClient.recordError("chat list action", e));
     } finally {
       setBusy(false);
     }
@@ -138,7 +112,7 @@ export function Chats({
           if (active) setMatches(ids);
         })
         .catch((e) => {
-          if (active) setError(String(e));
+          if (active) setError(queryClient.recordError("chat list action", e));
         });
     }, 200);
     return () => {
@@ -246,7 +220,9 @@ export function Chats({
         {!!conversations.length && !visible.length && (
           <p className="helper">No chats match “{query.trim()}”.</p>
         )}
-        {error && <p role="alert">{error}</p>}
+        {(error || conversationState.error) && (
+          <p role="alert">{error || conversationState.error}</p>
+        )}
       </aside>
       <div className="chat-pane">
         <header className="chat-pane-head">

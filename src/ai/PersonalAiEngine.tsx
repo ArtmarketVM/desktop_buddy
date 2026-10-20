@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { desktop } from "../api/tauri";
 import {
   engineApi,
@@ -6,6 +6,15 @@ import {
   type PersonalAiEngine,
 } from "./engineApi";
 import "./engine.css";
+import { queryClient } from "../data/client";
+import { useQuery } from "../data/useQuery";
+const engineQuery = queryClient.query(
+  "engine",
+  ["engine"],
+  null as PersonalAiEngine | null,
+  () => engineApi.status(),
+  5000,
+);
 
 const readable = (value: string) => value.replaceAll("_", " ");
 const latency = (value: number | null | undefined) =>
@@ -13,16 +22,24 @@ const latency = (value: number | null | undefined) =>
 
 export function PersonalAiEnginePanel({
   initiallyOpen = false,
+  active = true,
 }: {
   initiallyOpen?: boolean;
+  active?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const [showDataDiagnostics, setShowDataDiagnostics] = useState(false);
   const [live, setLive] = useState(true);
-  const inFlight = useRef(false);
   const mounted = useRef(true);
-  const [data, setData] = useState<PersonalAiEngine | null>(null);
+  const engineState = useQuery(engineQuery, desktop && active && open && live);
+  const data = engineState.data;
+  const diagnostics = useSyncExternalStore(
+    queryClient.subscribeDiagnostics,
+    queryClient.getDiagnostics,
+    queryClient.getDiagnostics,
+  );
   const [health, setHealth] = useState<InferenceHealth | null>(null);
-  const [loading, setLoading] = useState(false);
+  const loading = engineState.loading;
   const [testing, setTesting] = useState(false);
   const [actionChecks, setActionChecks] = useState<
     Array<{ name: string; status: string; latency_ms: number }>
@@ -30,42 +47,23 @@ export function PersonalAiEnginePanel({
   const [checkingActions, setCheckingActions] = useState(false);
   const [error, setError] = useState("");
   async function refresh() {
-    if (!desktop || inFlight.current || !mounted.current) return;
-    inFlight.current = true;
-    setLoading(true);
+    if (!desktop || !mounted.current) return;
     setError("");
     try {
-      const result = await engineApi.status();
-      if (mounted.current) {
-        setData(result);
-        setHealth(result.health);
-      }
+      await engineQuery.refresh();
     } catch {
-      setError("Engine diagnostics are unavailable. Try refreshing.");
-    } finally {
-      inFlight.current = false;
-      if (mounted.current) setLoading(false);
+      /* Shared query exposes a safe error. */
     }
   }
+  useEffect(() => {
+    if (data) setHealth(data.health);
+  }, [data]);
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
     };
   }, []);
-  useEffect(() => {
-    if (!open || !live || !desktop) return;
-    const poll = () => {
-      if (document.visibilityState !== "hidden") void refresh();
-    };
-    poll();
-    const timer = setInterval(poll, 5000);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [open, live]);
   async function check() {
     setTesting(true);
     setError("");
@@ -130,7 +128,23 @@ export function PersonalAiEnginePanel({
       {!desktop && (
         <p className="helper">Available in the desktop application.</p>
       )}
-      {error && <p role="alert">{error}</p>}
+      {(error || engineState.error) && (
+        <p role="alert">{error || engineState.error}</p>
+      )}
+      {diagnostics.length > 0 && (
+        <details
+          onToggle={(event) => setShowDataDiagnostics(event.currentTarget.open)}
+        >
+          <summary>Frontend data diagnostics</summary>
+          {showDataDiagnostics && (
+            <pre>
+              {diagnostics
+                .map((item) => `${item.at} ${item.operation}: ${item.detail}`)
+                .join("\n")}
+            </pre>
+          )}
+        </details>
+      )}
       {data && (
         <>
           <dl className="engine-facts">

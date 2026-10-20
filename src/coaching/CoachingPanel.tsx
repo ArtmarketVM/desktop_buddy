@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { useQuery } from "../data/useQuery";
+import { coachingQuery, workspaceQuery } from "../data/resources";
+import { queryClient } from "../data/client";
 import { desktop } from "../api/tauri";
-import { coreApi } from "../core/api";
 import type { CoreGoal } from "../core/types";
 import { coachingApi, type CoachingView } from "./api";
 import { StartCoaching } from "./StartCoaching";
@@ -20,8 +21,10 @@ export function CoachingPanel({
   onChange?: (view: CoachingView | null) => void;
   onRememberChange?: (remember: boolean) => void;
 }) {
-  const [view, setView] = useState<CoachingView | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const sessionQuery = coachingQuery(conversationId);
+  const sessionState = useQuery(sessionQuery, desktop);
+  const view = sessionState.data;
+  const loaded = sessionState.ready;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(requested);
@@ -31,7 +34,7 @@ export function CoachingPanel({
   const mounted = useRef(false);
   const working = useRef(false);
   function accept(next: CoachingView | null) {
-    setView((previous) =>
+    sessionQuery.setData((previous) =>
       next &&
       previous &&
       (previous.session.id > next.session.id ||
@@ -56,54 +59,21 @@ export function CoachingPanel({
   useEffect(() => {
     if (requested) setChoosing(true);
   }, [requested]);
+  const workspace = useQuery(workspaceQuery(null, "week"), choosing && desktop);
   useEffect(() => {
-    if (!choosing || !desktop) return;
-    let live = true;
-    void coreApi
-      .snapshot()
-      .then((s) => {
-        if (live) setGoals(s.goals.filter((g) => g.status === "open"));
-      })
-      .catch((e) => {
-        if (live) setError(String(e));
-      });
-    return () => {
-      live = false;
-    };
-  }, [choosing]);
+    if (workspace.ready)
+      setGoals(workspace.data.goals.filter((g) => g.status === "open"));
+  }, [workspace.data, workspace.ready]);
   useEffect(() => {
-    if (!desktop) return;
+    if (sessionState.error) setError(sessionState.error);
+    else if (sessionState.ready) setError("");
+  }, [sessionState.error, sessionState.ready]);
+  useEffect(() => {
     mounted.current = true;
-    let live = true;
-    let stop: (() => void) | undefined;
-    let request = 0;
-    const load = () => {
-      const sequence = ++request;
-      void coachingApi
-        .inspect(conversationId)
-        .then((next) => {
-          if (live && sequence === request) {
-            accept(next);
-            setLoaded(true);
-          }
-        })
-        .catch((e) => {
-          if (live && sequence === request) setError(String(e));
-        });
-    };
-    load();
-    void listen("buddy://chat-updated", load)
-      .then((unlisten) => {
-        if (live) stop = unlisten;
-        else unlisten();
-      })
-      .catch(() => {});
     return () => {
-      live = false;
       mounted.current = false;
-      stop?.();
     };
-  }, [conversationId]);
+  }, []);
   async function control(type: "pause" | "resume" | "stop") {
     if (!view || working.current) return;
     working.current = true;
@@ -118,9 +88,9 @@ export function CoachingPanel({
       if (mounted.current) accept(next);
     } catch (e) {
       if (mounted.current) {
-        setError(String(e));
-        await coachingApi
-          .inspect(conversationId)
+        setError(queryClient.recordError("coaching action", e));
+        await sessionQuery
+          .refresh()
           .then((next) => {
             if (mounted.current) accept(next);
           })

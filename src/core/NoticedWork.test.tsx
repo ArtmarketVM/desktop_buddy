@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import {
   act,
   cleanup,
@@ -25,6 +26,7 @@ const offer = {
   app: "chrome",
 };
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.clearAllMocks();
   hooks.receive = undefined;
   vi.mocked(invoke).mockImplementation(async (name) =>
@@ -105,5 +107,5 @@ it("keeps the offer available when saving fails and never reports a completed go
   expect(changed).not.toHaveBeenCalled();
   expect(screen.getByRole("textbox")).toBeTruthy();
   cleanup();
-  expect(hooks.stop).toHaveBeenCalledOnce();
+  await waitFor(() => expect(hooks.stop).toHaveBeenCalledTimes(vi.mocked(listen).mock.calls.length));
 });

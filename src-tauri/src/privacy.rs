@@ -5,6 +5,7 @@ use crate::{
 };
 use serde_json::{json, Value};
 use std::time::{Duration, Instant};
+use tauri::Manager;
 use tauri::{AppHandle, State};
 #[cfg(test)]
 #[path = "privacy_tests.rs"]
@@ -73,6 +74,7 @@ pub fn clear_local_history(
     inner.status.tracking = false;
     inner.storage.write_setting("tracking_requested", &false)?;
     invalidate(&mut inner);
+    crate::frontend_events::changed(&app, crate::frontend_events::ALL, true);
     crate::buddy::sync(&app, &mut inner)
 }
 #[tauri::command(async)]
@@ -240,6 +242,14 @@ pub async fn test_provider_connection(
         revision,
         result.is_ok(),
         result.as_ref().ok().and_then(|r| r.model_available),
+    );
+    crate::frontend_events::changed(
+        window.app_handle(),
+        &[
+            crate::frontend_events::Resource::Services,
+            crate::frontend_events::Resource::Engine,
+        ],
+        false,
     );
     if inner.last_consent_change != revision {
         return Err("Connection settings changed during the check. Try again.".into());

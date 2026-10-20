@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
@@ -31,6 +32,7 @@ const fixture: ServiceSnapshot = {
   })),
 };
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.resetAllMocks();
   vi.mocked(serviceStatusApi.read).mockResolvedValue(fixture);
 });

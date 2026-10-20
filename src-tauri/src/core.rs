@@ -1215,6 +1215,16 @@ pub(crate) fn mutate(
     inner.companion.invalidate();
     inner.buddy.clear();
     inner.last_analysis = None;
+    crate::frontend_events::changed(
+        app,
+        &[
+            crate::frontend_events::Resource::Dashboard,
+            crate::frontend_events::Resource::Workspace,
+            crate::frontend_events::Resource::Activity,
+            crate::frontend_events::Resource::Coaching,
+        ],
+        false,
+    );
     crate::buddy::sync(app, &mut inner)?;
     inner.storage.core_snapshot(None)
 }
@@ -1445,6 +1455,7 @@ pub fn tick_core_timer(state: State<AppState>) -> Result<CoreSnapshot, String> {
 #[tauri::command(async)]
 pub fn set_core_preferences(
     state: State<AppState>,
+    app: AppHandle,
     mut preferences: CorePreferences,
 ) -> Result<(), String> {
     preferences.working_days.sort_unstable();
@@ -1461,7 +1472,9 @@ pub fn set_core_preferences(
         .lock()
         .map_err(|_| "Application state unavailable")?
         .storage
-        .write_setting("core_preferences", &preferences)
+        .write_setting("core_preferences", &preferences)?;
+    crate::frontend_events::changed(&app, &[crate::frontend_events::Resource::Workspace], false);
+    Ok(())
 }
 
 #[cfg(test)]
