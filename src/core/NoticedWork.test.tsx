@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 import { queryClient } from "../data/client";
+import { noticedQuery } from "../data/resources";
+import { useLayoutEffect } from "react";
 import {
   act,
   cleanup,
@@ -64,6 +66,29 @@ it("recovers noticed work, displays measured minutes, and lets the user rename i
   await waitFor(() => expect(changed).toHaveBeenCalledOnce());
   expect(screen.queryByRole("region")).toBeNull();
 });
+it("keeps a title edited as a cached offer first appears", async () => {
+  noticedQuery.setData(offer);
+  function EditOnFirstPaint() {
+    useLayoutEffect(() => {
+      fireEvent.change(screen.getByRole("textbox"), {
+        target: { value: "Reply to customer emails" },
+      });
+    }, []);
+    return <NoticedWork onChanged={async () => {}} />;
+  }
+  render(<EditOnFirstPaint />);
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+    "Reply to customer emails",
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add to completed" }));
+  await waitFor(() =>
+    expect(invoke).toHaveBeenCalledWith("respond_unplanned_work_suggestion", {
+      id: offer.id,
+      action: "add",
+      title: "Reply to customer emails",
+    }),
+  );
+});
 it.each([
   ["Not now", "not_now"],
   ["Dismiss", "dismiss"],
@@ -93,6 +118,31 @@ it("keeps an edited title when a refreshed duration arrives and removes a revoke
   act(() => hooks.receive?.());
   await waitFor(() => expect(screen.queryByRole("region")).toBeNull());
 });
+it("starts a fresh draft for a new offer and ignores completion of the old offer", async () => {
+  let currentOffer = offer;
+  let finish!: () => void;
+  vi.mocked(invoke).mockImplementation(async (name) => {
+    if (name === "get_unplanned_work_suggestion") return currentOffer;
+    await new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    return 12;
+  });
+  render(<NoticedWork onChanged={async () => {}} />);
+  fireEvent.change(await screen.findByRole("textbox"), {
+    target: { value: "Customer emails" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Add to completed" }));
+  currentOffer = { ...offer, id: "next-offer", title: "Prepare the agenda" };
+  act(() => noticedQuery.setData(currentOffer));
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+    "Prepare the agenda",
+  );
+  await act(async () => finish());
+  expect((screen.getByRole("textbox") as HTMLInputElement).value).toBe(
+    "Prepare the agenda",
+  );
+});
 it("keeps the offer available when saving fails and never reports a completed goal", async () => {
   const changed = vi.fn();
   vi.mocked(invoke).mockImplementation(async (name) => {
@@ -107,5 +157,9 @@ it("keeps the offer available when saving fails and never reports a completed go
   expect(changed).not.toHaveBeenCalled();
   expect(screen.getByRole("textbox")).toBeTruthy();
   cleanup();
-  await waitFor(() => expect(hooks.stop).toHaveBeenCalledTimes(vi.mocked(listen).mock.calls.length));
+  await waitFor(() =>
+    expect(hooks.stop).toHaveBeenCalledTimes(
+      vi.mocked(listen).mock.calls.length,
+    ),
+  );
 });

@@ -93,7 +93,6 @@ export function Conversation({
   const historyQuery = chatHistoryQuery(conversationId);
   const history = useQuery(historyQuery, desktop);
   const prefs = useQuery(preferencesQuery, desktop);
-  const preferences = prefs.data;
   const [attachment, setAttachment] = useState<{
     name: string;
     text: string;
