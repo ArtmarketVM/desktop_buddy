@@ -76,7 +76,7 @@ export function CompanionSettings({
       )}
       {toggle(
         "screen_task_detection",
-        "Suggest completed work from what is on screen",
+        "Suggest completed and unlisted work from what is on screen",
       )}
       <label className="setting-row">
         <span>Wait after sign-in</span>

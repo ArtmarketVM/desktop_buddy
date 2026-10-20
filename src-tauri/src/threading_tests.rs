@@ -29,6 +29,10 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("memory", include_str!("memory/controls.rs")),
         ("memory", include_str!("memory/retriever.rs")),
         ("goal_analysis", include_str!("goal_analysis.rs")),
+        (
+            "goal_matching",
+            include_str!("goal_matching/suggestions.rs"),
+        ),
         ("automatic_goals", include_str!("automatic_goals.rs")),
         ("relevance", include_str!("relevance.rs")),
         ("commands", include_str!("commands.rs")),
@@ -40,6 +44,7 @@ fn all_registered_command_modules_dispatch_on_workers() {
         ("tracking", include_str!("tracking.rs")),
         ("history", include_str!("history.rs")),
         ("window_history", include_str!("window_history.rs")),
+        ("unplanned_work", include_str!("unplanned_work.rs")),
         ("profile", include_str!("profile.rs")),
         ("product_feedback", include_str!("product_feedback.rs")),
         ("installed_apps", include_str!("installed_apps.rs")),

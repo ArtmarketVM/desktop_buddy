@@ -5,7 +5,7 @@ use crate::{
     storage::Storage,
     work_state::{self, State},
 };
-fn setup(names: &[&str]) -> (AppState, Vec<i64>) {
+pub(super) fn setup(names: &[&str]) -> (AppState, Vec<i64>) {
     let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
     for (i, name) in names.iter().enumerate() {
         s.core_add_goals(
@@ -46,7 +46,7 @@ fn setup(names: &[&str]) -> (AppState, Vec<i64>) {
     }
     (state, ids)
 }
-fn sample(title: &str) -> ActivitySnapshot {
+pub(super) fn sample(title: &str) -> ActivitySnapshot {
     ActivitySnapshot {
         process_name: "Editor".into(),
         window_title: title.into(),
@@ -54,7 +54,7 @@ fn sample(title: &str) -> ActivitySnapshot {
         ..Default::default()
     }
 }
-fn feed(inner: &mut Inner, a: &ActivitySnapshot, base: Instant, start: u64, end: u64) {
+pub(super) fn feed(inner: &mut Inner, a: &ActivitySnapshot, base: Instant, start: u64, end: u64) {
     for t in (start..=end).step_by(3) {
         observe_inner_at(inner, a, true, base + Duration::from_secs(t)).unwrap();
     }

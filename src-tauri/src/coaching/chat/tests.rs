@@ -37,6 +37,8 @@ async fn coaching_response_receives_only_its_bounded_prior_chat_history() {
         let body:Value=serde_json::from_slice(&request.body).unwrap();
         assert!(!body.to_string().contains("FOREIGN-CHAT-CANARY"));
         let content = if body["response_format"]["json_schema"]["name"]=="buddy_coaching_response" {
+            assert!(body["messages"][0]["content"].as_str().unwrap().contains("Sound like a calm colleague, not a coach."));
+            assert!(body["messages"][0]["content"].as_str().unwrap().contains(super::super::voice::VOICE_EXAMPLES));
             let source:Value=serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
             let history=&source["context"]["history"];
             assert!(history.as_array().unwrap().len()<=12);

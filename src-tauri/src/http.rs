@@ -3,6 +3,7 @@ use std::time::Duration;
 
 pub const DEFAULT_PRIMARY_MODEL: &str = "nvidia/nemotron-3-super-120b-a12b";
 pub const DEFAULT_RESPONSE_MODEL: &str = "moonshotai/Kimi-K3";
+pub(crate) type Preflight<'a> = &'a (dyn Fn() -> Result<(), String> + Send + Sync);
 fn resolve_response_model(
     primary: &str,
     primary_override: Option<&str>,
@@ -79,16 +80,60 @@ pub(crate) async fn post_reasoning_json(
     .await
 }
 
-/// A planning response proposes data only; it cannot execute a skill. If the
+/// Background screen classification is a single, bounded disclosure. A privacy
+/// change must not be followed by an automatic retry of an earlier screen packet.
+pub(crate) async fn post_background_once_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+) -> Result<Value, String> {
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(30),
+        false,
+        false,
+    )
+    .await
+}
+
+/// Evaluation uses its explicitly supplied judge model and one request only.
+/// Never restart a timed-out generation or silently change the judge model.
+pub(crate) async fn post_evaluation_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+) -> Result<Value, String> {
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(60),
+        false,
+        false,
+    )
+    .await
+}
+
+/// An interactive response proposes data only; it cannot execute a skill. If the
 /// default reasoning model stalls, try the configured default primary model once
 /// with the exact same messages and schema. Never replay an executed action.
-pub(crate) async fn post_default_plan_json(
+pub(crate) async fn post_default_interactive_json(
     client: &reqwest::Client,
     url: &str,
     key: &str,
     payload: &Value,
     budget: Duration,
+    preflight: Option<Preflight<'_>>,
 ) -> Result<Value, String> {
+    if let Some(check) = preflight {
+        check()?;
+    }
     let first = tokio::time::timeout(
         budget,
         post_json_with_timeout(client, url, key, payload, budget, false, false),
@@ -105,6 +150,9 @@ pub(crate) async fn post_default_plan_json(
         }
         _ => {}
     }
+    if let Some(check) = preflight {
+        check()?;
+    }
     let mut fallback = payload.clone();
     fallback["model"] = serde_json::json!(DEFAULT_PRIMARY_MODEL);
     fallback["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
@@ -115,7 +163,7 @@ pub(crate) async fn post_default_plan_json(
     )
     .await
     .map_err(|_| {
-        "The AI planning models timed out. Your saved API key has not been removed.".to_string()
+        "The AI response models timed out. Your saved API key has not been removed.".to_string()
     })?
 }
 
@@ -454,12 +502,13 @@ mod tests {
             .expect(1)
             .mount(&server)
             .await;
-        let result = post_default_plan_json(
+        let result = post_default_interactive_json(
             &reqwest::Client::new(),
             &server.uri(),
             "fixture",
             &payload,
             Duration::from_millis(300),
+            None,
         )
         .await
         .unwrap();
@@ -475,12 +524,13 @@ mod tests {
                 .mount(&server)
                 .await;
             let payload = serde_json::json!({"model":DEFAULT_RESPONSE_MODEL});
-            let error = post_default_plan_json(
+            let error = post_default_interactive_json(
                 &reqwest::Client::new(),
                 &server.uri(),
                 "fixture",
                 &payload,
                 Duration::from_millis(300),
+                None,
             )
             .await
             .unwrap_err();
@@ -499,12 +549,13 @@ mod tests {
             .expect(2)
             .mount(&server)
             .await;
-        assert!(post_default_plan_json(
+        assert!(post_default_interactive_json(
             &reqwest::Client::new(),
             &server.uri(),
             "fixture",
             &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
-            Duration::from_millis(300)
+            Duration::from_millis(300),
+            None,
         )
         .await
         .unwrap_err()
@@ -516,16 +567,52 @@ mod tests {
             .mount(&server)
             .await;
         assert_eq!(
-            post_default_plan_json(
+            post_default_interactive_json(
                 &reqwest::Client::new(),
                 &server.uri(),
                 "fixture",
                 &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
-                Duration::from_millis(300)
+                Duration::from_millis(300),
+                None,
             )
             .await
             .unwrap_err(),
             "Service returned invalid JSON"
         );
+    }
+    #[tokio::test]
+    async fn interactive_fallback_rechecks_consent_before_another_disclosure() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(2))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let checks = AtomicUsize::new(0);
+        let check = || {
+            if checks.fetch_add(1, Ordering::SeqCst) == 0 {
+                Ok(())
+            } else {
+                Err("Coaching context or privacy changed".to_string())
+            }
+        };
+        let error = post_default_interactive_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            Duration::from_millis(300),
+            Some(&check),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error, "Coaching context or privacy changed");
+        assert_eq!(checks.load(Ordering::SeqCst), 2);
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
     }
 }

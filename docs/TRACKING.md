@@ -95,3 +95,52 @@ Small integration changes: `Settings.tsx`, `ActivityTimeline.tsx`, `ActivityInsi
 Automated tests cover state transitions, settings persistence and boundaries, URL minimization, disjoint usage, migrations, completion/restart, history/recommendation persistence and notification suppression. Native browser behavior across browser versions/languages and real playback remains a manual QA item.
 
 Verified in this checkout: 74 Rust tests passed (one Credential Manager integration test intentionally ignored), 32 frontend tests passed, TypeScript/Vite production build passed, `cargo build --locked` produced the Windows executable, Rustfmt/Prettier and `git diff --check` passed. No lint script is defined in `package.json`. Rust was installed locally under ignored `.tools`; Visual Studio C++ Build Tools and Windows SDK were installed with the user's explicit approval. Run `./scripts/dev.ps1` to activate the native build environment. A release installer and live browser/media manual QA were not produced by these checks.
+
+## Unlisted work in Today
+
+With the existing on-screen task-detection opt-in and AI goal-context sharing enabled,
+sumi can suggest work that is absent from the goal list. It uses the same protected
+Accessibility sample on Windows and macOS: no screenshots, clipboard or keystrokes,
+no password/edit-control capture, the same sensitive-window/app exclusions and
+secret-line redaction. Only a 400-character excerpt, minimized app/window/browser
+metadata and existing goal titles/unfinished steps are sent to Nebius. The text is
+untrusted evidence, never authorization. Raw excerpts remain transient and are
+not stored in the activity journal, diagnostics or the completed goal.
+
+The collector journals actual active intervals within each continuous foreground
+session, including activity without a selected goal. Returning to the same app
+later starts a separate session; a new screen excerpt cannot relabel earlier work. It uses existing goal-owned intervals where available and the same disjoint
+UsageTracker boundaries otherwise. Idle/media/meeting contexts, excluded/sensitive
+windows, manual timer sessions, gaps over 15 seconds and midnight transition
+intervals are omitted. Neither model estimates nor app downtime contribute time.
+After at least two observed active minutes and 60 seconds in a stable foreground
+context, a classifier may identify concrete unlisted work. It compares every open/
+deferred goal plus goals completed in Today, including unfinished steps. Unclear
+context, a plausible existing goal, entertainment or confidence below 0.85 stays
+silent. Requests are limited to one per five minutes, share the existing provider
+lock, respect quiet/working-hour rules, and use one reasoning-enabled HTTP disclosure with a 30-second bound and
+consent and context checks before sending and before offering.
+
+Today shows a persistent **Work noticed** card with an editable title and the
+observed duration so far. **Add to completed** confirms that observed work as a
+completed Today goal, without selecting it as focus or starting a timer. The
+backend owns the offer and duration; the frontend cannot supply intervals or time.
+Existing interval/daily/step totals are transferred atomically, so the same time
+is not counted twice under the previously focused goal. No new goal is created
+before confirmation. **Not now** snoozes for ten minutes; **Dismiss** suppresses
+that context for the local day. Adding also suppresses repeat offers for that
+context that day. Only work observed up to acceptance is attached; later work is
+not silently added to a goal the user has already confirmed as completed.
+
+Local metadata-only `unplanned_work_intervals` and day/context review decisions
+follow configured history retention and **Clear local history**. Source interval
+deletion cascades to unconfirmed references. Completed goals and their time use
+the existing goal deletion/history paths. Pending offers are in memory, expire
+after 30 minutes/day change, and are revoked by consent or goal-context changes.
+The card is recovered when Today opens while the process is running; pending
+screen text is never persisted across restart.
+
+Synthetic live check (no installed data or desktop sampling):
+`cargo run --locked --manifest-path src-tauri/Cargo.toml -- --check-unplanned-work`.
+Native Accessibility coverage still depends on app controls and OS permission;
+unavailable text leaves the feature silent.

@@ -3,6 +3,7 @@ pub(crate) mod chat;
 pub mod gateway;
 pub mod strategy;
 pub mod tiny;
+pub mod voice;
 use crate::{memory, storage::Storage};
 use chrono::Utc;
 use memory::retriever::{MemoryBudget, RetrievalInput};

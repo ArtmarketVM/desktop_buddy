@@ -14,6 +14,7 @@ import {
   X,
   MoreHorizontal,
 } from "lucide-react";
+import { duration } from "./types";
 import { desktop } from "../api/tauri";
 import { coreApi } from "./api";
 import { aiApi } from "../ai/api";
@@ -387,6 +388,10 @@ export function GoalRow({
             {goal.plan.steps.length}{" "}
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
+          {today && goal.status === "completed" && (() => {
+            const seconds = snapshot.summary.goals.find((g) => g.goal_id === goal.id)?.relevant_seconds ?? 0;
+            return seconds > 0 ? <small>{duration(seconds)} recorded</small> : null;
+          })()}
           {goal.status === "open" && (
             <GoalMeta goal={goal} onToday={today} area={area} run={run} />
           )}

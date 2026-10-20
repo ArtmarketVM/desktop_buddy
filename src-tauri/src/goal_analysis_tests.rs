@@ -1,4 +1,5 @@
 use super::*;
+
 use wiremock::{
     matchers::{body_partial_json, header, method},
     Mock, MockServer, ResponseTemplate,
@@ -274,4 +275,70 @@ async fn invalid_structured_answers_get_one_bounded_repair_without_changing_cont
         .as_str()
         .unwrap()
         .contains("failed validation"));
+}
+
+#[test]
+fn default_coaching_fallback_preserves_explicit_models_and_the_fixed_judge() {
+    for operation in ["buddy_coaching_response", "buddy_coaching_interpretation"] {
+        assert!(default_interactive_fallback(
+            operation,
+            http::DEFAULT_PRIMARY_MODEL,
+            http::DEFAULT_RESPONSE_MODEL,
+            None
+        ));
+        assert!(!default_interactive_fallback(
+            operation,
+            http::DEFAULT_PRIMARY_MODEL,
+            http::DEFAULT_RESPONSE_MODEL,
+            Some("custom-model")
+        ));
+        assert!(!default_interactive_fallback(
+            operation,
+            "custom-model",
+            http::DEFAULT_RESPONSE_MODEL,
+            None
+        ));
+    }
+    assert!(!default_interactive_fallback(
+        "buddy_coaching_voice_judge",
+        http::DEFAULT_PRIMARY_MODEL,
+        http::DEFAULT_RESPONSE_MODEL,
+        None
+    ));
+    assert!(
+        !response_operation("buddy_coaching_voice_judge"),
+        "Judge selection must ignore the response-model override"
+    );
+}
+
+#[tokio::test]
+async fn coaching_judge_preserves_its_model_and_does_not_retry_unavailable_or_rejected_requests() {
+    for status in [401, 429, 503] {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(wiremock::matchers::body_partial_json(
+                json!({"model":http::DEFAULT_PRIMARY_MODEL,"temperature":1.0,"max_tokens":4096,"chat_template_kwargs":{"enable_thinking":true},"response_format":{"type":"json_schema","json_schema":{"name":"buddy_coaching_voice_judge"}}}),
+            ))
+            .respond_with(ResponseTemplate::new(status))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let client = reqwest::Client::new();
+        let service = Service {
+            client: &client,
+            endpoint: server.uri(),
+            key: "fixture-key".into(),
+            model: http::DEFAULT_PRIMARY_MODEL.into(),
+        };
+        let error = service
+            .request(
+                "Synthetic judge",
+                json!({}),
+                "buddy_coaching_voice_judge",
+                object(json!({"score":{"type":"integer"}}), &["score"]),
+            )
+            .await
+            .unwrap_err();
+        assert!(error.contains(&format!("HTTP {status}")));
+    }
 }

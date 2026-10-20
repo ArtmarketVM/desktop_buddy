@@ -694,6 +694,12 @@ pub async fn tick(app: &AppHandle) {
     } else {
         (false, false)
     };
+    if crate::unplanned_work::due(&state) {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let _ = crate::unplanned_work::identify(&handle, &handle.state::<AppState>()).await;
+        });
+    }
     // Existing specialist adapters retain their own consent, stable-context windows and cooldowns.
     if state.inner.lock().is_ok_and(|i| service_allowed(&i)) {
         let handle = app.clone();

@@ -22,7 +22,7 @@ fn same_window(a: &ActivitySnapshot, b: &ActivitySnapshot) -> bool {
         && a.window_title == b.window_title
         && a.browser == b.browser
 }
-fn allowed(inner: &Inner, activity: &ActivitySnapshot) -> bool {
+pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot) -> bool {
     inner.status.tracking
         && !inner.status.demo
         && !inner.status.mock_ai

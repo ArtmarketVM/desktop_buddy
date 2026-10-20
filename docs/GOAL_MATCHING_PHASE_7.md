@@ -34,6 +34,48 @@ The new order is:
 This is the goal-matching cascade, not a replacement for other AgentRuntime
 reasoning, explicit chat, completion detection or Tavily research flows.
 
+## Cloud confidence bands
+
+The model reports its actual confidence, and the application applies these bands
+to validated candidate IDs. The five fixed system-prompt examples remain intact.
+
+| Confidence | Behavior |
+| --- | --- |
+| At least 0.8 | Existing automatic assignment and user focus override behavior |
+| At least 0.6, below 0.8 | Emit `goal_match_suggestion` with `goal_id`, `confidence`, and `reason`; leave attribution unassigned |
+| Below 0.6, or null goal ID | Stay silent and unassigned |
+
+`AUTO_ASSIGN_CONFIDENCE` and `SUGGESTION_CONFIDENCE` in `goal_matching.rs`
+define the two thresholds. The existing 60-second AI stability gate, 90-second
+global request cooldown, consent checks and context cache still apply.
+
+The workspace uses the existing non-blocking Toasts component to show
+“Working on <goal title>?” for up to 30 seconds, with three choices:
+
+- **Yes:** use the shared explicit-focus path used by `select_core_goal` / the
+  `set_focus_goal` skill. Add a saved open goal to Today if necessary. Reset the
+  interval boundary as usual; never backfill time from before acceptance.
+- **No:** reject this goal/app/domain tuple for 24 hours. A different window
+  title in the same app/domain does not bypass the rejection.
+- **Not now:** dismiss and suppress further suggestions for 10 minutes across
+  contexts. This does not block high-confidence automatic matches.
+
+The backend owns the pending offer and its original context; the frontend cannot
+supply an app or domain to record a rejection. Acceptance rechecks consent,
+foreground context, goal candidates and explicit focus. An expired or stale
+toast cannot override a new focus choice. Pending offers expire after ten
+minutes, clear with context/privacy changes, and can be recovered when the
+workspace opens. No offer itself selects a goal or attributes time.
+
+Negative choices live in SQLite `goal_match_negatives`, alongside the existing
+preferences-based explicit focus state. Rows contain a goal ID, an app/domain
+tuple fingerprint, creation time and expiry; no window title, visible text or
+model reason is retained. They survive restart, expire exactly 24 hours after
+No, and are removed on the next lookup/startup after expiry. They follow
+PrivacySettings history retention and Clear local history, Clear personal
+memory, and cascade deletion of their owning goal. Pending offers and the
+Not now cooldown remain in-process.
+
 ## Timing and suppression
 
 | Parameter | Value | Purpose |

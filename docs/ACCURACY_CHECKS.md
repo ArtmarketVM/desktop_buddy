@@ -60,7 +60,12 @@ in-memory coaching session. This evaluates transcript response style, not
 microphone/STT accuracy. Production responses now include recent history from
 the dedicated coaching chat: at most 12 earlier messages and 6,000 serialized
 bytes, excluding the latest message supplied separately. Existing prompt text,
-sharing checks and backend state-transition ownership are unchanged.
+sharing checks and backend state-transition ownership are unchanged. The response
+now uses the verbatim voice guide and eight examples, followed by the original
+rules and a 25–60 word target. Default coaching interpretation and response calls
+use a bounded Kimi attempt followed, on timeout/network/5xx failure, by one fast
+Nemotron attempt with identical messages and schema. Consent and session freshness
+are checked before each disclosure. Explicit model overrides remain authoritative.
 
 The first unfinished step is the fixture target. Because the requested case
 schema has no prior micro-action field, feasibility/anchor/commitment/execution
@@ -68,10 +73,23 @@ also use that first step as their candidate micro-action, estimated at 60 second
 Use an appropriately small first step for these cases; the duration is fixture
 setup, not a measured result.
 
-Two LLM judges use exactly `http::DEFAULT_RESPONSE_MODEL`, independent of response
-model overrides. JSON context order is reply first versus rubric first, with the
+Two LLM judgements use the fixed `http::DEFAULT_PRIMARY_MODEL` (Nemotron),
+independent of response-model overrides and without judge-model fallback. This
+replaces the previous Kimi judge after repeated live timeouts; scores from the
+two judge models are separate baselines. Each judge call is a single request
+with a 60-second deadline and a bounded reasoning/output budget; timed-out generations are
+not restarted. JSON context order is reply first versus rubric first, with the
 same five criteria. Each true item contributes one point; inconsistent or
 out-of-range scores are rejected. Differences greater than one flag human review.
 Missing judgements are unscored and flagged. Overall mean averages only cases
 with two valid scores; scored/error counts and both judgements remain available.
 LLM scores are fallible assessments, not independent ground truth.
+
+
+For a focused diagnostic, append `--case placeholder-01` to the coaching voice
+command. Omitting the option still evaluates the complete corpus. CLI progress
+identifies reply generation and each judge stage without printing credentials,
+request bodies or hidden reasoning. Reports distinguish the configured generation
+model, its possible production fallback and the fixed judge model. Generation
+and judging can both use Nemotron; these scores are a rubric diagnostic, not an
+independent human assessment.
