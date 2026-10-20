@@ -32,14 +32,14 @@ These are named exceptions, not permission to introduce arbitrary sizes. Stylesh
 | `--text-star-large`        | 27px                     | Existing large decorative star                                                        |
 | `--text-star-small`        | 16px                     | Existing small decorative star                                                        |
 | `--text-onboarding`        | `clamp(25px, 3vw, 31px)` | Shipped onboarding title override                                                     |
-| `--text-onboarding-legacy` | `clamp(26px, 4vw, 35px)` | Earlier onboarding title declaration retained until safely consolidated               |
+| `--text-onboarding-legacy` | `clamp(26px, 4vw, 35px)` | Historical, fully overridden onboarding size retained as a named value                |
 | `--weight-emphasis`        | 600                      | Existing title, brand, focus-figure and hint emphasis                                 |
 
 Decorative glyphs are drawings, but their existing font-based dimensions are also tokenized. Tokenization does not change the selected face or the amount of emphasis.
 
 ## Owner decisions still open
 
-1. **Weight:** AGENTS.md permits 400/500 only; the previous typography document explicitly requested 600 for titles and the shipped CSS uses it. The refactor preserves all five declarations: `h1, .workspace-brand > div, .onboarding-brand`; `.chat-conversations > h1`; `.app-shell .main > .page-title h1`; `.progress-total`; and `.hint` (the grouped first rule counts as one declaration). Decide separately whether 600 should remain in all those contexts.
+1. **Weight:** AGENTS.md permits 400/500 only; the previous typography document explicitly requested 600 for titles and the shipped CSS uses it. The base has five such declarations; the refactor preserves their values for: `h1, .workspace-brand > div, .onboarding-brand`; `.chat-conversations > h1`; `.app-shell .main > .page-title h1`; `.progress-total`; and `.hint` (the grouped first rule counts as one declaration). Decide separately whether 600 should remain in all those contexts.
 2. **Four-size limit:** the earlier document allowed only four sizes while also requiring 8px pixel captions. The shipped UI additionally has 15px wordmark/privacy text, a 10px hint, responsive onboarding sizes and decorative sizes. All are preserved above; any removal or resizing is a visible design proposal.
 3. **Wordmark face:** the earlier prose said Instrument Sans everywhere except tiny captions, while the shipped wordmark rule selects `--pix` at 15px. Preserve that face until the owner chooses a separate design change.
 4. **Title rhythm:** the scale lists a 1.2 line height, while the shared workspace title uses 40px. The current row geometry is preserved rather than forced to 40.8px.
