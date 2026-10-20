@@ -36,9 +36,15 @@ judge errors remain in JSON and cause exit 1.
 
 The live path reuses production `request_at`, its prompt, model and validation.
 This measures the cloud request, not the local focus/rule/cache/debounce cascade.
-Production sends app and the first 160 window-title characters. `domain` and
-`visible_text` remain in the requested fixture schema but are not silently added
-to the prompt.
+Production sends app, window title (first 160 characters), available browser domain
+and page title (first 160 characters), and up to 400 redacted visible-text characters
+under the existing `screen_task_detection` opt-in. Absent fields are null.
+The CLI uses supplied fixture text as a synthetic opted-in sample through the same
+redaction and request builder; it never samples the actual desktop. Fixtures may
+optionally supply `page_title`; for browser fixtures it otherwise uses the supplied
+window title. `visible_text` may be null. Live sampling/cache/consent behavior is
+covered separately by isolated Rust regressions. This comparison still needs the
+hand-labelled real corpus before it can establish real-world accuracy.
 
 Accuracy uses all cases; request failures count as incorrect. False-positive
 rate is assigned predictions / expected-null cases among valid responses.

@@ -447,6 +447,8 @@ export function CoreSettings({
                   Record foreground apps, window/tab titles and active time on
                   this computer, and send up to 3,000 characters of visible text
                   with your goal and steps to Nebius for progress checks?
+                  Automatic goal matching, when enabled, can also use up to 400
+                  characters of the same redacted text to identify your goal.
                   Password and edit controls are skipped. Provider charges may
                   apply.
                 </p>

@@ -1,5 +1,6 @@
 mod deadlines;
 pub mod engine;
+pub(crate) mod screen_context;
 #[cfg(windows)]
 pub mod windows;
 use crate::{
@@ -66,6 +67,8 @@ impl Default for View {
     }
 }
 pub struct Runtime {
+    pub(crate) screen_context: Option<screen_context::CachedText>,
+    pub(crate) screen_context_epoch: u64,
     pub progress_error: Option<String>,
     pub view: View,
     pub memory: Memory,
@@ -86,6 +89,8 @@ impl Runtime {
             .validate()?;
         view.inbox = storage.read_setting("companion_inbox")?.unwrap_or_default();
         Ok(Self {
+            screen_context: None,
+            screen_context_epoch: 0,
             progress_error: None,
             view,
             memory: storage
@@ -99,6 +104,10 @@ impl Runtime {
             sampled_context: String::new(),
             work_clock: Default::default(),
         })
+    }
+    pub(crate) fn invalidate_screen_context(&mut self) {
+        self.screen_context = None;
+        self.screen_context_epoch = self.screen_context_epoch.wrapping_add(1);
     }
     pub fn invalidate(&mut self) {
         self.progress_error = None;
@@ -697,8 +706,9 @@ pub async fn detect(app: &AppHandle, state: &AppState) -> Result<(), String> {
             .ok_or("No foreground context")?;
         (goal, plan, activity, inner.privacy_revision)
     };
-    let text =
-        redact_sample(&sample(activity.window_id.ok_or("No foreground window")? as usize).await?);
+    let Some(text) = screen_context::read(state, &activity).await? else {
+        return Ok(());
+    };
     if text.trim().is_empty() {
         return Ok(());
     }
@@ -863,6 +873,7 @@ pub fn set_companion_preferences(
         .storage
         .write_setting("companion_preferences", &preferences)?;
     inner.companion.view.preferences = preferences;
+    inner.companion.invalidate_screen_context();
     inner.companion.invalidate();
     inner.privacy_revision += 1;
     emit(&app, "settings.updated", &inner.companion.view.preferences);

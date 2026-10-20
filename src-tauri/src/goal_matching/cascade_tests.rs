@@ -219,6 +219,8 @@ async fn ambiguity_calls_nemotron_once_then_keeps_the_result_for_stable_context(
         "fixture",
         &job.goals,
         &job.sample,
+        false,
+        None,
     )
     .await;
     let mut i = state.inner.lock().unwrap();
@@ -546,6 +548,8 @@ async fn synthetic_switching_benchmark() {
                 "fixture",
                 &job.goals,
                 &job.sample,
+                false,
+                None,
             )
             .await;
             finish(

@@ -17,7 +17,8 @@ struct Activity {
     app: String,
     window_title: String,
     domain: Option<String>,
-    visible_text: String,
+    visible_text: Option<String>,
+    page_title: Option<String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,12 +55,26 @@ async fn one(case: &Case, service: Option<&Service<'_>>) -> Row {
         .iter()
         .map(|g| json!({"id":g.id,"title":g.title,"steps":g.steps}))
         .collect::<Vec<_>>());
-    // request_at deliberately supplies only app/title. Retain the input schema without
-    // silently adding domain/visible_text to the production prompt.
-    let _ = (&case.activity.domain, &case.activity.visible_text);
+    // Explicit fixture input stands in for an opted-in Accessibility sample.
+    // Never read the real desktop or the installed preferences in this CLI.
     let sample = ActivitySnapshot {
         process_name: case.activity.app.clone(),
         window_title: case.activity.window_title.clone(),
+        browser: (case.activity.domain.is_some()
+            || case.activity.page_title.is_some()
+            || crate::browser::browser_name(&case.activity.app).is_some())
+        .then(|| crate::browser::BrowserContext {
+            browser: crate::browser::browser_name(&case.activity.app)
+                .unwrap_or("browser")
+                .into(),
+            domain: case.activity.domain.clone(),
+            page_title: case
+                .activity
+                .page_title
+                .clone()
+                .unwrap_or_else(|| case.activity.window_title.clone()),
+            source: "fixture".into(),
+        }),
         ..Default::default()
     };
     let result = if let Some(service) = service {
@@ -72,6 +87,8 @@ async fn one(case: &Case, service: Option<&Service<'_>>) -> Row {
                 &service.model,
                 &goals,
                 &sample,
+                true,
+                case.activity.visible_text.as_deref(),
             ),
         )
         .await
@@ -185,7 +202,7 @@ pub(crate) async fn run() -> Result<bool, String> {
     let path = output::save(
         "matching",
         &json!({"mock":mock,"model":service.as_ref().map(|s|&s.model),"summary":summary,"cases":rows,
-        "scope":"Production request_at cloud matcher only; app and window_title (first 160 characters). Domain and visible_text are not sent by production. Not the full matching cascade; placeholder/mock scores are not real-world accuracy."}),
+        "scope":"Production request_at cloud matcher only; app, window_title and page_title (160 characters each), domain, and opted-in redacted visible_text (400 characters). Synthetic fixture text stands in for the shared Accessibility sample; no live desktop read. Not the full matching cascade; placeholder/mock scores are not real-world accuracy."}),
     )?;
     println!("Results: {}", path.display());
     Ok(summary["errors"] == 0)

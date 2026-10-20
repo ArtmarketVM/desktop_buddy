@@ -33,6 +33,7 @@ impl Inner {
     /// Records a consent-affecting change: sharing, privacy, tracking or provider settings.
     pub fn mark_consent_change(&mut self) {
         self.privacy_revision += 1;
+        self.companion.invalidate_screen_context();
         self.last_consent_change = self.privacy_revision;
     }
     /// Whether consent changed after a request captured `revision`.
@@ -42,6 +43,7 @@ impl Inner {
 }
 
 pub struct AppState {
+    pub(crate) screen_context_read: tokio::sync::Mutex<()>,
     pub companion_request: tokio::sync::Mutex<()>,
     pub recommendation: tokio::sync::Mutex<()>,
     pub inner: Mutex<Inner>,
@@ -66,6 +68,7 @@ impl AppState {
         }
         let tracking = crate::tracking::requested(&storage)?;
         Ok(Self {
+            screen_context_read: tokio::sync::Mutex::new(()),
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
