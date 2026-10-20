@@ -14,7 +14,7 @@ export function assertNewerRelease(tag, latestTag) {
     return parts;
   };
   const candidate = parse(tag);
-  const latest = parse(latestTag);
+  const latest = parse(latestTag.startsWith("v") ? latestTag : `v${latestTag}`);
   for (let index = 0; index < 3; index++) {
     if (candidate[index] > latest[index]) return;
     if (candidate[index] < latest[index]) break;
