@@ -17,6 +17,10 @@ CI native results remain valid for this handoff: later changes affect only visua
 
 Developer 1: at width 720, Settings Privacy already clips at the right edge. The owner approved this as the unchanged starting appearance; treat a layout fix as an intentional change and request review of updated screenshots. Developer 2: inspect the intermittent `NoticedWork` title test described below; do not weaken its assertion to accommodate stale data.
 
+### Shared-state integration
+
+PR #36 reached main before this infrastructure merge. Its shared queries batch initial reads on a 20 ms timer, so a fully paused browser clock leaves the workspace loading. The visual harness now advances the fake clock by 100 ms after mounting and navigation, allowing those reads while staying below the avatar's 500 ms frame interval. Production timing, fixtures, assertions and the 34 approved PNGs are unchanged. Validate this integration with strict comparison in the documented Windows CI environment; macOS screenshots do not establish a Windows visual pass.
+
 ## Shared base and ownership
 
 - Branch: `codex/quality-gates`; isolated worktree: `.tools/worktrees/quality-gates`.

@@ -23,6 +23,10 @@ async function open(page: Page, theme: string, extra = "") {
       ),
     )
     .toBe(true);
+  await expect(page.locator("#root")).not.toBeEmpty();
+  // Shared queries batch reads on a 20 ms timer. Drain initial subscriptions
+  // without advancing the 500 ms avatar animation or long fallback intervals.
+  await page.clock.runFor(100);
   return async () => {
     await page.evaluate(async () => {
       await document.fonts.load('400 14px "Instrument Sans"');
@@ -73,11 +77,13 @@ for (const screen of screens) {
       page.getByRole("button", { name: "Collapse sidebar", exact: true }),
     ).toBeVisible();
     await page.getByRole("button", { name: screen.page, exact: true }).click();
+    await page.clock.runFor(100);
     if (screen.tab)
       await page
         .getByRole("navigation", { name: "Settings sections" })
         .getByRole("button", { name: screen.tab, exact: true })
         .click();
+    await page.clock.runFor(100);
     if (["today", "goals"].includes(screen.name))
       await expect(
         page
