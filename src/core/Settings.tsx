@@ -38,7 +38,7 @@ const minutes = (value: string) => {
 };
 
 export const PRIVACY_POLICY_URL =
-  "https://artmarketvm.github.io/desktop_buddy/privacy.html";
+  "https://artmarketvm.github.io/desktop_buddy/docs/privacy.html";
 
 /** One plain sentence about what sumi knows right now and what it would send. */
 export function describePrivacy(
@@ -51,7 +51,7 @@ export function describePrivacy(
   const never =
     "It never sends what is on your screen, what you type, or who you are.";
   const goal = goalTitle ? `your goal, “${goalTitle}”` : "your current goal";
-  let apps: { app: string; seconds: number }[] = [];
+  let apps: { app: string; seconds: number }[];
   try {
     const parsed = JSON.parse(preview) as {
       focus_check?: {
