@@ -19,7 +19,7 @@ No dependencies, manifests, lockfiles, CI, CSS, class names or selectors are cha
 
 ## Implementation and validation
 
-Validated application source: `11c3d718335a4b05db5c984fdff5bdf67f1e5abc`, after local milestone `c5507e7`. No source changes were made after the successful full checks; this final handoff edit is documentation only.
+Initial validated application source: `11c3d718335a4b05db5c984fdff5bdf67f1e5abc`, after local milestone `c5507e7`. The subsequent merge-review fix and its validation are recorded below.
 
 - `npm ci` succeeded using Node 24.14.1, without changing dependencies or lockfiles.
 - Targeted Vitest runs covered the cache, event bridge, IPC adapter, parameter changes, preference sharing, existing provider controls, chat/coaching/voice regressions and preview controls. New tests cover stale successes/failures, in-flight deduplication, initial failure/recovery, reset events, Strict Mode, late subscription cleanup and missed-event recovery.
@@ -93,3 +93,20 @@ No production HTTP request, provider credential storage, matching threshold, coa
 Validation ran on Apple Silicon macOS. Broadcast delivery is tested with Tauri's mock runtime and two windows; actual installed-app cross-window behavior and native Windows builds were not exercised. No installer, installation, release, remote branch, PR or merge was created for this task. No real-provider paid accuracy/probe run was needed for these local read/invalidation changes.
 
 A final fetch still found `origin/main` at `1176001`. Developer 1's CSS changes have not landed there, and Developer 3's visual harness/commands were not available at this base. Rebase onto main after those land, then run the supplied visual checks before merging. Existing UI structure, selectors and CSS were preserved; the only added diagnostic markup is the collapsed frontend-error detail inside Diagnostics. The privacy URL remains unchanged at the user's explicit request.
+
+
+## Independent merge review
+
+The owner subsequently authorized pushing this part independently and requested a merge. PR: https://github.com/ArtmarketVM/desktop_buddy/pull/36. Main remains at the agreed base; CSS and quality infrastructure are kept separate.
+
+Review found that a successful Settings save could clear the dirty guard before the shared preference/tracking snapshots caught up, briefly restoring cached values in the form. Commit `cdda0c00e3e3980ae601af0e9872e92bf57baedb` awaits those canonical reads before confirming the save. The added regression first failed on the previous source, then passed with the fix. No CSS or dependency changes were needed.
+
+Validation for `cdda0c0`:
+
+- Targeted `vitest run src/core/Settings.color.test.tsx src/core/Settings.providers.test.tsx src/data`: 26 passed across seven files.
+- `npm test`: 262 passed across 51 files, 6.19 seconds.
+- `npm run build`: passed; Vite 1.32 seconds.
+- Rust source, dependencies and configuration are unchanged from the successful 610-test run above; that result remains valid. Native Windows/macOS PR CI must pass at the final head before merging.
+- `git diff --check`: passed. Logs: `/tmp/sumi-shared-merge-{targeted,frontend,build}.log`.
+
+Developer 3's `codex/quality-gates` branch is now visible. Its approved visual baselines are still pending and it is not on main. Its scripts, dependency additions, privacy-site changes and CI changes are outside this independent application-logic PR. The user-deferred privacy URL remains unchanged. This merge does not publish an application release.
