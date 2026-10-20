@@ -69,14 +69,37 @@ export function InterventionCard({
             {accept}
           </button>
           {prompt.kind === "deadline" && (
-            <button
-              className="secondary"
-              disabled={busy}
-              title="Move to Today and set the deadline to the end of today"
-              onClick={() => respond("today")}
-            >
-              Do today
-            </button>
+            <>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => respond("start")}
+              >
+                Start now
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => respond("snooze")}
+              >
+                Remind in 1 hour
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                title="Move to Today and set the deadline to the end of today"
+                onClick={() => respond("today")}
+              >
+                Do today
+              </button>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => respond("reschedule")}
+              >
+                Move deadline 1 day
+              </button>
+            </>
           )}
           <button
             className="secondary"

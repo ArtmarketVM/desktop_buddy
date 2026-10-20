@@ -67,7 +67,13 @@ pub fn mode(status: &Status, view: &BuddyView) -> u8 {
     } else if view.companion.intervention.is_some()
         && !status.dnd
         && !view.companion.preferences.paused
-        && view.quiet_reason.is_none()
+        && (view.quiet_reason.is_none()
+            || (view.quiet_reason.as_deref() == Some("Waiting for a pause in input")
+                && view
+                    .companion
+                    .intervention
+                    .as_ref()
+                    .is_some_and(|p| p.kind == crate::companion::engine::Kind::Deadline)))
     {
         2
     } else if status.tracking
@@ -188,7 +194,11 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
     inner.buddy.fullscreen = !inner.status.demo && crate::collector::foreground_fullscreen();
     inner.buddy.view.quiet_reason = crate::attention::quiet_reason(
         &inner.buddy.view.preferences,
-        inner.buddy.foreground.as_ref(),
+        inner
+            .buddy
+            .foreground
+            .as_ref()
+            .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none()),
         inner.buddy.fullscreen,
         inner.buddy.shown.is_some() || inner.companion.view.intervention.is_some(),
     );
@@ -201,6 +211,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         .buddy
         .foreground
         .as_ref()
+        .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
         .is_some_and(|a| a.media_playing)
     {
         inner.buddy.view.quiet_reason = Some("Media playback".into());
@@ -208,6 +219,7 @@ pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), S
         .buddy
         .foreground
         .as_ref()
+        .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
         .is_some_and(|a| a.idle_seconds >= inner.tracking_settings.idle_seconds)
         || (!inner.status.demo
             && crate::collector::foreground_idle_seconds()

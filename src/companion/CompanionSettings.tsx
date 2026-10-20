@@ -70,6 +70,15 @@ export function CompanionSettings({
     );
   return (
     <>
+      {toggle("deadline_reminders", "Remind me about overdue tasks")}
+      {toggle(
+        "system_deadline_notifications",
+        "Show deadline reminders in system notifications",
+      )}
+      <p className="muted">
+        Local reminders follow quiet hours and work without AI or activity
+        tracking.
+      </p>
       {toggle(
         "daily_checkins",
         "Daily check-ins: morning plan, midday review, evening wrap-up",

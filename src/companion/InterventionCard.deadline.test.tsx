@@ -15,11 +15,17 @@ const prompt: Intervention = {
   step_id: null,
   expires_at: 9999999999,
 };
-it("offers three explicit choices without implying that work was completed", () => {
+it("preserves completion and Today actions alongside start, snooze and reschedule", () => {
   const respond = vi.fn();
   render(<InterventionCard prompt={prompt} busy={false} respond={respond} />);
   expect(respond).not.toHaveBeenCalled();
   expect(screen.getByText(prompt.text)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Start now" }));
+  expect(respond).toHaveBeenLastCalledWith("start");
+  fireEvent.click(screen.getByRole("button", { name: "Remind in 1 hour" }));
+  expect(respond).toHaveBeenLastCalledWith("snooze");
+  fireEvent.click(screen.getByRole("button", { name: "Move deadline 1 day" }));
+  expect(respond).toHaveBeenLastCalledWith("reschedule");
   fireEvent.click(screen.getByRole("button", { name: "Do today" }));
   expect(respond).toHaveBeenLastCalledWith("today");
   expect(

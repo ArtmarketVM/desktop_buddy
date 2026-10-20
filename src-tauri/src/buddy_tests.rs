@@ -238,3 +238,34 @@ fn mascot_anchor_survives_chat_resize_screen_edges_and_native_drag() {
         }
     }
 }
+
+#[test]
+fn deadline_cards_work_without_tracking_but_never_bypass_quiet_reasons() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.buddy.view.companion.intervention = Some(crate::companion::engine::Intervention {
+        id: "deadline".into(),
+        kind: crate::companion::engine::Kind::Deadline,
+        text: "Task is overdue".into(),
+        confidence: 1.0,
+        goal_id: Some(1),
+        plan_revision: None,
+        step_id: None,
+        expires_at: i64::MAX,
+    });
+    inner.status.tracking = false;
+    inner.buddy.view.quiet_reason = Some("Waiting for a pause in input".into());
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
+    for reason in [
+        "Quiet hours",
+        "Outside working hours",
+        "You are away",
+        "Meeting or presentation",
+    ] {
+        inner.buddy.view.quiet_reason = Some(reason.into());
+        assert_ne!(mode(&inner.status, &inner.buddy.view), 2);
+    }
+    inner.buddy.view.quiet_reason = None;
+    inner.status.dnd = true;
+    assert_ne!(mode(&inner.status, &inner.buddy.view), 2);
+}

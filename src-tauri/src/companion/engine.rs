@@ -13,6 +13,8 @@ pub struct Preferences {
     pub quiet_start_minute: u32,
     pub quiet_end_minute: u32,
     pub movement_reminder: bool,
+    pub deadline_reminders: bool,
+    pub system_deadline_notifications: bool,
 }
 impl Default for Preferences {
     fn default() -> Self {
@@ -26,6 +28,8 @@ impl Default for Preferences {
             quiet_start_minute: 19 * 60,
             quiet_end_minute: 9 * 60,
             movement_reminder: true,
+            deadline_reminders: true,
+            system_deadline_notifications: true,
         }
     }
 }

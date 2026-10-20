@@ -3,6 +3,16 @@ use super::engine::{fingerprint, Intervention, Kind, Memory};
 use crate::storage::Storage;
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use rusqlite::OptionalExtension;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+
+const SNOOZES: &str = "deadline_snoozes";
+#[derive(Clone, Serialize, Deserialize)]
+struct Snooze {
+    due: i64,
+    at: i64,
+}
+type Snoozes = BTreeMap<i64, Snooze>;
 
 struct DueGoal {
     id: i64,
@@ -13,13 +23,29 @@ impl DueGoal {
     fn key(&self, day: &str) -> String {
         format!("deadline:{}:{}:{day}", self.id, self.due)
     }
-    fn text(&self) -> String {
+    fn text(&self, plan: &crate::goals::GoalPlan) -> String {
         // Keep unusually long imported goal titles from overwhelming the bubble.
         let mut title: String = self.title.chars().take(100).collect();
         if self.title.chars().count() > 100 {
             title.push('…');
         }
-        format!("“{title}” is past its deadline. Finished, or do it today?")
+        let next = plan
+            .steps
+            .iter()
+            .find(|s| !s.done)
+            .map(|s| {
+                let text: String = s.text.chars().take(100).collect();
+                format!(
+                    " A small next step: {text}{}.",
+                    if s.text.chars().count() > 100 {
+                        "…"
+                    } else {
+                        ""
+                    }
+                )
+            })
+            .unwrap_or_default();
+        format!("“{title}” is past its deadline. Finished, or do it today?{next}")
     }
 }
 fn row(id: i64, title: String, due: String, now: i64) -> Option<DueGoal> {
@@ -34,6 +60,7 @@ pub(super) fn next(
     day: &str,
     now: i64,
 ) -> Result<Option<Intervention>, String> {
+    let snoozes: Snoozes = storage.read_setting(SNOOZES)?.unwrap_or_default();
     let mut query = storage.connection.prepare(
         "SELECT g.id,g.text,d.due_at FROM goals g JOIN core_goals c ON c.goal_id=g.id JOIN core_goal_details d ON d.goal_id=g.id WHERE c.state='open' AND g.status!='completed' AND d.due_at IS NOT NULL",
     ).map_err(|_| "Deadline reminders unavailable")?;
@@ -50,28 +77,82 @@ pub(super) fn next(
     for result in rows {
         let (id, title, due) = result.map_err(|_| "Deadline reminders unavailable")?;
         if let Some(goal) = row(id, title, due, now) {
-            if !memory.seen.contains(&goal.key(day)) {
-                goals.push(goal);
+            let key = goal.key(day);
+            let request = snoozes.get(&id).filter(|s| s.due == goal.due);
+            let requested = request.is_some_and(|s| {
+                s.at <= now && !memory.seen.contains(&format!("{key}:snooze:{}", s.at))
+            });
+            if request.is_some_and(|s| s.at > now) {
+                continue;
+            }
+            let repeat = memory.seen.contains(&key);
+            if repeat && !requested && now.saturating_sub(memory.last_prompt) < 3600 {
+                continue;
+            }
+            let identity = if requested {
+                format!("{key}:snooze:{}", request.unwrap().at)
+            } else if repeat {
+                format!("{key}:repeat")
+            } else {
+                key
+            };
+            if !memory.seen.contains(&identity) && (requested || memory.shown < 3) {
+                goals.push((goal, identity, requested, repeat));
             }
         }
     }
     // Current work first, then the oldest overdue item. Never replace the user's focus.
-    goals.sort_by_key(|g| (Some(g.id) != focus, g.due, g.id));
+    goals.sort_by_key(|(g, _, requested, repeat)| {
+        (!requested, Some(g.id) != focus, *repeat, g.due, g.id)
+    });
     goals
         .first()
-        .map(|goal| {
+        .map(|(goal, identity, _, _)| {
+            let plan = storage.goal_plan(goal.id)?;
             Ok(Intervention {
-                id: goal.key(day),
+                id: identity.clone(),
                 kind: Kind::Deadline,
-                text: goal.text(),
+                text: goal.text(&plan),
                 confidence: 1.0,
                 goal_id: Some(goal.id),
-                plan_revision: Some(storage.goal_plan(goal.id)?.revision),
+                plan_revision: Some(plan.revision),
                 step_id: None,
                 expires_at: now + 120,
             })
         })
         .transpose()
+}
+
+pub(super) fn requested(
+    storage: &Storage,
+    prompt: &Intervention,
+    day: &str,
+    now: i64,
+) -> Result<bool, String> {
+    let snoozes: Snoozes = storage.read_setting(SNOOZES)?.unwrap_or_default();
+    Ok(prompt
+        .goal_id
+        .and_then(|id| {
+            snoozes.get(&id).map(|s| {
+                s.at <= now && prompt.id == format!("deadline:{id}:{}:{day}:snooze:{}", s.due, s.at)
+            })
+        })
+        .unwrap_or(false))
+}
+
+pub(super) fn reserve(
+    storage: &Storage,
+    memory: &mut Memory,
+    prompt: &Intervention,
+    day: &str,
+    now: i64,
+) -> Result<bool, String> {
+    let explicit = requested(storage, prompt, day, now)?;
+    let reserved = memory.reserve(prompt, now);
+    if reserved && explicit {
+        memory.shown = memory.shown.saturating_sub(1);
+    }
+    Ok(reserved)
 }
 
 pub(super) fn validate(
@@ -88,12 +169,16 @@ pub(super) fn validate(
     ).optional().map_err(|_| changed)?;
     let (title, due) = value.ok_or(changed)?;
     let goal = row(id, title, due, now).ok_or(changed)?;
+    let plan = storage.goal_plan(id)?;
     if prompt.kind != Kind::Deadline
         || prompt.expires_at <= now
-        || prompt.id != goal.key(day)
-        || fingerprint(&prompt.text) != fingerprint(&goal.text())
+        || !(prompt.id == goal.key(day)
+            || prompt.id == format!("{}:repeat", goal.key(day))
+            || (prompt.id.starts_with(&format!("{}:snooze:", goal.key(day)))
+                && requested(storage, prompt, day, now)?))
+        || fingerprint(&prompt.text) != fingerprint(&goal.text(&plan))
         || prompt.step_id.is_some()
-        || prompt.plan_revision != Some(storage.goal_plan(id)?.revision)
+        || prompt.plan_revision != Some(plan.revision)
     {
         return Err(changed.into());
     }
@@ -108,45 +193,109 @@ pub(super) fn respond(
     now: i64,
 ) -> Result<i64, String> {
     let id = validate(storage, prompt, day, now)?;
-    match action {
-        // This button is the user's explicit confirmation, not inferred completion.
-        "accept" => storage.core_transition(id, "complete")?,
-        "today" => {
-            let date: NaiveDate = day.parse().map_err(|_| "Choose a valid day")?;
-            let end = Local
-                .from_local_datetime(&date.and_hms_opt(23, 59, 59).ok_or("Choose a valid day")?)
-                .latest()
-                .ok_or("Today's deadline is unavailable in this time zone")?
-                .with_timezone(&Utc)
-                .to_rfc3339();
-            storage
-                .connection
-                .execute_batch("SAVEPOINT deadline_today")
-                .map_err(|_| "Could not reschedule goal")?;
-            let result = (|| {
+    if !["accept", "today", "start", "snooze", "reschedule", "ignore"].contains(&action) {
+        return Err("Unknown deadline response".into());
+    }
+    storage
+        .connection
+        .execute_batch("SAVEPOINT deadline_response")
+        .map_err(|_| "Could not update deadline")?;
+    let result = (|| {
+        let mut snoozes: Snoozes = storage.read_setting(SNOOZES)?.unwrap_or_default();
+        match action {
+            // This button is the user's explicit confirmation, not inferred completion.
+            "accept" => storage.core_transition(id, "complete")?,
+            "today" => {
+                let date: NaiveDate = day.parse().map_err(|_| "Choose a valid day")?;
+                let end = Local
+                    .from_local_datetime(&date.and_hms_opt(23, 59, 59).ok_or("Choose a valid day")?)
+                    .latest()
+                    .ok_or("Today's deadline is unavailable in this time zone")?
+                    .with_timezone(&Utc)
+                    .to_rfc3339();
+                storage
+                    .connection
+                    .execute_batch("SAVEPOINT deadline_today")
+                    .map_err(|_| "Could not reschedule goal")?;
+                let result = (|| {
+                    storage.core_today(id, true, day)?;
+                    storage
+                        .connection
+                        .execute(
+                            "UPDATE core_goal_details SET due_at=?1 WHERE goal_id=?2",
+                            rusqlite::params![end, id],
+                        )
+                        .map_err(|_| "Could not reschedule goal")?;
+                    Ok::<(), String>(())
+                })();
+                storage
+                    .connection
+                    .execute_batch(if result.is_ok() {
+                        "RELEASE deadline_today"
+                    } else {
+                        "ROLLBACK TO deadline_today; RELEASE deadline_today"
+                    })
+                    .map_err(|_| "Could not reschedule goal")?;
+                result?;
+            }
+            "start" => {
                 storage.core_today(id, true, day)?;
+                if storage.goal()?.map(|g| g.id) != Some(id) {
+                    storage.transition_goal(id, "resume")?;
+                }
+                storage.mark_explicit_focus(id)?;
+                storage.core_set_timer(Some(id))?;
+            }
+            "reschedule" => {
+                let next = DateTime::from_timestamp(now, 0)
+                    .and_then(|d| d.checked_add_signed(chrono::Duration::days(1)))
+                    .ok_or("Invalid deadline time")?;
                 storage
                     .connection
                     .execute(
                         "UPDATE core_goal_details SET due_at=?1 WHERE goal_id=?2",
-                        rusqlite::params![end, id],
+                        rusqlite::params![next.to_rfc3339(), id],
                     )
-                    .map_err(|_| "Could not reschedule goal")?;
-                Ok::<(), String>(())
-            })();
-            storage
-                .connection
-                .execute_batch(if result.is_ok() {
-                    "RELEASE deadline_today"
-                } else {
-                    "ROLLBACK TO deadline_today; RELEASE deadline_today"
-                })
-                .map_err(|_| "Could not reschedule goal")?;
-            result?;
+                    .map_err(|_| "Could not move deadline")?;
+            }
+            "snooze" => {
+                let due: String = storage
+                    .connection
+                    .query_row(
+                        "SELECT due_at FROM core_goal_details WHERE goal_id=?1",
+                        [id],
+                        |r| r.get(0),
+                    )
+                    .map_err(|_| "Deadline unavailable")?;
+                let due = DateTime::parse_from_rfc3339(&due)
+                    .map_err(|_| "Invalid deadline")?
+                    .timestamp();
+                snoozes.insert(
+                    id,
+                    Snooze {
+                        due,
+                        at: now + 3600,
+                    },
+                );
+            }
+            "ignore" => {}
+            _ => unreachable!(),
         }
-        _ => return Err("Unknown deadline response".into()),
-    }
-    Ok(id)
+        if action != "snooze" {
+            snoozes.remove(&id);
+        }
+        storage.write_setting(SNOOZES, &snoozes)?;
+        Ok(id)
+    })();
+    storage
+        .connection
+        .execute_batch(if result.is_ok() {
+            "RELEASE deadline_response"
+        } else {
+            "ROLLBACK TO deadline_response; RELEASE deadline_response"
+        })
+        .map_err(|_| "Could not update deadline")?;
+    result
 }
 
 #[cfg(test)]
@@ -373,5 +522,119 @@ mod tests {
             );
             assert!(!includes(&s, id, DAY), "{change}");
         }
+    }
+
+    #[test]
+    fn automatic_repeat_is_bounded_and_uses_existing_history() {
+        let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        add(&mut s, "Repeat", "2026-10-19T10:00:00Z");
+        let mut memory = Memory::default();
+        memory.refresh(DAY);
+        let first = prompt(&s);
+        assert!(memory.reserve(&first, now()));
+        assert!(next(&s, &memory, None, DAY, now() + 3599)
+            .unwrap()
+            .is_none());
+        let repeat = next(&s, &memory, None, DAY, now() + 3600).unwrap().unwrap();
+        assert_ne!(first.id, repeat.id);
+        assert!(validate(&s, &repeat, DAY, now() + 3600).is_ok());
+        assert!(memory.reserve(&repeat, now() + 3600));
+        assert!(next(&s, &memory, None, DAY, now() + 7200)
+            .unwrap()
+            .is_none());
+    }
+
+    #[test]
+    fn explicit_snooze_survives_reopen_and_bypasses_automatic_budget() {
+        let path = std::env::temp_dir().join(format!(
+            "buddy-snooze-{}.db",
+            Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        let first;
+        {
+            let mut s = Storage::open(&path).unwrap();
+            add(&mut s, "Snooze", "2026-10-19T10:00:00Z");
+            first = prompt(&s);
+            respond(&mut s, &first, "snooze", DAY, now()).unwrap();
+            assert!(s.goal().unwrap().is_none());
+        }
+        {
+            let s = Storage::open(&path).unwrap();
+            let mut memory = Memory::default();
+            memory.shown = 3;
+            assert!(next(&s, &memory, None, DAY, now() + 3599)
+                .unwrap()
+                .is_none());
+            let repeat = next(&s, &memory, None, DAY, now() + 3600).unwrap().unwrap();
+            assert!(requested(&s, &repeat, DAY, now() + 3600).unwrap());
+            assert!(validate(&s, &repeat, DAY, now() + 3600).is_ok());
+            assert!(reserve(&s, &mut memory, &repeat, DAY, now() + 3600).unwrap());
+            assert_eq!(memory.shown, 3);
+            assert!(next(&s, &memory, None, DAY, now() + 7200)
+                .unwrap()
+                .is_none());
+            s.connection
+                .execute(
+                    "UPDATE core_goal_details SET due_at='2026-10-19T11:00:00Z'",
+                    [],
+                )
+                .unwrap();
+            assert!(validate(&s, &repeat, DAY, now() + 3600).is_err());
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn start_selects_today_and_timer_but_does_not_complete_work() {
+        let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        let id = add(&mut s, "Start", "2026-10-19T10:00:00Z");
+        let p = prompt(&s);
+        assert!(p.text.contains("A small next step: Review result"));
+        respond(&mut s, &p, "start", DAY, now()).unwrap();
+        assert_eq!(s.goal().unwrap().unwrap().id, id);
+        assert_eq!(s.core_timer().unwrap().unwrap().goal_id, id);
+        assert!(includes(&s, id, DAY));
+        assert!(!s.goal_plan(id).unwrap().steps[0].done);
+    }
+
+    #[test]
+    fn deadline_actions_roll_back_together_when_snooze_persistence_fails() {
+        let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        let id = add(&mut s, "AtomicResponse", "2026-10-19T10:00:00Z");
+        let p = prompt(&s);
+        s.connection.execute_batch("CREATE TRIGGER fail_snooze BEFORE INSERT ON preferences WHEN NEW.name='deadline_snoozes' BEGIN SELECT RAISE(ABORT,'fixture'); END;").unwrap();
+        for action in ["start", "reschedule", "today", "accept"] {
+            assert!(respond(&mut s, &p, action, DAY, now()).is_err(), "{action}");
+            assert!(s.goal().unwrap().is_none());
+            assert!(s.core_timer().unwrap().is_none());
+            assert!(!includes(&s, id, DAY));
+            assert!(!s.goal_plan(id).unwrap().steps[0].done);
+            assert!(validate(&s, &p, DAY, now()).is_ok());
+        }
+    }
+
+    #[test]
+    fn reschedule_and_ignore_preserve_existing_work_state() {
+        let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        let id = add(&mut s, "Move", "2026-10-19T10:00:00Z");
+        let p = prompt(&s);
+        respond(&mut s, &p, "ignore", DAY, now()).unwrap();
+        assert!(validate(&s, &p, DAY, now()).is_ok());
+        respond(&mut s, &p, "reschedule", DAY, now()).unwrap();
+        let due: String = s
+            .connection
+            .query_row(
+                "SELECT due_at FROM core_goal_details WHERE goal_id=?1",
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            DateTime::parse_from_rfc3339(&due).unwrap().timestamp(),
+            now() + 86400
+        );
+        assert!(s.goal().unwrap().is_none());
+        assert!(s.core_timer().unwrap().is_none());
+        assert!(!s.goal_plan(id).unwrap().steps[0].done);
     }
 }

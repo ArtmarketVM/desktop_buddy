@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_notification::NotificationExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InboxTask {
@@ -163,6 +164,14 @@ fn offer(app: &AppHandle, inner: &mut Inner, prompt: Intervention, now: i64) -> 
     let progress = matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion);
     let reserved = if progress {
         inner.companion.memory.reserve_progress(&prompt)
+    } else if prompt.kind == Kind::Deadline {
+        deadlines::reserve(
+            &inner.storage,
+            &mut inner.companion.memory,
+            &prompt,
+            &chrono::Local::now().date_naive().to_string(),
+            now,
+        )?
     } else {
         inner.companion.memory.reserve(&prompt, now)
     };
@@ -170,6 +179,21 @@ fn offer(app: &AppHandle, inner: &mut Inner, prompt: Intervention, now: i64) -> 
         inner
             .storage
             .write_setting("companion_memory", &inner.companion.memory)?;
+        if prompt.kind == Kind::Deadline
+            && inner
+                .companion
+                .view
+                .preferences
+                .system_deadline_notifications
+            && !inner.status.demo
+        {
+            let _ = app
+                .notification()
+                .builder()
+                .title("sumi · Task overdue")
+                .body(&prompt.text)
+                .show();
+        }
         emit(
             app,
             match prompt.kind {
@@ -373,19 +397,30 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     }
     if !inner.storage.user_settings()?.onboarding.completed
         || inner.companion.view.intervention.is_some()
-        || !can_offer(inner, goal_id, false, now, minute)
     {
         return Ok(());
     }
-    if deadline_allowed(inner, now, minute) && now >= inner.companion.next_deadline_check {
+    if deadline_context_allowed(inner, minute)
+        && !inner.companion.view.chat_open
+        && inner.companion.started.elapsed().as_secs()
+            >= inner.companion.view.preferences.morning_delay_minutes as u64 * 60
+        && now >= inner.companion.next_deadline_check
+    {
         // No database scan on each collector tick; suppressed checks do not consume a reminder.
         inner.companion.next_deadline_check = now + 30;
         if let Some(prompt) =
             deadlines::next(&inner.storage, &inner.companion.memory, goal_id, &day, now)?
         {
-            offer(app, inner, prompt, now)?;
-            return Ok(());
+            if deadlines::requested(&inner.storage, &prompt, &day, now)?
+                || deadline_allowed(inner, now, minute)
+            {
+                offer(app, inner, prompt, now)?;
+                return Ok(());
+            }
         }
+    }
+    if !can_offer(inner, goal_id, false, now, minute) {
+        return Ok(());
     }
     let (total, completed, average): (u32,u32,f64) = inner.storage.connection.query_row("SELECT COUNT(*),COALESCE(SUM(status='completed'),0),COALESCE(AVG(CASE WHEN status='completed' THEN MAX(0,(julianday(completed_at)-julianday(created_at))*86400) END),0) FROM (SELECT status,created_at,completed_at FROM goals ORDER BY id DESC LIMIT 30)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| "Nudge history unavailable")?;
     inner.companion.memory.completion_samples = total;
@@ -461,22 +496,44 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     Ok(())
 }
 fn deadline_context_allowed(inner: &Inner, minute: u32) -> bool {
-    inner.companion.view.preferences.daily_checkins
-        && inner.status.tracking
-        && inner.status.tracking_error.is_none()
-        && inner.buddy.foreground.as_ref().is_some_and(|a| {
-            !sensitive_window(a)
-                && !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name)
-        })
+    inner.companion.view.preferences.deadline_reminders
         && inner.tracking_settings.working_at(minute)
         && !inner.companion.view.preferences.quiet(minute)
-        && !suppressed(inner)
+        && !inner.companion.view.preferences.paused
+        && !inner.status.dnd
+        && !crate::buddy::snoozed(&inner.buddy.view)
+        && !inner.buddy.fullscreen
+        && inner
+            .buddy
+            .view
+            .quiet_reason
+            .as_deref()
+            .is_none_or(|reason| reason == "Waiting for a pause in input")
+        && !inner
+            .buddy
+            .foreground
+            .as_ref()
+            .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
+            .is_some_and(|a| {
+                sensitive_window(a)
+                    || crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name)
+                    || crate::attention::meeting(a)
+                    || a.media_playing
+                    || a.idle_seconds >= inner.tracking_settings.idle_seconds
+            })
 }
 fn deadline_allowed(inner: &Inner, now: i64, minute: u32) -> bool {
     deadline_context_allowed(inner, minute)
         && inner.companion.started.elapsed().as_secs()
             >= inner.companion.view.preferences.morning_delay_minutes as u64 * 60
-        && can_offer(inner, None, false, now, minute)
+        && !inner.companion.view.chat_open
+        && {
+            let mut memory = inner.companion.memory.clone();
+            memory.accepted = 0;
+            memory.rejected = 0;
+            memory.completion_samples = 0;
+            memory.allowed(now, &inner.companion.view.preferences, minute, false)
+        }
 }
 pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, String> {
     let snapshot = storage.core_snapshot(None)?;
@@ -1192,7 +1249,7 @@ pub fn respond_companion_intervention(
     } else {
         None
     };
-    if prompt.kind == Kind::Deadline && action != "ignore" {
+    if prompt.kind == Kind::Deadline {
         let was_active = inner
             .storage
             .goal()?
@@ -1215,7 +1272,16 @@ pub fn respond_companion_intervention(
             inner.companion.memory.last_progress = now;
             emit(&app, "goal.completed", &prompt);
             let _ = app.emit("buddy://goal-completed", &prompt);
-        } else {
+        } else if action == "start" {
+            inner.status.tracking = crate::tracking::requested(&inner.storage)?;
+            inner.collector = crate::collector::create(inner.status.demo);
+            inner.usage = Default::default();
+            inner.activity_state.stop(false);
+            inner.buddy.foreground = None;
+            inner.goal_matching.clear();
+            inner.buddy.clear();
+            let _ = app.emit("buddy://navigate", "focus");
+        } else if matches!(action.as_str(), "today" | "reschedule") {
             emit(&app, "goal.rescheduled", json!({"goal_id":goal_id}));
         }
     } else if action == "accept" {
@@ -1329,6 +1395,7 @@ pub fn respond_companion_intervention(
         ]
         .contains(&prompt.kind)
         || action == "summary"
+        || (prompt.kind == Kind::Deadline && action == "start")
     {
         crate::buddy::open_workspace(app)?;
     } else if action == "accept" && prompt.kind == Kind::Midday {
@@ -1413,7 +1480,8 @@ mod tests {
             inner.status.tracking_error = (gate == "error").then(|| "fixture".into());
             inner.companion.view.chat_open = gate == "chat";
             inner.companion.view.preferences.paused = gate == "paused";
-            inner.companion.view.preferences.daily_checkins = gate != "disabled";
+            inner.companion.view.preferences.deadline_reminders = gate != "disabled";
+            inner.companion.view.preferences.daily_checkins = false;
             inner.companion.view.preferences.quiet_start_minute =
                 if gate == "quiet" { 500 } else { 0 };
             inner.companion.view.preferences.quiet_end_minute =
@@ -1442,7 +1510,8 @@ mod tests {
                 ..Default::default()
             });
             assert!(
-                !deadline_allowed(&inner, 10000, if gate == "hours" { 0 } else { 600 }),
+                deadline_allowed(&inner, 10000, if gate == "hours" { 0 } else { 600 })
+                    == matches!(gate, "tracking" | "error" | "no_window"),
                 "{gate}"
             );
         }

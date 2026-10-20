@@ -9,6 +9,8 @@ export interface CompanionPreferences {
   quiet_start_minute: number;
   quiet_end_minute: number;
   movement_reminder: boolean;
+  deadline_reminders: boolean;
+  system_deadline_notifications: boolean;
 }
 export const defaultCompanionPreferences: CompanionPreferences = {
   paused: false,
@@ -20,6 +22,8 @@ export const defaultCompanionPreferences: CompanionPreferences = {
   quiet_start_minute: 1140,
   quiet_end_minute: 540,
   movement_reminder: true,
+  deadline_reminders: true,
+  system_deadline_notifications: true,
 };
 export interface Intervention {
   id: string;
@@ -87,7 +91,14 @@ export interface CompanionReply {
 }
 export type CompanionAction = "task" | "ask" | "research" | "explain" | "save";
 export type InterventionResponse =
-  "accept" | "ignore" | "tomorrow" | "summary" | "today";
+  | "accept"
+  | "ignore"
+  | "tomorrow"
+  | "summary"
+  | "today"
+  | "start"
+  | "snooze"
+  | "reschedule";
 export interface BuddyEvent {
   type:
     | "task.detected"
