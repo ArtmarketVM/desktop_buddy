@@ -19,11 +19,13 @@ async function open(page: Page, theme: string, extra = "") {
   await expect
     .poll(() =>
       page.evaluate(() =>
-        Boolean((globalThis as unknown as { isTauri: boolean }).isTauri),
+        Boolean(
+          (window as unknown as { __visual?: { ready: boolean } }).__visual
+            ?.ready,
+        ),
       ),
     )
     .toBe(true);
-  await expect(page.locator("#root")).not.toBeEmpty();
   // Shared queries batch reads on a 20 ms timer. Drain initial subscriptions
   // without advancing the 500 ms avatar animation or long fallback intervals.
   await page.clock.runFor(100);

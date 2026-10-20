@@ -14,7 +14,8 @@ Object.defineProperty(globalThis, "isTauri", {
 mockWindows(buddy ? "buddy" : "main");
 const calls: string[] = [];
 const unexpected: string[] = [];
-Object.assign(window, { __visual: { calls, unexpected } });
+const state = { calls, unexpected, ready: false };
+Object.assign(window, { __visual: state });
 mockIPC(
   (command) => {
     calls.push(command);
@@ -30,3 +31,4 @@ mockIPC(
 
 // Install the mock before any application module evaluates isTauri().
 await import("../src/main");
+state.ready = true;
