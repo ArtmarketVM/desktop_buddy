@@ -16,6 +16,12 @@
 ## Efficient execution
 
 - Keep work scoped to the request. Do not add unrelated improvements.
+- Before implementation, inspect the working tree, fetch the latest remote state, and compare the working branch with `origin/main`. Reconcile relevant upstream changes before coding, preserving local work. If fetching is blocked, state that the base is unverified.
+- During implementation, run targeted tests for the affected behavior. Run the required full suites once when the change is ready for handoff; do not run every full suite after each edit.
+- Reuse successful checks while the relevant source, dependencies, configuration, and environment remain unchanged. After subsequent edits, rerun only the affected checks; documentation-only edits do not require application tests or builds.
+- Record validation commands, results, and the source state they cover in the handoff or existing release notes so later commit/push requests can reuse them. After integrating upstream changes, reassess which results remain valid.
+- Run independent frontend and backend checks concurrently when local resources permit. Do not force a single frontend worker by default; use measured timings and resource limits to choose concurrency.
+- Build installers when preparing a release or when explicitly requested or needed to verify packaging changes. Do not rebuild installers for routine development or commit/push-only work. Preserve the required Windows and macOS validation before publishing a release.
 - Read only relevant files and excerpts. Re-read unchanged content only when needed.
 - Prefer targeted searches and concise tool output over full-file or full-log dumps.
 - Batch independent read-only checks when practical.
