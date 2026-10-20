@@ -429,6 +429,7 @@ pub fn create_buddy_conversation(app: AppHandle, state: State<AppState>) -> Resu
     inner.storage.start_fresh_conversation()?;
     let id = inner.storage.current_conversation()?;
     inner.storage.prune_empty_conversations(id)?;
+    crate::frontend_events::changed(&app, &[crate::frontend_events::Resource::CurrentChat], true);
     let _ = app.emit("buddy://chat-updated", ());
     Ok(id)
 }
@@ -443,6 +444,7 @@ pub fn select_buddy_conversation(
         .lock()
         .map_err(|_| "Application state unavailable")?;
     inner.storage.select_conversation(id)?;
+    crate::frontend_events::changed(&app, &[crate::frontend_events::Resource::CurrentChat], true);
     let _ = app.emit("buddy://chat-updated", ());
     Ok(())
 }
@@ -462,17 +464,37 @@ pub fn delete_buddy_conversation(
         .map_err(|_| "Application state unavailable")?;
     inner.storage.delete_conversation(id)?;
     inner.privacy_revision += 1;
+    crate::frontend_events::changed(
+        &app,
+        &[
+            crate::frontend_events::Resource::Chats,
+            crate::frontend_events::Resource::CurrentChat,
+            crate::frontend_events::Resource::Coaching,
+        ],
+        true,
+    );
     let _ = app.emit("buddy://chat-updated", ());
     Ok(())
 }
 #[tauri::command(async)]
-pub fn get_buddy_chat_history(state: State<AppState>) -> Result<Vec<ChatMessage>, String> {
-    state
+pub fn get_buddy_chat_history(
+    state: State<AppState>,
+    conversation_id: Option<i64>,
+) -> Result<Vec<ChatMessage>, String> {
+    let inner = state
         .inner
         .lock()
-        .map_err(|_| "Application state unavailable")?
-        .storage
-        .chat_history()
+        .map_err(|_| "Application state unavailable")?;
+    history_for(&inner.storage, conversation_id)
+}
+fn history_for(
+    storage: &Storage,
+    conversation_id: Option<i64>,
+) -> Result<Vec<ChatMessage>, String> {
+    match conversation_id {
+        Some(id) => storage.chat_history_of(id),
+        None => storage.chat_history(),
+    }
 }
 #[tauri::command(async)]
 pub fn get_buddy_coaching(goal_id: i64, state: State<AppState>) -> Result<Value, String> {
@@ -519,6 +541,15 @@ pub fn clear_buddy_chat(
     tx.commit()
         .map_err(|_| "Conversation storage unavailable")?;
     inner.privacy_revision += 1;
+    crate::frontend_events::changed(
+        &app,
+        &[
+            crate::frontend_events::Resource::Chats,
+            crate::frontend_events::Resource::CurrentChat,
+            crate::frontend_events::Resource::Coaching,
+        ],
+        true,
+    );
     let _ = app.emit("buddy://chat-updated", ());
     Ok(())
 }

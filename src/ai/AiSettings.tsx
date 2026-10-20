@@ -1,35 +1,34 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { desktop } from "../api/tauri";
-import { aiApi, defaultAiPreferences, type AiPreferences } from "./api";
+import { aiApi, type AiPreferences } from "./api";
+import { useQuery } from "../data/useQuery";
+import { preferencesQuery } from "../data/resources";
+import { queryClient } from "../data/client";
 import { Hint } from "../core/Hint";
 export function AiSettings({
   onChanged,
   compact = false,
+  active = true,
 }: {
   onChanged: () => Promise<void>;
   /** Two plain switches with hints, no small print. */
   compact?: boolean;
+  active?: boolean;
 }) {
-  const [preferences, setPreferences] = useState(defaultAiPreferences);
+  const preferenceState = useQuery(preferencesQuery, desktop && active);
+  const preferences = preferenceState.data;
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  useEffect(() => {
-    if (desktop)
-      void aiApi
-        .preferences()
-        .then(setPreferences)
-        .catch((e) => setError(String(e)));
-  }, []);
   async function save(patch: Partial<AiPreferences>) {
     setBusy(true);
     setError("");
     try {
       const next = { ...preferences, ...patch };
       await aiApi.savePreferences(next);
-      setPreferences(next);
+      preferencesQuery.setData(next);
       await onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(queryClient.recordError("AI preferences", e));
     } finally {
       setBusy(false);
     }
@@ -45,7 +44,12 @@ export function AiSettings({
           <input
             type="checkbox"
             checked={preferences.enabled}
-            disabled={!desktop || busy}
+            disabled={
+              !desktop ||
+              busy ||
+              !preferenceState.ready ||
+              !!preferenceState.error
+            }
             onChange={(e) => void save({ enabled: e.target.checked })}
           />
         </label>
@@ -57,15 +61,20 @@ export function AiSettings({
           <input
             type="checkbox"
             checked={preferences.automatic_goal_matching}
-            disabled={!desktop || busy}
+            disabled={
+              !desktop ||
+              busy ||
+              !preferenceState.ready ||
+              !!preferenceState.error
+            }
             onChange={(e) =>
               void save({ automatic_goal_matching: e.target.checked })
             }
           />
         </label>
-        {error && (
+        {(error || preferenceState.error) && (
           <p role="alert" className="error">
-            {error}
+            {error || preferenceState.error}
           </p>
         )}
       </section>
@@ -84,7 +93,12 @@ export function AiSettings({
         <input
           type="checkbox"
           checked={preferences.enabled}
-          disabled={!desktop || busy}
+          disabled={
+            !desktop ||
+            busy ||
+            !preferenceState.ready ||
+            !!preferenceState.error
+          }
           onChange={(e) => void save({ enabled: e.target.checked })}
         />
       </label>
@@ -100,7 +114,12 @@ export function AiSettings({
         <input
           type="checkbox"
           checked={preferences.share_goal_context}
-          disabled={!desktop || busy}
+          disabled={
+            !desktop ||
+            busy ||
+            !preferenceState.ready ||
+            !!preferenceState.error
+          }
           onChange={(e) => void save({ share_goal_context: e.target.checked })}
         />
       </label>
@@ -116,7 +135,12 @@ export function AiSettings({
         <input
           type="checkbox"
           checked={preferences.web_research}
-          disabled={!desktop || busy}
+          disabled={
+            !desktop ||
+            busy ||
+            !preferenceState.ready ||
+            !!preferenceState.error
+          }
           onChange={(e) => void save({ web_research: e.target.checked })}
         />
       </label>
@@ -139,7 +163,12 @@ export function AiSettings({
         <input
           type="checkbox"
           checked={preferences.automatic_goal_matching}
-          disabled={!desktop || busy}
+          disabled={
+            !desktop ||
+            busy ||
+            !preferenceState.ready ||
+            !!preferenceState.error
+          }
           onChange={(e) =>
             void save({ automatic_goal_matching: e.target.checked })
           }
@@ -149,9 +178,9 @@ export function AiSettings({
         AI assistance is {preferences.enabled ? "on" : "off"}. Activity tracking
         and automatic screen sampling have separate controls.
       </p>
-      {error && (
+      {(error || preferenceState.error) && (
         <p role="alert" className="error">
-          {error}
+          {error || preferenceState.error}
         </p>
       )}
     </section>

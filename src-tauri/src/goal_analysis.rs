@@ -40,6 +40,7 @@ pub fn get_ai_preferences(state: State<AppState>) -> Result<AiPreferences, Strin
 #[tauri::command(async)]
 pub fn set_ai_preferences(
     preferences: AiPreferences,
+    app: tauri::AppHandle,
     state: State<AppState>,
 ) -> Result<(), String> {
     let mut inner = state
@@ -51,6 +52,16 @@ pub fn set_ai_preferences(
         .write_setting("ai_assistance_preferences", &preferences)?;
     inner.mark_consent_change();
     inner.goal_matching.clear();
+    crate::frontend_events::changed(
+        &app,
+        &[
+            crate::frontend_events::Resource::Preferences,
+            crate::frontend_events::Resource::Dashboard,
+            crate::frontend_events::Resource::Services,
+            crate::frontend_events::Resource::Noticed,
+        ],
+        false,
+    );
     Ok(())
 }
 

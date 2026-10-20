@@ -102,7 +102,7 @@ it("a rejected color save restores the previous selection and shows the error", 
     ).toBe(false),
   );
   fireEvent.click(screen.getByRole("button", { name: "Violet" }));
-  await screen.findByText("Error: Could not save color");
+  await screen.findByText("Couldn't save that change. Please try again.");
   expect(
     screen.getByRole("button", { name: "Lime" }).getAttribute("aria-pressed"),
   ).toBe("true");
@@ -123,7 +123,7 @@ it("a dashboard refresh failure does not undo a color already committed", async 
     ).toBe(false),
   );
   fireEvent.click(screen.getByRole("button", { name: "Violet" }));
-  await screen.findByText("Error: Dashboard unavailable");
+  await screen.findByText("Couldn't save that change. Please try again.");
   expect(
     screen.getByRole("button", { name: "Violet" }).getAttribute("aria-pressed"),
   ).toBe("true");

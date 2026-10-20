@@ -47,11 +47,29 @@ const empty: Dashboard = {
     tavily_configured: false,
   },
 };
-const dashboardQuery = queryClient.query("dashboard", ["dashboard"], empty, () => api.dashboard(), 15_000);
+const dashboardQuery = queryClient.query(
+  "dashboard",
+  ["dashboard"],
+  empty,
+  () => api.dashboard(),
+  15_000,
+);
 export default function App() {
   const dashboard = useQuery(dashboardQuery, desktop);
-  const data = dashboard.data;
-  const setData = dashboardQuery.setData;
+  const [previewData, setPreviewData] = useState<Dashboard>(empty);
+  const data = desktop ? dashboard.data : previewData;
+  const setData = useCallback(
+    (next: Dashboard | ((previous: Dashboard) => Dashboard)) => {
+      if (!desktop) {
+        setPreviewData(next);
+        return;
+      }
+      dashboardQuery.setData(next);
+      // Appearance patches are partial; revalidate the rest of the dashboard too.
+      queryClient.invalidate(["dashboard"]);
+    },
+    [],
+  );
   useAvatarColorSync(setData);
   const [error, setError] = useState("");
   const displayedError = error || dashboard.error;
@@ -291,6 +309,7 @@ export default function App() {
                   onDirty={setSettingsDirty}
                   onUpdates={() => setUpdatesOpen(true)}
                   sectionRequest={settingsSection}
+                  active={page === "settings" || page === "profile"}
                 />
               </div>
             </>

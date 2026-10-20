@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import {
   act,
@@ -55,6 +56,7 @@ const fixture: CoachingView = {
   chat_bound: true,
 };
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.clearAllMocks();
   vi.mocked(aiApi.history).mockResolvedValue([]);
   vi.mocked(aiApi.preferences).mockResolvedValue(defaultAiPreferences);

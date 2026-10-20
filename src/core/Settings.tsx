@@ -2,8 +2,8 @@ import { MemorySettings } from "../components/MemorySettings";
 import { MacPermissions } from "../components/MacPermissions";
 import { TrackingStatus } from "./TrackingStatus";
 import { isMac } from "../api/platform";
-import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { invoke } from "../data/ipc";
+import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
 import {
   defaultTrackingSettings,
@@ -11,7 +11,13 @@ import {
   type Dashboard,
 } from "../types";
 import { ProviderRow } from "./ProviderRow";
-import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
+import {
+  servicesQuery,
+  workspaceQuery,
+  trackingQuery,
+} from "../data/resources";
+import { useQuery } from "../data/useQuery";
+import { queryClient } from "../data/client";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { WindowActivity } from "./WindowActivity";
 import { Hint } from "./Hint";
@@ -87,12 +93,14 @@ export function CoreSettings({
   onDirty,
   onUpdates,
   sectionRequest,
+  active = true,
 }: {
   data: Dashboard;
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
   onUpdates: () => void;
   sectionRequest?: { section: "Privacy"; revision: number };
+  active?: boolean;
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
   const [profile, setProfile] = useState(settings.profile);
@@ -143,42 +151,15 @@ export function CoreSettings({
         ? "Needs attention"
         : "Running";
   const [section, setSection] = useState<(typeof sections)[number]>("General");
-  const [services, setServices] = useState<ServiceSnapshot | null>(null);
-  const serviceRead = useRef(0);
-  const refreshServices = useCallback(async () => {
-    const read = ++serviceRead.current;
-    try {
-      const snapshot = await serviceStatusApi.read();
-      if (read === serviceRead.current) setServices(snapshot);
-    } catch {
-      if (read === serviceRead.current) setServices(null);
-    }
-  }, []);
+  const serviceStateQuery = useQuery(
+    servicesQuery,
+    desktop && active && section === "AI",
+  );
+  const services = serviceStateQuery.error ? null : serviceStateQuery.data;
   const providerChanged = async () => {
-    await refreshServices();
+    await servicesQuery.refresh();
     await onChanged();
   };
-  useEffect(() => {
-    if (section !== "AI" || !desktop) return;
-    const refresh = () => {
-      if (!document.hidden) void refreshServices();
-    };
-    refresh();
-    const timer = window.setInterval(refresh, 30_000);
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      ++serviceRead.current;
-      window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, [
-    section,
-    data.status.nebius_configured,
-    data.status.tavily_configured,
-    refreshServices,
-  ]);
   const serviceState = (id: "nebius" | "tavily") =>
     services?.services.find((item) => item.id === id)?.status;
   useEffect(() => {
@@ -202,25 +183,24 @@ export function CoreSettings({
   useEffect(() => {
     if (sectionRequest) setSection(sectionRequest.section);
   }, [sectionRequest]);
+  const workspace = useQuery(workspaceQuery(null, "week"), desktop && active);
+  const tracking = useQuery(trackingQuery, desktop && active);
   useEffect(() => {
-    let active = true;
-    if (desktop)
-      void Promise.all([coreApi.snapshot(), api.trackingSettings()])
-        .then(([core, tracking]) => {
-          if (active) {
-            setPreferences(core.preferences);
-            setGoals(core.goals);
-            setHours(tracking);
-            setReady(true);
-          }
-        })
-        .catch((e) => {
-          if (active) setError(String(e));
-        });
-    return () => {
-      active = false;
-    };
-  }, []);
+    if (!workspace.ready || !tracking.ready) return;
+    setGoals(workspace.data.goals);
+    if (!dirty && !busy) {
+      setPreferences(workspace.data.preferences);
+      setHours(tracking.data);
+    }
+    setReady(true);
+  }, [
+    workspace.data,
+    workspace.ready,
+    tracking.data,
+    tracking.ready,
+    dirty,
+    busy,
+  ]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -246,7 +226,7 @@ export function CoreSettings({
           ...current,
           avatar: { ...current.avatar, color: previous },
         }));
-      setError(String(e));
+      setError(queryClient.recordError("settings action", e));
     } finally {
       setColorBusy(false);
     }
@@ -259,7 +239,7 @@ export function CoreSettings({
       await onChanged();
       return true;
     } catch (e) {
-      setError(String(e));
+      setError(queryClient.recordError("settings action", e));
       return false;
     } finally {
       setBusy(false);
@@ -741,7 +721,11 @@ export function CoreSettings({
             </section>
             <section className="settings-card" aria-label="AI">
               <p className="eyebrow settings-card-title">AI</p>
-              <AiSettings onChanged={onChanged} compact />
+              <AiSettings
+                onChanged={onChanged}
+                compact
+                active={active && section === "AI"}
+              />
             </section>
             <section className="settings-card" aria-label="Memory">
               <p className="eyebrow settings-card-title">Memory</p>
@@ -829,7 +813,10 @@ export function CoreSettings({
           {showDiagnostics && (
             <div className="diagnostics">
               <TrackingStatus dashboard={data} compact />
-              <PersonalAiEnginePanel initiallyOpen />
+              <PersonalAiEnginePanel
+                initiallyOpen
+                active={active && section === "About"}
+              />
             </div>
           )}
         </details>
@@ -849,9 +836,15 @@ export function CoreSettings({
         </div>
       </div>
 
-      {error && (
+      {(error ||
+        workspace.error ||
+        tracking.error ||
+        (section === "AI" && serviceStateQuery.error)) && (
         <p className="error" role="alert">
-          {error}
+          {error ||
+            workspace.error ||
+            tracking.error ||
+            serviceStateQuery.error}
         </p>
       )}
     </div>

@@ -9,10 +9,7 @@ import { coreApi } from "./api";
 import { Composer } from "./Composer";
 import { GoalAreas, GoalEditor, GoalLine, GoalRow } from "./Goals";
 import { Progress, TodaySummary, type FinishedItem } from "./Progress";
-import {
-  type ProgressPeriod,
-  type CoreGoal,
-} from "./types";
+import { type ProgressPeriod, type CoreGoal } from "./types";
 import { GoalFinder, browseGoals } from "./GoalFinder";
 import { TodayPlanner } from "./TodayPlanner";
 import { CapturedGoal } from "./CapturedGoal";
@@ -64,7 +61,8 @@ export function Experience({
   const ready = !desktop || workspaceState.ready;
   const displayedError = error || workspaceState.error || captured.error;
   const refresh = useCallback(async () => {
-    if (desktop) await Promise.all([workspace.refresh(), draftsQuery.refresh()]);
+    if (desktop)
+      await Promise.all([workspace.refresh(), draftsQuery.refresh()]);
   }, [workspace]);
   // Legacy parent revisions also cover callers that have not migrated their IPC adapter.
   useEffect(() => {

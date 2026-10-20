@@ -2,7 +2,13 @@ import { InterventionCard } from "./InterventionCard";
 import { CoachingPanel } from "../coaching/CoachingPanel";
 import { Markdown } from "./Markdown";
 import { MessageMeta, Sources } from "./MessageParts";
-import { listen } from "@tauri-apps/api/event";
+import { useQuery } from "../data/useQuery";
+import {
+  chatHistoryQuery,
+  preferencesQuery,
+  coachingQuery,
+} from "../data/resources";
+import { queryClient } from "../data/client";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import "./conversation.css";
 import {
@@ -18,12 +24,25 @@ import {
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
-import { aiApi, defaultAiPreferences, type ChatMessage } from "../ai/api";
+import { aiApi, type ChatMessage } from "../ai/api";
 import { readAttachment, recordVoice } from "../core/media";
 import { coreApi } from "../core/api";
 import type { AvatarState, Goal, GoalPlan } from "../types";
 import type { CompanionView } from "./types";
-import { coachingApi, type CoachingView } from "../coaching/api";
+import { type CoachingView } from "../coaching/api";
+
+function chatError(error: unknown) {
+  const generic = queryClient.recordError("chat action", error);
+  const local = [
+    "No speech was recognized. Try again or type your message.",
+    "The transcript is too long. Record a shorter message.",
+    "Local speech recognition is unavailable. Install an on-device speech language or type your message.",
+    "This attachment needs vision. Use Import to review an image or scanned PDF.",
+  ];
+  return (
+    local.find((message) => String(error) === `Error: ${message}`) ?? generic
+  );
+}
 
 type PendingMessage = {
   text: string;
@@ -71,7 +90,10 @@ export function Conversation({
   const inputId = useId();
   const [text, setText] = useState(view.seed.slice(0, 4000));
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [preferences, setPreferences] = useState(defaultAiPreferences);
+  const historyQuery = chatHistoryQuery(conversationId);
+  const history = useQuery(historyQuery, desktop);
+  const prefs = useQuery(preferencesQuery, desktop);
+  const preferences = prefs.data;
   const [attachment, setAttachment] = useState<{
     name: string;
     text: string;
@@ -156,6 +178,7 @@ export function Conversation({
       return;
     }
     setText(combined);
+    input.current?.focus();
     onState("idle");
   }
   async function startRecording() {
@@ -184,7 +207,7 @@ export function Conversation({
           e instanceof DOMException &&
             ["NotAllowedError", "SecurityError"].includes(e.name)
             ? "Microphone access was denied. Allow microphone access in system settings, then try again or type your message."
-            : String(e),
+            : chatError(e),
         );
         onState("idle");
       }
@@ -206,45 +229,12 @@ export function Conversation({
     if (compact && mode === "text") input.current?.focus();
   }, [compact, mode]);
   useEffect(() => {
-    if (!embedded) input.current?.focus();
-    let active = true;
-    const refresh = () => {
-      if (desktop)
-        void Promise.all([aiApi.history(), aiApi.preferences()])
-          .then(([history, prefs]) => {
-            if (active) {
-              setMessages((previous) =>
-                JSON.stringify(previous) === JSON.stringify(history)
-                  ? previous
-                  : history,
-              );
-              setPreferences(prefs);
-            }
-          })
-          .catch((e) => {
-            if (active) setError(String(e));
-          });
-    };
-    if (!busy && !sending.current) refresh();
-    const id = setInterval(() => {
-      if (!busy && !sending.current) refresh();
-    }, 5000);
-    let stop: (() => void) | undefined;
-    if (desktop)
-      void listen("buddy://chat-updated", () => {
-        if (!busy && !sending.current) refresh();
-      })
-        .then((unlisten) => {
-          if (active) stop = unlisten;
-          else unlisten();
-        })
-        .catch(() => {});
-    return () => {
-      active = false;
-      clearInterval(id);
-      stop?.();
-    };
-  }, [busy, embedded]);
+    if (!embedded && !busy) input.current?.focus();
+  }, [embedded, busy]);
+  useEffect(() => {
+    if (history.ready && !sending.current && !waiting)
+      setMessages(history.data);
+  }, [history.data, history.ready, waiting]);
   useEffect(() => {
     if (embedded) return;
     setText(view.seed.slice(0, 4000));
@@ -261,7 +251,7 @@ export function Conversation({
         void api
           .closeChat()
           .then(onChanged)
-          .catch((e) => setError(String(e)));
+          .catch((e) => setError(chatError(e)));
       }
     };
     document.addEventListener("keydown", escape);
@@ -275,7 +265,7 @@ export function Conversation({
       await onChanged();
       return true;
     } catch (e) {
-      setError(String(e));
+      setError(chatError(e));
       return false;
     } finally {
       setBusy(false);
@@ -341,9 +331,9 @@ export function Conversation({
         next = queued.current.shift();
       }
     } catch (e) {
-      setError(String(e));
+      setError(chatError(e));
       // The question stays in the chat once it was accepted; anything else goes back to the input.
-      const saved = await aiApi.history().catch(() => []);
+      const saved = await historyQuery.refresh().catch(() => []);
       const unsent = [next?.text, ...queued.current.map((item) => item.text)]
         .filter(
           (item): item is string =>
@@ -355,13 +345,13 @@ export function Conversation({
       if (unsent) setText((previous) => previous || unsent);
     }
     try {
-      setMessages(await aiApi.history());
+      setMessages(await historyQuery.refresh());
       if (coaching?.chat_bound)
-        updateCoaching(await coachingApi.inspect(conversationId));
+        updateCoaching(await coachingQuery(conversationId).refresh());
       setRememberResult(false);
       await onChanged();
     } catch (e) {
-      setError(String(e));
+      setError(chatError(e));
     }
     sending.current = false;
     setWaiting(false);
@@ -563,9 +553,9 @@ export function Conversation({
           </button>
         </div>
       )}
-      {(error || view.notice) && (
+      {(error || history.error || prefs.error || view.notice) && (
         <p className="companion-error" role="alert">
-          {error || view.notice}
+          {error || history.error || prefs.error || view.notice}
           {error && text.trim() && (
             <button
               type="button"

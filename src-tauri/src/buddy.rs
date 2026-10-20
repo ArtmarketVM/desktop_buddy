@@ -182,6 +182,13 @@ pub fn clamp_position(
     )
 }
 pub fn sync(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
+    sync_window(app, inner)?;
+    if let Err(error) = crate::frontend_events::sync(app, inner) {
+        inner.last_error = Some(error);
+    }
+    Ok(())
+}
+fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
     remember_position(app, inner)?;
     let settings = inner.storage.user_settings()?;
     inner.buddy.view.avatar = settings.profile.avatar;

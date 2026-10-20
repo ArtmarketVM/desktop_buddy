@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "../data/ipc";
+import { queryClient } from "../data/client";
+import { useQuery } from "../data/useQuery";
 import { desktop } from "../api/tauri";
 import { duration } from "./types";
 import { Pager, usePage } from "./Pager";
@@ -29,44 +30,25 @@ export function WindowActivity({
   last: string;
   goalId?: number | null;
 }) {
-  const [history, setHistory] = useState<WindowHistory | null>(null);
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    let alive = true,
-      running = false;
-    setHistory(null);
-    setError(false);
-    const poll = async () => {
-      if (!desktop || running || document.visibilityState === "hidden") return;
-      running = true;
-      try {
-        const start = new Date(`${first}T00:00:00`);
-        const end = new Date(`${last}T00:00:00`);
-        end.setDate(end.getDate() + 1);
-        const data = await invoke<WindowHistory>("get_window_activity", {
-          first: start.toISOString(),
-          last: end.toISOString(),
-          goalId,
-        });
-        if (alive) {
-          setHistory(data?.sessions ? data : null);
-          setError(false);
-        }
-      } catch {
-        if (alive) setError(true);
-      } finally {
-        running = false;
-      }
-    };
-    void poll();
-    const timer = setInterval(() => void poll(), 10000);
-    document.addEventListener("visibilitychange", poll);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", poll);
-    };
-  }, [first, last, goalId]);
+  const start = new Date(`${first}T00:00:00`);
+  const end = new Date(`${last}T00:00:00`);
+  end.setDate(end.getDate() + 1);
+  const bounds = {
+    first: start.toISOString(),
+    last: end.toISOString(),
+    goalId,
+  };
+  const query = queryClient.query(
+    `windows:${JSON.stringify(bounds)}`,
+    ["activity"],
+    null as WindowHistory | null,
+    async () => {
+      const data = await invoke<WindowHistory>("get_window_activity", bounds);
+      return data?.sessions ? data : null;
+    },
+    15_000,
+  );
+  const { data: history, error } = useQuery(query, desktop);
   const sessions = history?.sessions ?? [];
   const total = history?.total_active_seconds ?? 0;
   const { page, pages, visible, setPage } = usePage(
@@ -76,9 +58,7 @@ export function WindowActivity({
   return (
     <section className="window-activity" aria-label="Tracked activity">
       {error ? (
-        <p role="alert">
-          Activity history is unavailable. It will retry automatically.
-        </p>
+        <p role="alert">{error}</p>
       ) : sessions.length === 0 ? (
         <p className="empty-copy">No activity tracked yet.</p>
       ) : (

@@ -22,6 +22,7 @@ mod credentials;
 mod dialogue_benchmark;
 mod dialogue_context;
 mod engine_observability;
+mod frontend_events;
 mod goal_analysis;
 mod goal_matching;
 mod goals;
