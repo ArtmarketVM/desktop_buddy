@@ -38,4 +38,14 @@ The first local Rust invocation began a fresh target cache; it was stopped and r
 
 Windows screenshot correctness is established only by the documented Windows CI environment. A local macOS harness probe reproduced the paused-clock loading failure; after draining reads, it reached the workspace and then encountered the intentionally unmocked macOS permission command. That local probe is not a Windows visual pass and did not regenerate any PNGs.
 
-Final native CI, Rust lint/test counts, infrastructure merge, rebase and live privacy verification are recorded below when completed. No signed release, installation, updater exercise or manual Windows/macOS UI acceptance is implied by CI builds.
+No signed release, installation, updater exercise or manual Windows/macOS UI acceptance is implied by CI builds.
+
+## Infrastructure merge and rebase
+
+Infrastructure PR #37 merged as `713c31611fd6c04c146e9403fc3f7b9db5ebbb7c` after strict Windows visual comparison (**34 passed / 2 intentionally skipped**), Windows acceptance/native build and Apple Silicon macOS acceptance/native build all passed. Reviewed PNGs were not updated. The approved baseline source is unchanged; the buddy harness also waits for module readiness before advancing its clock because that window deliberately renders no root content before its initial read completes.
+
+The Developer 2 follow-up rebased cleanly onto that main commit. Application source trees are identical to those validated locally: `src` = `ce3f203cc8bf224840d6601414edabd1410381f1`, `src-tauri` = `e7a83cbbb87385e11114a8dfbd3b905d524375fc`. No application tests were repeated merely because rebase changed commit IDs.
+
+The first live privacy check immediately after the merge returned HTTP 200 but correctly failed because Pages was still serving the older Google Fonts policy. Pages settings were left unchanged.
+
+After Pages reported `built` for `713c316` at 20:51:38 UTC on 20 October 2026, `npm run verify:privacy` passed: configured canonical URL HTTP **200**, `matchesLocalPolicy: true`, `externalFonts: false`. Direct requests to all three referenced local WOFF2 font files also returned **200**. This confirms the live page/assets; it does not claim an installed app has already received the corrected link.
