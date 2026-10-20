@@ -98,9 +98,9 @@ it("keeps the offer available when saving fails and never reports a completed go
     throw new Error("Expired");
   });
   render(<NoticedWork onChanged={changed} />);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Add to completed" }),
-  );
+  const add = await screen.findByRole("button", { name: "Add to completed" });
+  await waitFor(() => expect((add as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(add);
   expect(await screen.findByRole("alert")).toBeTruthy();
   expect(changed).not.toHaveBeenCalled();
   expect(screen.getByRole("textbox")).toBeTruthy();
