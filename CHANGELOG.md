@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.36.11 — grounded research and demo readiness
+
+- Select exact backend-owned source excerpts by ID and validate research citations.
+- Keep verified action receipts available when optional AI wording is too slow.
+- Distinguish local macOS Dictation and language-asset failures.
+- Add an isolated real-provider hero rehearsal and a native demo checklist.
+- Preserve the AI connection and Today planning fixes from 0.36.10.
+
 ## 0.36.10 — AI reliability and clearer daily planning
 
 - Publish the AI connection, generation timeout, saved-goal search and progress

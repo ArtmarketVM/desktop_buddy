@@ -143,7 +143,10 @@ async fn health_handles_timeout_invalid_envelope_and_size_limit() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .respond_with(template)
-            .expect(1)
+            // The deadline includes connection setup. On a loaded Windows runner
+            // it can expire before the server observes the request. Neither case
+            // may retry; successful HTTP dispatch is covered by the health tests.
+            .expect(if status == "timeout" { 0..=1 } else { 1..=1 })
             .mount(&server)
             .await;
         assert_eq!(

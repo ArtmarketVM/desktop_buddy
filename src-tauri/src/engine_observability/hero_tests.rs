@@ -177,7 +177,7 @@ async fn hackathon_hero_two_lanes_voice_park_receipt_resume_research_summary_res
                 assert!(!source.to_string().contains("CLIENT_PRIVATE_CANARY"));
                 envelope(json!({"query":"technical documentation submission checklist"}))
             },
-            "buddy_research_evidence"=>envelope(json!({"sources":[{"source_index":0,"applicability":"applicable","reason":"Fixture documentation","quotes":["Describe the architecture, tests and remaining limitations."]}]})),
+            "buddy_research_evidence"=>envelope(json!({"sources":[{"source_index":0,"applicability":"applicable","reason":"Fixture documentation","excerpt_ids":[0]}]})),
             "buddy_contextual_research_result"=>envelope(json!({"summary":"Review the technical documentation checklist.","next_action":"Draft the architecture section using the checklist.","source_indices":[0]})),
             other=>panic!("Unexpected inference operation: {other}"),
         }

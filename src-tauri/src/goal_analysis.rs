@@ -453,8 +453,12 @@ impl<'a> Service<'a> {
         // This opt-in CLI uses only synthetic in-memory fixtures. Never trace normal
         // app prompts, credentials, provider reasoning_content or personal memory.
         if std::env::var("BUDDY_DIALOGUE_TRACE").as_deref() == Ok("true")
-            && std::env::args()
-                .any(|a| matches!(a.as_str(), "--check-agent-dialogue" | "--check-coaching"))
+            && std::env::args().any(|a| {
+                matches!(
+                    a.as_str(),
+                    "--check-agent-dialogue" | "--check-coaching" | "--check-hero"
+                )
+            })
         {
             if let Ok(value) = &result {
                 if let Ok(content) = response_text(value) {
@@ -481,8 +485,10 @@ impl<'a> Service<'a> {
                 system.to_string()
             } else if name == "buddy_agent_reasoning" {
                 format!("{system}\nThe last response failed background validation ({}). Return one complete JSON object matching the schema. Echo the supplied state_version exactly. This is an event, not a user request: never invent latest_request or instruction, and never execute actions. stay_silent and offer_help require empty proposed_actions; stay_silent also requires empty memory_updates. Use null clarification unless requesting clarification. Prefer a short valid response over optional detail. Do not invent evidence or sources.", crate::engine_observability::error_category(&failure))
-            } else {
+            } else if name == "buddy_skill_plan" {
                 format!("{system}\nThe last response failed validation. Return complete JSON only, strictly follow all required fields, enums and size limits. Classify the trusted latest request semantically; read questions never authorize mutations. Use only registered skills and preserve the requested operation. Copy instruction verbatim from latest_request. Keep field values concise. Do not invent evidence or sources.")
+            } else {
+                format!("{system}\nThe last response failed validation. Return one complete JSON object matching this operation's schema, all enums, numeric bounds and size limits. Use only the supplied context and source indices. Keep values concise. Do not add action, instruction or latest_request fields unless this schema requires them. Do not invent evidence, sources or completion.")
             };
             let value = self
                 .request(&instructions, context.clone(), name, schema.clone())

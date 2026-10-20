@@ -78,6 +78,7 @@ char *buddy_speech_transcribe(const uint8_t *audio, size_t length, const char *l
         }
 
         NSMutableArray *candidates = [NSMutableArray array];
+        __block NSError *lastFailure = nil;
         for (NSString *name in selected) {
             SFSpeechRecognizer *recognizer = [[SFSpeechRecognizer alloc]
                 initWithLocale:[NSLocale localeWithLocaleIdentifier:name]];
@@ -99,6 +100,7 @@ char *buddy_speech_transcribe(const uint8_t *audio, size_t length, const char *l
                 resultHandler:^(SFSpeechRecognitionResult *result, NSError *error) {
                     [condition lock];
                     if (!done && (result.isFinal || error)) {
+                        if (error) lastFailure = error;
                         if (result.isFinal && result.bestTranscription.segments.count) {
                             SFTranscription *transcript = result.bestTranscription;
                             double confidence = 0;
@@ -123,8 +125,12 @@ char *buddy_speech_transcribe(const uint8_t *audio, size_t length, const char *l
             [condition unlock];
             [task cancel];
         }
-        if (!candidates.count)
+        if (!candidates.count) {
+            if (lastFailure)
+                return json(@{@"error": @"Local speech recognition failed.",
+                    @"failure": @{@"domain": lastFailure.domain, @"code": @(lastFailure.code)}});
             return json(@{@"error": @"Local recognition did not return clear speech. Check the Dictation language on this Mac, try again, or paste a transcript."});
+        }
         return json(@{@"candidates": candidates});
     }
 }

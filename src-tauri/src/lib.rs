@@ -24,6 +24,7 @@ mod engine_observability;
 mod goal_analysis;
 mod goal_matching;
 mod goals;
+mod hero_check;
 mod history;
 mod http;
 mod insights;
@@ -65,6 +66,29 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--check-hero") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(hero_check::bounded_run());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["backend_passed"] == true {
+                    0
+                } else {
+                    1
+                });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Hero rehearsal unavailable ({}). No personal data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+
     if std::env::args().any(|arg| arg == "--check-mixed-actions") {
         let result = tokio::runtime::Runtime::new()
             .unwrap()

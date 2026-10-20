@@ -1,5 +1,47 @@
 //! Explicit, isolated real-provider smoke check. Never opens the user's database.
 use super::*;
+
+/// Only called with the isolated demo database, never exposed through Tauri IPC.
+pub(crate) async fn hero_stuck(
+    state: &AppState,
+    service: &Service<'_>,
+    goal: i64,
+) -> Result<Value, String> {
+    {
+        let mut inner = state.inner.lock().map_err(|_| "Check state unavailable")?;
+        if inner.status.mock_ai {
+            return Err("Real-provider check refuses AI_MOCK".into());
+        }
+        let mut settings = inner.storage.user_settings()?;
+        settings.onboarding.completed = true;
+        inner.storage.write_setting("user_settings", &settings)?;
+        inner.status.nebius_configured = true;
+        inner.status.tracking = true;
+        inner.activity_state.state = crate::tracking::ActivityState::Focused;
+        inner.companion.view.preferences.screen_task_detection = true;
+        inner.companion.view.preferences.quiet_start_minute = 0;
+        inner.companion.view.preferences.quiet_end_minute = 0;
+        inner.tracking_settings.working_start_minute = 0;
+        inner.tracking_settings.working_end_minute = 0;
+        inner.buddy.foreground = Some(ActivitySnapshot {
+            process_name: "Synthetic editor".into(),
+            idle_seconds: 10,
+            ..Default::default()
+        });
+        inner.agent.saved.last_attempt = 0;
+        inner.agent.observation.stuck = true;
+        inner.agent.enqueue(Event::new(
+            EventKind::PossibleStuck,
+            Some(goal),
+            Utc::now().timestamp() - 10,
+        ));
+    }
+    let offer = process_pending_with_service(state, service).await?;
+    let inner = state.inner.lock().map_err(|_| "Check state unavailable")?;
+    Ok(
+        json!({"decision":inner.agent.diagnostics.last_decision,"offer_returned":offer.is_some(),"verified":inner.agent.diagnostics.verified,"failure":inner.agent.diagnostics.last_failure}),
+    )
+}
 use crate::{core::GoalDraft, models::ActivitySnapshot};
 
 pub async fn run() -> Result<Value, String> {

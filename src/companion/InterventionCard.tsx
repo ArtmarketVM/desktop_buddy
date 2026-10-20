@@ -1,4 +1,4 @@
-import type { Intervention } from "./types";
+import type { Intervention, InterventionResponse } from "./types";
 export function InterventionCard({
   prompt,
   busy,
@@ -6,38 +6,42 @@ export function InterventionCard({
 }: {
   prompt: Intervention;
   busy: boolean;
-  respond: (action: "accept" | "ignore" | "tomorrow" | "summary") => void;
+  respond: (action: InterventionResponse) => void;
 }) {
   const title =
-    prompt.kind === "research"
-      ? "Find information for this step?"
-      : prompt.kind === "goal_completion"
-        ? "Looks like this goal may be complete"
-        : prompt.kind === "new_task"
-          ? "Looks like a new task"
-          : prompt.kind === "completion"
-            ? "Looks like this may be done"
-            : prompt.kind === "movement"
-              ? "A moment to stretch"
-              : prompt.kind === "end_of_day"
-                ? "A small wrap-up"
-                : "A quick check-in";
-  const accept =
-    prompt.kind === "research"
-      ? "Search the web"
-      : prompt.kind === "goal_completion"
-        ? "Yes, complete goal"
-        : prompt.kind === "new_task"
-          ? "Add task"
-          : prompt.kind === "completion"
-            ? "Yes, mark complete"
-            : prompt.kind === "no_goals"
-              ? "Plan today"
+    prompt.kind === "deadline"
+      ? "A deadline check-in"
+      : prompt.kind === "research"
+        ? "Find information for this step?"
+        : prompt.kind === "goal_completion"
+          ? "Looks like this goal may be complete"
+          : prompt.kind === "new_task"
+            ? "Looks like a new task"
+            : prompt.kind === "completion"
+              ? "Looks like this may be done"
               : prompt.kind === "movement"
-                ? "Done"
-                : prompt.kind === "midday"
-                  ? "Ask sumi"
-                  : "Review progress";
+                ? "A moment to stretch"
+                : prompt.kind === "end_of_day"
+                  ? "A small wrap-up"
+                  : "A quick check-in";
+  const accept =
+    prompt.kind === "deadline"
+      ? "Mark complete"
+      : prompt.kind === "research"
+        ? "Search the web"
+        : prompt.kind === "goal_completion"
+          ? "Yes, complete goal"
+          : prompt.kind === "new_task"
+            ? "Add task"
+            : prompt.kind === "completion"
+              ? "Yes, mark complete"
+              : prompt.kind === "no_goals"
+                ? "Plan today"
+                : prompt.kind === "movement"
+                  ? "Done"
+                  : prompt.kind === "midday"
+                    ? "Ask sumi"
+                    : "Review progress";
   return (
     <div className="companion-bubble">
       <section
@@ -64,6 +68,16 @@ export function InterventionCard({
           <button disabled={busy} onClick={() => respond("accept")}>
             {accept}
           </button>
+          {prompt.kind === "deadline" && (
+            <button
+              className="secondary"
+              disabled={busy}
+              title="Move to Today and set the deadline to the end of today"
+              onClick={() => respond("today")}
+            >
+              Do today
+            </button>
+          )}
           <button
             className="secondary"
             disabled={busy}

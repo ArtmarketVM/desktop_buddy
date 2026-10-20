@@ -31,7 +31,8 @@ export interface Intervention {
     | "midday"
     | "research"
     | "end_of_day"
-    | "movement";
+    | "movement"
+    | "deadline";
   text: string;
   confidence: number;
   goal_id: number | null;
@@ -85,6 +86,8 @@ export interface CompanionReply {
   resources: SearchResult[];
 }
 export type CompanionAction = "task" | "ask" | "research" | "explain" | "save";
+export type InterventionResponse =
+  "accept" | "ignore" | "tomorrow" | "summary" | "today";
 export interface BuddyEvent {
   type:
     | "task.detected"
@@ -99,6 +102,7 @@ export interface BuddyEvent {
     | "goal.created"
     | "goal.completed"
     | "goal.deferred"
+    | "goal.rescheduled"
     | "settings.updated";
   timestamp: string;
   payload: unknown;

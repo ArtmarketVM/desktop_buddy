@@ -12,7 +12,7 @@ use crate::{
 };
 use serde::Deserialize;
 use serde_json::{json, Value};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 #[cfg(test)]
 mod tests;
 
@@ -748,9 +748,30 @@ pub async fn run(
     request: &Value,
     conversation: i64,
     state: &AppState,
+    revision: u64,
+    share: bool,
+    service: &Service<'_>,
+) -> Result<Outcome, String> {
+    // Reserve time to return a verified receipt before AgentRuntime's 90-second deadline.
+    run_with_deadline(
+        request,
+        conversation,
+        state,
+        revision,
+        share,
+        service,
+        Instant::now() + Duration::from_secs(89),
+    )
+    .await
+}
+async fn run_with_deadline(
+    request: &Value,
+    conversation: i64,
+    state: &AppState,
     mut revision: u64,
     share: bool,
     service: &Service<'_>,
+    deadline: Instant,
 ) -> Result<Outcome, String> {
     let event = agent_runtime::explicit_event_kind(request)?;
     let latest = request["latest_request"]
@@ -1321,41 +1342,51 @@ pub async fn run(
         tools.push(json!(execution));
         if committed {
             let current = fresh(state, conversation, revision)?;
-            let mut reply = if turn.compose || natural {
-                present(
-                    state,
-                    service,
-                    request,
-                    &current,
-                    share,
-                    &tools,
-                    Some(&execution),
-                    &[],
-                    revision,
-                )
-                .await
-                .unwrap_or_else(|_| fallback.clone())
-            } else {
-                fallback.clone()
+            // Optional prose/review must never turn an already committed action into
+            // a timeout error. The backend receipt needs no further model approval.
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let response = async {
+                let mut reply = if turn.compose || natural {
+                    present(
+                        state,
+                        service,
+                        request,
+                        &current,
+                        share,
+                        &tools,
+                        Some(&execution),
+                        &[],
+                        revision,
+                    )
+                    .await
+                    .unwrap_or_else(|_| fallback.clone())
+                } else {
+                    fallback.clone()
+                };
+                if natural {
+                    reply = reviewed_answer(
+                        reply,
+                        state,
+                        service,
+                        request,
+                        &original,
+                        &current,
+                        share,
+                        &tools,
+                        Some(&execution),
+                        &[],
+                        revision,
+                    )
+                    .await
+                    .map(|checked| checked.into_reply(fallback.clone()))
+                    .unwrap_or_else(|_| fallback.clone());
+                }
+                reply
             };
-            if natural {
-                reply = reviewed_answer(
-                    reply,
-                    state,
-                    service,
-                    request,
-                    &original,
-                    &current,
-                    share,
-                    &tools,
-                    Some(&execution),
-                    &[],
-                    revision,
-                )
+            let reply = tokio::time::timeout(remaining.min(Duration::from_secs(8)), response)
                 .await
-                .map(|checked| checked.into_reply(fallback.clone()))
-                .unwrap_or(fallback);
-            }
+                .unwrap_or_else(|_| fallback.clone());
+            verify_current(state, &current, revision)?;
             return Ok(Outcome {
                 reply,
                 revision,
