@@ -3,9 +3,11 @@ use std::{
     sync::Mutex,
     time::{Duration, Instant},
 };
+use tauri::Manager;
 use tauri::{AppHandle, State};
 
 pub struct Inner {
+    pub frontend_events: crate::frontend_events::State,
     pub engine: crate::engine_observability::Telemetry,
     pub agent: crate::agent_runtime::AgentRuntime,
     pub goal_matching: crate::goal_matching::Runtime,
@@ -74,6 +76,7 @@ impl AppState {
             companion_request: tokio::sync::Mutex::new(()),
             recommendation: tokio::sync::Mutex::new(()),
             inner: Mutex::new(Inner {
+                frontend_events: Default::default(),
                 engine: Default::default(),
                 agent: crate::agent_runtime::AgentRuntime::load(&storage)?,
                 goal_matching: Default::default(),
@@ -151,6 +154,16 @@ pub fn set_provider_key(
     inner.status.nebius_configured = http::configured("NEBIUS_API_KEY");
     inner.status.tavily_configured = http::configured("TAVILY_API_KEY");
     inner.last_error = None;
+    crate::frontend_events::changed(
+        window.app_handle(),
+        &[
+            crate::frontend_events::Resource::Dashboard,
+            crate::frontend_events::Resource::Services,
+            crate::frontend_events::Resource::Preferences,
+            crate::frontend_events::Resource::Workspace,
+        ],
+        false,
+    );
     Ok(())
 }
 

@@ -389,6 +389,7 @@ pub fn reset_local_profile(app: tauri::AppHandle, state: State<AppState>) -> Res
     inner.buddy.foreground = None;
     inner.buddy.clear();
     inner.privacy_revision += 1;
+    crate::frontend_events::changed(&app, crate::frontend_events::ALL, true);
     crate::buddy::sync(&app, &mut inner)
 }
 

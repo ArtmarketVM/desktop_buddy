@@ -8,6 +8,8 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { CoreSettings } from "./Settings";
+import { openUrl } from "@tauri-apps/plugin-opener";
+import { queryClient } from "../data/client";
 import { api } from "../api/tauri";
 import { coreApi } from "./api";
 import { emptyCore } from "./types";
@@ -19,9 +21,17 @@ import {
 } from "../types";
 vi.mock("../api/tauri", () => ({
   desktop: true,
-  api: { trackingSettings: vi.fn(), setAvatarColor: vi.fn() },
+  api: {
+    trackingSettings: vi.fn(),
+    setAvatarColor: vi.fn(),
+    saveTrackingSettings: vi.fn(),
+    privacyPreview: vi.fn(),
+  },
 }));
-vi.mock("./api", () => ({ coreApi: { snapshot: vi.fn(), identity: vi.fn() } }));
+vi.mock("./api", () => ({
+  coreApi: { snapshot: vi.fn(), identity: vi.fn(), preferences: vi.fn() },
+}));
+vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 vi.mock("../components/MacPermissions", () => ({ MacPermissions: () => null }));
 vi.mock("../components/MemorySettings", () => ({ MemorySettings: () => null }));
 vi.mock("../components/Settings", () => ({ ProviderKey: () => null }));
@@ -42,13 +52,30 @@ const data = {
   buddy: { preferences: defaultBuddyPreferences },
 } as Dashboard;
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.mocked(coreApi.snapshot).mockResolvedValue(emptyCore());
   vi.mocked(api.trackingSettings).mockResolvedValue(defaultTrackingSettings);
   vi.mocked(api.setAvatarColor).mockResolvedValue(undefined);
+  vi.mocked(api.privacyPreview).mockResolvedValue({});
 });
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+});
+it("opens the published privacy policy from the Privacy section", async () => {
+  render(
+    <CoreSettings
+      data={data}
+      onChanged={vi.fn()}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: /^Privacy$/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Privacy policy ↗" }));
+  expect(openUrl).toHaveBeenCalledWith(
+    "https://artmarketvm.github.io/desktop_buddy/docs/privacy.html",
+  );
 });
 it("color autosaves without saving unrelated name drafts", async () => {
   const changed = vi.fn().mockResolvedValue(undefined);
@@ -102,7 +129,7 @@ it("a rejected color save restores the previous selection and shows the error", 
     ).toBe(false),
   );
   fireEvent.click(screen.getByRole("button", { name: "Violet" }));
-  await screen.findByText("Error: Could not save color");
+  await screen.findByText("Couldn't save that change. Please try again.");
   expect(
     screen.getByRole("button", { name: "Lime" }).getAttribute("aria-pressed"),
   ).toBe("true");
@@ -123,8 +150,50 @@ it("a dashboard refresh failure does not undo a color already committed", async 
     ).toBe(false),
   );
   fireEvent.click(screen.getByRole("button", { name: "Violet" }));
-  await screen.findByText("Error: Dashboard unavailable");
+  await screen.findByText("Couldn't save that change. Please try again.");
   expect(
     screen.getByRole("button", { name: "Violet" }).getAttribute("aria-pressed"),
   ).toBe("true");
+});
+
+it("keeps saved preference edits until canonical shared snapshots finish refreshing", async () => {
+  const initial = emptyCore();
+  vi.mocked(coreApi.snapshot).mockResolvedValue(initial);
+  render(
+    <CoreSettings
+      data={{
+        ...data,
+        user_settings: {
+          ...defaultUserSettings,
+          profile: { ...defaultUserSettings.profile, name: "Test user" },
+        },
+      }}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  const reminder = screen.getByRole("checkbox", {
+    name: "Remind me to move every 45 minutes",
+  }) as HTMLInputElement;
+  await waitFor(() => expect(reminder.disabled).toBe(false));
+  const next = structuredClone(initial);
+  next.preferences.movement_reminders = !reminder.checked;
+  let finish!: (value: ReturnType<typeof emptyCore>) => void;
+  vi.mocked(coreApi.snapshot).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+  );
+  fireEvent.click(reminder);
+  fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
+  await waitFor(() => expect(coreApi.preferences).toHaveBeenCalled());
+  await waitFor(() => expect(api.saveTrackingSettings).toHaveBeenCalled());
+  expect(reminder.checked).toBe(next.preferences.movement_reminders);
+  expect(screen.queryByText("Saved")).toBeNull();
+  await waitFor(() => expect(finish).toBeTypeOf("function"));
+  finish(next);
+  await screen.findByText("Saved");
+  expect(reminder.checked).toBe(next.preferences.movement_reminders);
 });

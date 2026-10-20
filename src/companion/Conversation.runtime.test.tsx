@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -28,6 +29,7 @@ vi.mock("../core/media", () => ({
   readAttachment: vi.fn(),
 }));
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   vi.clearAllMocks();
   vi.mocked(aiApi.history).mockResolvedValue([]);
   vi.mocked(aiApi.preferences).mockResolvedValue(defaultAiPreferences);
@@ -165,7 +167,7 @@ it("preserves the typed draft after a local STT failure", async () => {
   );
   await waitFor(() =>
     expect(screen.getByRole("alert").textContent).toContain(
-      "Local recognition failed",
+      "Couldn't save that change. Please try again.",
     ),
   );
   expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe(

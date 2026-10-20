@@ -99,25 +99,27 @@ async fn real_http_proposal_completes_only_the_confirmed_micro_action() {
     .unwrap();
     assert_eq!(next.session.step, "feasibility");
     assert_eq!(next.session.data["action"]["estimated_seconds"], 20);
-    let inner = state.inner.lock().unwrap();
-    let before = serde_json::to_value(inner.storage.core_snapshot(None).unwrap().goals).unwrap();
-    let session = respond(&inner.storage, &next.session, Reply::Ease { score: 8 });
-    let session = respond(&inner.storage, &session, Reply::Anchor { anchor: None });
-    let session = respond(&inner.storage, &session, Reply::Commit { accepted: true });
-    let session = respond(
-        &inner.storage,
-        &session,
-        Reply::Report {
-            completed: true,
-            remember: false,
-        },
-    );
-    assert_eq!(session.status, Status::Completed);
-    assert_eq!(
-        serde_json::to_value(inner.storage.core_snapshot(None).unwrap().goals).unwrap(),
-        before
-    );
-    drop(inner);
+    {
+        let inner = state.inner.lock().unwrap();
+        let before =
+            serde_json::to_value(inner.storage.core_snapshot(None).unwrap().goals).unwrap();
+        let session = respond(&inner.storage, &next.session, Reply::Ease { score: 8 });
+        let session = respond(&inner.storage, &session, Reply::Anchor { anchor: None });
+        let session = respond(&inner.storage, &session, Reply::Commit { accepted: true });
+        let session = respond(
+            &inner.storage,
+            &session,
+            Reply::Report {
+                completed: true,
+                remember: false,
+            },
+        );
+        assert_eq!(session.status, Status::Completed);
+        assert_eq!(
+            serde_json::to_value(inner.storage.core_snapshot(None).unwrap().goals).unwrap(),
+            before
+        );
+    }
     let requests = server.received_requests().await.unwrap();
     let payload: Value = requests[0].body_json().unwrap();
     assert_eq!(

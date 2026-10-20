@@ -4,11 +4,11 @@ import { Cloud, RefreshCw, Search, Sparkles } from "lucide-react";
 import { api, desktop } from "../api/tauri";
 import {
   serviceStateLabel,
-  serviceStatusApi,
   type ServiceId,
-  type ServiceSnapshot,
   type ServiceState,
 } from "../ai/serviceStatus";
+import { useQuery } from "../data/useQuery";
+import { servicesQuery } from "../data/resources";
 import { useDismissiblePopover } from "./useDismissiblePopover";
 
 const services = [
@@ -44,7 +44,9 @@ export function SidebarAiServices({
   /** "dots" is the three status squares beside the wordmark; "panel" is the full list. */
   variant?: "panel" | "dots";
 }) {
-  const [snapshot, setSnapshot] = useState<ServiceSnapshot | null>(null);
+  const serviceState = useQuery(servicesQuery, desktop && enabled);
+  const snapshot = serviceState.data;
+  const readError = !!serviceState.error;
   const [busy, setBusy] = useState(desktop && enabled && navigator.onLine);
   const [checking, setChecking] = useState<ServiceId[]>([]);
   const inFlight = useRef<Promise<void> | null>(null);
@@ -54,7 +56,6 @@ export function SidebarAiServices({
   const [offline, setOffline] = useState(
     () => typeof navigator !== "undefined" && !navigator.onLine,
   );
-  const [readError, setReadError] = useState(false);
   const [active, setActive] = useState<ServiceId>("nebius");
   const [position, setPosition] = useState({ left: 0, top: 0 });
   const [receipt, setReceipt] = useState("");
@@ -67,14 +68,9 @@ export function SidebarAiServices({
   }, [collapsed, setOpen]);
   const refresh = useCallback(async () => {
     try {
-      const data = await serviceStatusApi.read();
-      if (mounted.current) {
-        setSnapshot(data);
-        setReadError(false);
-      }
-      return data;
+      return await servicesQuery.refresh();
     } catch {
-      if (mounted.current) setReadError(true);
+      return undefined;
     }
   }, []);
   const check = useCallback(() => {
@@ -124,35 +120,18 @@ export function SidebarAiServices({
         mounted.current = false;
       };
     }
-    let pending = false;
-    const poll = async () => {
-      if (document.hidden || pending) return;
-      pending = true;
-      try {
-        await refresh();
-      } finally {
-        pending = false;
-      }
-    };
     const network = () => {
       setOffline(!navigator.onLine);
       if (navigator.onLine) void check();
-      else void poll();
     };
     if (!started.current) {
       started.current = true;
       void check();
-    } else void poll();
-    const interval = window.setInterval(() => void poll(), 30_000);
-    document.addEventListener("visibilitychange", poll);
-    window.addEventListener("focus", poll);
+    } else void refresh();
     window.addEventListener("online", network);
     window.addEventListener("offline", network);
     return () => {
       mounted.current = false;
-      clearInterval(interval);
-      document.removeEventListener("visibilitychange", poll);
-      window.removeEventListener("focus", poll);
       window.removeEventListener("online", network);
       window.removeEventListener("offline", network);
     };

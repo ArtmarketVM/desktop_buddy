@@ -26,13 +26,19 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
           key: ${{ matrix.target }}
       - run: npm ci
+      - name: Report frontend lint findings (non-blocking rollout)
+        continue-on-error: true
+        run: npm run lint
+      - name: Report Rust lint findings (non-blocking rollout)
+        continue-on-error: true
+        run: npm run lint:rust
       - name: Run ten phase automated acceptance
         run: npm run test:acceptance -- --output .tools/acceptance/ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -51,4 +57,11 @@ jobs:
         with:
           name: acceptance-macos-${{ matrix.name }}
           path: .tools/acceptance/ci/
+          if-no-files-found: warn
+      - name: Upload lint findings even when checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-macos-${{ matrix.name }}
+          path: .tools/quality/
           if-no-files-found: warn

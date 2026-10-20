@@ -2176,3 +2176,31 @@ async fn continuity_chat_uses_grounded_backend_summary_without_freeform_regenera
         .iter()
         .all(|s| !s.done));
 }
+
+#[test]
+fn explicit_history_query_stays_in_its_conversation_after_selection_changes() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    let reply = ChatReply {
+        message: "First answer".into(),
+        ..Default::default()
+    };
+    storage
+        .save_chat_turn("First question", &reply, None)
+        .unwrap();
+    let second = storage.create_conversation().unwrap();
+    storage
+        .save_chat_turn("Second question", &reply, None)
+        .unwrap();
+    assert_eq!(
+        history_for(&storage, None).unwrap()[0].text,
+        "Second question"
+    );
+    assert_eq!(
+        history_for(&storage, Some(first)).unwrap()[0].text,
+        "First question"
+    );
+    assert_eq!(storage.current_conversation().unwrap(), second);
+    storage.delete_conversation(first).unwrap();
+    assert!(history_for(&storage, Some(first)).unwrap().is_empty());
+}

@@ -1,18 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pause, Plus } from "lucide-react";
-import { listen } from "@tauri-apps/api/event";
-import { api, desktop } from "../api/tauri";
+import { queryClient } from "../data/client";
+import { useQuery } from "../data/useQuery";
+import { draftsQuery, workspaceQuery } from "../data/resources";
+import { desktop } from "../api/tauri";
 import type { WorkspacePage } from "../components/AppShell";
 import { coreApi } from "./api";
 import { Composer } from "./Composer";
-import { GoalAreas, GoalEditor, GoalLine, GoalRow } from "./Goals";
+import { GoalAreas, GoalEditor, GoalRow } from "./Goals";
 import { Progress, TodaySummary, type FinishedItem } from "./Progress";
-import {
-  emptyCore,
-  type ProgressPeriod,
-  type CoreGoal,
-  type CoreSnapshot,
-} from "./types";
+import { type ProgressPeriod, type CoreGoal } from "./types";
 import { GoalFinder, browseGoals } from "./GoalFinder";
 import { TodayPlanner } from "./TodayPlanner";
 import { CapturedGoal } from "./CapturedGoal";
@@ -22,7 +19,6 @@ import { WorkspaceBuddy } from "../companion/WorkspaceBuddy";
 import { Chats } from "../companion/Chats";
 import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
-import { TrackingStatus } from "./TrackingStatus";
 import { Toasts } from "../components/Toasts";
 import { NoticedWork } from "./NoticedWork";
 import { GoalMatchToasts } from "../components/GoalMatchToasts";
@@ -44,76 +40,33 @@ export function Experience({
   dashboard: Dashboard;
   onSettings: () => void;
 }) {
-  const [snapshot, setSnapshot] = useState<CoreSnapshot>(emptyCore);
   const [anchor, setAnchor] = useState<string | null>(null);
   const [progressPeriod, setProgressPeriod] = useState<ProgressPeriod>("week");
   const [error, setError] = useState("");
-  const [loadError, setLoadError] = useState("");
-  const displayedError = error || loadError;
   const [busy, setBusy] = useState(false);
   const [editor, setEditor] = useState<CoreGoal | null>(null);
   const [composerDirty, setComposerDirty] = useState(false);
   const [quickDirty, setQuickDirty] = useState(false);
   const [skipPlanningDate, setSkipPlanningDate] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [drafts, setDrafts] = useState<Array<{ id: string; text: string }>>([]);
   const snapshotAnchor = page === "activity" ? anchor : null;
   const snapshotPeriod = page === "activity" ? progressPeriod : "week";
   const [movementDismissed, setMovementDismissed] = useState(0);
-  const [ready, setReady] = useState(!desktop);
+  const workspace = workspaceQuery(snapshotAnchor, snapshotPeriod);
+  const workspaceState = useQuery(workspace, desktop);
+  const captured = useQuery(draftsQuery, desktop);
+  const snapshot = workspaceState.data;
+  const drafts = captured.data;
+  const ready = !desktop || workspaceState.ready;
+  const displayedError = error || workspaceState.error || captured.error;
   const refresh = useCallback(async () => {
-    if (desktop) {
-      const [next, captured] = await Promise.all([
-        coreApi.snapshot(snapshotAnchor, snapshotPeriod),
-        coreApi.drafts(),
-      ]);
-      setSnapshot(next);
-      setDrafts(captured);
-      setLoadError("");
-      setReady(true);
-    }
-  }, [snapshotAnchor, snapshotPeriod]);
-  useEffect(() => {
-    let live = true;
-    const poll = async () => {
-      try {
-        if (desktop) {
-          const [next, captured] = await Promise.all([
-            coreApi.snapshot(snapshotAnchor, snapshotPeriod),
-            coreApi.drafts(),
-          ]);
-          if (live) {
-            setSnapshot(next);
-            setDrafts(captured);
-            setLoadError("");
-            setReady(true);
-          }
-        }
-      } catch (e) {
-        if (live) setLoadError(String(e));
-      }
-    };
-    void poll();
-    const stops: Array<() => void> = [];
     if (desktop)
-      for (const name of [
-        "buddy://drafts-updated",
-        "buddy://goal-analysis",
-        "buddy://goal-completed",
-      ])
-        void listen(name, () => void poll())
-          .then((unlisten) => {
-            if (live) stops.push(unlisten);
-            else unlisten();
-          })
-          .catch(() => {});
-    const id = setInterval(() => void poll(), 5000);
-    return () => {
-      live = false;
-      clearInterval(id);
-      stops.forEach((stop) => stop());
-    };
-  }, [snapshotAnchor, snapshotPeriod, revision, page]);
+      await Promise.all([workspace.refresh(), draftsQuery.refresh()]);
+  }, [workspace]);
+  // Legacy parent revisions also cover callers that have not migrated their IPC adapter.
+  useEffect(() => {
+    if (desktop) queryClient.invalidate(["workspace", "drafts"]);
+  }, [revision]);
   useEffect(() => {
     onDirty(composerDirty || quickDirty || !!editor);
     return () => onDirty(false);
@@ -127,7 +80,7 @@ export function Experience({
       await onChanged();
       return true;
     } catch (e) {
-      setError(String(e));
+      setError(queryClient.recordError("workspace action", e));
       return false;
     } finally {
       setBusy(false);

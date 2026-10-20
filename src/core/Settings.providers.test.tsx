@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { queryClient } from "../data/client";
 import {
   act,
   cleanup,
@@ -49,6 +50,7 @@ const data = {
 } as Dashboard;
 let snapshot: ServiceSnapshot;
 beforeEach(() => {
+  queryClient.invalidate(undefined, true);
   snapshot = {
     configured_model: "test-model",
     services: ["nebius", "tavily"].map((id) => ({
@@ -152,7 +154,7 @@ it("polls local status without probing providers and distinguishes expiry from f
   await act(async () => {
     fireEvent(window, new Event("focus"));
   });
-  expect(services.getAllByRole("status")[0].textContent).toBe("Check again");
+  await waitFor(() => expect(services.getAllByRole("status")[0].textContent).toBe("Check again"));
   expect(api.testConnection).not.toHaveBeenCalled();
   vi.mocked(serviceStatusApi.read).mockRejectedValue(
     new Error("Local status unavailable"),
@@ -160,7 +162,5 @@ it("polls local status without probing providers and distinguishes expiry from f
   await act(async () => {
     fireEvent(window, new Event("focus"));
   });
-  expect(services.getAllByRole("status")[0].textContent).toBe(
-    "Key saved, not checked yet",
-  );
+  await waitFor(() => expect(services.getAllByRole("status")[0].textContent).toBe("Key saved, not checked yet"));
 });

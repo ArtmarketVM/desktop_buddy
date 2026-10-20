@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { aiApi, type ActivitySegment } from "../ai/api";
+import { useQuery } from "../data/useQuery";
+import { segmentsQuery } from "../data/resources";
 import { desktop } from "../api/tauri";
 import { duration } from "./types";
 
@@ -8,34 +8,7 @@ export function activityDay(timestamp: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 export function ActivityTimeline({ day }: { day: string }) {
-  const [segments, setSegments] = useState<ActivitySegment[]>([]);
-  const [error, setError] = useState("");
-  useEffect(() => {
-    let live = true;
-    const refresh = () => {
-      if (desktop)
-        void aiApi
-          .segments()
-          .then((rows) => {
-            if (live) {
-              setSegments(rows);
-              setError("");
-            }
-          })
-          .catch(() => {
-            if (live)
-              setError(
-                "Activity history is temporarily unavailable. Try reopening Progress.",
-              );
-          });
-    };
-    refresh();
-    const timer = setInterval(refresh, 15000);
-    return () => {
-      live = false;
-      clearInterval(timer);
-    };
-  }, [day]);
+  const { data: segments, error } = useQuery(segmentsQuery(), desktop);
   const rows = segments
     .filter((row) => activityDay(row.startedAt) === day)
     .reverse();
