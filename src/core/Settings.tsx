@@ -256,6 +256,11 @@ export function CoreSettings({
         );
         await coreApi.preferences(preferences);
         await api.saveTrackingSettings(hours);
+        // Keep the draft authoritative until the shared reads reflect the save.
+        await Promise.all([
+          workspaceQuery(null, "week").refresh(),
+          trackingQuery.refresh(),
+        ]);
       })
     ) {
       setDirty(false);
