@@ -1,0 +1,195 @@
+{
+  "schemaVersion": 1,
+  "applicationBase": "11760017314095d75374449690c2a1c42c5af08a",
+  "captureCommit": "c4aad93bc06b1593b26e8f4156aeb59e98f3f526",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488577476",
+  "artifactId": 12293954001,
+  "approvedOn": "2026-10-20",
+  "approvedBy": "Repository owner, explicit chat confirmation after reviewing all 34 candidates",
+  "approval": "The owner confirmed: reviewed and approve all 34.",
+  "knownExistingIssues": [
+    "Settings Privacy content extends beyond the right edge at the 720-pixel viewport; Developer 1 must treat a fix as an intentional visual change."
+  ],
+  "environment": {
+    "imageVersion": "20261012.333.1",
+    "commit": "c4aad93bc06b1593b26e8f4156aeb59e98f3f526",
+    "imageOS": "win22",
+    "osVersion": "Microsoft Windows NT 10.0.20348.0",
+    "playwright": "Version 1.56.1",
+    "runnerOS": "Windows",
+    "applicationBase": "11760017314095d75374449690c2a1c42c5af08a",
+    "node": "v24.21.0"
+  },
+  "screenshots": {
+    "wide-light/buddy.png": {
+      "sha256": "f704b5d70573721e49af82c8238f29990ae8df975d092828acbaad404ee70dd2",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/chats.png": {
+      "sha256": "cac214a70757bd29531ef41b27b83c038453ebe74206a45ed841057df807c25f",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/collapsed-sidebar.png": {
+      "sha256": "2354b2512c9570cd28865a19320872b50e7c389045bd5349aa66f8063e301e82",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/goals.png": {
+      "sha256": "0afcd4e5861178fb06bef7eee1bb581bc6e30f9f633c371d027abf9030ba1587",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/progress.png": {
+      "sha256": "5e07728c688f7bcc0c5bbd84f8602e9f430880c610c08fc975113efdc417f6a6",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/settings-ai.png": {
+      "sha256": "85b3cd85658a061ca62c367386e65e53b41da229e026fac0b42abef17fa3b1a7",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/settings-general.png": {
+      "sha256": "a30928a25eef6c3171a6575df5da732040a98fb9b004f0eeed9897fe2b5d476c",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/settings-privacy.png": {
+      "sha256": "0e40cf3e3c7aa0d45405c902a81c171e308c29e4fa0e7cecdb5c459da99c7f4b",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-light/today.png": {
+      "sha256": "c00def05e2040a999d3b4594d817db1a0d00432c43b27cd64275221a653eb8ab",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/buddy.png": {
+      "sha256": "fa708f31f9f4ed7702dda12c61f8126098ce4b7db7d27e7ea0355c337ebdb75b",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/chats.png": {
+      "sha256": "3f38bddeb8e52333c0f32fed41d6b2d43f320abaa762d94f10ffe983529964e5",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/collapsed-sidebar.png": {
+      "sha256": "d225ba2a9add02d029fdf9667d1829c16d15fd2dabab227c60fc3bb727d905ae",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/goals.png": {
+      "sha256": "eac904334ed5b3b69a95fbdcca0e85b5afd44d66ea14551ed3c06655506e4516",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/progress.png": {
+      "sha256": "7e4d9f543c20ceeb33137f494431977e1d927c7709967d5ba9b8b2a4d84ee188",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/settings-ai.png": {
+      "sha256": "637fe4a31780e0b87ba130f3425afbefdfd949f236c028d9a446828d8c9681b3",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/settings-general.png": {
+      "sha256": "7cdb2fc65f641684a9ca69e6ebccad2c852239012241385da7dd19964952a627",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/settings-privacy.png": {
+      "sha256": "b73440ed4e4435afd08a169e454dfc82d6894e90936228dd01ce08e7dcfa1f91",
+      "width": 1280,
+      "height": 873
+    },
+    "wide-dark/today.png": {
+      "sha256": "98da216471f4928ff47d9a31457f32c2612db51b382a48779cc698e6a8e3a7ed",
+      "width": 1280,
+      "height": 873
+    },
+    "narrow-light/buddy.png": {
+      "sha256": "68eed2bf83edd5602dfac4f6b5bdbc7bf6f1031f4700e9f87430af4e04d5e827",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/chats.png": {
+      "sha256": "de12c9226fc8b70559d603b93618ab166fa24fcab0a8381edaf264aa02623d78",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/goals.png": {
+      "sha256": "dbf76e8c18a028b1f744ad582f0722f20d754d6c4bab8fb7867f5dbb9a85fd05",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/progress.png": {
+      "sha256": "5a66664179fdab2a2fc83c06126e0fa3e800a2d985c280f2c2b642f2271608a8",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/settings-ai.png": {
+      "sha256": "804eb210e98e4d6d806a79e76156ceb43a463f7083112957c7a3134c5740c42f",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/settings-general.png": {
+      "sha256": "3f97febb4adcb626cffcc749802ecd8f2327476d7d075ee2d24706cb88c3cfcd",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/settings-privacy.png": {
+      "sha256": "ce6d0d03baa97607f8f4b7a9fe8b8e6a87a699ce1d2ee9b549f4b6f6518149a7",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-light/today.png": {
+      "sha256": "3bdc296e5e381a28214dbe55c39e354e728f5d33f2d387c898954d74058f4cef",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/buddy.png": {
+      "sha256": "7b1865b8a27e4c7becb3a991814d88e30725c951958ab37b51270549df91335f",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/chats.png": {
+      "sha256": "c0ab436e204226bfe69c485def78ea7b13ae5089265f8aa41b68e5d40224e591",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/goals.png": {
+      "sha256": "4a1640b529cb36ae4082399b4887cb2228536710a1e497c7eefb952ccbb4c4b9",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/progress.png": {
+      "sha256": "d88cc2eeb3d304b1d0170b6c362703c8b0c6a4d39f0ebef73f50043ed20a1aee",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/settings-ai.png": {
+      "sha256": "eb5c83fc6bf072d42cf95c5f9e2ed7c8e987b220295df763e3edbe6a26d345a6",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/settings-general.png": {
+      "sha256": "d5c03532135a1fce4c7da66accb0feb6ca3a98f5a62573b034991e8f4b07cc37",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/settings-privacy.png": {
+      "sha256": "164c8dc3b823c89e6e2aa00da044ec5856f5ab095dce015353014ace1432a333",
+      "width": 720,
+      "height": 873
+    },
+    "narrow-dark/today.png": {
+      "sha256": "a543cb682aec145fecfef267499e7e57e98a51b01c013ae4d57e087e491d7fb8",
+      "width": 720,
+      "height": 873
+    }
+  }
+}

@@ -4,10 +4,20 @@ on:
     branches: [main, codex/macos-support]
   pull_request:
   workflow_dispatch:
+    inputs:
+      visual_candidates:
+        description: Generate visual candidates for human review and verify a second capture in the same Windows environment
+        type: boolean
+        default: false
+      visual_only:
+        description: Run only browser coverage; native validation must still pass in a separate full run
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   build:
+    if: github.event_name != 'workflow_dispatch' || !inputs.visual_only
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,11 +27,17 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
         with:
-          components: rustfmt
+          components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
       - run: npm ci
+      - name: Report frontend lint findings (non-blocking rollout)
+        continue-on-error: true
+        run: npm run lint
+      - name: Report Rust lint findings (non-blocking rollout)
+        continue-on-error: true
+        run: npm run lint:rust
       - name: Run ten phase automated acceptance
         run: npm run test:acceptance -- --output .tools/acceptance/ci
       - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
@@ -44,4 +60,59 @@ jobs:
         with:
           name: acceptance-windows-x64
           path: .tools/acceptance/ci/
+          if-no-files-found: warn
+      - name: Upload lint findings even when checks fail
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-windows-x64
+          path: .tools/quality/
+          if-no-files-found: warn
+  visual:
+    name: Windows browser visual coverage
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the agreed application base for the source comparison
+        run: git fetch --no-tags --depth=1 origin 11760017314095d75374449690c2a1c42c5af08a
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install chromium
+      - name: Record capture environment
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path test-results -Force | Out-Null
+          @{
+            commit = (git rev-parse HEAD)
+            applicationBase = '11760017314095d75374449690c2a1c42c5af08a'
+            runnerOS = $env:RUNNER_OS
+            imageOS = $env:ImageOS
+            imageVersion = $env:ImageVersion
+            osVersion = [Environment]::OSVersion.VersionString
+            node = (node --version)
+            playwright = (npx playwright --version)
+          } | ConvertTo-Json | Set-Content test-results/environment.json
+      - name: Generate candidates and verify reproducibility
+        if: github.event_name == 'workflow_dispatch' && inputs.visual_candidates
+        run: npm run test:visual:candidates
+      - name: Compare reviewed baselines without updating them
+        if: github.event_name != 'workflow_dispatch' || !inputs.visual_candidates
+        run: npm run test:visual
+      - name: Build a gallery for human review
+        if: always()
+        run: node scripts/visual-review.mjs
+      - name: Upload screenshots, diffs, traces and environment even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-windows-2022
+          retention-days: 14
+          path: |
+            playwright-report/
+            test-results/
+            visual/baselines/
           if-no-files-found: warn
