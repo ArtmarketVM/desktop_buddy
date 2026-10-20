@@ -445,7 +445,26 @@ impl<'a> Service<'a> {
                 payload["top_p"] = json!(0.95);
             }
         }
-        let result = if deliberate || response_operation(name) {
+        let default_planner = matches!(
+            name,
+            "buddy_skill_plan" | "buddy_dialogue_authorization" | "buddy_dialogue_review"
+        ) && self.model == http::DEFAULT_PRIMARY_MODEL
+            && model == http::DEFAULT_RESPONSE_MODEL
+            && std::env::var("NEBIUS_REASONING_MODEL_ID")
+                .ok()
+                .is_none_or(|m| m.trim().is_empty());
+        let result = if default_planner {
+            // Two ten-second generation attempts fit inside the review's 25-second
+            // bound. Both are proposals and still pass the same independent checks.
+            http::post_default_plan_json(
+                self.client,
+                &self.endpoint,
+                &self.key,
+                &payload,
+                std::time::Duration::from_secs(10),
+            )
+            .await
+        } else if deliberate || response_operation(name) {
             http::post_reasoning_json(self.client, &self.endpoint, &self.key, &payload).await
         } else {
             http::post_json(self.client, &self.endpoint, &self.key, &payload).await

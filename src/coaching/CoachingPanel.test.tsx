@@ -182,3 +182,16 @@ it("allows exit from stale context and prevents resuming it", async () => {
       .disabled,
   ).toBe(false);
 });
+
+it("omits the start section in ordinary chats while retaining active coaching controls", async () => {
+  vi.mocked(coachingApi.inspect).mockResolvedValue(null);
+  const { container, rerender } = render(
+    <CoachingPanel conversationId={4} allowStart={false} />,
+  );
+  await waitFor(() => expect(coachingApi.inspect).toHaveBeenCalled());
+  expect(container.querySelector(".coaching-panel")).toBeNull();
+  vi.mocked(coachingApi.inspect).mockResolvedValue(fixture());
+  rerender(<CoachingPanel conversationId={5} allowStart={false} />);
+  await screen.findByText("Coaching · Write proposal");
+  expect(screen.queryByText("Help me start")).toBeNull();
+});

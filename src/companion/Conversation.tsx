@@ -426,7 +426,7 @@ export function Conversation({
         </header>
       )}
       {compact && (
-        <header className="compact-header">
+        <header className="compact-header" onPointerDown={onMove}>
           <strong>sumi</strong>
           <button
             type="button"
@@ -502,9 +502,7 @@ export function Conversation({
           conversationId={conversationId}
           onChange={updateCoaching}
           onRememberChange={setRememberResult}
-          requested={/^(?:i (?:cannot|can't) start|help me start|не могу начать|помоги начать)[.!?]*$/i.test(
-            text.trim(),
-          )}
+          allowStart={false}
         />
       )}
       {!compact && view.inbox.length > 0 && (

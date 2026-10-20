@@ -79,7 +79,7 @@ export const History = make("goals", [
   "00000000000",
 ]);
 
-// Chats and feedback: a speech bubble with a tail.
+// Chats: a speech bubble with a tail.
 export const MessageSquare = make("message", [
   "01111111110",
   "10000000001",
@@ -214,4 +214,19 @@ export const LogOut = make("log-out", [
   "10000000000",
   "10000000000",
   "11111000000",
+]);
+
+// Feedback: a letter in an envelope.
+export const Mail = make("mail", [
+  "00000000000",
+  "11111111111",
+  "11000000011",
+  "10100000101",
+  "10010001001",
+  "10001110001",
+  "10000000001",
+  "10000000001",
+  "11111111111",
+  "00000000000",
+  "00000000000",
 ]);

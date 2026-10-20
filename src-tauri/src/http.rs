@@ -47,7 +47,16 @@ pub async fn post_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
-    post_json_with_timeout(client, url, key, payload, Duration::from_secs(20), true).await
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(20),
+        true,
+        true,
+    )
+    .await
 }
 
 /// Interactive reasoning can outlast the short background/search timeout. Do not
@@ -58,7 +67,56 @@ pub(crate) async fn post_reasoning_json(
     key: &str,
     payload: &Value,
 ) -> Result<Value, String> {
-    post_json_with_timeout(client, url, key, payload, Duration::from_secs(60), false).await
+    post_json_with_timeout(
+        client,
+        url,
+        key,
+        payload,
+        Duration::from_secs(60),
+        false,
+        true,
+    )
+    .await
+}
+
+/// A planning response proposes data only; it cannot execute a skill. If the
+/// default reasoning model stalls, try the configured default primary model once
+/// with the exact same messages and schema. Never replay an executed action.
+pub(crate) async fn post_default_plan_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+    budget: Duration,
+) -> Result<Value, String> {
+    let first = tokio::time::timeout(
+        budget,
+        post_json_with_timeout(client, url, key, payload, budget, false, false),
+    )
+    .await;
+    match first {
+        Ok(Ok(value)) => return Ok(value),
+        Ok(Err(error))
+            if !error.contains("timed out")
+                && !error.contains("could not be reached")
+                && !error.contains("HTTP 5") =>
+        {
+            return Err(error)
+        }
+        _ => {}
+    }
+    let mut fallback = payload.clone();
+    fallback["model"] = serde_json::json!(DEFAULT_PRIMARY_MODEL);
+    fallback["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
+    fallback.as_object_mut().unwrap().remove("reasoning_effort");
+    tokio::time::timeout(
+        budget,
+        post_json_with_timeout(client, url, key, &fallback, budget, false, false),
+    )
+    .await
+    .map_err(|_| {
+        "The AI planning models timed out. Your saved API key has not been removed.".to_string()
+    })?
 }
 
 async fn post_json_with_timeout(
@@ -68,10 +126,12 @@ async fn post_json_with_timeout(
     payload: &Value,
     timeout: Duration,
     retry_timeouts: bool,
+    retry_transient: bool,
 ) -> Result<Value, String> {
     let payload = constrained_payload(payload);
     let mut last = "Service unavailable".to_string();
-    for attempt in 0..3 {
+    let attempts = if retry_transient { 3 } else { 1 };
+    for attempt in 0..attempts {
         match client
             .post(url)
             .bearer_auth(key)
@@ -93,7 +153,7 @@ async fn post_json_with_timeout(
             Ok(response) => {
                 let status = response.status();
                 last = status_error(status.as_u16());
-                if status.as_u16() != 429 && !status.is_server_error() {
+                if !retry_transient || (status.as_u16() != 429 && !status.is_server_error()) {
                     return Err(last);
                 }
             }
@@ -105,7 +165,7 @@ async fn post_json_with_timeout(
             }
             Err(_) => last = "Service could not be reached or timed out".into(),
         }
-        if attempt < 2 {
+        if attempt + 1 < attempts {
             tokio::time::sleep(Duration::from_millis(500 * (1 << attempt))).await;
         }
     }
@@ -315,6 +375,7 @@ mod tests {
             &serde_json::json!({"model":"test-model"}),
             Duration::from_millis(100),
             false,
+            true,
         )
         .await
         .unwrap_err();
@@ -358,6 +419,113 @@ mod tests {
             .await
             .unwrap_err(),
             status_error(401)
+        );
+    }
+    #[tokio::test]
+    async fn stalled_default_planning_uses_one_fast_model_with_identical_schema_and_messages() {
+        use wiremock::matchers::body_partial_json;
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            ))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(5))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(1)
+            .mount(&server)
+            .await;
+        let payload = serde_json::json!({"model":DEFAULT_RESPONSE_MODEL,"max_tokens":8192,"messages":[{"role":"system","content":"Existing instructions"},{"role":"user","content":"Synthetic request"}],"response_format":{"type":"json_schema","json_schema":{"strict":true,"schema":{"type":"object"}}}});
+        let expected = payload.clone();
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_PRIMARY_MODEL}),
+            ))
+            .respond_with(move |request: &wiremock::Request| {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(body["messages"], expected["messages"]);
+                assert_eq!(body["response_format"], expected["response_format"]);
+                assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"model":DEFAULT_PRIMARY_MODEL,"ok":true}))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        let result = post_default_plan_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &payload,
+            Duration::from_millis(300),
+        )
+        .await
+        .unwrap();
+        assert_eq!(result["model"], DEFAULT_PRIMARY_MODEL);
+    }
+    #[tokio::test]
+    async fn planning_does_not_fail_over_rejected_keys_quota_or_invalid_responses() {
+        for status in [400, 401, 402, 403, 404, 429] {
+            let server = MockServer::start().await;
+            Mock::given(method("POST"))
+                .respond_with(ResponseTemplate::new(status))
+                .expect(1)
+                .mount(&server)
+                .await;
+            let payload = serde_json::json!({"model":DEFAULT_RESPONSE_MODEL});
+            let error = post_default_plan_json(
+                &reqwest::Client::new(),
+                &server.uri(),
+                "fixture",
+                &payload,
+                Duration::from_millis(300),
+            )
+            .await
+            .unwrap_err();
+            assert!(error.contains(&format!("HTTP {status}")));
+        }
+    }
+    #[tokio::test]
+    async fn planning_fallback_stops_after_two_models_and_rejects_invalid_json_without_retry() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_delay(Duration::from_secs(5))
+                    .set_body_json(serde_json::json!({"late":true})),
+            )
+            .expect(2)
+            .mount(&server)
+            .await;
+        assert!(post_default_plan_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            Duration::from_millis(300)
+        )
+        .await
+        .unwrap_err()
+        .contains("timed out"));
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("broken-json"))
+            .expect(1)
+            .mount(&server)
+            .await;
+        assert_eq!(
+            post_default_plan_json(
+                &reqwest::Client::new(),
+                &server.uri(),
+                "fixture",
+                &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+                Duration::from_millis(300)
+            )
+            .await
+            .unwrap_err(),
+            "Service returned invalid JSON"
         );
     }
 }

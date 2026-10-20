@@ -203,3 +203,38 @@ fn hidden_character_keeps_checkins_but_respects_quiet_and_snooze() {
     inner.buddy.view.companion.intervention = None;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
 }
+
+#[test]
+fn mascot_anchor_survives_chat_resize_screen_edges_and_native_drag() {
+    for scale in [1.0, 1.25, 2.0] {
+        for anchor in [
+            BuddyPosition { x: 100, y: 740 },
+            BuddyPosition { x: 1440, y: 740 },
+            BuddyPosition { x: -1450, y: -100 },
+        ] {
+            let origin = if anchor.x < 0 { (-1500, -800) } else { (0, 0) };
+            for logical in [(160, 152), (440, 660), (380, 440), (160, 152)] {
+                let size = (
+                    (logical.0 as f64 * scale) as u32,
+                    (logical.1 as f64 * scale) as u32,
+                );
+                let position = clamp_position(&anchor, origin, (1500, 800), size);
+                let offset = mascot_offset(&anchor, position, size, scale);
+                assert_eq!(window_anchor(position, size, offset, scale), anchor);
+                let moved = window_anchor(
+                    PhysicalPosition::new(position.x + 30, position.y - 20),
+                    size,
+                    offset,
+                    scale,
+                );
+                assert_eq!(
+                    moved,
+                    BuddyPosition {
+                        x: anchor.x + 30,
+                        y: anchor.y - 20
+                    }
+                );
+            }
+        }
+    }
+}
