@@ -231,18 +231,6 @@
 .goal-expand-toggle .rotated {
   transform: rotate(90deg);
 }
-.step-menu {
-  position: relative;
-}
-.step-menu > summary {
-  list-style: none;
-  cursor: pointer;
-  color: var(--muted);
-  padding: 8px;
-}
-.step-menu > summary::-webkit-details-marker {
-  display: none;
-}
 .compact-suggestions {
   margin: 0;
   padding: 0;
@@ -263,20 +251,6 @@
 .compact-suggestions .suggested-step > button {
   flex: 0 0 auto;
   width: auto;
-}
-.goal-expanded .inline-step {
-  display: flex;
-  margin-top: 12px;
-  gap: 6px;
-}
-.goal-expanded .inline-step input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border-color: transparent;
-}
-.goal-expanded .inline-step input:focus {
-  border-color: var(--line);
 }
 .chats-layout {
   display: grid;
@@ -719,17 +693,6 @@
   > button[aria-label="Start voice input"] {
   display: none;
 }
-.compact-conversation .compact-close {
-  position: absolute;
-  right: 6px;
-  bottom: 13px;
-  padding: 2px;
-  width: 20px;
-  min-height: 20px;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-}
 
 .compact-conversation .companion-error {
   margin: 8px 16px;
@@ -1138,16 +1101,6 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   flex: 0 0 auto;
   margin: 0 0 0 auto;
 }
-.goal-work-context .checkpoint-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 30px;
-  padding: 4px 6px;
-  font-size: var(--text-caption);
-  font-weight: 400;
-  white-space: nowrap;
-}
 .checkpoint-popover {
   position: fixed;
   z-index: 80;
@@ -1163,12 +1116,6 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   font-size: var(--text-body);
   overflow-wrap: anywhere;
 }
-.checkpoint-popover .checkpoint-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
 .checkpoint-popover time {
   display: block;
   margin-top: 4px;
@@ -1180,19 +1127,6 @@ main.desktop-buddy.chatting > .desktop-compact-input {
 }
 .checkpoint-popover .helper {
   font-size: var(--text-caption);
-}
-.checkpoint-popover .work-context-actions {
-  border-top: 1px solid var(--line);
-  padding-top: 8px;
-}
-@media (max-width: 650px) {
-  .checkpoint-trigger span {
-    display: none;
-  }
-  .goal-work-context .checkpoint-trigger {
-    width: 30px;
-    justify-content: center;
-  }
 }
 
 /* Supporting connection metadata stays directly above the profile. */

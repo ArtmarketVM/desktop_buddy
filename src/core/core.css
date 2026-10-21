@@ -109,22 +109,6 @@
 .composer-spacer {
   flex: 1;
 }
-.composer-sharing {
-  font-size: var(--text-caption);
-  color: var(--muted);
-  margin-top: 16px;
-}
-.composer-sharing summary {
-  cursor: pointer;
-}
-.composer-sharing p {
-  max-width: 720px;
-}
-.composer-sharing label {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
 .core-workspace input[type="checkbox"] {
   width: 16px;
   height: 16px;
@@ -150,16 +134,14 @@
 .core-workspace textarea {
   border-radius: 8px;
 }
-.attachment-list,
-.summary-areas {
+.attachment-list {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin: 12px 0;
   font-size: var(--text-caption);
 }
-.attachment-list > span,
-.summary-areas > span {
+.attachment-list > span {
   background: var(--raised);
   padding: 5px 9px;
   border-radius: 8px;
@@ -196,37 +178,12 @@
 .buddy-reply {
   white-space: pre-wrap;
 }
-.small-check {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  font-size: var(--text-caption);
-  color: var(--muted);
-}
-.core-area > summary::-webkit-details-marker,
 .core-goal > summary::-webkit-details-marker {
   display: none;
 }
-.core-area > summary {
-  list-style: none;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  cursor: pointer;
-  font-size: var(--text-body);
-  padding: 14px 0;
-  font-weight: 500;
-}
-.core-area > summary > span {
-  color: var(--muted);
-  font-size: var(--text-caption);
-  font-weight: 400;
-}
-.core-area[open] > summary > svg,
 .core-goal[open] > summary > svg {
   transform: rotate(90deg);
 }
-.core-area + .core-area,
 .core-goal {
   border-top: 1px solid var(--line);
 }
@@ -249,36 +206,23 @@
 .overdue {
   color: var(--danger, var(--danger));
 }
-.quick-goal,
-.inline-step,
-.carryover-row {
+.quick-goal {
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 12px 0;
 }
-.carryover-row > span,
 .suggested-step > :first-child {
   flex: 1;
   min-width: 0;
 }
-.quick-goal input,
-.inline-step input {
+.quick-goal input {
   flex: 1;
   min-width: 0;
   padding: 12px;
   background: var(--input);
   border: 1px solid var(--line);
   color: var(--text);
-}
-.goal-enhancement {
-  margin-top: 12px;
-  font-size: var(--text-caption);
-  color: var(--muted);
-}
-.goal-enhancement > summary {
-  cursor: pointer;
-  padding: 5px 0;
 }
 .goal-analysis {
   color: var(--text);
@@ -325,19 +269,6 @@
   color: var(--text);
   background: var(--input);
   border: 1px solid var(--line);
-}
-@media (max-width: 640px) {
-  .goal-time {
-    display: none;
-  }
-  .carryover-row,
-  .inline-step {
-    flex-wrap: wrap;
-  }
-  .carryover-row > span,
-  .inline-step input {
-    flex-basis: 100%;
-  }
 }
 .core-goal > summary {
   list-style: none;
@@ -424,16 +355,6 @@
 .morning-plan button {
   margin-right: 12px;
 }
-.summary-mark {
-  width: 32px;
-  height: 32px;
-  background: var(--positive-soft);
-  color: var(--positive);
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
 .day-summary h2 {
   font-size: var(--text-heading);
 }
@@ -442,193 +363,9 @@
   font-size: var(--text-body);
   line-height: 1.8;
 }
-.week-navigation {
-  display: flex;
-  gap: 5px;
-  align-items: center;
-}
-.week-strip {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(80px, 1fr));
-  gap: 6px;
-  overflow-x: auto;
-  padding: 6px;
-}
-.week-strip button {
-  background: transparent;
-  color: var(--text);
-  border: 0;
-  padding: 16px 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: center;
-  border-radius: 8px;
-}
-.week-strip button:hover:not(:disabled) {
-  background: var(--raised);
-}
-.week-strip button.selected {
-  background: var(--accent-soft);
-  color: var(--accent-text);
-}
-.week-strip button.selected:hover:not(:disabled) {
-  background: var(--accent-soft);
-}
-.week-strip span,
-.week-strip small {
-  font-size: var(--text-caption);
-}
-.week-strip strong {
-  font-size: var(--text-heading);
-  font-variant-numeric: tabular-nums;
-}
-.progress-toolbar {
-  margin-bottom: 20px;
-}
-.progress-range {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-body);
-}
-.progress-controls {
-  display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-  align-items: end;
-  margin-bottom: 14px;
-}
-.progress-controls label,
-.goals-header label {
-  min-width: 180px;
-  flex: 1;
-}
-.progress-controls select,
-.goals-header input[type="search"],
-.goals-header select,
-.planned-date-control input {
-  display: block;
-  width: 100%;
-  margin-top: 7px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--input);
-  color: var(--text);
-}
-.progress-chart {
-  min-height: 190px;
-  display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: minmax(44px, 1fr);
-  gap: 10px;
-  overflow-x: auto;
-  align-items: end;
-  padding: 18px 0 8px;
-}
-.progress-bar-day {
-  min-width: 44px;
-  display: grid;
-  gap: 6px;
-  text-align: center;
-  font-size: var(--text-caption);
-  color: var(--muted);
-}
-.progress-bar-day > div {
-  height: 112px;
-  display: flex;
-  align-items: end;
-  justify-content: center;
-  border-bottom: 1px solid var(--line);
-}
-/* Bars are stacks of 8px cells, like everything else on the grid. */
-.progress-bar-day span {
-  width: 100%;
-  max-width: 34px;
-  min-height: 4px;
-  border-radius: 3px;
-  background: var(--accent, var(--muted));
-}
-.progress-bar-day strong,
-.progress-bar-day em {
-  font-size: var(--text-caption);
-  font-style: normal;
-  font-weight: 500;
-  color: var(--text);
-}
-.selected-goal-progress {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  align-items: center;
-  padding: 14px 0;
-  border-block: 1px solid var(--line);
-}
-.selected-goal-progress p {
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--text-body);
-}
 .progress-history > .helper {
   margin-top: 28px;
   max-width: 640px;
-}
-.progress-date {
-  margin: 32px 0 20px;
-}
-.goal-time-list {
-  padding: 0;
-  list-style: none;
-}
-.goal-time-list li {
-  padding: 14px 0;
-  border-bottom: 1px solid var(--line);
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  font-size: var(--text-body);
-}
-.goal-time-list small {
-  display: block;
-  color: var(--muted);
-  margin-top: 5px;
-}
-.goal-time-list span,
-.past-summary p {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.progress-goals li {
-  display: block;
-}
-.progress-goal-row {
-  width: 100%;
-  justify-content: space-between;
-  padding: 0;
-  color: var(--text);
-}
-.progress-goal-row > div {
-  text-align: left;
-}
-.progress-goal-details {
-  padding: 0 0 12px;
-  color: var(--muted);
-  font-size: var(--text-body);
-}
-.progress-goal-details p {
-  margin: 6px 0;
-}
-.mini-days {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.mini-days span {
-  display: inline-flex;
-  padding: 4px 7px;
-  border-radius: 7px;
-  background: var(--raised);
 }
 .movement-note {
   background: var(--positive-soft);
@@ -668,12 +405,6 @@
   width: 100%;
   margin-top: 6px;
 }
-.edit-steps > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 7px 0;
-}
 .delete-confirm {
   padding: 12px;
   background: var(--raised);
@@ -690,24 +421,6 @@
 .core-settings details[open] > summary {
   margin-bottom: 18px;
 }
-.working-days > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  margin: 12px 0 20px;
-}
-.working-days label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.working-hours {
-  display: flex;
-  gap: 20px;
-}
-.working-hours label {
-  flex: 1;
-}
 .core-onboarding {
   max-width: 740px;
   padding-top: 34px;
@@ -718,20 +431,6 @@
 .core-onboarding > label {
   display: block;
   max-width: 400px;
-}
-.intent-options {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 14px;
-}
-.intent-options .selected {
-  border-color: var(--muted);
-}
-.setup-goals p {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
 }
 @media (max-width: 800px) {
   .core-composer,
@@ -751,44 +450,9 @@
   .composer-actions {
     gap: 8px;
   }
-  .working-hours {
-    flex-direction: column;
-    gap: 0;
-  }
   .core-onboarding h1 {
     font-size: var(--text-title);
   }
-}
-
-.activity-timeline {
-  margin-top: 24px;
-}
-.activity-timeline summary {
-  cursor: pointer;
-  padding-block: 12px;
-}
-.activity-timeline ol {
-  list-style: none;
-  padding: 0;
-  max-height: 400px;
-  overflow: auto;
-}
-.activity-timeline li {
-  display: flex;
-  gap: 20px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--line, var(--accent-soft));
-}
-.activity-timeline time {
-  font-size: var(--text-caption);
-  color: var(--muted);
-  min-width: 96px;
-}
-.activity-timeline small {
-  display: block;
-  color: var(--muted);
-  margin-top: 4px;
-  overflow-wrap: anywhere;
 }
 .goal-analysis .suggested-step {
   gap: 10px;
@@ -842,15 +506,6 @@
 .settings-drafts .outline-button {
   width: auto;
 }
-:root[data-theme="dark"] .priority-high {
-  color: var(--danger-soft);
-}
-:root[data-theme="dark"] .priority-medium {
-  color: var(--color-fixed-dec783);
-}
-:root[data-theme="dark"] .priority-low {
-  color: var(--hill);
-}
 .ordered-goal {
   position: relative;
   border-radius: 12px;
@@ -878,23 +533,6 @@
 .core-steps li > .step-line {
   flex: 1;
   min-width: 0;
-}
-.priority-badge {
-  padding: 2px 5px;
-  border-radius: 5px;
-  font-weight: 500;
-}
-.priority-high {
-  color: var(--danger);
-  background: var(--color-fixed-c8544012);
-}
-.priority-medium {
-  color: var(--color-fixed-896b28);
-  background: var(--color-fixed-c0a34312);
-}
-.priority-low {
-  color: var(--accent);
-  background: var(--color-fixed-54754812);
 }
 .workspace-overview {
   display: flex;
@@ -956,28 +594,6 @@
   padding: 12px;
   z-index: 2;
 }
-.goals-header {
-  display: flex;
-  gap: 14px;
-  align-items: end;
-  margin-bottom: 14px;
-}
-.goal-history-toolbar {
-  display: flex;
-  align-items: end;
-  gap: 14px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-.planned-date-control {
-  min-width: 240px;
-  display: grid;
-  gap: 5px;
-}
-.planned-date-control strong {
-  font-size: var(--text-heading);
-  font-weight: 500;
-}
 .segmented-control {
   display: inline-flex;
   flex-shrink: 0;
@@ -997,14 +613,6 @@
 .segmented-control button.selected {
   background: var(--accent-soft);
   color: var(--accent-text);
-}
-.today-secondary {
-  margin-top: 18px;
-  font-size: var(--text-caption);
-}
-.today-secondary summary {
-  color: var(--muted);
-  cursor: pointer;
 }
 .suggested-step {
   display: flex;
@@ -1041,9 +649,7 @@
     flex-direction: column;
     gap: 12px;
   }
-  .core-settings,
-  .goals-header,
-  .goal-history-toolbar {
+  .core-settings {
     grid-template-columns: 1fr;
     display: grid;
   }
@@ -1105,15 +711,6 @@
   border: solid var(--surface, var(--line));
   border-width: 0 1.5px 1.5px 0;
   transform: rotate(45deg);
-}
-.core-steps li .step-menu {
-  opacity: 0;
-  transition: opacity 120ms;
-}
-.core-steps li:hover .step-menu,
-.core-steps li:focus-within .step-menu,
-.core-steps li .step-menu[open] {
-  opacity: 1;
 }
 .goal-expanded .add-step {
   display: flex;
@@ -1211,21 +808,6 @@
     animation: none;
   }
 }
-.goal-time {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: none;
-  color: var(--muted);
-  font-size: var(--text-body);
-}
-.progress-goals {
-  padding: 0;
-  list-style: none;
-}
-.progress-goals .goal-expanded .progress-goal-details {
-  margin-top: 4px;
-}
 .today-picker .core-goal + .core-goal {
   margin-top: 0;
 }
@@ -1238,24 +820,6 @@
 .today-picker > h3,
 .today-picker section > h3 {
   margin: 14px 0 4px;
-}
-.selected-goal-progress h3 {
-  margin: 0;
-  font-size: var(--text-body);
-  font-weight: 500;
-}
-.progress-goals > li.core-goal {
-  display: block;
-  padding: 0;
-  gap: 0;
-  border-bottom: 0;
-}
-.progress-goals .core-goal-title small {
-  display: inline;
-  margin: 0 0 0 8px;
-}
-.progress-goals .step-line span {
-  display: inline;
 }
 .core-goal:has(> .goal-expanded:not([hidden])) > .goal-heading {
   padding-bottom: 6px;
@@ -1287,11 +851,6 @@
   margin: 0;
   font-size: var(--text-body);
   line-height: 22px;
-}
-.day-summary .summary-detail {
-  color: var(--muted);
-  font-size: var(--text-body);
-  line-height: 20px;
 }
 .day-summary.has-progress > svg {
   color: var(--accent, var(--accent));
@@ -1361,12 +920,6 @@
   margin-left: auto;
   color: var(--muted);
 }
-.goal-expand-toggle .goal-time {
-  margin-left: auto;
-}
-.goal-expand-toggle .goal-time + .goal-chevron {
-  margin-left: 12px;
-}
 .goal-expanded {
   padding: 0 0 10px 22px;
   padding-left: 64px;
@@ -1378,31 +931,13 @@
   text-decoration: line-through;
   color: var(--muted);
 }
-.core-goal.completed .core-goal-title small,
-.core-goal.completed .core-goal-title .goal-time {
+.core-goal.completed .core-goal-title small {
   display: inline-block;
   text-decoration: none;
 }
 .goal-expanded .core-steps li {
   gap: 4px;
   position: relative;
-}
-.goal-expanded .core-steps li > .step-menu {
-  position: absolute;
-  left: -32px;
-  top: 50%;
-  width: 28px;
-  transform: translateY(-50%);
-  text-align: center;
-}
-.goal-expanded .core-steps li > .step-menu > summary {
-  padding: 4px;
-  line-height: 0;
-}
-.goal-expanded .core-steps li > .step-menu .goal-menu {
-  left: 0;
-  right: auto;
-  min-width: 140px;
 }
 .goal-expanded .core-steps li::before {
   content: "";
@@ -1760,57 +1295,7 @@ p.notice::before {
   margin-top: 16px;
 }
 
-/* Checkpoints stay within the existing goal column. */
-.work-context-actions {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.work-context-status {
-  font-size: var(--text-caption);
-  font-weight: 500;
-  color: var(--muted, var(--text));
-}
-.work-context-checkpoint {
-  font-size: var(--text-body);
-  overflow-wrap: anywhere;
-}
-.work-context-checkpoint p {
-  margin: 6px 0;
-}
-.work-context-receipt {
-  white-space: pre-line;
-  font-size: var(--text-body);
-}
-
 /* Explicit focus and a separate, reorderable queue. */
-.today-lane-heading {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 20px 0 8px;
-}
-.today-lane-heading h3 {
-  margin: 0;
-  font-size: var(--text-body);
-  font-weight: 500;
-}
-.today-lane-heading > span:last-child {
-  margin-left: auto;
-  font-size: var(--text-caption);
-  color: var(--muted);
-}
-.focus-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent, var(--color-fixed-79a7b8));
-}
-.today-focus-lane {
-  border-left: 2px solid var(--accent, var(--color-fixed-79a7b8));
-  padding-left: 14px;
-}
 .today-queue-heading {
   display: flex;
   align-items: center;
@@ -1824,9 +1309,6 @@ p.notice::before {
   padding: 3px 8px;
   font-size: var(--text-caption);
 }
-.today-finished {
-  margin-top: 20px;
-}
 
 .window-activity {
   margin-top: 4px;
@@ -1835,23 +1317,6 @@ p.notice::before {
   font-size: var(--text-caption);
   color: var(--muted);
   line-height: 1.5;
-}
-.observed-apps {
-  list-style: none;
-  padding: 0;
-}
-.observed-apps li {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) minmax(60px, 2fr) 55px;
-  align-items: center;
-  gap: 12px;
-  font-size: var(--text-caption);
-  padding: 5px 0;
-}
-.observed-apps meter {
-  width: 100%;
-  height: 5px;
-  accent-color: var(--accent);
 }
 .window-session-list {
   list-style: none;
@@ -2191,49 +1656,6 @@ details.today-summary > .today-summary-head {
   color: var(--muted);
   font-size: var(--text-body);
 }
-.today-summary-counts .summary-chevron {
-  transition: transform 150ms;
-}
-.today-summary[open] .summary-chevron {
-  transform: rotate(180deg);
-}
-.today-summary-list {
-  margin: 0;
-  padding: 0 24px 18px;
-  list-style: none;
-  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
-}
-.today-summary-list > li {
-  padding: 10px 0 2px;
-}
-.today-summary-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: var(--text-body);
-}
-.today-summary-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-.today-summary-row .finished {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-.today-summary-time {
-  margin-left: auto;
-  color: var(--muted);
-  font-size: var(--text-body);
-  font-variant-numeric: tabular-nums;
-}
-.today-summary-steps {
-  margin: 2px 0 6px 20px;
-  color: var(--muted);
-  font-size: var(--text-caption);
-}
 
 /* Deadline picker: calendar plus a free-typed time, like a Notion date. */
 .deadline-picker {
@@ -2478,13 +1900,6 @@ details.today-summary > .today-summary-head {
 }
 
 /* Pixel captions: the one place the grid becomes letters. */
-.progress-bar-day small,
-.axis-label {
-  font-family: var(--pix);
-  font-size: var(--text-pix);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
 .ideas-label {
   margin: 0;
   padding: 4px 8px 2px;
@@ -2502,27 +1917,7 @@ details.today-summary > .today-summary-head {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.nav-heading {
-  display: block;
-  margin: 33px 12px 11px;
-  color: var(--muted);
-  font-family: var(--pix);
-  font-size: var(--text-pix);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
 .sidebar-ai-heading .sidebar-service-label {
-  font-family: var(--pix);
-  font-size: var(--text-pix);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 400;
-  color: var(--muted);
   font-family: var(--pix);
   font-size: var(--text-pix);
   letter-spacing: 0.04em;
@@ -2726,11 +2121,6 @@ p.error .text-button {
   border-radius: 3px;
   font-size: var(--text-caption);
 }
-.settings-card .inline-confirm {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-}
 .settings-card .mac-permissions .callout {
   margin: 8px 0;
 }
@@ -2765,24 +2155,6 @@ p.error .text-button {
   margin: 0;
   font-size: var(--text-body);
   line-height: 1.6;
-}
-.privacy-links {
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-}
-.core-workspace .privacy-link {
-  min-height: 0;
-  padding: 0;
-  color: var(--text);
-  font-size: var(--text-caption);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.core-workspace .privacy-link.muted {
-  color: var(--muted);
 }
 
 .activity-log {
