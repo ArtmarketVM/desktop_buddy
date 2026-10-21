@@ -1,10 +1,7 @@
 {
-  "imageVersion": "20261012.333.1",
-  "commit": "c4aad93bc06b1593b26e8f4156aeb59e98f3f526",
-  "imageOS": "win22",
-  "osVersion": "Microsoft Windows NT 10.0.20348.0",
-  "playwright": "Version 1.56.1",
-  "runnerOS": "Windows",
-  "applicationBase": "11760017314095d75374449690c2a1c42c5af08a",
-  "node": "v24.21.0"
+  "commit": "44aeb854edb14dee2bae54c5de16d361921b22f7",
+  "runner": "Windows",
+  "image": "20261012.333.1",
+  "node": "v24.21.0",
+  "reused": ""
 }
