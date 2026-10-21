@@ -1,5 +1,5 @@
 import { spawn, execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 
 mkdirSync(".tools/quality", { recursive: true });
@@ -92,5 +92,18 @@ child.on("close", (code) => {
   console.log(
     `Clippy: ${summary.errors} errors, ${summary.warnings} unique warnings. Exit: ${code}. Report: .tools/quality/clippy.jsonl`,
   );
-  process.exitCode = code ?? 1;
+  // A failed compilation or any error fails. Warnings may not exceed the committed budget.
+  const budget = JSON.parse(
+    readFileSync(new URL("./lint-budget.json", import.meta.url), "utf8"),
+  ).clippyWarnings;
+  if (summary.warnings > budget)
+    console.error(
+      `Clippy warnings exceed the budget of ${budget} in scripts/lint-budget.json.`,
+    );
+  else if (summary.warnings < budget)
+    console.log(
+      `Clippy warnings are below the budget of ${budget}; lower it in scripts/lint-budget.json.`,
+    );
+  process.exitCode =
+    code !== 0 || summary.errors || summary.warnings > budget ? 1 : 0;
 });

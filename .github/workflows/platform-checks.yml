@@ -89,9 +89,8 @@ jobs:
           key: rust-proof-v1-${{ matrix.name }}-${{ steps.inputs.outputs.rust_key }}
       - run: npm ci
         if: steps.proof.outputs.reusable != 'true' || inputs.release || inputs.build_installers
-      - name: Report frontend lint findings under the existing non-blocking policy
+      - name: Lint frontend (errors and warnings over the committed budget fail)
         if: steps.proof.outputs.reusable != 'true'
-        continue-on-error: true
         run: npm run lint
       - name: Run applicable checks once and preserve the full acceptance report
         if: steps.proof.outputs.reusable != 'true'
