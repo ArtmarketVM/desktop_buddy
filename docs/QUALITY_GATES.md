@@ -14,7 +14,7 @@ Infrastructure is published on `codex/quality-gates`. Merge this branch first; D
 | Visual gate | Blocking after baseline approval; comparison never updates expectations. Failed screenshots/diffs/traces and a clickable review gallery are retained as CI artifacts. |
 | Windows native checks | [Native build job](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488229545/job/118854177460) passed acceptance, Rust formatting and Windows x64 installer validation on `f5ab8ff8852e6ee2cae6c98f3240429489428861`. The initial visual job in that run failed due to shallow history; it was fixed and passed separately in the visual run above. |
 | macOS native checks | [Apple Silicon CI](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39487091175) passed acceptance, formatting, `.app` and `.dmg` validation on `71d556390085dbe3e583da3c29098d5430633866`: 242 frontend and 606 Rust tests passed, 2 Rust tests ignored. |
-| Lint gates | Blocking since 21 October 2026; see [Lint gates](#lint-gates). The initial non-blocking rollout below is historical. |
+| Lint gates | ESLint, Clippy and the knip unused-code check block CI since 21 October 2026; see [Lint gates](#lint-gates). The initial non-blocking rollout below is historical. |
 | Privacy | **Integration blocker remains explicit:** the app constant is owned by Developer 2 and still opens the 404 URL. Developer 2 must set `/docs/privacy.html`; merge the policy/font assets into `main` for existing Pages publication, then run `npm run verify:privacy`. The canonical URL currently returns 200 but the public page still has Google Fonts. |
 
 CI native results remain valid for this handoff: later changes affect only visual tests, reviewed PNGs, review tooling, CI orchestration and documentation; application source, Rust dependencies and production npm dependencies are unchanged. Native builds are CI validation artifacts, not installed signed releases or complete manual product acceptance. Existing manual/live-account acceptance cases remain required.
@@ -67,14 +67,15 @@ CI always uploads the HTML report, actual/expected/diff images, traces, candidat
 
 ## Lint gates
 
-Both lint gates block CI since 21 October 2026 (base `62c765e`, v0.39.2).
+All three lint gates block CI. ESLint and Clippy since 21 October 2026 (base `62c765e`, v0.39.2); the unused-code check since the [dead-code cleanup](#dead-code-cleanup) later that day (base `005107f`).
 
 | Gate | Command | CI step | Fails when |
 | --- | --- | --- | --- |
 | ESLint | `npm run lint` | `platform-checks.yml`, both platforms | any error, or warnings above `eslintWarnings` |
 | Clippy | `npm run lint:rust` | `ci.yml` `rust-lint`, Windows x64 and Apple Silicon | compilation fails, any error, or unique warnings above `clippyWarnings` |
+| Unused code (knip) | `npm run lint:unused` | `platform-checks.yml`, both platforms | knip cannot run, or unused files, exports, types, dependencies and test-only modules together exceed `unusedCode` |
 
-Budgets live in `scripts/lint-budget.json` and are both **0**. A budget may only go down; the scripts print a reminder when the count drops below it. `Required application checks` now requires `rust-lint` whenever the Rust suite applies, and `scripts/ci.verify.mjs` fails if a lint step regains `continue-on-error` or loses its budget check. The `rust-lint` job pins Rust **1.99.1**, the stable version CI used for the last measured run, so a new Clippy release cannot fail the gate without a code change. Bump it deliberately and fix or justify any new findings in the same change.
+Budgets live in `scripts/lint-budget.json` and are all **0**. A budget may only go down; the scripts print a reminder when the count drops below it. `Required application checks` now requires `rust-lint` whenever the Rust suite applies, and `scripts/ci.verify.mjs` fails if a lint step regains `continue-on-error`, disappears, or loses its budget check. The `rust-lint` job pins Rust **1.99.1**, the stable version CI used for the last measured run, so a new Clippy release cannot fail the gate without a code change. Bump it deliberately and fix or justify any new findings in the same change.
 
 Counts at the base and after this change:
 
@@ -91,12 +92,12 @@ Windows Clippy cannot run on macOS (`ring` needs a Windows C toolchain), so the 
 Each exception is narrow and states its reason in code. No file-level or blanket suppressions exist.
 
 - ESLint `no-unused-vars` uses `ignoreRestSiblings`: `src/api/memory.ts` destructures server-managed metadata out of a work context so it never enters a save request.
-- `src/data/profile.ts` has one `no-control-regex` disable on the shared pattern that rejects control characters in role and app labels.
-- Four `react-hooks/exhaustive-deps` disables, each with a comment: voice recording in `src/companion/Conversation.tsx` starts only when compact voice mode is entered; role carousel placement in `src/components/ProfileFields.tsx` runs once per `disabled` change; and two drag-cancellation effects in `src/core/GoalOrder.tsx` must not re-run on every render.
+- Three `react-hooks/exhaustive-deps` disables, each with a comment: voice recording in `src/companion/Conversation.tsx` starts only when compact voice mode is entered, and two drag-cancellation effects in `src/core/GoalOrder.tsx` must not re-run on every render.
 - Clippy `too_many_arguments` (8): three dialogue stages in `agent_dialogue.rs`, two chat entry points and `finish_core_setup` whose arguments are the Tauri IPC contract, and the `request_at`/`observe_at` test seams. A shared context struct is a separate refactor.
 - Clippy `if_same_then_else` on `buddy::mode`: interventions and suggestions share a window mode but keep separate eligibility rules.
 - Clippy `duplicated_attributes` on the macOS `#[link]` blocks: each names a different library.
 - `dead_code` only off Windows for Windows-only helpers that are unit-tested on every platform: `BrowserActivityProvider`, `process_basename`, `installer_helper`, `executable`.
+- knip (`knip.config.ts`): `src/ai/contracts.ts` is an entry because `docs/AI_BUDDY_TAVILY_TRACKING.md` documents it as an integration boundary, although nothing in the app imports its functions; `prettier` is run on demand and is in no script; `rustc` is the Rust toolchain, not an npm package. CSS files are parsed for `@import`, so the font packages count as used.
 
 ### Removed in this change
 
@@ -114,6 +115,45 @@ Covers commit `35865d1` and later documentation-only changes:
 - `npm test`: 49 files, 257 tests passed. `npm run build` passed. `node --test scripts/ci.verify.mjs`: 13 passed. `actionlint` passed.
 - `cargo fmt --check` passed. `cargo test --locked`: 605 passed, 2 ignored. The 5 fewer tests than before are the removed recommendation-pipeline tests.
 - Not run locally: Windows Clippy, the Windows visual gate and native packaging. CI covers them. `visual/baselines/` is unchanged.
+
+### Unused-code check
+
+ESLint sees one file at a time, so it cannot tell that a whole module is unused. `npm run lint:unused` (`scripts/lint-unused.mjs`) runs [knip](https://knip.dev) 6.42.1 twice with `knip.config.ts`:
+
+- The default run reports unused files, exports, exported types and npm dependencies. Entry points are `index.html` (`src/main.tsx`, through the Vite plugin), `visual/boot.ts`, the Vitest and Playwright tests, `scripts/*.mjs`, `server/*.mjs` and the browser extension.
+- The production run (`--production --include files`) ignores tests, so a module imported only by its own tests also fails.
+
+Both reports are written to `.tools/quality/knip.json` and `knip-production.json` and kept in the CI validation artifact. Findings are deduplicated and held to `unusedCode`. A knip crash or configuration error fails the step; it is never counted as a clean result.
+
+Not covered: exports that only tests import (pure helpers exported for unit tests are allowed), members of objects such as `api` in `src/api/tauri.ts`, CSS class usage, and Rust code. Clippy covers Rust.
+
+### Dead-code cleanup
+
+21 October 2026, branch `quality/dead-code-cleanup` on `main` at `005107f` (PR #41 merged).
+
+- **Frontend modules.** Removed the ten modules nothing in the app rendered: `src/components/{GoalInput,BuddyPopup,ProfileSettings,ActivityTimeline,ActivityInsights,RecommendationHistory,ProductFeedback,GoalPlanner}.tsx` and `src/core/{GoalWorkContext,Timeline}.tsx`, plus their tests. `ActivityInsights` was missing from the original audit list: only `ActivityTimeline` and its own test imported it. Removing `ProfileSettings` left `ContactSettings`, `RoleArt`, `src/data/roleLoop.ts`, `src/data/profile.ts` and the identity, role-carousel and privacy-notice parts of `ProfileFields` with no production importer, so they went as well. `src/data/rolePresets*.json` stay because Rust embeds them.
+- **Wrappers and exports.** `api.saveUserProfile`, `productFeedback`, `appRule`, `saveGoalPlan`, `transitionGoal`, `refineGoal` and `rateRecommendation` lost their only callers and were removed with their wrapper tests. Exports nothing imports lost their `export` keyword, or were deleted when their own file did not use them either. The unused `@fontsource/shippori-mincho` and `@fontsource/zen-maru-gothic` packages were removed.
+- **Acceptance evidence.** `src/core/GoalWorkContext.test.tsx` was cited as partial UI evidence for P04-01, P04-02, P04-03 and P04-10. It tested a component the app never rendered, so those items now cite only their Rust tests. They were already partial and still need manual checks.
+- **CSS.** 157 class names appear in no `.ts`, `.tsx`, `.json`, `visual/*.ts` or HTML file. Classes matching a runtime prefix in the source (`avatar-${...}`, `page-`, `service-`, `memory-`, `suggestion-`, `context-` and others) count as used. 334 rules made only of dead classes and 16 dead parts of grouped selectors were removed. Selectors inside `:not()`, `:is()`, `:where()` and `:has()` were left alone. Two keyframes only those rules used (`breathe`, `buddy-wave`) and the comments that described removed rules went too.
+
+| CSS file | Before | After |
+| --- | ---: | ---: |
+| `src/core/core.css` | 3,173 | 2,545 |
+| `src/workspace.css` | 1,835 | 1,172 |
+| `src/compact.css` | 1,801 | 1,735 |
+| `src/style.css` | 662 | 315 |
+| `src/companion/conversation.css` | 364 | 341 |
+| `src/companion/companion.css` | 298 | 181 |
+| `src/ai/engine.css` | 58 | 58 |
+| `src/coaching/coaching.css` | 55 | 55 |
+| **Total** | **8,246** | **6,402** |
+
+Local validation on Apple Silicon macOS:
+
+- `npm run lint`: 0 errors, 0 warnings. `npm run lint:unused`: 0 findings. A temporary unused file and a temporary test-only module each made it fail.
+- `npm test`: 44 files, 227 tests passed (base: 49 files, 257 tests; the 30 removed tests covered deleted code). `npm run build`, `tsc -b`, `node --test scripts/ci.verify.mjs` (13) and `scripts/acceptance.verify.mjs` (10) passed. `actionlint` passed.
+- All 34 visual screens were captured from the base and from this branch on the same Mac, with a Windows user agent so the Windows fixtures apply, and compared with `maxDiffPixels: 0`: all identical. This is a local before/after check only. The strict Windows gate against `visual/baselines/` runs in CI; no baseline was changed.
+- Rust is unchanged, so `cargo test` and Clippy were not rerun.
 
 ## Initial lint rollout
 
