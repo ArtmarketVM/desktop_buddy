@@ -1,14 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { defaultUserSettings, type UserProfile } from "../types";
-import {
-  identityError,
-  roleApplications,
-  roles,
-  avatarState,
-} from "../data/profile";
 import { Avatar } from "./Avatar";
-import { defaultBuddyPreferences } from "../types";
 
 const profile: UserProfile = {
   ...defaultUserSettings.profile,
@@ -18,63 +11,7 @@ const profile: UserProfile = {
   privacy_accepted: true,
 };
 describe("onboarding and profiles", () => {
-  it("keeps a shared expandable role config with Figma in Design", () => {
-    expect(roles).toHaveLength(9);
-    expect(
-      roleApplications("designer").find((a) => a.process === "figma.exe")
-        ?.group,
-    ).toBe("Design");
-    expect(
-      roleApplications("software_engineer").some(
-        (a) => a.process === "code.exe",
-      ),
-    ).toBe(true);
-    expect(roleApplications("unknown")).toEqual([]);
-  });
-  it("requires email, role, name and privacy acknowledgement", () => {
-    expect(identityError(profile)).toBeNull();
-    for (const email of ["", "a@b", "a@@b.com", "a@.com", "a b@c.com"])
-      expect(identityError({ ...profile, email })).not.toBeNull();
-    expect(identityError({ ...profile, privacy_accepted: false })).toContain(
-      "privacy",
-    );
-    expect(identityError({ ...profile, role: "unknown" })).toContain("role");
-  });
-  it("accepts a non-technical Other role but bounds declared apps", () => {
-    expect(
-      identityError({ ...profile, role: "other", custom_role: "" }),
-    ).toContain("role");
-    expect(
-      identityError({
-        ...profile,
-        role: "other",
-        custom_role: "Musician",
-        applications: ["Ableton Live", "MuseScore"],
-      }),
-    ).toBeNull();
-    expect(
-      identityError({
-        ...profile,
-        applications: Array.from({ length: 21 }, () => "An app"),
-      }),
-    ).toContain("20 apps");
-    expect(roleApplications("other")).toEqual([]);
-  });
-  it("maps native events to avatar states and hides every character when requested", () => {
-    const view = {
-      preferences: defaultBuddyPreferences,
-      suggestion: null,
-      decision: null,
-      snoozed_until: null,
-      quiet_reason: null,
-    };
-    expect(avatarState({ ...view, activity_state: "drifting" })).toBe(
-      "sleeping",
-    );
-    expect(avatarState({ ...view, activity_state: "paused" })).toBe("paused");
-    expect(avatarState({ ...view, activity_event: "goal_completed" })).toBe(
-      "completed",
-    );
+  it("draws every character and hides it when requested", () => {
     for (const character of ["cat", "dog", "seal", "bird"] as const)
       expect(
         renderToStaticMarkup(

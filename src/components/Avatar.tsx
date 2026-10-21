@@ -204,7 +204,7 @@ const FRAMES: Record<Mood, Frame[]> = {
   attention: [[...face("alert"), ...question]],
 };
 
-export function moodOf(state: AvatarState): Mood {
+function moodOf(state: AvatarState): Mood {
   switch (state) {
     case "listening":
       return "listening";

@@ -44,7 +44,7 @@ export interface Intervention {
   step_id: string | null;
   expires_at: number;
 }
-export interface InboxTask {
+interface InboxTask {
   id: string;
   text: string;
   done: boolean;
@@ -99,22 +99,3 @@ export type InterventionResponse =
   | "start"
   | "snooze"
   | "reschedule";
-export interface BuddyEvent {
-  type:
-    | "task.detected"
-    | "task.completion_suspected"
-    | "task.created"
-    | "task.completed"
-    | "activity"
-    | "activity.started"
-    | "activity.stopped"
-    | "intervention.requested"
-    | "goal.active"
-    | "goal.created"
-    | "goal.completed"
-    | "goal.deferred"
-    | "goal.rescheduled"
-    | "settings.updated";
-  timestamp: string;
-  payload: unknown;
-}

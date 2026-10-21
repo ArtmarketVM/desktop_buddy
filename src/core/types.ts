@@ -36,7 +36,7 @@ export interface CorePreferences {
   movement_reminders: boolean;
   vision_model: string;
 }
-export interface GoalTime {
+interface GoalTime {
   goal_id: number;
   title: string;
   area: string;

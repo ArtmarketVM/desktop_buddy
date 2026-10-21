@@ -30,7 +30,7 @@ export interface CoachingView {
   can_remember: boolean;
   chat_bound: boolean;
 }
-export type CoachingReply =
+type CoachingReply =
   | { type: "ready"; ready: boolean }
   | { type: "barrier"; barrier: string }
   | { type: "ease"; score: number }

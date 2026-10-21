@@ -6,7 +6,6 @@ import {
   defaultAiPreferences,
   type ChatMessage,
   type ChatConversation,
-  type ActivitySegment,
 } from "../ai/api";
 import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { coachingApi, type CoachingView } from "../coaching/api";
@@ -68,14 +67,6 @@ export const servicesQuery = queryClient.query(
   null as ServiceSnapshot | null,
   () => serviceStatusApi.read(),
 );
-export const segmentsQuery = (goalId: number | null = null) =>
-  queryClient.query(
-    `segments:${goalId ?? "all"}`,
-    ["activity"],
-    [] as ActivitySegment[],
-    () => aiApi.segments(goalId),
-    15_000,
-  );
 export type NoticedSuggestion = {
   id: string;
   title: string;

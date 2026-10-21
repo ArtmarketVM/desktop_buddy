@@ -5,7 +5,7 @@ import type { GoalDetails } from "./types";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
 export type Priority = GoalDetails["priority"];
-export const PRIORITIES: { value: Priority; label: string; key: string }[] = [
+const PRIORITIES: { value: Priority; label: string; key: string }[] = [
   { value: "urgent", label: "Urgent", key: "1" },
   { value: "high", label: "High", key: "2" },
   { value: "medium", label: "Medium", key: "3" },
@@ -16,7 +16,7 @@ export const PRIORITIES: { value: Priority; label: string; key: string }[] = [
 export function priorityRank(priority: Priority | undefined): number {
   return PRIORITIES.findIndex((item) => item.value === (priority ?? null));
 }
-export function PriorityTag({ priority }: { priority: Priority | undefined }) {
+function PriorityTag({ priority }: { priority: Priority | undefined }) {
   const item = PRIORITIES[priorityRank(priority)];
   return (
     <span className={`priority-tag ${priority ?? "none"}`}>

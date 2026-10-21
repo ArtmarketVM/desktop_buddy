@@ -150,7 +150,7 @@ export function resampleVoice(
 }
 
 /** Quiet time after speech that counts as "the person finished talking". */
-export const VOICE_PAUSE_MS = 1500;
+const VOICE_PAUSE_MS = 1500;
 /** Extra recording after Stop so the last word is not clipped. */
 const VOICE_TAIL_MS = 350;
 

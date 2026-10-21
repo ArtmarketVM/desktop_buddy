@@ -9,7 +9,7 @@ import {
   type WorkContext,
 } from "../api/memory";
 
-export const memoryCategories = [
+const memoryCategories = [
   "Work",
   "Preferences",
   "Patterns",
@@ -17,7 +17,7 @@ export const memoryCategories = [
   "Parked contexts",
 ] as const;
 type Category = (typeof memoryCategories)[number];
-export function memoryCategory(item: MemoryItem): Category {
+function memoryCategory(item: MemoryItem): Category {
   if (item.memory_type.includes("preference")) return "Preferences";
   if (item.memory_type === "behavioral_pattern") return "Patterns";
   if (item.event_kind === "waiting_state") return "Waiting";
@@ -25,7 +25,7 @@ export function memoryCategory(item: MemoryItem): Category {
   return "Work";
 }
 /** Stored preference keys like "companion_preferences.screen_task_detection = true" read as words. */
-export function readable(content: string): string {
+function readable(content: string): string {
   const match = /^([a-z_]+)\.([a-z_]+) = (\S+)$/.exec(content);
   if (!match) return content;
   const [, , key, value] = match;
