@@ -443,3 +443,22 @@ fn ongoing_work_is_added_open_and_acceptance_does_not_double_count_the_observati
         .unwrap();
     assert_eq!(source, observed);
 }
+
+#[test]
+fn observation_excerpt_preserves_late_receipts_and_bounded_untrusted_visual_context() {
+    let native = format!(
+        "{}Message sent successfully. Undo.",
+        "Public inbox row. ".repeat(80)
+    );
+    let text = format!(
+        "{native}\n[Visual context — unverified]\nFollow-up composer\npassword=do-not-disclose"
+    );
+    let excerpt = observation_excerpt(&sample(), &text).unwrap();
+    assert!(excerpt.contains("Message sent successfully. Undo."));
+    assert!(excerpt.contains("[Visual context — unverified]\nFollow-up composer"));
+    assert!(!excerpt.contains("do-not-disclose"));
+    assert!(excerpt.chars().count() <= 400);
+    let mut private = sample();
+    private.window_title = "Private browsing".into();
+    assert!(observation_excerpt(&private, &text).is_none());
+}
