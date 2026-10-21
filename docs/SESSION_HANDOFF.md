@@ -11,7 +11,7 @@ Read this short file first in a new task. Verify Git and release state before re
 - Eight real-provider synthetic observation cases passed. Native macOS Accessibility and bounded capture passed on a public fixture with zero cloud requests. Physical Windows capture and the remaining manual scenarios are explicitly unchecked in the validation document.
 - Architecture and limitations: `docs/PERSONAL_AI_OBSERVATION.md`. Validation: `docs/PERSONAL_AI_VALIDATION.md`.
 - Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
-- CI/release optimization is implemented on main through `8c54921`: shared validation, input-bound proof reuse, separate Cargo bundle caches and one monitor process. Both native cold/warm runs passed. See `docs/RELEASE_PROCESS.md` for measurements and run links. No product version bump or new installer release was made for this infrastructure change.
+- CI/release optimization (shared validation, input-bound proof reuse, separate Cargo bundle caches, one monitor process) is described with measurements in `docs/RELEASE_PROCESS.md`.
 
 ## Decisions to preserve
 
@@ -30,6 +30,7 @@ Read this short file first in a new task. Verify Git and release state before re
 - `work_events` is an additive local schema, separate from history and Personal Memory. Durable Undo rejects changed plans. Pending unplanned-work offers remain runtime-only; observed journal entries survive restart.
 - 0.39.2 removed What's new and repeated current-channel updater descriptions. No version-specific descriptions are implemented yet.
 - ESLint, Clippy and Knip now block at zero findings. Canonical Windows visual baselines require explicit human owner review before replacement; never auto-accept candidates.
+- `rust-lint` also runs release-profile Clippy, because code gated on `not(debug_assertions)` is invisible to debug lint and tests; 0.39.3's first release run failed on exactly that. Do not delete release-only Rust code as unreachable without that check passing.
 - Native microphone and full real-app end-to-end scenarios remain distinct from the passed observation/provider fixtures. Do not infer those passes from CI. Screenshots and automatic completion were verified OFF in the installed app; do not enable them without the user’s consent.
 - The native audit required normal LaunchServices launch for correct macOS permission attribution. Avoid repeated permission requests based solely on direct executable invocation. Temporary audit bundle registration shares the production identity; do not reset TCC or remove that registration blindly.
 
