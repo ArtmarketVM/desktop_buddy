@@ -79,6 +79,7 @@ jobs:
         with:
           workspaces: src-tauri
           shared-key: buddy-${{ matrix.target }}-v2
+          key: ${{ (inputs.release || inputs.build_installers) && 'bundle' || 'checks' }}
           cache-workspace-crates: true
           save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
       - uses: actions/cache/restore@v4

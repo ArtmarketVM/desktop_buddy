@@ -338,6 +338,7 @@ test("workflow policy retains both signed platforms, strict visual gating and ma
     /github.ref == 'refs\/heads\/main' && github.event_name != 'pull_request'/,
   );
   assert.match(platforms, /npm run test:acceptance/);
+  assert.match(platforms, /key: .*bundle.*checks/);
   assert.match(platforms, /cargo fmt.*--check/);
   assert.match(platforms, /group: validation-\$\{\{ github.sha \}\}/);
   assert.match(visual, /npm run test:visual -- --reporter=line,json,html/);

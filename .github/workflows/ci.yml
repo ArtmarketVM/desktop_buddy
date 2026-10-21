@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: application-checks-${{ github.event.pull_request.number || github.ref }}
+  group: application-checks-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 jobs:
   plan:
@@ -51,7 +51,7 @@ jobs:
     uses: ./.github/workflows/visual-checks.yml
   rust-lint:
     needs: [plan, platforms]
-    if: needs.plan.outputs.rust == 'true'
+    if: needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch'
     continue-on-error: true
     strategy:
       fail-fast: false

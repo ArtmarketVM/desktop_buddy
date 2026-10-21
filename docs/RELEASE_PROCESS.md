@@ -7,7 +7,7 @@
 - Ordinary Markdown/text changes: workflow-policy checks and the aggregate gate; no Node dependency install, Rust compilation or screenshots. The acceptance checklist is an explicit exception.
 - Frontend/application changes: both platform acceptance reports and applicable screenshots. CSS does not invalidate matching Rust test evidence.
 - Backend, embedded role data, dependency, build-policy or toolchain changes: affected Rust evidence is invalidated. Unknown changes conservatively schedule validation; an unavailable diff schedules all gates.
-- Rust lint keeps the existing non-blocking policy, runs for changed Rust inputs and is outside the signed release dependency chain. It consumes the already-built frontend from the same CI run.
+- Rust lint keeps the existing non-blocking policy, runs for changed Rust inputs on push/PR and is outside the signed release dependency chain. Manual reuse/packaging validation does not repeat those reports. It consumes the already-built frontend from the same CI run.
 - Explicit `validate_installers=true` on Application checks builds unsigned validation packages on both systems. Do not install an unsigned Mac candidate: its credential helper cannot read saved keys.
 - A real release always builds and verifies both signed update packages once. It cannot publish until both platform and visual gates succeed.
 
@@ -29,7 +29,7 @@ Per-commit/per-platform concurrency serializes overlapping CI and release valida
 
 ## Rust compilation
 
-Cargo caches have stable platform/target namespaces shared between CI and releases. Workspace artifacts are retained; Cargo still decides what needs recompilation. Saving compiled artifacts and proof is restricted to main. Only CI dev/test debug symbols are disabled; test assertions and release optimization/signing settings are unchanged. No new local Rust target directory is required for routine frontend work.
+Cargo caches have stable platform/target namespaces shared between appropriate workflows, with separate test and bundle keys so an immutable test cache cannot prevent saving release artifacts. Workspace artifacts are retained; Cargo still decides what needs recompilation. Saving compiled artifacts and proof is restricted to main. Only CI dev/test debug symbols are disabled; test assertions and release optimization/signing settings are unchanged. No new local Rust target directory is required for routine frontend work.
 
 Non-blocking Clippy compilation is separate from the signed release path. Both platform Rust tests, formatting, the full 122-item acceptance mapping and immutable helper/signature checks remain available. Automated acceptance does not establish the manual/live parts of that checklist.
 
