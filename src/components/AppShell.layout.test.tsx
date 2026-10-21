@@ -136,3 +136,20 @@ it("keeps the user's name and profile actions accessible in the collapsed sideba
   await user.keyboard("{Escape}");
   expect(document.activeElement).toBe(profile);
 });
+
+it("shows scheduled quiet separately from the manual switch and opens its settings action", async () => {
+  const onQuietMode = vi.fn();
+  render(
+    <AppShell {...base} quietMode quietScheduled onQuietMode={onQuietMode}>
+      Today
+    </AppShell>,
+  );
+  const button = screen.getByRole("button", {
+    name: "Quiet mode",
+    pressed: true,
+  });
+  expect(within(button).getByText("Scheduled")).toBeTruthy();
+  expect(button.title).toContain("Open Nudges");
+  await userEvent.setup().click(button);
+  expect(onQuietMode).toHaveBeenCalledOnce();
+});

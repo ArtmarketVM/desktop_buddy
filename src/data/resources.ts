@@ -10,14 +10,6 @@ import {
 import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { coachingApi, type CoachingView } from "../coaching/api";
 import { invoke } from "./ipc";
-import { api } from "../api/tauri";
-import { defaultTrackingSettings } from "../types";
-export const trackingQuery = queryClient.query(
-  "tracking-settings",
-  ["preferences"],
-  defaultTrackingSettings,
-  () => api.trackingSettings(),
-);
 export const workspaceQuery = (anchor: string | null, period: ProgressPeriod) =>
   queryClient.query(
     `workspace:${JSON.stringify([anchor, period])}`,

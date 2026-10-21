@@ -266,11 +266,9 @@ fn service_allowed(inner: &Inner) -> bool {
             .user_settings()
             .is_ok_and(|s| s.onboarding.completed)
         && (inner.status.nebius_configured || inner.status.mock_ai)
-        && !inner.status.dnd
+        && !crate::companion::quiet_mode(inner)
         && !inner.companion.view.preferences.paused
         && !inner.companion.view.preferences.quiet(minute)
-        && !crate::buddy::snoozed(&inner.buddy.view)
-        && !inner.buddy.fullscreen
 }
 fn background_allowed(inner: &Inner) -> bool {
     service_allowed(inner)

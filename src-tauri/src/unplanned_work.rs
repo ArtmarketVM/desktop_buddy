@@ -62,6 +62,9 @@ impl Runtime {
         self.last_seen = None;
         self.unassigned_usage = Default::default();
     }
+    pub(crate) fn dismiss_suggestion(&mut self) {
+        self.pending = None;
+    }
     pub fn clear(&mut self) {
         self.reset_sample();
         self.pending = None;
@@ -186,7 +189,7 @@ fn goals(inner: &Inner) -> Result<Value, String> {
 fn due_inner(inner: &Inner, now: Instant) -> bool {
     opted_in(inner)
         && inner.status.nebius_configured
-        && inner.tracking_settings.working_now()
+        && !crate::companion::quiet_mode(inner)
         && inner.unplanned_work.pending.is_none()
         && inner
             .unplanned_work
@@ -517,7 +520,16 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
                 } else {
                     crate::companion::engine::Kind::UnplannedWork
                 },
-                text: view.title.clone(),
+                text: format!(
+                    "You spent {} minutes on “{}”. {}",
+                    view.seconds / 60,
+                    view.title,
+                    if view.completed {
+                        "Add it to today’s completed work?"
+                    } else {
+                        "Add this work to Today?"
+                    }
+                ),
                 confidence: result.confidence,
                 goal_id: None,
                 plan_revision: None,
@@ -537,7 +549,8 @@ fn current(
     consent: u64,
     generation: u64,
 ) -> Result<bool, String> {
-    Ok(opted_in(inner)
+    Ok(!crate::companion::quiet_mode(inner)
+        && opted_in(inner)
         && inner.unplanned_work.generation == generation
         && inner.last_consent_change == consent
         && crate::companion::screen_context::allowed(inner, a)
@@ -548,11 +561,22 @@ fn current(
             .is_some_and(|s| crate::tracking::same_context(s, a) && s.window_id == a.window_id)
         && goals(inner)? == *candidates)
 }
+pub(crate) fn queued_current(inner: &Inner, id: &str) -> bool {
+    inner.unplanned_work.pending.as_ref().is_some_and(|p| {
+        p.view.id == id
+            && opted_in(inner)
+            && p.consent == inner.last_consent_change
+            && p.day == Local::now().date_naive().to_string()
+            && p.at.elapsed() < OFFER_LIFETIME
+            && goals(inner).is_ok_and(|g| g == p.goals)
+    })
+}
 fn pending(inner: &mut Inner) -> Result<Option<Suggestion>, String> {
     let Some(p) = inner.unplanned_work.pending.as_ref() else {
         return Ok(None);
     };
-    let valid = opted_in(inner)
+    let valid = !crate::companion::quiet_mode(inner)
+        && opted_in(inner)
         && p.consent == inner.last_consent_change
         && p.day == Local::now().date_naive().to_string()
         && p.at.elapsed() < OFFER_LIFETIME

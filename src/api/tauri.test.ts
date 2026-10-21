@@ -14,11 +14,11 @@ describe("provider settings commands", () => {
     await api.goalHistory(7);
     expect(invoke).toHaveBeenLastCalledWith("get_goal_history", { goalId: 7 });
   });
-  it("snoozes and resumes without changing tracking or DND", async () => {
-    await api.snooze(true);
-    expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: true });
-    await api.snooze(false);
-    expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: false });
+  it("uses Quiet mode without changing tracking", async () => {
+    await api.dnd(true);
+    expect(invoke).toHaveBeenLastCalledWith("set_dnd", { enabled: true });
+    await api.dnd(false);
+    expect(invoke).toHaveBeenLastCalledWith("set_dnd", { enabled: false });
   });
   it("saves an explicit provider key through the native boundary", async () => {
     await api.providerKey("nebius", "test-key");

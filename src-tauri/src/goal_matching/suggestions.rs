@@ -71,6 +71,9 @@ pub(super) fn offer(
     result: &MatchResult,
     now: Instant,
 ) -> Result<Option<Suggestion>, String> {
+    if !cloud_allowed(inner) {
+        return Ok(None);
+    }
     let Some(id) = result.goal_id else {
         return Ok(None);
     };
@@ -99,8 +102,36 @@ pub(super) fn offer(
     });
     Ok(Some(suggestion))
 }
+pub(crate) fn queued_current(inner: &Inner, id: i64) -> bool {
+    inner
+        .goal_matching
+        .pending_suggestion
+        .as_ref()
+        .is_some_and(|p| p.suggestion.goal_id == id && current(inner, p, Instant::now()))
+}
+pub(crate) fn enqueue_card(inner: &mut Inner, suggestion: &Suggestion) -> Result<(), String> {
+    let title: String = inner
+        .storage
+        .connection
+        .query_row(
+            "SELECT text FROM goals WHERE id=?1",
+            [suggestion.goal_id],
+            |r| r.get(0),
+        )
+        .map_err(|_| "This goal changed")?;
+    let now = chrono::Utc::now().timestamp();
+    super::super::companion::queue_match(
+        inner,
+        suggestion.goal_id,
+        &title,
+        suggestion.confidence,
+        now,
+    );
+    Ok(())
+}
 fn current(inner: &Inner, pending: &Pending, now: Instant) -> bool {
-    now.saturating_duration_since(pending.at) < SUGGESTION_SNOOZE
+    cloud_allowed(inner)
+        && now.saturating_duration_since(pending.at) < SUGGESTION_SNOOZE
         && context_current(
             inner,
             pending.revision,
@@ -115,9 +146,15 @@ pub enum Response {
     Yes,
     No,
     NotNow,
+    Chat,
 }
 
-fn respond(inner: &mut Inner, goal_id: i64, action: Response, now: Instant) -> Result<(), String> {
+pub(crate) fn respond(
+    inner: &mut Inner,
+    goal_id: i64,
+    action: Response,
+    now: Instant,
+) -> Result<(), String> {
     let pending = inner
         .goal_matching
         .pending_suggestion
@@ -140,6 +177,19 @@ fn respond(inner: &mut Inner, goal_id: i64, action: Response, now: Instant) -> R
         }
         Response::NotNow => {
             inner.goal_matching.suggestion_snoozed_until = Some(now + SUGGESTION_SNOOZE);
+        }
+        Response::Chat => {
+            let title: String = inner
+                .storage
+                .connection
+                .query_row("SELECT text FROM goals WHERE id=?1", [goal_id], |row| {
+                    row.get(0)
+                })
+                .map_err(|_| "This goal changed")?;
+            inner.companion.view.chat_open = true;
+            inner.companion.view.intent = "ask".into();
+            inner.companion.view.seed =
+                format!("Can we work out whether I’m working on “{title}”?");
         }
     }
     inner.goal_matching.pending_suggestion = None;
@@ -197,6 +247,36 @@ mod tests {
             now,
         )
         .unwrap()
+    }
+    #[test]
+    fn medium_matches_continue_on_nonworking_days_and_quiet_discards_them() {
+        let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+        let mut inner = state.inner.lock().unwrap();
+        let mut preferences = crate::core::CorePreferences::default();
+        preferences.working_days.clear();
+        inner
+            .storage
+            .write_setting("core_preferences", &preferences)
+            .unwrap();
+        let base = Instant::now();
+        feed(&mut inner, &sample("Atlas launch"), base, 0, 60);
+        let now = base + AI_STABLE;
+        assert!(offer_at(&mut inner, ids[1], now).is_some());
+        assert!(current(
+            &inner,
+            inner.goal_matching.pending_suggestion.as_ref().unwrap(),
+            now
+        ));
+        inner.status.dnd = true;
+        assert!(!current(
+            &inner,
+            inner.goal_matching.pending_suggestion.as_ref().unwrap(),
+            now
+        ));
+        crate::companion::enforce_quiet(&mut inner);
+        assert!(inner.goal_matching.pending_suggestion.is_none());
+        inner.status.dnd = false;
+        assert!(inner.goal_matching.pending_suggestion.is_none());
     }
     #[test]
     fn confidence_bands_keep_medium_matches_unassigned_and_low_matches_silent() {
@@ -293,7 +373,12 @@ mod tests {
     }
     #[test]
     fn responses_use_explicit_focus_reject_the_tuple_and_snooze_only_suggestions() {
-        for action in [Response::Yes, Response::No, Response::NotNow] {
+        for action in [
+            Response::Yes,
+            Response::No,
+            Response::NotNow,
+            Response::Chat,
+        ] {
             let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
             let mut inner = state.inner.lock().unwrap();
             if matches!(action, Response::Yes) {
@@ -320,6 +405,12 @@ mod tests {
                 Response::NotNow => {
                     assert!(offer_at(&mut inner, ids[1], now + Duration::from_secs(599)).is_none());
                     assert!(offer_at(&mut inner, ids[1], now + SUGGESTION_SNOOZE).is_some());
+                }
+                Response::Chat => {
+                    assert!(inner.companion.view.chat_open);
+                    assert!(inner.companion.view.seed.contains("Atlas launch beta"));
+                    assert_eq!(inner.storage.goal().unwrap().unwrap().id, ids[0]);
+                    assert_ne!(inner.storage.explicit_focus().unwrap(), Some(ids[1]));
                 }
             }
         }

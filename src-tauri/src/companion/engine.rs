@@ -6,6 +6,9 @@ use std::hash::{Hash, Hasher};
 pub struct Preferences {
     pub paused: bool,
     pub daily_checkins: bool,
+    pub summary_minute: u32,
+    pub quiet_hours_enabled: bool,
+    pub quiet_days: Vec<u8>,
     pub screen_task_detection: bool,
     pub use_screenshots: bool,
     pub automatic_completion: bool,
@@ -16,6 +19,7 @@ pub struct Preferences {
     pub quiet_end_minute: u32,
     pub movement_reminder: bool,
     pub deadline_reminders: bool,
+    #[serde(skip_serializing)]
     pub system_deadline_notifications: bool,
 }
 impl Default for Preferences {
@@ -23,6 +27,9 @@ impl Default for Preferences {
         Self {
             paused: false,
             daily_checkins: true,
+            summary_minute: 18 * 60,
+            quiet_hours_enabled: false,
+            quiet_days: vec![],
             screen_task_detection: true,
             use_screenshots: false,
             automatic_completion: false,
@@ -33,33 +40,40 @@ impl Default for Preferences {
             quiet_end_minute: 9 * 60,
             movement_reminder: true,
             deadline_reminders: true,
-            system_deadline_notifications: true,
+            system_deadline_notifications: false,
         }
     }
 }
 impl Preferences {
-    pub fn validate(self) -> Result<Self, String> {
-        if !(1..=120).contains(&self.morning_delay_minutes)
-            || !(60..=240).contains(&self.cooldown_minutes)
-            || self.quiet_start_minute >= 1440
-            || self.quiet_end_minute >= 1440
+    pub fn validate(mut self) -> Result<Self, String> {
+        // Read old saved preferences without preserving the removed OS delivery path.
+        self.system_deadline_notifications = false;
+        self.quiet_days.sort_unstable();
+        self.quiet_days.dedup();
+        if self.summary_minute >= 1440
+            || self.quiet_days.iter().any(|d| *d > 6)
+            || (self.quiet_hours_enabled
+                && (self.quiet_start_minute >= 1440
+                    || self.quiet_end_minute >= 1440
+                    || self.quiet_start_minute == self.quiet_end_minute))
         {
-            return Err(
-                "Choose a 1–120 minute start delay, 60–240 minute cooldown and valid quiet hours"
-                    .into(),
-            );
+            return Err("Choose a valid summary time and quiet schedule".into());
         }
         Ok(self)
     }
     pub fn quiet(&self, minute: u32) -> bool {
-        let (start, end) = (self.quiet_start_minute, self.quiet_end_minute);
-        if start == end {
-            false
-        } else if start < end {
-            (start..end).contains(&minute)
-        } else {
-            minute >= start || minute < end
-        }
+        self.quiet_hours_enabled
+            && if self.quiet_start_minute < self.quiet_end_minute {
+                minute >= self.quiet_start_minute && minute < self.quiet_end_minute
+            } else {
+                minute >= self.quiet_start_minute || minute < self.quiet_end_minute
+            }
+    }
+    pub fn quiet_at<T: chrono::TimeZone>(&self, now: chrono::DateTime<T>) -> bool {
+        use chrono::{Datelike, Timelike};
+        self.quiet_days
+            .contains(&(now.weekday().num_days_from_sunday() as u8))
+            || self.quiet(now.hour() * 60 + now.minute())
     }
 }
 
@@ -72,6 +86,7 @@ pub enum Kind {
     NewTask,
     Completion,
     GoalCompletion,
+    GoalMatch,
     NoGoals,
     Midday,
     Research,
@@ -101,7 +116,7 @@ pub fn fingerprint(value: &str) -> String {
         .hash(&mut hasher);
     format!("{:016x}", hasher.finish())
 }
-/// Counts only adjacent active samples; long gaps, idle, media and privacy pauses reset the stretch clock.
+/// Counts only adjacent active samples; long gaps, idle and explicit pauses reset the stretch clock.
 #[derive(Default)]
 pub struct ActiveWorkClock {
     last: Option<std::time::SystemTime>,
@@ -126,51 +141,8 @@ impl ActiveWorkClock {
     pub fn seconds(&self) -> u64 {
         self.active.as_secs()
     }
-}
-
-pub fn scheduled_slot(
-    preferences: &Preferences,
-    has_goal: bool,
-    minute: u32,
-    uptime_seconds: u64,
-    no_progress_seconds: i64,
-    goal_age_seconds: i64,
-    active_work_seconds: u64,
-) -> Option<(&'static str, Kind, &'static str)> {
-    if uptime_seconds < preferences.morning_delay_minutes as u64 * 60 {
-        return None;
-    }
-    if preferences.daily_checkins && (17 * 60..19 * 60).contains(&minute) {
-        Some((
-            "evening",
-            Kind::EndOfDay,
-            "Ready for a quiet wrap-up? Leave unfinished work for tomorrow if you want.",
-        ))
-    } else if preferences.daily_checkins && !has_goal && minute < 12 * 60 {
-        Some((
-            "morning",
-            Kind::NoGoals,
-            "Want to make a small plan for today?",
-        ))
-    } else if preferences.daily_checkins
-        && has_goal
-        && (12 * 60..15 * 60).contains(&minute)
-        && no_progress_seconds >= 3 * 3600
-        && goal_age_seconds >= 3 * 3600
-    {
-        Some((
-            "midday",
-            Kind::Midday,
-            "Want to quickly update what moved forward?",
-        ))
-    } else if preferences.movement_reminder && active_work_seconds >= 2 * 3600 {
-        Some((
-            "movement",
-            Kind::Movement,
-            "A little stretch, if it feels like a good moment.",
-        ))
-    } else {
-        None
+    pub fn restart(&mut self) {
+        self.active = std::time::Duration::ZERO;
     }
 }
 
@@ -182,6 +154,9 @@ pub struct Memory {
     pub progress_shown: u32,
     pub last_prompt: i64,
     pub last_dismissed: i64,
+    pub planning_reminder_at: Option<i64>,
+    pub planning_day: String,
+    pub summary_day: String,
     pub seen: Vec<String>,
     pub slots: Vec<String>,
     pub last_progress: i64,
@@ -194,6 +169,17 @@ pub struct Memory {
 }
 impl Memory {
     pub fn refresh(&mut self, day: &str) {
+        if self.planning_reminder_at.is_some_and(|at| {
+            chrono::DateTime::from_timestamp(at, 0).is_none_or(|at| {
+                at.with_timezone(&chrono::Local)
+                    .date_naive()
+                    .to_string()
+                    .as_str()
+                    < day
+            })
+        }) {
+            self.planning_reminder_at = None;
+        }
         if self.day != day {
             self.day = day.into();
             self.shown = 0;
@@ -201,42 +187,42 @@ impl Memory {
             self.slots.clear();
         }
     }
-    pub fn cooldown_seconds(&self, preferences: &Preferences) -> i64 {
-        let extra = self.rejected.saturating_sub(self.accepted).min(8) * 15
-            + if self.completion_samples >= 3 && self.completion_rate < 0.25 {
-                30
-            } else {
-                0
-            }
-            + if self.completion_samples >= 3 && self.average_completion_seconds > 3 * 3600 {
-                30
-            } else {
-                0
-            };
-        preferences.cooldown_minutes.saturating_add(extra).min(240) as i64 * 60
-    }
     pub fn allowed(
         &self,
-        now: i64,
+        _now: i64,
         preferences: &Preferences,
-        minute: u32,
+        _minute: u32,
         suppressed: bool,
     ) -> bool {
-        !suppressed
-            && !preferences.paused
-            && !preferences.quiet(minute)
-            && self.shown < 3
-            && (self.last_prompt == 0
-                || now.saturating_sub(self.last_prompt) >= self.cooldown_seconds(preferences))
-            && (self.last_dismissed == 0
-                || now.saturating_sub(self.last_dismissed) >= self.cooldown_seconds(preferences))
+        !suppressed && !preferences.paused
     }
     pub fn reserve(&mut self, prompt: &Intervention, now: i64) -> bool {
         if self.seen.contains(&prompt.id) {
             return false;
         }
+        if matches!(prompt.kind, Kind::NoGoals | Kind::EndOfDay) {
+            if let Some(date) = prompt
+                .id
+                .strip_prefix("schedule:")
+                .and_then(|s| s.split(':').next())
+            {
+                if prompt.kind == Kind::NoGoals {
+                    self.planning_day = date.into();
+                } else {
+                    self.summary_day = date.into();
+                }
+            }
+        }
+        if prompt.kind == Kind::NoGoals {
+            // Reserve on delivery, not on dismissal: an ignored bubble never starts a timer.
+            self.planning_reminder_at = None;
+            let base = prompt.id.split(':').take(3).collect::<Vec<_>>().join(":");
+            if base != prompt.id && !self.seen.contains(&base) {
+                self.seen.push(base);
+            }
+        }
         self.seen.push(prompt.id.clone());
-        if self.seen.len() > 200 {
+        while self.seen.len() > 200 {
             self.seen.remove(0);
         }
         self.shown += 1;
@@ -244,7 +230,7 @@ impl Memory {
         true
     }
     pub fn reserve_progress(&mut self, prompt: &Intervention) -> bool {
-        if self.progress_shown >= 64 || self.seen.contains(&prompt.id) {
+        if self.seen.contains(&prompt.id) {
             return false;
         }
         self.seen.push(prompt.id.clone());
@@ -319,50 +305,86 @@ impl Detection {
 mod tests {
     use super::*;
     #[test]
-    fn quiet_hours_cover_midnight_and_can_be_disabled() {
-        let mut p = Preferences::default();
-        assert!(p.quiet(23 * 60));
-        assert!(p.quiet(8 * 60));
-        assert!(!p.quiet(12 * 60));
-        p.quiet_start_minute = 12 * 60;
-        p.quiet_end_minute = 14 * 60;
-        assert!(p.quiet(13 * 60));
-        assert!(!p.quiet(23 * 60));
-        p.quiet_end_minute = p.quiet_start_minute;
-        assert!(!p.quiet(13 * 60));
-        p.cooldown_minutes = 5;
-        assert!(p.validate().is_err());
+    fn quiet_hours_cross_midnight_quiet_days_cover_whole_days_and_legacy_profiles_stay_enabled() {
+        use chrono::TimeZone;
+        let zone = chrono::FixedOffset::east_opt(0).unwrap();
+        let at = |d, h, m| zone.with_ymd_and_hms(2026, 10, d, h, m, 0).unwrap();
+        let prefs = Preferences {
+            quiet_hours_enabled: true,
+            quiet_start_minute: 22 * 60,
+            quiet_end_minute: 8 * 60,
+            quiet_days: vec![0, 6],
+            ..Default::default()
+        };
+        assert!(!prefs.quiet_at(at(21, 21, 59)));
+        assert!(prefs.quiet_at(at(21, 22, 0)));
+        assert!(prefs.quiet_at(at(22, 7, 59)));
+        assert!(!prefs.quiet_at(at(22, 8, 0)));
+        assert!(prefs.quiet_at(at(24, 12, 0)));
+        let old: Preferences =
+            serde_json::from_str(r#"{"quiet_start_minute":1140,"quiet_end_minute":540}"#).unwrap();
+        assert!(!old.quiet_at(at(21, 22, 0)));
+        assert_eq!(old.summary_minute, 1080);
+        assert!(old.quiet_days.is_empty());
+        assert!(Preferences {
+            summary_minute: 1440,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(Preferences {
+            quiet_days: vec![7],
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
+        assert!(Preferences {
+            quiet_hours_enabled: true,
+            quiet_start_minute: 0,
+            quiet_end_minute: 0,
+            ..Default::default()
+        }
+        .validate()
+        .is_err());
     }
     #[test]
-    fn cooldown_dismissal_daily_budget_and_dedup_survive_restart() {
+    fn legacy_schedule_fields_do_not_reintroduce_gaps_or_os_delivery() {
+        let p = Preferences {
+            system_deadline_notifications: true,
+            cooldown_minutes: 240,
+            quiet_start_minute: 0,
+            quiet_end_minute: 1439,
+            ..Default::default()
+        };
+        assert!(!p.quiet(600));
+        assert!(!p.validate().unwrap().system_deadline_notifications);
+    }
+    #[test]
+    fn prompts_deduplicate_across_restart_without_spacing_or_daily_quotas() {
         let p = Preferences::default();
-        let mut m = Memory::default();
-        m.refresh("2026-10-03");
+        let mut m = Memory {
+            shown: 500,
+            last_prompt: 10000,
+            last_dismissed: 10000,
+            ..Default::default()
+        };
+        assert!(m.allowed(10001, &p, 600, false));
+        assert!(!m.allowed(10001, &p, 600, true));
         let prompt = Intervention {
-            id: fingerprint(" Send   DECK "),
+            id: fingerprint("Send deck"),
             kind: Kind::NewTask,
             text: "Send deck".into(),
             confidence: 0.95,
             goal_id: Some(1),
             plan_revision: Some(0),
             step_id: None,
-            expires_at: 99999,
+            expires_at: 999999,
         };
-        assert!(m.allowed(10_000, &p, 600, false));
-        assert!(m.reserve(&prompt, 10_000));
-        assert!(!m.allowed(10_020, &p, 600, false));
-        assert!(!m.reserve(&prompt, 20_000));
-        assert_eq!(prompt.id, fingerprint("send deck"));
-        m.last_dismissed = 20_000;
+        assert!(m.reserve(&prompt, 10001));
         let mut restored: Memory =
             serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
-        assert!(!restored.allowed(21_000, &p, 600, false));
-        assert!(!restored.allowed(30_000, &p, 600, true));
-        restored.shown = 3;
-        assert!(!restored.allowed(30_000, &p, 600, false));
-        restored.refresh("2026-10-04");
-        assert!(restored.allowed(30_000, &p, 600, false));
-        assert!(restored.seen.contains(&prompt.id));
+        assert!(!restored.reserve(&prompt, 10002));
+        assert!(restored.allowed(10002, &p, 600, false));
     }
     #[test]
     fn completion_must_reference_a_real_unfinished_step() {
@@ -454,62 +476,33 @@ mod tests {
         memory.progress_shown = 64;
         let mut other = prompt;
         other.id = "other".into();
-        assert!(!memory.reserve_progress(&other));
+        assert!(memory.reserve_progress(&other));
         memory.refresh("2026-10-09");
         assert_eq!(memory.progress_shown, 0);
     }
     #[test]
-    fn scheduled_checkins_wait_and_do_not_mistake_a_new_goal_for_no_progress() {
+    fn dismissed_prompts_do_not_delay_distinct_new_evidence() {
         let p = Preferences::default();
-        assert!(scheduled_slot(&p, false, 600, 599, 99999, 0, 0).is_none());
-        assert_eq!(
-            scheduled_slot(&p, false, 600, 600, 99999, 0, 0).unwrap().1,
-            Kind::NoGoals
-        );
-        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 99999, 300, 0).is_none());
-        assert!(scheduled_slot(&p, true, 13 * 60, 3600, 30, 99999, 0).is_none());
-        assert_eq!(
-            scheduled_slot(&p, true, 13 * 60, 3600, 4 * 3600, 4 * 3600, 0)
-                .unwrap()
-                .1,
-            Kind::Midday
-        );
-        assert_eq!(
-            scheduled_slot(&p, true, 18 * 60, 3600, 30, 99999, 0)
-                .unwrap()
-                .1,
-            Kind::EndOfDay
-        );
-        let mut p = p;
-        p.daily_checkins = false;
-        p.movement_reminder = false;
-        assert!(scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999, 0).is_none());
-        p.movement_reminder = true;
-        assert_eq!(
-            scheduled_slot(&p, true, 10 * 60, 3 * 3600, 99999, 99999, 2 * 3600)
-                .unwrap()
-                .1,
-            Kind::Movement
-        );
+        let m = Memory {
+            last_dismissed: 10000,
+            ..Default::default()
+        };
+        assert!(m.allowed(10001, &p, 600, false));
+        assert!(!m.allowed(10001, &Preferences { paused: true, ..p }, 600, false));
     }
     #[test]
-    fn feedback_and_completion_history_adjust_cooldown_without_exceeding_user_bounds() {
+    fn feedback_does_not_create_a_hidden_frequency_cap() {
         let p = Preferences::default();
-        let mut m = Memory::default();
-        assert_eq!(m.cooldown_seconds(&p), 3600);
-        m.rejected = 8;
-        m.completion_samples = 10;
-        m.completion_rate = 0.1;
-        m.average_completion_seconds = 4 * 3600;
-        assert_eq!(m.cooldown_seconds(&p), 240 * 60);
-        m.accepted = 8;
-        m.completion_rate = 0.9;
-        m.average_completion_seconds = 600;
-        assert_eq!(m.cooldown_seconds(&p), 3600);
-        assert_eq!(
-            scheduled_slot(&p, false, 18 * 60, 3600, 0, 0, 0).unwrap().1,
-            Kind::EndOfDay
-        );
+        let m = Memory {
+            rejected: 100,
+            completion_samples: 10,
+            completion_rate: 0.1,
+            average_completion_seconds: 20000,
+            shown: 100,
+            last_prompt: 9999,
+            ..Default::default()
+        };
+        assert!(m.allowed(10000, &p, 600, false));
     }
 }
 
@@ -518,20 +511,17 @@ mod active_work_regressions {
     use super::*;
     use std::time::{Duration, SystemTime};
     #[test]
-    fn stretch_requires_two_hours_of_observed_work_not_uptime() {
-        let p = Preferences {
-            daily_checkins: false,
-            movement_reminder: true,
-            ..Default::default()
-        };
-        assert!(scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 0).is_none());
-        assert!(scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 7199).is_none());
-        assert_eq!(
-            scheduled_slot(&p, true, 600, 8 * 3600, 0, 0, 7200)
-                .unwrap()
-                .1,
-            Kind::Movement
-        );
+    fn a_delivered_stretch_can_restart_the_active_clock() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+        let mut clock = ActiveWorkClock::default();
+        for n in 0..=300 {
+            clock.observe_at(start + Duration::from_secs(n * 3), true);
+        }
+        assert_eq!(clock.seconds(), 900);
+        clock.restart();
+        assert_eq!(clock.seconds(), 0);
+        clock.observe_at(start + Duration::from_secs(903), true);
+        assert_eq!(clock.seconds(), 3);
     }
     #[test]
     fn idle_sleep_and_pauses_reset_work_without_charging_the_gap() {

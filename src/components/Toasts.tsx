@@ -1,10 +1,18 @@
 import { useEffect, useState } from "react";
+import { Avatar } from "./Avatar";
+import type { AvatarPreferences, AvatarState } from "../types";
 
 export interface ToastRequest {
   message: string;
   key?: string;
+  proactive?: boolean;
   durationMs?: number;
-  actions?: Array<{ label: string; run: () => Promise<unknown> }>;
+  actions?: Array<{
+    label: string;
+    primary?: boolean;
+    run: () => Promise<unknown>;
+  }>;
+  mascot?: { appearance: AvatarPreferences; state: AvatarState };
   undoLabel?: string;
   undo?: () => Promise<unknown>;
 }
@@ -12,14 +20,19 @@ export interface ToastRequest {
 export function toast(detail: ToastRequest) {
   window.dispatchEvent(new CustomEvent("buddy:toast", { detail }));
 }
-export function Toasts() {
+export function Toasts({ quietMode = false }: { quietMode?: boolean }) {
   const [items, setItems] = useState<(ToastRequest & { id: number })[]>([]);
   useEffect(() => {
+    if (quietMode)
+      setItems((previous) => previous.filter((item) => !item.proactive));
     const onToast = (event: Event) => {
       const detail = (event as CustomEvent<ToastRequest>).detail;
+      if (quietMode && detail.proactive) return;
       const id = Date.now() + Math.random();
       setItems((previous) => [
-        ...previous.filter((item) => !detail.key || item.key !== detail.key).slice(-2),
+        ...previous
+          .filter((item) => !detail.key || item.key !== detail.key)
+          .slice(-2),
         { ...detail, id },
       ]);
       window.setTimeout(
@@ -29,7 +42,7 @@ export function Toasts() {
     };
     window.addEventListener("buddy:toast", onToast);
     return () => window.removeEventListener("buddy:toast", onToast);
-  }, []);
+  }, [quietMode]);
   // Cmd+Z (Ctrl+Z elsewhere) undoes the newest undoable toast while it is still showing,
   // unless the user is typing in a field, where the field's own undo applies.
   useEffect(() => {
@@ -56,38 +69,52 @@ export function Toasts() {
   if (!items.length) return null;
   return (
     <div className="toasts" role="status" aria-live="polite">
-      {items.map((item) => (
-        <div className="toast" key={item.id}>
-          <span>{item.message}</span>
-          {item.actions?.map((action) => (
-            <button
-              type="button"
-              key={action.label}
-              onClick={() => {
-                setItems((previous) => previous.filter((t) => t.id !== item.id));
-                void action.run().catch(() =>
-                  toast({ message: "Couldn't confirm that choice. Check your current focus before trying again." }),
-                );
-              }}
-            >
-              {action.label}
-            </button>
-          ))}
-          {item.undo && (
-            <button
-              type="button"
-              onClick={() => {
-                setItems((previous) =>
-                  previous.filter((t) => t.id !== item.id),
-                );
-                void item.undo?.();
-              }}
-            >
-              {item.undoLabel ?? "Undo"}
-            </button>
-          )}
-        </div>
-      ))}
+      {items
+        .filter((item) => !quietMode || !item.proactive)
+        .map((item) => (
+          <div className="toast" key={item.id}>
+            {item.mascot && (
+              <Avatar
+                appearance={item.mascot.appearance}
+                state={item.mascot.state}
+              />
+            )}
+            <span>{item.message}</span>
+            {item.actions?.map((action) => (
+              <button
+                type="button"
+                key={action.label}
+                className={action.primary ? "toast-primary" : "text-button"}
+                onClick={() => {
+                  setItems((previous) =>
+                    previous.filter((t) => t.id !== item.id),
+                  );
+                  void action.run().catch(() =>
+                    toast({
+                      message:
+                        "Couldn't confirm that choice. Check your current focus before trying again.",
+                    }),
+                  );
+                }}
+              >
+                {action.label}
+              </button>
+            ))}
+            {item.undo && (
+              <button
+                type="button"
+                onClick={() => {
+                  setItems((previous) =>
+                    previous.filter((t) => t.id !== item.id),
+                  );
+                  void item.undo?.();
+                }}
+              >
+                {item.undoLabel ?? "Undo"}
+              </button>
+            )}
+          </div>
+        ))}
     </div>
   );
 }

@@ -116,14 +116,13 @@ describe("contextual research consent", () => {
     expect(html).toContain("Find information for this step?");
     expect(html).toContain("Search the web");
     expect(html).toContain("Not now");
-    expect(html).toContain("No search runs until you agree");
-    expect(html).toContain("Only a short query is sent to Tavily");
+    expect(html).toContain("Chat");
     expect(html).not.toContain("Yes, mark complete");
   });
   it("prevents duplicate approval clicks while a response is pending", () => {
     const html = renderToStaticMarkup(
       <InterventionCard prompt={prompt} busy respond={() => {}} />,
     );
-    expect(html.match(/disabled=""/g)).toHaveLength(2);
+    expect(html.match(/disabled=""/g)).toHaveLength(3);
   });
 });

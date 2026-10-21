@@ -291,49 +291,8 @@ pub fn explicit_category(inner: &Inner) -> Result<Option<Category>, String> {
 }
 
 /// Explicit rules override automatic AI judgments; they never require provider keys.
-pub fn local_nudge(inner: &mut Inner) -> Result<(), String> {
-    if !crate::tracking::notifications_allowed(inner) {
-        return Ok(());
-    }
-    if !inner.status.tracking
-        || inner.status.dnd
-        || crate::buddy::snoozed(&inner.buddy.view)
-        || !inner.buddy.view.preferences.local_nudges
-        || inner.buddy.shown.is_some()
-        || !inner.storage.nudge_allowed(&inner.buddy.view.preferences)?
-    {
-        return Ok(());
-    }
-    let Some(a) = inner.buddy.foreground.as_ref() else {
-        return Ok(());
-    };
-    if crate::attention::quiet_reason(
-        &inner.buddy.view.preferences,
-        Some(a),
-        inner.buddy.fullscreen,
-        false,
-    )
-    .is_some()
-        || (inner.activity_state.state != crate::tracking::ActivityState::Drifting
-            && (a.active_seconds < 120 || explicit_category(inner)? != Some(Category::Distraction)))
-    {
-        return Ok(());
-    }
-    let goal = inner.storage.goal()?.ok_or("Set a goal first")?;
-    let reason = if inner.activity_state.state == crate::tracking::ActivityState::Drifting {
-        "The same context has remained open with no recent input. Ready to return to your next step?".to_string()
-    } else {
-        format!("You marked {} as a distraction for this goal. It has been active in the same window for at least 2 minutes. Ready to return to your next step?", a.process_name)
-    };
-    let mut decision = Decision {
-        id: None,
-        state: FocusState::Drifting,
-        confidence: 1.0,
-        reason,
-        action: Action::Intervene,
-    };
-    inner.storage.decision(goal.id, &mut decision)?;
-    inner.buddy.decision(decision);
+/// Legacy inactivity/distraction cards are outside the mascot message scheme.
+pub fn local_nudge(_inner: &mut Inner) -> Result<(), String> {
     Ok(())
 }
 

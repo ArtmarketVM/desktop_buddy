@@ -39,6 +39,7 @@ pub(super) fn setup(names: &[&str]) -> (AppState, Vec<i64>) {
     {
         let mut i = state.inner.lock().unwrap();
         i.status.tracking = true;
+        crate::tracking::allow_notifications(&mut i);
         i.status.nebius_configured = true;
         i.status.mock_ai = false;
         i.companion.view.preferences.quiet_start_minute = 0;

@@ -58,6 +58,29 @@ afterEach(() => {
   cleanup();
   vi.resetAllMocks();
 });
+it("saves the selected stretch interval instead of using a hard-coded cadence", async () => {
+  render(
+    <CoreSettings
+      data={data}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  const interval = await screen.findByRole("combobox", {
+    name: "Stretch interval",
+    hidden: true,
+  });
+  await waitFor(() =>
+    expect((interval as HTMLSelectElement).disabled).toBe(false),
+  );
+  fireEvent.change(interval, { target: { value: "90" } });
+  await waitFor(() =>
+    expect(coreApi.preferences).toHaveBeenCalledWith(
+      expect.objectContaining({ movement_interval_minutes: 90 }),
+    ),
+  );
+});
 it("opens the published privacy policy from the Privacy section", async () => {
   render(
     <CoreSettings
@@ -170,7 +193,7 @@ it("keeps saved preference edits until canonical shared snapshots finish refresh
     />,
   );
   const reminder = screen.getByRole("checkbox", {
-    name: "Remind me to move every 45 minutes",
+    name: "Remind me to stretch",
   }) as HTMLInputElement;
   await waitFor(() => expect(reminder.disabled).toBe(false));
   const next = structuredClone(initial);
@@ -185,11 +208,29 @@ it("keeps saved preference edits until canonical shared snapshots finish refresh
   fireEvent.click(reminder);
   fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
   await waitFor(() => expect(coreApi.preferences).toHaveBeenCalled());
-  await waitFor(() => expect(api.saveTrackingSettings).toHaveBeenCalled());
+  expect(api.saveTrackingSettings).not.toHaveBeenCalled();
   expect(reminder.checked).toBe(next.preferences.movement_reminders);
   expect(screen.queryByText("Saved")).toBeNull();
   await waitFor(() => expect(finish).toBeTypeOf("function"));
   finish(next);
   await screen.findByText("Saved");
   expect(reminder.checked).toBe(next.preferences.movement_reminders);
+});
+
+it("removes the retired working hours and working weekdays controls", async () => {
+  render(
+    <CoreSettings
+      data={data}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  expect(
+    screen.queryByRole("group", { name: "Working hours", hidden: true }),
+  ).toBeNull();
+  expect(
+    screen.queryByRole("group", { name: "Working days", hidden: true }),
+  ).toBeNull();
+  expect(api.trackingSettings).not.toHaveBeenCalled();
 });

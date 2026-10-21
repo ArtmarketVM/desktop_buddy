@@ -4,14 +4,14 @@ import {
   defaultCompanionPreferences,
   type CompanionPreferences,
 } from "./types";
-const time = (minute: number) =>
-  `${Math.floor(minute / 60)
-    .toString()
-    .padStart(2, "0")}:${(minute % 60).toString().padStart(2, "0")}`;
-const minute = (value: string) => {
+
+const time = (value: number) =>
+  `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
+const minutes = (value: string) => {
   const [h, m] = value.split(":").map(Number);
   return h * 60 + m;
 };
+
 export function CompanionSettings({
   onChanged,
   currentPreferences,
@@ -19,7 +19,6 @@ export function CompanionSettings({
 }: {
   onChanged: () => Promise<void>;
   currentPreferences?: CompanionPreferences;
-  /** "desktop" renders the full-screen toggle; "nudges" the check-ins, timing and quiet hours. */
   part: "desktop" | "nudges";
 }) {
   const [preferences, setPreferences] = useState(defaultCompanionPreferences);
@@ -29,96 +28,80 @@ export function CompanionSettings({
     if (currentPreferences) setPreferences(currentPreferences);
   }, [currentPreferences]);
   useEffect(() => {
-    if (desktop)
-      void api
-        .companionView()
-        .then((view) => setPreferences(view.preferences))
-        .catch((e) => setError(String(e)));
-  }, []);
+    if (!desktop || currentPreferences) return;
+    let active = true;
+    void api
+      .companionView()
+      .then((view) => {
+        if (active) setPreferences(view.preferences);
+      })
+      .catch(() => {
+        if (active) setError("Could not load reminder settings. Try again.");
+      });
+    return () => {
+      active = false;
+    };
+  }, [currentPreferences]);
   async function update(patch: Partial<CompanionPreferences>) {
     const next = { ...preferences, ...patch };
+    // Older versions used equal endpoints to disable quiet hours.
+    if (
+      patch.quiet_hours_enabled &&
+      (next.quiet_start_minute === next.quiet_end_minute ||
+        next.quiet_start_minute >= 1440 ||
+        next.quiet_end_minute >= 1440)
+    ) {
+      next.quiet_start_minute = defaultCompanionPreferences.quiet_start_minute;
+      next.quiet_end_minute = defaultCompanionPreferences.quiet_end_minute;
+    }
     setBusy(true);
     setError("");
     try {
       await api.companionPreferences(next);
       setPreferences(next);
       await onChanged();
-    } catch (e) {
-      setError(String(e));
+    } catch {
+      setError("Could not save reminder settings. Try again.");
     } finally {
       setBusy(false);
     }
   }
-  const off = !desktop || busy;
   const toggle = (key: keyof CompanionPreferences, label: string) => (
     <label className="toggle-row" key={key}>
       <span>{label}</span>
       <input
         type="checkbox"
         checked={Boolean(preferences[key])}
-        disabled={off}
+        disabled={!desktop || busy}
         onChange={(event) => void update({ [key]: event.target.checked })}
       />
     </label>
   );
-  if (part === "desktop")
-    return (
-      <>
-        {toggle("hide_fullscreen", "Hide sumi in full-screen apps")}
-        {error && <p role="alert">{error}</p>}
-      </>
-    );
-  return (
+  return part === "desktop" ? (
     <>
-      {toggle("deadline_reminders", "Remind me about overdue tasks")}
+      {toggle("hide_fullscreen", "Hide sumi in full-screen apps")}
+      {error && <p role="alert">{error}</p>}
+    </>
+  ) : (
+    <>
       {toggle(
-        "system_deadline_notifications",
-        "Show deadline reminders in system notifications",
+        "deadline_reminders",
+        "Remind me before, at, and after deadlines",
       )}
-      <p className="muted">
-        Local reminders follow quiet hours and work without AI or activity
-        tracking.
-      </p>
-      {toggle(
-        "daily_checkins",
-        "Daily check-ins: morning plan, midday review, evening wrap-up",
-      )}
-      {toggle(
-        "screen_task_detection",
-        "Suggest completed and unlisted work from what is on screen",
-      )}
+      {toggle("daily_checkins", "Daily planning and end-of-day summary")}
       <label className="setting-row">
-        <span>Wait after sign-in</span>
-        <select
-          value={preferences.morning_delay_minutes}
-          disabled={off}
-          onChange={(e) =>
-            void update({ morning_delay_minutes: Number(e.target.value) })
-          }
-        >
-          {[5, 10, 15, 30, 60].map((n) => (
-            <option key={n} value={n}>
-              {n} minutes
-            </option>
-          ))}
-        </select>
+        <span>Daily summary time</span>
+        <input
+          type="time"
+          value={time(preferences.summary_minute ?? 1080)}
+          disabled={!desktop || busy || !preferences.daily_checkins}
+          onChange={(event) => {
+            if (event.target.value)
+              void update({ summary_minute: minutes(event.target.value) });
+          }}
+        />
       </label>
-      <label className="setting-row">
-        <span>Pause between prompts</span>
-        <select
-          value={preferences.cooldown_minutes}
-          disabled={off}
-          onChange={(e) =>
-            void update({ cooldown_minutes: Number(e.target.value) })
-          }
-        >
-          {[60, 90, 120, 180, 240].map((n) => (
-            <option key={n} value={n}>
-              {n} minutes
-            </option>
-          ))}
-        </select>
-      </label>
+      {toggle("quiet_hours_enabled", "Use quiet hours")}
       <div className="setting-row" role="group" aria-label="Quiet hours">
         <span>Quiet hours</span>
         <span className="quiet-hours">
@@ -126,10 +109,12 @@ export function CompanionSettings({
             type="time"
             aria-label="Quiet hours start"
             value={time(preferences.quiet_start_minute)}
-            disabled={off}
-            onChange={(e) => {
-              if (e.target.value)
-                void update({ quiet_start_minute: minute(e.target.value) });
+            disabled={!desktop || busy || !preferences.quiet_hours_enabled}
+            onChange={(event) => {
+              if (event.target.value)
+                void update({
+                  quiet_start_minute: minutes(event.target.value),
+                });
             }}
           />
           <span className="quiet-hours-to">to</span>
@@ -137,14 +122,64 @@ export function CompanionSettings({
             type="time"
             aria-label="Quiet hours end"
             value={time(preferences.quiet_end_minute)}
-            disabled={off}
-            onChange={(e) => {
-              if (e.target.value)
-                void update({ quiet_end_minute: minute(e.target.value) });
+            disabled={!desktop || busy || !preferences.quiet_hours_enabled}
+            onChange={(event) => {
+              if (event.target.value)
+                void update({ quiet_end_minute: minutes(event.target.value) });
             }}
           />
         </span>
       </div>
+      <div className="setting-row">
+        <span>Quiet days</span>
+        <span className="day-chips" role="group" aria-label="Quiet days">
+          {[
+            "Sunday",
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+          ].map((label, day) => {
+            const selected = (preferences.quiet_days ?? []).includes(day);
+            return (
+              <button
+                type="button"
+                key={day}
+                className="day-chip"
+                aria-label={label}
+                aria-pressed={selected}
+                disabled={!desktop || busy}
+                onClick={() =>
+                  void update({
+                    quiet_days: selected
+                      ? (preferences.quiet_days ?? []).filter((d) => d !== day)
+                      : [...(preferences.quiet_days ?? []), day].sort(),
+                  })
+                }
+              >
+                {label.slice(0, 2)}
+              </button>
+            );
+          })}
+        </span>
+      </div>
+      <p className="muted">
+        Selected days stay quiet all day. Quiet hours apply every day, including
+        overnight. During either, sumi rests with no bubbles, including deadline
+        reminders and summaries. Tracking continues.
+      </p>
+      {toggle(
+        "screen_task_detection",
+        "Suggest completed and unlisted work from what is on screen",
+      )}
+      <p className="muted">
+        Plan Today appears when you first open sumi each day, including after
+        your computer starts. Your daily summary appears at the time you choose.
+        Other suggestions follow your activity. Quiet mode and your quiet
+        schedule always take priority.
+      </p>
       {error && <p role="alert">{error}</p>}
     </>
   );

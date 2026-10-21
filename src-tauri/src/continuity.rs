@@ -274,24 +274,6 @@ impl Storage {
     }
 }
 impl Report {
-    pub fn compact(&self) -> String {
-        let completions = self.lanes.iter().map(|l| l.completed.len()).sum::<usize>();
-        let open = self
-            .lanes
-            .iter()
-            .filter(|l| l.status != "completed")
-            .count();
-        let waiting = self
-            .lanes
-            .iter()
-            .filter(|l| {
-                l.checkpoint
-                    .as_ref()
-                    .is_some_and(|c| c.waiting_for.is_some())
-            })
-            .count();
-        format!("Today: {completions} recorded completions, {open} open goals, {waiting} waiting. Ask sumi for an end-of-day summary with saved next actions.{}",if self.omitted_lanes>0 {" Additional lanes are available in a goal-specific summary."}else{""})
-    }
     /// The answer bypasses free-form generation: a model cannot add accomplishments.
     pub fn render(&self) -> String {
         let title = match self.view {

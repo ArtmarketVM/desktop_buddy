@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { invoke } from "../data/ipc";
 import { useQuery } from "../data/useQuery";
 import { noticedQuery, type NoticedSuggestion } from "../data/resources";
@@ -7,12 +7,21 @@ import { desktop } from "../api/tauri";
 import { duration } from "./types";
 
 /** Persistent review, rather than an expiring toast that could lose noticed work. */
-export function NoticedWork({ onChanged }: { onChanged: () => Promise<void> }) {
+export function NoticedWork({
+  onChanged,
+  quietMode = false,
+}: {
+  onChanged: () => Promise<void>;
+  quietMode?: boolean;
+}) {
   const { data: suggestion, error: loadError } = useQuery(
     noticedQuery,
-    desktop,
+    desktop && !quietMode,
   );
-  if (!suggestion) return null;
+  useEffect(() => {
+    if (quietMode) noticedQuery.setData(null);
+  }, [quietMode]);
+  if (quietMode || !suggestion) return null;
   return (
     <NoticedWorkOffer
       key={suggestion.id}

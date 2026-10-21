@@ -271,14 +271,14 @@ pub fn run() {
     }
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
-            if let Some(window) = app.get_webview_window("main") {
-                let _ = window.show();
-                let _ = window.set_focus();
-            }
+            let app = app.clone();
+            // Opening a workspace takes application state; leave the native event thread free.
+            tauri::async_runtime::spawn(async move {
+                let _ = buddy::open_workspace(app);
+            });
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
@@ -365,6 +365,13 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if window.label() == "main" {
+                if matches!(event, tauri::WindowEvent::Focused(true)) {
+                    let state = window.app_handle().state::<commands::AppState>();
+                    if let Ok(mut inner) = state.inner.try_lock() {
+                        inner.companion.planning_date =
+                            chrono::Local::now().date_naive().to_string();
+                    };
+                }
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
@@ -501,7 +508,6 @@ pub fn run() {
             memory::get_working_memory,
             buddy::set_buddy_preferences,
             buddy::open_workspace,
-            buddy::snooze_buddy,
             buddy::reset_buddy_position,
             buddy::rate_recommendation,
             buddy::quit_app,

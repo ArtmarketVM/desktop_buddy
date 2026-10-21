@@ -86,6 +86,7 @@ export function AppShell({
   theme = "light",
   onTheme,
   quietMode = false,
+  quietScheduled = false,
   quietModeDisabled = false,
   onQuietMode,
   onReset,
@@ -101,6 +102,7 @@ export function AppShell({
   theme?: "light" | "dark";
   onTheme?: (theme: "light" | "dark") => void;
   quietMode?: boolean;
+  quietScheduled?: boolean;
   quietModeDisabled?: boolean;
   onQuietMode?: () => void;
   onReset?: () => void;
@@ -252,6 +254,11 @@ export function AppShell({
             <button
               className="nav-item quiet-toggle"
               aria-label="Quiet mode"
+              title={
+                quietScheduled
+                  ? "Quiet schedule is active. Open Nudges to change it."
+                  : undefined
+              }
               aria-pressed={quietMode}
               disabled={onboarding || quietModeDisabled || !onQuietMode}
               onClick={onQuietMode}
@@ -259,7 +266,7 @@ export function AppShell({
               <BellOff size={17} aria-hidden="true" />
               <span className="nav-label">Quiet mode</span>
               <span className="quiet-state" aria-hidden="true">
-                {quietMode ? "On" : "Off"}
+                {quietScheduled ? "Scheduled" : quietMode ? "On" : "Off"}
               </span>
             </button>
           </nav>

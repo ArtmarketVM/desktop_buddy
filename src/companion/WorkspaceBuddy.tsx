@@ -1,3 +1,4 @@
+import { api } from "../api/tauri";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Avatar } from "../components/Avatar";
@@ -13,6 +14,7 @@ import { Conversation } from "./Conversation";
 import { defaultCompanionView } from "./types";
 import { BuddyActionBar } from "./BuddyActionBar";
 import { useBuddyActions } from "./useBuddyActions";
+import { interventionState } from "./interventionPresentation";
 
 export function WorkspaceBuddy({
   dashboard,
@@ -30,8 +32,16 @@ export function WorkspaceBuddy({
     null,
   );
   const root = useRef<HTMLDivElement>(null);
+  const quietMode = !!(
+    dashboard.status?.dnd || dashboard.buddy.companion?.quiet_mode
+  );
+
   useEffect(() => {
     const ask = (event: Event) => {
+      if (quietMode) {
+        void api.openChat("ask");
+        return;
+      }
       const goal = (event as CustomEvent<CoreGoal>).detail;
       setContext({
         goal: { id: goal.id, text: goal.title, created_at: "" },
@@ -53,15 +63,21 @@ export function WorkspaceBuddy({
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", escape);
     };
-  }, []);
+  }, [quietMode]);
   const appearance =
     dashboard.buddy.avatar ??
     dashboard.user_settings?.profile.avatar ??
     defaultUserSettings.profile.avatar;
+  useEffect(() => {
+    if (quietMode) {
+      setMode("idle");
+      setState("idle");
+    }
+  }, [quietMode]);
   if (!showLauncher && mode === "idle") return null;
   return (
     <div className="workspace-buddy" ref={root}>
-      {mode !== "idle" && (
+      {!quietMode && mode !== "idle" && (
         <div className="workspace-buddy-input">
           {context && (
             <div className="compact-goal-context">
@@ -94,18 +110,32 @@ export function WorkspaceBuddy({
             {...actions.events}
             className="workspace-buddy-avatar"
             aria-label="Open sumi chat"
-            onClick={() => setMode(mode === "idle" ? "text" : "idle")}
+            onClick={() =>
+              quietMode
+                ? void api.openChat("ask")
+                : setMode(mode === "idle" ? "text" : "idle")
+            }
           >
             <Avatar
               appearance={{ ...appearance, visible: true }}
-              state={state}
+              state={
+                quietMode
+                  ? "sleeping"
+                  : dashboard.buddy.companion?.intervention
+                    ? interventionState(dashboard.buddy.companion.intervention)
+                    : state
+              }
             />
           </button>
           <BuddyActionBar
             color={appearance.color}
             actions={actions}
-            onWrite={() => setMode("text")}
-            onTalk={() => setMode("voice")}
+            onWrite={() =>
+              quietMode ? void api.openChat("ask") : setMode("text")
+            }
+            onTalk={() =>
+              quietMode ? void api.openChat("ask") : setMode("voice")
+            }
           />
         </>
       )}
