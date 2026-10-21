@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AppRules, DailySummary, duration } from "./ActivityInsights";
-import { Settings } from "./Settings";
-import { defaultBuddyPreferences } from "../types";
 const noop = async () => {};
 describe("local activity insights", () => {
   it("shows observed app totals separately from current goal and checklist progress", () => {
@@ -74,20 +72,6 @@ describe("local activity insights", () => {
       expect(html).toContain(text);
     expect(html).toContain('value="work" selected=""');
   });
-  it("offers local opt-in and shared card limits", () => {
-    const html = renderToStaticMarkup(
-      <Settings
-        preferences={defaultBuddyPreferences}
-        retentionDays={0}
-        onChanged={noop}
-        onHistoryCleared={noop}
-      />,
-    );
-    expect(html).toContain("Local distraction reminders");
-    expect(html).toContain("Daily sumi card limit");
-    expect(html).toContain("No cards");
-    expect(html).toContain("No AI or API key needed");
-  });
   it("never presents uninstalled role suggestions as discovered apps and keeps manual rules", () => {
     const html = renderToStaticMarkup(
       <AppRules
@@ -118,24 +102,5 @@ describe("local activity insights", () => {
     expect(duration(59)).toBe("<1 min");
     expect(duration(61)).toBe("1 min");
     expect(duration(3660)).toBe("1 h 1 min");
-  });
-  it("keeps AI consent, provider status and snooze controls in Settings", () => {
-    const html = renderToStaticMarkup(
-      <Settings
-        preferences={defaultBuddyPreferences}
-        retentionDays={0}
-        onChanged={noop}
-        onHistoryCleared={noop}
-        aiEnabled
-        snoozedUntil={Math.floor(Date.now() / 1000) + 3600}
-        nebiusConfigured
-      />,
-    );
-    expect(html).toContain("AI check-ins");
-    expect(html).toContain("titles to Nebius");
-    expect(html).toContain("Resume sumi");
-    expect(html).toContain("Nebius configured");
-    expect(html).toContain("Tavily not configured");
-    expect(html).not.toContain("Do not disturb");
   });
 });

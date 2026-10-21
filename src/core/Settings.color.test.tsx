@@ -34,10 +34,6 @@ vi.mock("./api", () => ({
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn() }));
 vi.mock("../components/MacPermissions", () => ({ MacPermissions: () => null }));
 vi.mock("../components/MemorySettings", () => ({ MemorySettings: () => null }));
-vi.mock("../components/Settings", () => ({ ProviderKey: () => null }));
-vi.mock("../components/PrivacySettings", () => ({
-  PrivacySettings: () => null,
-}));
 vi.mock("../companion/CompanionSettings", () => ({
   CompanionSettings: () => null,
 }));

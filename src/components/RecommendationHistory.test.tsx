@@ -1,8 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { RecommendationHistory } from "./RecommendationHistory";
-import { Settings } from "./Settings";
-import { defaultBuddyPreferences } from "../types";
 const noop = async () => {};
 describe("recommendation controls", () => {
   it("explains the empty history", () => {
@@ -46,17 +44,4 @@ describe("recommendation controls", () => {
       );
     },
   );
-  it("offers supported search intervals with a separate focus-check explanation", () => {
-    const html = renderToStaticMarkup(
-      <Settings
-        preferences={defaultBuddyPreferences}
-        retentionDays={0}
-        onChanged={noop}
-        onHistoryCleared={noop}
-      />,
-    );
-    for (const minutes of [5, 15, 30, 60])
-      expect(html).toContain(`At most every ${minutes} minutes`);
-    expect(html).toContain("does not change AI focus-check frequency");
-  });
 });
