@@ -16,17 +16,12 @@ export interface GoalPlan {
   steps: GoalStep[];
   current_step: string | null;
 }
-export interface GoalProposal {
-  title: string;
-  done_when: string;
-  steps: string[];
-}
-export interface SavedGoal {
+interface SavedGoal {
   id: number;
   text: string;
   status: "deferred" | "completed";
 }
-export interface ActivitySnapshot {
+interface ActivitySnapshot {
   window_id?: number | null;
   browser?: {
     browser: string;
@@ -53,7 +48,7 @@ export interface SearchResult {
   url: string;
   content: string;
 }
-export interface Status {
+interface Status {
   tracking: boolean;
   tracking_error?: string | null;
   last_collected_at?: string | null;
@@ -64,7 +59,7 @@ export interface Status {
   nebius_configured: boolean;
   tavily_configured: boolean;
 }
-export interface PersonalWorkState {
+interface PersonalWorkState {
   active_goal_id: number | null;
   active_step_id: string | null;
   state: "working" | "waiting" | "stuck" | "drifting" | "away";
@@ -138,7 +133,7 @@ export interface BuddyView {
   desktop_visible?: boolean;
   visibility_reason?: string | null;
 }
-export interface Recommendation {
+interface Recommendation {
   id: number;
   goal_id: number;
   goal: string;
@@ -148,13 +143,13 @@ export interface Recommendation {
   created_at: string;
   feedback: boolean | null;
 }
-export type AppCategory = "work" | "distraction" | "neutral";
-export interface AppRule {
+type AppCategory = "work" | "distraction" | "neutral";
+interface AppRule {
   preset_source?: string | null;
   process_name: string;
   category: AppCategory;
 }
-export interface Today {
+interface Today {
   date: string;
   apps: { process_name: string; seconds: number; goal_seconds: number }[];
   nudges: number;
@@ -176,7 +171,7 @@ export const defaultTrackingSettings: TrackingSettings = {
   working_end_minute: 1080,
   browser_metadata: true,
 };
-export interface ContextTime {
+interface ContextTime {
   process_name: string;
   domain: string | null;
   page_title: string | null;
@@ -207,7 +202,7 @@ export interface GoalHistory {
   recommendations: Recommendation[];
 }
 
-export type Character = "cat" | "dog" | "seal" | "bird";
+type Character = "cat" | "dog" | "seal" | "bird";
 export type AvatarState =
   | "working"
   | "paused"
@@ -272,10 +267,4 @@ export const defaultUserSettings: UserSettings = {
 export interface InstalledApp {
   process_name: string;
   name: string;
-}
-export interface ProductFeedback {
-  goal_id: number | null;
-  rating: number;
-  text: string;
-  source: "settings" | "goal_completed";
 }

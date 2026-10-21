@@ -4,7 +4,7 @@ import { useQuery } from "../data/useQuery";
 import { desktop } from "../api/tauri";
 import { duration } from "./types";
 import { Pager, usePage } from "./Pager";
-export interface WindowSession {
+interface WindowSession {
   id: number;
   goal_id: number | null;
   app: string;

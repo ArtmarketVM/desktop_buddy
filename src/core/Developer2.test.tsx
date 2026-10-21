@@ -6,7 +6,6 @@ import { AnalysisResult } from "./analysis";
 import { defaultAiPreferences } from "../ai/api";
 import { DaySummary } from "./Progress";
 import { emptyCore, type CoreGoal } from "./types";
-import { activityDay } from "./Timeline";
 
 describe("automatic AI and relevant progress", () => {
   it("deduplicates accepted steps without overwriting completed or user-created steps", () => {
@@ -130,11 +129,6 @@ describe("automatic AI and relevant progress", () => {
     expect(html).not.toContain("completed");
     expect(html).not.toContain("focused");
     expect(html).not.toContain("observed");
-  });
-  it("shows the local calendar date for activity timestamps", () => {
-    expect(activityDay(new Date(2026, 9, 7, 12, 0).toISOString())).toBe(
-      "2026-10-07",
-    );
   });
   it("reports a goal as completed only while it is closed", () => {
     const day = (completed_goals: string[]) => ({

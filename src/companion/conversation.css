@@ -97,17 +97,6 @@
   flex: 1;
   overflow-wrap: anywhere;
 }
-.conversation-message .companion-resource {
-  margin-top: 8px;
-  text-align: left;
-  font-size: var(--text-caption);
-}
-.conversation-message .companion-resource small {
-  display: block;
-  margin-top: 4px;
-  color: var(--muted);
-  line-height: 1.4;
-}
 .conversation-confirm {
   padding: 8px 12px;
   font-size: var(--text-caption);
@@ -150,18 +139,6 @@
 }
 .desktop-buddy.chatting {
   position: relative;
-}
-.card-position-controls {
-  display: flex;
-  gap: 10px;
-  height: 26px;
-  padding: 0 8px;
-  background: var(--surface);
-  border-radius: 0 0 8px 8px;
-  width: fit-content;
-}
-.card-position-controls button {
-  padding: 0 3px;
 }
 .chat-resize-handle {
   position: absolute;

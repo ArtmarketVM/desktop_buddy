@@ -4,7 +4,7 @@ import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
 /** Local "YYYY-MM-DDTHH:MM" strings, the same shape the editor already saves. */
 const pad = (n: number) => String(n).padStart(2, "0");
-export function localValue(date: Date, withTime: boolean): string {
+function localValue(date: Date, withTime: boolean): string {
   const day = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
   return withTime
     ? `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`
@@ -24,7 +24,7 @@ export function parseTime(text: string): [number, number] | null {
   if (hours > 23 || minutes > 59) return null;
   return [hours, minutes];
 }
-export function formatTime(date: Date): string {
+function formatTime(date: Date): string {
   return date.toLocaleTimeString(undefined, {
     hour: "numeric",
     minute: "2-digit",

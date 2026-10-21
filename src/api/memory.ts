@@ -34,7 +34,7 @@ export type MemoryItem = {
   evidence_count: number;
   source: string;
 };
-export type ResearchAttachment = {
+type ResearchAttachment = {
   research_id: number;
   step_id: string | null;
   summary: string;

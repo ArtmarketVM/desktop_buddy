@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Check,
@@ -58,49 +52,6 @@ export function mergeSuggestedSteps(
 }
 export function stepCount(count: number) {
   return `${count} ${count === 1 ? "step" : "steps"}`;
-}
-/** Same goal title line as GoalRow, for lists that only need to show or pick a goal. */
-export function GoalLine({
-  goal,
-  children,
-}: {
-  goal: CoreGoal;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="core-goal">
-      <div className="goal-heading">
-        <span className="core-goal-title">
-          {sentenceCase(goal.title)}
-          <small>{stepCount(goal.plan.steps.length)}</small>
-        </span>
-        {children}
-      </div>
-    </div>
-  );
-}
-/** Read-only steps, drawn exactly like the steps inside GoalRow. */
-export function StepsPreview({ steps }: { steps: CoreGoal["plan"]["steps"] }) {
-  return (
-    <ul className="core-steps">
-      {steps.map((step) => (
-        <li key={step.id}>
-          <div className="step-line">
-            <input
-              type="checkbox"
-              aria-label={step.text}
-              checked={step.done}
-              disabled
-              readOnly
-            />
-            <span className={step.done ? "done" : ""}>
-              {sentenceCase(step.text)}
-            </span>
-          </div>
-        </li>
-      ))}
-    </ul>
-  );
 }
 export function GoalRow({
   goal,
@@ -385,10 +336,16 @@ export function GoalRow({
             {goal.plan.steps.length}{" "}
             {goal.plan.steps.length === 1 ? "step" : "steps"}
           </small>
-          {today && goal.status === "completed" && (() => {
-            const seconds = snapshot.summary.goals.find((g) => g.goal_id === goal.id)?.relevant_seconds ?? 0;
-            return seconds > 0 ? <small>{duration(seconds)} recorded</small> : null;
-          })()}
+          {today &&
+            goal.status === "completed" &&
+            (() => {
+              const seconds =
+                snapshot.summary.goals.find((g) => g.goal_id === goal.id)
+                  ?.relevant_seconds ?? 0;
+              return seconds > 0 ? (
+                <small>{duration(seconds)} recorded</small>
+              ) : null;
+            })()}
           {goal.status === "open" && (
             <GoalMeta goal={goal} onToday={today} area={area} run={run} />
           )}
@@ -938,7 +895,7 @@ export function GoalAreas({
 
 /** Deadline and expected time after the title; click opens the date, time and estimate popover.
  *  Today goals without a deadline are shown as due today. */
-export function GoalMeta({
+function GoalMeta({
   goal,
   onToday,
   area,

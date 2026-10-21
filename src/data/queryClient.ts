@@ -1,6 +1,6 @@
 export const DATA_ERROR =
   "Couldn't refresh this information. It will retry automatically.";
-export const ACTION_ERROR = "Couldn't save that change. Please try again.";
+const ACTION_ERROR = "Couldn't save that change. Please try again.";
 export type DataTag =
   | "current-chat"
   | "dashboard"
@@ -13,7 +13,7 @@ export type DataTag =
   | "coaching"
   | "noticed"
   | "engine";
-export interface QueryState<T> {
+interface QueryState<T> {
   data: T;
   loading: boolean;
   ready: boolean;

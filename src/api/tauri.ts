@@ -12,15 +12,11 @@ import type {
   Dashboard,
   Decision,
   SearchResult,
-  GoalPlan,
-  GoalProposal,
-  AppCategory,
   TrackingSettings,
   GoalHistory,
   UserProfile,
   UserSettings,
   OnboardingState,
-  ProductFeedback,
   InstalledApp,
 } from "../types";
 export const desktop = isTauri();
@@ -62,46 +58,21 @@ export const api = {
   resetBuddyPosition: () => invoke<void>("reset_buddy_position"),
   feedbackDraft: (message: string, replyEmail: string) =>
     invoke<void>("open_feedback_draft", { message, replyEmail }),
-  contactEndpoint: () => invoke<string | null>("get_contact_endpoint"),
   saveContactEndpoint: (url: string) =>
     invoke<void>("set_contact_endpoint", { url }),
   sendContactFeedback: (message: string, replyEmail: string) =>
     invoke<void>("send_contact_feedback", { message, replyEmail }),
-  subscribeEmail: (consent: boolean) =>
-    invoke<void>("subscribe_contact_email", { consent }),
-  shareRoleProfile: (profile: UserProfile, consent: boolean) =>
-    invoke<void>("share_role_profile", { profile, consent }),
   saveOnboarding: (profile: UserProfile, draft: OnboardingState) =>
     invoke<UserSettings>("save_onboarding", { profile, draft }),
   onboardingGoal: (text: string) => invoke("create_onboarding_goal", { text }),
   finishOnboarding: (allowTracking: boolean) =>
     invoke<void>("finish_onboarding", { allowTracking }),
-  saveUserProfile: (profile: UserProfile, autostart: boolean) =>
-    invoke<void>("save_user_profile", { profile, autostart }),
-  productFeedback: (feedback: ProductFeedback) =>
-    invoke<void>("save_product_feedback", { feedback }),
   trackingSettings: () => invoke<TrackingSettings>("get_tracking_settings"),
   saveTrackingSettings: (settings: TrackingSettings) =>
     invoke<void>("set_tracking_settings", { settings }),
   goalHistory: (goalId: number | null = null) =>
     invoke<GoalHistory[]>("get_goal_history", { goalId }),
-  appRule: (
-    goalId: number,
-    processName: string,
-    category: AppCategory | null,
-  ) => invoke<void>("set_app_rule", { goalId, processName, category }),
-  saveGoalPlan: (title: string, plan: GoalPlan) =>
-    invoke<void>("save_goal_plan", { title, plan }),
-  transitionGoal: (
-    id: number,
-    action: "complete" | "defer" | "resume",
-    confirmed = false,
-  ) => invoke<void>("transition_goal", { id, action, confirmed }),
-  refineGoal: (id: number, revision: number) =>
-    invoke<GoalProposal>("refine_goal", { id, revision }),
   snooze: (enabled: boolean) => invoke<void>("snooze_buddy", { enabled }),
-  rateRecommendation: (id: number, helpful: boolean | null) =>
-    invoke<void>("rate_recommendation", { id, helpful }),
   privacyPreview: () => invoke<unknown>("get_privacy_preview"),
   retention: (days: number) => invoke<void>("set_retention", { days }),
   clearHistory: () => invoke<void>("clear_local_history", { confirmed: true }),

@@ -8,7 +8,6 @@ import {
 import { defaultCompanionView } from "../src/companion/types";
 import { defaultMemoryControls } from "../src/api/memory";
 
-export const BASE_COMMIT = "11760017314095d75374449690c2a1c42c5af08a";
 export const NOW = "2026-10-20T10:00:00.000Z";
 const date = "2026-10-20";
 const goals: CoreGoal[] = [
@@ -90,7 +89,7 @@ const summary = {
     relevant_seconds: goal.relevant_seconds,
   })),
 };
-export const core: CoreSnapshot = {
+const core: CoreSnapshot = {
   date,
   selected_date: date,
   date_goals: [1, 2, 3],
@@ -123,7 +122,7 @@ export const core: CoreSnapshot = {
   },
 };
 
-export function dashboard(theme: "light" | "dark", buddy: boolean): Dashboard {
+function dashboard(theme: "light" | "dark", buddy: boolean): Dashboard {
   return {
     version: "0.39.0",
     app_rules: [],

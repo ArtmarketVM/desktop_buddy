@@ -6,7 +6,7 @@ import { aiApi } from "../ai/api";
 import { desktop } from "../api/tauri";
 
 import type { GoalAIResult } from "../ai/contracts";
-export type { GoalAIResult, GoalProgress } from "../ai/contracts";
+export type { GoalAIResult } from "../ai/contracts";
 export function adaptGoalAIResult(result: GoalAIResult): GoalAnalysisResult {
   return {
     improvedTitle: result.suggestedTitle,

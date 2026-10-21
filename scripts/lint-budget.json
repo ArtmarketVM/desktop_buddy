@@ -1,4 +1,5 @@
 {
   "eslintWarnings": 0,
-  "clippyWarnings": 0
+  "clippyWarnings": 0,
+  "unusedCode": 0
 }

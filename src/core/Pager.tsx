@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /** Standard page size for lists that can grow without bound (goals, archive, tracked activity). */
-export const PAGE_SIZE = 10;
+const PAGE_SIZE = 10;
 
 /** Current page clamped to the list length; resets to the first page whenever `resetKey` changes. */
 export function usePage<T>(items: T[], resetKey: unknown = null) {
