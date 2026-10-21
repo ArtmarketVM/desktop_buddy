@@ -52,7 +52,6 @@
   --leading-body: 1.5;
   --leading-caption: 1.45;
   --text-pix: 8px;
-  --text-hint: 10px;
   --text-wordmark: 15px;
   --text-rating-mark: 30px;
   --text-orbit-mark: 35px;
@@ -60,7 +59,6 @@
   --text-star-small: 16px;
   --text-onboarding-legacy: clamp(26px, 4vw, 35px);
   --text-onboarding: clamp(25px, 3vw, 31px);
-  --text-privacy: 15px;
   --weight-emphasis: 600;
   --color-fixed-253b2925: #253b2925;
   --color-fixed-253b2915: #253b2915;
@@ -1872,7 +1870,7 @@ small,
 /* The wordmark is the one word set in pixels, with a lime cell as its mark. */
 .workspace-brand > div {
   flex: 1;
-  font-weight: var(--weight-emphasis);
+  font-weight: 400;
   font-family: var(--pix);
   font-size: var(--text-wordmark);
   letter-spacing: 0.08em;
@@ -1937,7 +1935,7 @@ small,
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  font-weight: 500;
+  font-weight: 400;
   min-width: 0;
   min-height: 0;
   height: 22px;

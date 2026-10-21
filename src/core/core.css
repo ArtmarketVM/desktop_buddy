@@ -2521,7 +2521,7 @@ details.today-summary > .today-summary-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--muted);
   font-family: var(--pix);
   font-size: var(--text-pix);
@@ -2529,7 +2529,7 @@ details.today-summary > .today-summary-head {
   text-transform: uppercase;
 }
 .eyebrow {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--muted);
   font-family: var(--pix);
   font-size: var(--text-pix);
@@ -2764,7 +2764,7 @@ p.error .text-button {
 .privacy-sentence > p {
   flex: 1;
   margin: 0;
-  font-size: var(--text-privacy);
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .privacy-links {
@@ -2909,8 +2909,8 @@ p.error .text-button {
   border-radius: 2px;
   color: var(--muted);
   font-family: var(--sans);
-  font-size: var(--text-hint);
-  font-weight: var(--weight-emphasis);
+  font-size: var(--text-caption);
+  font-weight: 500;
   line-height: 1;
   cursor: help;
 }

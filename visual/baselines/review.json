@@ -22,7 +22,7 @@
   },
   "screenshots": {
     "wide-light/buddy.png": {
-      "sha256": "f704b5d70573721e49af82c8238f29990ae8df975d092828acbaad404ee70dd2",
+      "sha256": "c766e9b85ba1637f04a2e59c97a889c91d3d527e2ade3eb067e571eda7728a6c",
       "width": 1280,
       "height": 873
     },
@@ -47,7 +47,7 @@
       "height": 873
     },
     "wide-light/settings-ai.png": {
-      "sha256": "85b3cd85658a061ca62c367386e65e53b41da229e026fac0b42abef17fa3b1a7",
+      "sha256": "989380777e30455035499092049070e08638235dc87d109dbe05d37e277c4510",
       "width": 1280,
       "height": 873
     },
@@ -57,7 +57,7 @@
       "height": 873
     },
     "wide-light/settings-privacy.png": {
-      "sha256": "0e40cf3e3c7aa0d45405c902a81c171e308c29e4fa0e7cecdb5c459da99c7f4b",
+      "sha256": "ce8d67976277dd70b7572c62ba50f2bea2c57acbc24396548f1a4238a38b4c4d",
       "width": 1280,
       "height": 873
     },
@@ -67,7 +67,7 @@
       "height": 873
     },
     "wide-dark/buddy.png": {
-      "sha256": "fa708f31f9f4ed7702dda12c61f8126098ce4b7db7d27e7ea0355c337ebdb75b",
+      "sha256": "ed78e1ccd4a1a8b51dac750f04d0dcc790c7873c64ee07dba842f59215245465",
       "width": 1280,
       "height": 873
     },
@@ -92,7 +92,7 @@
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "637fe4a31780e0b87ba130f3425afbefdfd949f236c028d9a446828d8c9681b3",
+      "sha256": "b2ad88731cd232e44f9951005c3dd7492ee34bc595969b4b0b1966b650a92a08",
       "width": 1280,
       "height": 873
     },
@@ -102,7 +102,7 @@
       "height": 873
     },
     "wide-dark/settings-privacy.png": {
-      "sha256": "b73440ed4e4435afd08a169e454dfc82d6894e90936228dd01ce08e7dcfa1f91",
+      "sha256": "b4891f9b7f150975348ace43c02578ec4c6d7d3740597657f191fd7de60dd04c",
       "width": 1280,
       "height": 873
     },
@@ -112,7 +112,7 @@
       "height": 873
     },
     "narrow-light/buddy.png": {
-      "sha256": "68eed2bf83edd5602dfac4f6b5bdbc7bf6f1031f4700e9f87430af4e04d5e827",
+      "sha256": "1ad140cc785f152e2c8a85de7d7c22e080061cf241181dbde18c6358c77fbf4f",
       "width": 720,
       "height": 873
     },
@@ -132,7 +132,7 @@
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "804eb210e98e4d6d806a79e76156ceb43a463f7083112957c7a3134c5740c42f",
+      "sha256": "5e591ded9a441e6d04c63e19bed696af34892f1833b15012aff3cdea0012d059",
       "width": 720,
       "height": 873
     },
@@ -142,7 +142,7 @@
       "height": 873
     },
     "narrow-light/settings-privacy.png": {
-      "sha256": "ce6d0d03baa97607f8f4b7a9fe8b8e6a87a699ce1d2ee9b549f4b6f6518149a7",
+      "sha256": "09ce1ecd38ff8bba0756765da34c81170dc5e4308447c3fe37841e4b42d3342f",
       "width": 720,
       "height": 873
     },
@@ -152,7 +152,7 @@
       "height": 873
     },
     "narrow-dark/buddy.png": {
-      "sha256": "7b1865b8a27e4c7becb3a991814d88e30725c951958ab37b51270549df91335f",
+      "sha256": "cab21177e429cf892c91b328940d086fbb613548dd65537a8c57b97f9578f7fe",
       "width": 720,
       "height": 873
     },
@@ -172,7 +172,7 @@
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "eb5c83fc6bf072d42cf95c5f9e2ed7c8e987b220295df763e3edbe6a26d345a6",
+      "sha256": "1bbc1c5d5ef21232863eb19a41e59d5f42f0f8f6c245de7c2ac3f0abc2c4c0f2",
       "width": 720,
       "height": 873
     },
@@ -182,7 +182,7 @@
       "height": 873
     },
     "narrow-dark/settings-privacy.png": {
-      "sha256": "164c8dc3b823c89e6e2aa00da044ec5856f5ab095dce015353014ace1432a333",
+      "sha256": "aad59b6bacfbbb952e5920e983c6a2a8b83cfb6ae66c5bda1b164190275fdbd4",
       "width": 720,
       "height": 873
     },
@@ -191,5 +191,37 @@
       "width": 720,
       "height": 873
     }
-  }
+  },
+  "revisions": [
+    {
+      "date": "2026-10-21",
+      "reason": "Approved type scale (docs/TYPOGRAPHY.md decision record): Privacy sentence 15px to body, hint glyph 11px medium, companion header medium, companion messages at body size.",
+      "sourceCommit": "e95a2d74eedce5a878dc7cd56856bb322d05f72c",
+      "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39581124954",
+      "artifactId": 12337020600,
+      "environment": {
+        "imageVersion": "20261012.333.1",
+        "playwright": "Version 1.56.1",
+        "node": "v24.21.0",
+        "runnerOS": "Windows"
+      },
+      "approvedBy": "Repository owner, explicit chat confirmation after reviewing the 12 changed captures side by side with the approved images",
+      "approval": "The owner confirmed: I approve all 12 new baselines.",
+      "updated": [
+        "wide-light/settings-privacy.png",
+        "wide-light/settings-ai.png",
+        "wide-light/buddy.png",
+        "wide-dark/settings-privacy.png",
+        "wide-dark/settings-ai.png",
+        "wide-dark/buddy.png",
+        "narrow-light/settings-privacy.png",
+        "narrow-light/settings-ai.png",
+        "narrow-light/buddy.png",
+        "narrow-dark/settings-privacy.png",
+        "narrow-dark/settings-ai.png",
+        "narrow-dark/buddy.png"
+      ],
+      "notTaken": "Five other captures differed only by 1-16 antialiased corner pixels (wide-dark/today, narrow-dark/today, narrow-dark/settings-general, narrow-light/settings-general, narrow-light/chats). Their approved baselines were kept unchanged."
+    }
+  ]
 }

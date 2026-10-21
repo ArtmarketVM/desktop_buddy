@@ -44,4 +44,4 @@
 
 ## Typography
 
-- Follow `docs/TYPOGRAPHY.md`: Instrument Sans for everything, Silkscreen only for 8px uppercase captions and tags; four sizes via `--text-title`, `--text-heading`, `--text-body`, `--text-caption`; weights 400 and 500 only. Never write a literal `font-size` in px.
+- Follow `docs/TYPOGRAPHY.md`: Instrument Sans for everything people read, Silkscreen only for 8px uppercase captions and the sidebar wordmark; five reading sizes via `--text-title`, `--text-heading`, `--text-body`, `--text-caption`, `--text-pix`; weights 400 and 500, with 600 reserved for the page title and the My progress focus figure; no bold. Chat messages use body size in both windows. Never write a literal `font-size` in px.

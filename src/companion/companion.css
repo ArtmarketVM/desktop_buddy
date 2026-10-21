@@ -29,6 +29,7 @@
 .companion-chat header strong {
   display: block;
   font-size: var(--text-body);
+  font-weight: 500;
   letter-spacing: -0.02em;
 }
 .companion-chat header small {

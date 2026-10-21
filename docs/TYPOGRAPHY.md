@@ -1,47 +1,66 @@
 # Typography
 
-This document records the current typography and the conflicts still awaiting an owner decision. CSS consolidation keeps the rendered values; it does not resolve conflicting design rules by changing the UI.
+This is the type rule book for sumi. It records what the main screens render and the owner's decisions of 21 October 2026. Tokens live in `:root` in `src/workspace.css`; font assets are imported in `src/style.css`. Never write a literal `font-size` in px; use a token.
 
-## Fonts and primary scale
+## Faces
 
-Instrument Sans (`--sans`) is the primary typeface for titles, headings, body text, labels, buttons and chat. Silkscreen (`--pix`) is used for tiny uppercase captions and tags. Code uses the existing monospace treatment. Font assets remain imported in `src/style.css`; shared tokens are defined in `:root` in `src/workspace.css`.
+- **Instrument Sans** (`--sans`) for everything people read: titles, headings, body text, labels, buttons, navigation and chat in both windows.
+- **Silkscreen** (`--pix`) only for tiny uppercase captions and the sidebar wordmark. It never sets a sentence. Silkscreen ships one weight; pixel rules declare 400 where they set a weight.
+- Code uses the system monospace.
 
-| Token            | Shipped value | Typical role                                         |
-| ---------------- | ------------- | ---------------------------------------------------- |
-| `--text-title`   | 34px          | Page titles and the Progress focus figure            |
-| `--text-heading` | 18px          | Section/dialog headings and chat titles              |
-| `--text-body`    | 14px          | Goal/step text, messages, controls and navigation    |
-| `--text-caption` | 11px          | Counts, dates, timestamps and supporting information |
+## Scale
 
-The corresponding unitless line-height tokens are `--leading-title` (1.2), `--leading-heading` (1.3), `--leading-body` (1.5) and `--leading-caption` (1.45). The workspace title row retains its explicit `--page-title-leading` (40px).
+Five sizes for reading, plus the wordmark.
 
-Regular 400 and medium 500 remain the normal weights. Primary text uses `--text`, secondary text uses `--muted`, and links/selected controls use their existing accent tokens. Preserve existing hover, focus and selected states.
+| Role          | Token             | Face       | Size | Weight    | Line height | Used for                                                                                         |
+| ------------- | ----------------- | ---------- | ---- | --------- | ----------- | ------------------------------------------------------------------------------------------------ |
+| Title         | `--text-title`    | Sans       | 34px | 600       | 1.2         | The one page title per screen and the focus figure on My progress                                |
+| Heading       | `--text-heading`  | Sans       | 18px | 500       | 1.3         | Section headings (Active, Archive, Your sumi), dialog titles                                     |
+| Body          | `--text-body`     | Sans       | 14px | 400 / 500 | 1.5         | Goals, steps, chat messages in both windows, settings rows, navigation, the Privacy sentence     |
+| Caption       | `--text-caption`  | Sans       | 11px | 400 / 500 | 1.45        | Dates, times, counts, helper lines, the hint `?` glyph; medium for small links such as due dates |
+| Pixel caption | `--text-pix`      | Silkscreen | 8px  | 400       | —           | Uppercase eyebrows, priority tags, day chips, chart axis labels                                  |
+| Wordmark      | `--text-wordmark` | Silkscreen | 15px | 400       | —           | The sidebar logo only                                                                            |
 
-## Preserved special values
+Chat messages use body size wherever they appear. The Chats page and the companion window must match.
 
-These are named exceptions, not permission to introduce arbitrary sizes. Stylesheet declarations use the tokens rather than literal pixel font sizes.
+## Weights
 
-| Token                      | Value                    | Existing use                                                                          |
-| -------------------------- | ------------------------ | ------------------------------------------------------------------------------------- |
-| `--text-pix`               | 8px                      | Silkscreen eyebrows, priority/day/chart labels, memory headings and custom-color chip |
-| `--text-wordmark`          | 15px                     | Sidebar wordmark                                                                      |
-| `--text-privacy`           | 15px                     | Privacy summary sentence                                                              |
-| `--text-hint`              | 10px                     | The hint `?` glyph                                                                    |
-| `--text-rating-mark`       | 30px                     | Feedback rating glyph                                                                 |
-| `--text-orbit-mark`        | 35px                     | Existing decorative orbit mark                                                        |
-| `--text-star-large`        | 27px                     | Existing large decorative star                                                        |
-| `--text-star-small`        | 16px                     | Existing small decorative star                                                        |
-| `--text-onboarding`        | `clamp(25px, 3vw, 31px)` | Shipped onboarding title override                                                     |
-| `--text-onboarding-legacy` | `clamp(26px, 4vw, 35px)` | Historical, fully overridden onboarding size retained as a named value                |
-| `--weight-emphasis`        | 600                      | Existing title, brand, focus-figure and hint emphasis                                 |
+- **400 regular** for body text, descriptions and captions.
+- **500 medium** for headings, buttons, names, the selected item and small links.
+- **600** (`--weight-emphasis`) only for the page title and the My progress focus figure. This is the one deliberate exception; nothing else uses it.
+- No bold (700) anywhere, including inside sentences.
 
-Decorative glyphs are drawings, but their existing font-based dimensions are also tokenized. Tokenization does not change the selected face or the amount of emphasis.
+## Color
 
-## Owner decisions still open
+Primary text uses `--text`. Captions and descriptions use `--muted`. The accent is for links and the selected item of a control, never for titles, labels or status words. For emphasis use medium weight, not color.
 
-1. **Weight:** AGENTS.md permits 400/500 only; the previous typography document explicitly requested 600 for titles and the shipped CSS uses it. The base has five such declarations; the refactor preserves their values for: `h1, .workspace-brand > div, .onboarding-brand`; `.chat-conversations > h1`; `.app-shell .main > .page-title h1`; `.progress-total`; and `.hint` (the grouped first rule counts as one declaration). Decide separately whether 600 should remain in all those contexts.
-2. **Four-size limit:** the earlier document allowed only four sizes while also requiring 8px pixel captions. The shipped UI additionally has 15px wordmark/privacy text, a 10px hint, responsive onboarding sizes and decorative sizes. All are preserved above; any removal or resizing is a visible design proposal.
-3. **Wordmark face:** the earlier prose said Instrument Sans everywhere except tiny captions, while the shipped wordmark rule selects `--pix` at 15px. Preserve that face until the owner chooses a separate design change.
-4. **Title rhythm:** the scale lists a 1.2 line height, while the shared workspace title uses 40px. The current row geometry is preserved rather than forced to 40.8px.
+## Layout rhythm
 
-No visible typography change is part of this refactor. Any future proposal to normalize weights, faces or special sizes must be reviewed separately and must not be hidden in baseline updates.
+One title per screen. If a screen has no title (a chat pane, a dialog), its largest text is a heading. The shared page title row keeps its 40px line box (`--page-title-leading`) so titles sit in the same place on every screen.
+
+## Values outside the main screens
+
+These remain as named tokens because the surfaces that use them were not part of this review. Do not reuse them on the main screens.
+
+| Token                      | Value                    | Use                                         |
+| -------------------------- | ------------------------ | ------------------------------------------- |
+| `--text-rating-mark`       | 30px                     | Feedback rating glyph                       |
+| `--text-orbit-mark`        | 35px                     | Decorative orbit mark                       |
+| `--text-star-large`        | 27px                     | Large decorative star                       |
+| `--text-star-small`        | 16px                     | Small decorative star                       |
+| `--text-onboarding`        | `clamp(25px, 3vw, 31px)` | Onboarding title                            |
+| `--text-onboarding-legacy` | `clamp(26px, 4vw, 35px)` | Fully overridden historical onboarding size |
+
+Review them when onboarding is redesigned.
+
+## Decision record (21 October 2026)
+
+Measured on the eight main screens of v0.39.2 (Today, My progress, All goals, Chats, Settings General/AI/Privacy, the companion window). The owner approved:
+
+1. The Privacy sentence moved from 15px to body (14px). `--text-privacy` was removed.
+2. The hint `?` glyph moved from 10px/600 to caption (11px/500). `--text-hint` was removed.
+3. The companion window header ("sumi") moved from bold to medium.
+4. Companion window chat messages moved from caption (11px) to body (14px), matching the Chats page.
+5. Titles keep 600. The proposal to make them medium was declined.
+
+Pixel rules that declared 500 or 600 now declare 400. This is not visible, because Silkscreen has a single weight. Some pixel elements still inherit 500 from shared button styles; that is equally invisible and needs no override.

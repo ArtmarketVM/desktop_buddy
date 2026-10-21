@@ -27,7 +27,7 @@
 .conversation-message p {
   margin: 0;
   white-space: pre-wrap;
-  font-size: var(--text-caption);
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .conversation-empty {
@@ -125,7 +125,6 @@
   max-height: none;
   height: 100%;
 }
-.workspace-chat .conversation-message p,
 .workspace-chat .conversation-empty {
   font-size: var(--text-body);
 }
@@ -173,12 +172,9 @@
 }
 
 .conversation-message .markdown {
-  font-size: var(--text-caption);
+  font-size: var(--text-body);
   line-height: 1.65;
   overflow-wrap: anywhere;
-}
-.workspace-chat .conversation-message .markdown {
-  font-size: var(--text-body);
 }
 .conversation-message .markdown > * {
   margin: 0 0 0.75em;
