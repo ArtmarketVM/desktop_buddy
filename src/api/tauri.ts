@@ -58,15 +58,10 @@ export const api = {
   resetBuddyPosition: () => invoke<void>("reset_buddy_position"),
   feedbackDraft: (message: string, replyEmail: string) =>
     invoke<void>("open_feedback_draft", { message, replyEmail }),
-  contactEndpoint: () => invoke<string | null>("get_contact_endpoint"),
   saveContactEndpoint: (url: string) =>
     invoke<void>("set_contact_endpoint", { url }),
   sendContactFeedback: (message: string, replyEmail: string) =>
     invoke<void>("send_contact_feedback", { message, replyEmail }),
-  subscribeEmail: (consent: boolean) =>
-    invoke<void>("subscribe_contact_email", { consent }),
-  shareRoleProfile: (profile: UserProfile, consent: boolean) =>
-    invoke<void>("share_role_profile", { profile, consent }),
   saveOnboarding: (profile: UserProfile, draft: OnboardingState) =>
     invoke<UserSettings>("save_onboarding", { profile, draft }),
   onboardingGoal: (text: string) => invoke("create_onboarding_goal", { text }),
