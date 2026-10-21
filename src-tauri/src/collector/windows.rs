@@ -36,6 +36,10 @@ impl ActivityCollector for WindowsCollector {
     fn collect(&mut self) -> Result<ActivitySnapshot, String> {
         // Handles and buffers remain local; the process handle is closed before returning.
         unsafe {
+            if !session_active() {
+                self.tracker = DurationTracker::default();
+                return Err("Desktop session is inactive or locked".into());
+            }
             let hwnd = GetForegroundWindow();
             if hwnd.0.is_null() {
                 return Err("No foreground window is available".into());
@@ -216,5 +220,30 @@ pub fn foreground_meeting() -> bool {
             window_title: title.clone(),
             ..Default::default()
         }) || title.to_ascii_lowercase().contains("powerpoint slide show")
+    }
+}
+
+/// A locked workstation/UAC switches away from the ordinary input desktop.
+pub(super) fn session_active() -> bool {
+    use windows::Win32::System::StationsAndDesktops::*;
+    unsafe {
+        let Ok(desktop) = OpenInputDesktop(DESKTOP_CONTROL_FLAGS(0), false, DESKTOP_READOBJECTS)
+        else {
+            return false;
+        };
+        let mut name = [0u16; 256];
+        let result = GetUserObjectInformationW(
+            windows::Win32::Foundation::HANDLE(desktop.0),
+            UOI_NAME,
+            Some(name.as_mut_ptr().cast()),
+            std::mem::size_of_val(&name) as u32,
+            None,
+        );
+        let _ = CloseDesktop(desktop);
+        result.is_ok()
+            && String::from_utf16_lossy(
+                &name[..name.iter().position(|c| *c == 0).unwrap_or(name.len())],
+            )
+            .eq_ignore_ascii_case("default")
     }
 }

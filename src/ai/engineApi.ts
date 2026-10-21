@@ -37,6 +37,15 @@ export interface PersonalAiEngine {
     latency_ms: number;
     provider_reported_model: string | null;
   } | null;
+  observation?: {
+    interface_text: string;
+    screenshots_enabled: boolean;
+    screenshot_status: string;
+    configured_vision_model: string;
+    automatic_completion: boolean;
+    hourly_disclosures: number;
+    hourly_limit: number;
+  };
   tavily_status: string;
   runtime: {
     status: string;

@@ -221,6 +221,29 @@ export function PersonalAiEnginePanel({
                 ? ` · ${readable(data.last_inference.validation_error)}`
                 : ""}
             </dd>
+            {data.observation && (
+              <>
+                <dt>Interface text</dt>
+                <dd>{readable(data.observation.interface_text)}</dd>
+                <dt>Screenshots</dt>
+                <dd>
+                  {data.observation.screenshots_enabled
+                    ? readable(data.observation.screenshot_status)
+                    : "Off"}
+                </dd>
+                <dt>Configured vision model</dt>
+                <dd>{data.observation.configured_vision_model}</dd>
+                <dt>Automatic completion</dt>
+                <dd>
+                  {data.observation.automatic_completion ? "Opted in" : "Off"}
+                </dd>
+                <dt>Observation requests this hour</dt>
+                <dd>
+                  {data.observation.hourly_disclosures} /{" "}
+                  {data.observation.hourly_limit}
+                </dd>
+              </>
+            )}
             <dt>Tavily status</dt>
             <dd>{readable(data.tavily_status)}</dd>
             <dt>AgentRuntime status</dt>

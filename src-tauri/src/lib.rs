@@ -39,6 +39,8 @@ mod memory;
 mod mixed_action_check;
 mod models;
 mod nebius;
+mod observation;
+mod observation_check;
 mod privacy;
 mod product_feedback;
 mod profile;
@@ -55,8 +57,10 @@ mod tracking;
 mod tray;
 mod unplanned_work;
 mod updates;
+mod vision;
 mod window_history;
 mod work_context;
+mod work_journal;
 mod work_state;
 use tauri::Manager;
 
@@ -125,6 +129,24 @@ pub fn run() {
             Err(error) => {
                 eprintln!(
                     "Mixed-action check failed ({}). No user data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+    if std::env::args().any(|arg| arg == "--check-observation-workflow") {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(observation_check::run());
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Observation check unavailable ({}). No personal data was used.",
                     engine_observability::error_category(&error)
                 );
                 std::process::exit(1);
@@ -364,6 +386,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::get_accessibility_permission,
             tracking::set_goal_monitoring,
+            vision::screenshot_permission,
+            work_journal::get_work_journal,
+            work_journal::undo_work_event,
             unplanned_work::get_unplanned_work_suggestion,
             unplanned_work::respond_unplanned_work_suggestion,
             commands::request_accessibility_permission,

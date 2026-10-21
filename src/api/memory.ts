@@ -68,6 +68,14 @@ export type MemoryOverview = {
   more: boolean;
 };
 export const memoryApi = {
+  addKnowledge: (content: string) =>
+    invoke<MemoryItem>("create_memory", {
+      input: {
+        memory_type: "explicit_fact",
+        scope: { scope_type: "global", scope_id: null },
+        content,
+      },
+    }),
   overview: (offset = 0) =>
     invoke<MemoryOverview>("get_memory_overview", { offset }),
   controls: (controls: MemoryControls) =>
@@ -80,6 +88,8 @@ export const memoryApi = {
     }),
   forget: (id: number) =>
     invoke<void>("forget_memory", { id, confirmed: true }),
+  confirmPattern: (id: number) =>
+    invoke<MemoryItem>("archive_memory", { id, archived: false }),
   pin: (id: number, pinned: boolean) =>
     invoke<void>("pin_memory", { id, pinned }),
   clearGoal: (id: number) =>

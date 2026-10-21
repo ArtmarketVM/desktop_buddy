@@ -255,8 +255,8 @@ impl Storage {
         rows.truncate(500);
         metadata.found = self.connection.query_row("SELECT COUNT(*) FROM memories WHERE archived=0 AND (scope_type='global' OR (scope_type='goal' AND scope_id=?1) OR (scope_type='conversation' AND scope_id=?2))",params![goal_id,chat_id],|r|r.get(0)).map_err(db_error)?;
         let now = Utc::now();
-        let words: Vec<_> = input
-            .user_request
+        let relevance = format!("{} {}", input.user_request, context["goal"]);
+        let words: Vec<_> = relevance
             .split(|c: char| !c.is_alphanumeric())
             .filter(|s| s.chars().count() >= 4)
             .map(str::to_lowercase)
@@ -365,7 +365,7 @@ impl Storage {
                 break;
             }
             let mut candidate = context.clone();
-            candidate["memories"].as_array_mut().unwrap().push(json!({"id":item.id,"type":item.memory_type,"scope":item.scope,"content":item.content,"confidence":item.confidence,"event":item.event_kind,"step_id":step}));
+            candidate["memories"].as_array_mut().unwrap().push(json!({"id":item.id,"type":item.memory_type,"scope":item.scope,"content":item.content,"confidence":item.confidence,"source":item.source,"updated_at":item.updated_at,"event":item.event_kind,"step_id":step}));
             if size(&candidate) > budget.maximum_context_size {
                 continue;
             }

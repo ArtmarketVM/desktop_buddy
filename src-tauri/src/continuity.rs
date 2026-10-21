@@ -53,6 +53,7 @@ pub struct Report {
     pub view: View,
     pub lanes: Vec<Lane>,
     pub pinned_preferences: Vec<String>,
+    pub work_events: Vec<crate::work_journal::WorkEvent>,
     pub omitted_lanes: usize,
     pub note: &'static str,
 }
@@ -160,7 +161,7 @@ impl Storage {
                     updated_at: c.updated_at,
                 })
             };
-            let mut q=self.connection.prepare("SELECT e.id,e.step_id,e.title,e.completion_source,e.day FROM core_events e WHERE e.goal_id=?1 AND e.day BETWEEN ?2 AND ?3 AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id=e.step_id AND x.day<=?3 AND (?4 OR x.day=e.day)) ORDER BY e.id LIMIT 101").map_err(db)?;
+            let mut q=self.connection.prepare("SELECT e.id,e.step_id,e.title,COALESCE((SELECT w.source FROM work_events w WHERE w.core_event_id=e.id AND w.status='completed' LIMIT 1),e.completion_source),e.day FROM core_events e WHERE e.goal_id=?1 AND e.day BETWEEN ?2 AND ?3 AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id=e.step_id AND x.day<=?3 AND (?4 OR x.day=e.day)) ORDER BY e.id LIMIT 101").map_err(db)?;
             let start_day = if view == View::Priorities {
                 (selected - Duration::days(6)).to_string()
             } else {
@@ -255,6 +256,11 @@ impl Storage {
             vec![]
         };
         Ok(Report {
+            work_events: self
+                .work_journal(&day)?
+                .into_iter()
+                .filter(|e| goal_id.is_none_or(|id| e.goal_id == Some(id)))
+                .collect(),
             day,
             view,
             lanes,
@@ -383,6 +389,29 @@ impl Report {
         }
         if self.lanes.is_empty() {
             out.push("No matching recorded work context or results.".into());
+        }
+        if !self.work_events.is_empty() {
+            out.push("### Work outside the plan and verified results".into());
+            for event in &self.work_events {
+                if event.status == "undone" {
+                    continue;
+                }
+                // Goal-linked completions are already included in the lane above.
+                if event.source == "automatic_verified"
+                    || event.source == "user_confirmed_unplanned"
+                {
+                    continue;
+                }
+                out.push(format!(
+                    "- {} — {} (completion is not inferred).",
+                    event.title,
+                    if event.status == "planned" {
+                        "added to Today"
+                    } else {
+                        "observed work"
+                    }
+                ));
+            }
         }
         for p in &self.pinned_preferences {
             out.push(format!(

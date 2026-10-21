@@ -9,39 +9,51 @@ export function InterventionCard({
   respond: (action: InterventionResponse) => void;
 }) {
   const title =
-    prompt.kind === "deadline"
-      ? "A deadline check-in"
-      : prompt.kind === "research"
-        ? "Find information for this step?"
-        : prompt.kind === "goal_completion"
-          ? "Looks like this goal may be complete"
-          : prompt.kind === "new_task"
-            ? "Looks like a new task"
-            : prompt.kind === "completion"
-              ? "Looks like this may be done"
-              : prompt.kind === "movement"
-                ? "A moment to stretch"
-                : prompt.kind === "end_of_day"
-                  ? "A small wrap-up"
-                  : "A quick check-in";
+    prompt.kind === "automatic_completion"
+      ? "A verified result"
+      : prompt.kind === "unplanned_completed"
+        ? "Add this to today’s completed work?"
+        : prompt.kind === "unplanned_work"
+          ? "Add this work to Today?"
+          : prompt.kind === "deadline"
+            ? "A deadline check-in"
+            : prompt.kind === "research"
+              ? "Find information for this step?"
+              : prompt.kind === "goal_completion"
+                ? "Looks like this goal may be complete"
+                : prompt.kind === "new_task"
+                  ? "Looks like a new task"
+                  : prompt.kind === "completion"
+                    ? "Looks like this may be done"
+                    : prompt.kind === "movement"
+                      ? "A moment to stretch"
+                      : prompt.kind === "end_of_day"
+                        ? "A small wrap-up"
+                        : "A quick check-in";
   const accept =
-    prompt.kind === "deadline"
-      ? "Mark complete"
-      : prompt.kind === "research"
-        ? "Search the web"
-        : prompt.kind === "goal_completion"
-          ? "Yes, complete goal"
-          : prompt.kind === "new_task"
-            ? "Add task"
-            : prompt.kind === "completion"
-              ? "Yes, mark complete"
-              : prompt.kind === "no_goals"
-                ? "Plan today"
-                : prompt.kind === "movement"
-                  ? "Done"
-                  : prompt.kind === "midday"
-                    ? "Ask sumi"
-                    : "Review progress";
+    prompt.kind === "automatic_completion"
+      ? "Undo"
+      : prompt.kind === "unplanned_completed"
+        ? "Add completed"
+        : prompt.kind === "unplanned_work"
+          ? "Add to Today"
+          : prompt.kind === "deadline"
+            ? "Mark complete"
+            : prompt.kind === "research"
+              ? "Search the web"
+              : prompt.kind === "goal_completion"
+                ? "Yes, complete goal"
+                : prompt.kind === "new_task"
+                  ? "Add task"
+                  : prompt.kind === "completion"
+                    ? "Yes, mark complete"
+                    : prompt.kind === "no_goals"
+                      ? "Plan today"
+                      : prompt.kind === "movement"
+                        ? "Done"
+                        : prompt.kind === "midday"
+                          ? "Ask sumi"
+                          : "Review progress";
   return (
     <div className="companion-bubble">
       <section
@@ -65,6 +77,19 @@ export function InterventionCard({
           </small>
         )}
         <div className="companion-prompt-actions">
+          {[
+            "unplanned_work",
+            "unplanned_completed",
+            "automatic_completion",
+          ].includes(prompt.kind) && (
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => respond("chat")}
+            >
+              Chat
+            </button>
+          )}
           <button disabled={busy} onClick={() => respond("accept")}>
             {accept}
           </button>
@@ -110,7 +135,13 @@ export function InterventionCard({
               ? "Not yet"
               : prompt.kind === "no_goals"
                 ? "No plan today"
-                : "Not now"}
+                : prompt.kind === "automatic_completion"
+                  ? "Got it"
+                  : ["unplanned_work", "unplanned_completed"].includes(
+                        prompt.kind,
+                      )
+                    ? "Skip"
+                    : "Not now"}
           </button>
           {prompt.kind === "end_of_day" && (
             <>

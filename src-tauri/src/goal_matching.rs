@@ -42,6 +42,7 @@ pub struct Runtime {
     pub view: MatchView,
     pub metrics: Metrics,
     sample: Option<ActivitySnapshot>,
+    lane_sample: Option<(i64, ActivitySnapshot)>,
     stable_since: Option<Instant>,
     last_seen: Option<Instant>,
     last_attempt: Option<Instant>,
@@ -193,6 +194,9 @@ fn observe_inner_at(
     if let Some(id) = view.goal_id {
         select_goal(inner, id)?;
     }
+    if let Some(id) = view.goal_id {
+        inner.goal_matching.lane_sample = Some((id, sample.clone()));
+    }
     inner.goal_matching.view = view;
     // Focus lifecycle updates can change a checkpoint; bind to the resulting state.
     inner.goal_matching.signature = Some(resolution::resolve(inner, sample)?.signature);
@@ -201,15 +205,15 @@ fn observe_inner_at(
 /// Parks the goal the user is leaving with where they were, so the agent and the user can pick it
 /// up later without a manual Park. Nothing here may block the lane switch itself.
 fn auto_park(inner: &mut crate::commands::Inner, previous: i64) {
-    let Some(sample) = inner
+    // The pending/current sample already belongs to the destination window.
+    // Only the last sample attributed to the lane being left is a checkpoint.
+    let sample = inner
         .goal_matching
-        .current_sample()
-        .cloned()
-        .or_else(|| inner.buddy.foreground.clone())
-    else {
-        return;
-    };
-    let Ok(snapshot) = inner.storage.core_snapshot(None) else {
+        .lane_sample
+        .as_ref()
+        .filter(|(id, _)| *id == previous)
+        .map(|(_, s)| s.clone());
+    let Ok(snapshot) = inner.storage.core_work_snapshot() else {
         return;
     };
     let Some(goal) = snapshot
@@ -226,17 +230,16 @@ fn auto_park(inner: &mut crate::commands::Inner, previous: i64) {
         .find(|s| !s.done)
         .map(|s| s.text.clone())
         .unwrap_or_else(|| format!("Continue {}", goal.title));
-    let place = if sample.window_title.trim().is_empty() {
-        sample.process_name.clone()
-    } else {
-        format!("{}: {}", sample.process_name, sample.window_title)
-    };
+    let summary = sample
+        .as_ref()
+        .map(|s| format!("Automatically parked while in {}", s.process_name))
+        .unwrap_or_else(|| "Automatically parked when switching goals".into());
     let _ = inner.storage.auto_checkpoint(
         previous,
-        &format!("Automatically parked while in {place}"),
+        &summary,
         &next_action,
-        Some(&sample.process_name),
-        Some(&sample.window_title),
+        sample.as_ref().map(|s| s.process_name.as_str()),
+        sample.as_ref().map(|s| s.window_title.as_str()),
     );
 }
 fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String> {
@@ -313,7 +316,7 @@ pub fn attribution(
     })
 }
 fn candidates(inner: &crate::commands::Inner) -> Result<Value, String> {
-    let snapshot = inner.storage.core_snapshot(None)?;
+    let snapshot = inner.storage.core_work_snapshot()?;
     let mut goals: Vec<_> = snapshot
         .goals
         .iter()
@@ -549,6 +552,7 @@ fn finish(
             }
             if let Some(id) = id {
                 select_goal(inner, id)?;
+                inner.goal_matching.lane_sample = Some((id, job.sample.clone()));
             }
             MatchView {
                 goal_id: id,

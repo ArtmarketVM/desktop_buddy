@@ -478,6 +478,9 @@ impl<'a> Service<'a> {
         if name == "buddy_unplanned_work" {
             payload["max_tokens"] = json!(4096);
         }
+        if matches!(name, "verify_work_receipt" | "companion_task_signal") {
+            payload["max_tokens"] = json!(1024);
+        }
         if name == "buddy_coaching_voice_judge" {
             payload["temperature"] = json!(1.0);
             payload["max_tokens"] = json!(4096);
@@ -501,8 +504,18 @@ impl<'a> Service<'a> {
         if let Some(check) = preflight {
             check()?;
         }
-        let result = if name == "buddy_unplanned_work" {
-            http::post_background_once_json(self.client, &self.endpoint, &self.key, &payload).await
+        let result = if matches!(
+            name,
+            "buddy_unplanned_work" | "verify_work_receipt" | "companion_task_signal"
+        ) {
+            http::post_guarded_json(
+                self.client,
+                &self.endpoint,
+                &self.key,
+                &payload,
+                preflight.unwrap_or(&|| Ok(())),
+            )
+            .await
         } else if name == "buddy_coaching_voice_judge" {
             http::post_evaluation_json(self.client, &self.endpoint, &self.key, &payload).await
         } else if default_interactive {

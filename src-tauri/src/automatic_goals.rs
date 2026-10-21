@@ -191,7 +191,11 @@ pub async fn run_pending(app: &AppHandle) {
             return Ok(None);
         };
         inner.storage.connection.execute("UPDATE core_goal_analyses SET state='working',attempts=attempts+1 WHERE goal_id=?1 AND state='queued'", [goal.id]).map_err(|_| "Goal suggestions unavailable")?;
-        Ok(Some(input(goal)))
+        let mut input = input(goal);
+        input.user_context_ref = Some(
+            crate::observation::personal_context(&inner, &goal.title, Some(goal.id)).to_string(),
+        );
+        Ok(Some(input))
     })();
     let Ok(Some(input)) = job else { return };
     let id = input.goal_id.parse::<i64>().unwrap_or_default();

@@ -80,6 +80,8 @@ impl Storage {
         key: &str,
         day: &str,
         title: &str,
+        completed: bool,
+        receipt_key: Option<&str>,
     ) -> Result<i64, String> {
         if !valid_title(title) {
             return Err("Enter a valid task title".into());
@@ -128,14 +130,19 @@ impl Storage {
             .map_err(db)?;
         let now = Utc::now().to_rfc3339();
         tx.execute(
-            "INSERT INTO goals(text,status,created_at,completed_at) VALUES(?1,'completed',?2,?2)",
-            params![title, now],
+            "INSERT INTO goals(text,status,created_at,completed_at) VALUES(?1,?3,?2,?4)",
+            params![
+                title,
+                now,
+                if completed { "completed" } else { "deferred" },
+                completed.then_some(&now)
+            ],
         )
         .map_err(db)?;
         let goal = tx.last_insert_rowid();
         tx.execute(
-            "INSERT INTO core_goals(goal_id,area_id,state) VALUES(?1,?2,'completed')",
-            params![goal, area],
+            "INSERT INTO core_goals(goal_id,area_id,state) VALUES(?1,?2,?3)",
+            params![goal, area, if completed { "completed" } else { "open" }],
         )
         .map_err(db)?;
         tx.execute(
@@ -143,7 +150,21 @@ impl Storage {
             params![day, goal],
         )
         .map_err(db)?;
-        tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,'completed',?3,?4,'ai_suggested_user_confirmed')",params![goal,title,day,now]).map_err(db)?;
+        if completed {
+            tx.execute("INSERT INTO core_events(goal_id,step_id,title,kind,day,created_at,completion_source) VALUES(?1,'goal',?2,'completed',?3,?4,'ai_suggested_user_confirmed')",params![goal,title,day,now]).map_err(db)?;
+        }
+        tx.execute("INSERT INTO work_events(evidence_key,goal_id,title,app,occurred_at,source,status) VALUES(?1,?2,?3,'Foreground work',?4,?5,?6)",params![format!("accepted:{key}"),goal,title,now,if completed {"user_confirmed_unplanned"}else{"user_planned"},if completed {"completed"}else{"planned"}]).map_err(db)?;
+        tx.execute("UPDATE work_events SET source_event_id=(SELECT id FROM work_events WHERE evidence_key=?1),receipt_key=?2,occurred_at=COALESCE((SELECT occurred_at FROM work_events WHERE evidence_key=?1),occurred_at) WHERE evidence_key=?3",params![format!("noticed:{key}"),receipt_key,format!("accepted:{key}")]).map_err(db)?;
+        if completed {
+            let plan = crate::goals::GoalPlan {
+                goal_id: goal,
+                revision: 0,
+                done_when: String::new(),
+                steps: vec![],
+                current_step: None,
+            };
+            tx.execute("UPDATE work_events SET undo_plan=?1,after_revision=0,core_event_id=(SELECT MAX(id) FROM core_events WHERE goal_id=?2) WHERE evidence_key=?3",params![serde_json::to_string(&plan).map_err(|_|"Invalid undo snapshot")?,goal,format!("accepted:{key}")]).map_err(db)?;
+        }
         for row in rows {
             // The original interval is moved, never copied. No elapsed duration is
             // inferred from a session's first/last timestamp or from model output.

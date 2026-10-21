@@ -5,9 +5,9 @@ Read this short file first in a new task. Verify Git and release state before re
 ## Product and current state
 
 - Repository: `ArtmarketVM/desktop_buddy`; default branch: `main`.
-- Latest verified public app: **0.39.2**, source `79f4f61baf9229ec77603f8617841c202eecd607`.
-- Release: https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.39.2
-- Release verification: https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39541225222
+- Last fetched main: `7387877` (dead-code cleanup merged). Latest public release at implementation start: **0.39.4**.
+- Personal AI observation work targets **0.40.0** on `codex/personal-ai-workflow`; check GitHub for current CI/publication status.
+- Architecture and limitations: `docs/PERSONAL_AI_OBSERVATION.md`. Validation: `docs/PERSONAL_AI_VALIDATION.md`.
 - Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
 - CI/release optimization is implemented on main through `8c54921`: shared validation, input-bound proof reuse, separate Cargo bundle caches and one monitor process. Both native cold/warm runs passed. See `docs/RELEASE_PROCESS.md` for measurements and run links. No product version bump or new installer release was made for this infrastructure change.
 
@@ -24,9 +24,10 @@ Read this short file first in a new task. Verify Git and release state before re
 
 ## Known issues and pending work
 
-- Automatic parking exists. `goal_matching::auto_park` can use the newly active window when saving the goal being left; its existing lane-switch test does not catch that wrong-window case. It is **not fixed** by 0.39.2 or the CI work.
+- The observation update fixes automatic parking to use the previous lane’s last attributed window; a regression test checks the saved window. Screenshot use and automatic completion default to off and remain independent consents.
+- `work_events` is an additive local schema, separate from history and Personal Memory. Durable Undo rejects changed plans. Pending unplanned-work offers remain runtime-only; observed journal entries survive restart.
 - 0.39.2 removed What's new and repeated current-channel updater descriptions. No version-specific descriptions are implemented yet.
-- Existing frontend lint rollout remains non-blocking: 11 errors / 13 warnings at the last measured application state. Keep findings visible; no blanket suppressions.
+- ESLint, Clippy and Knip now block at zero findings. Canonical Windows visual baselines require explicit human owner review before replacement; never auto-accept candidates.
 - Native microphone, installed-app permissions and live-provider behavior remain distinct from synthetic acceptance tests.
 
 ## Start and finish a task

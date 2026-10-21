@@ -237,3 +237,47 @@ async fn goal_changes_during_sampling_do_not_force_another_accessibility_read() 
     .unwrap();
     assert_eq!(first, second);
 }
+
+#[tokio::test]
+async fn quiet_mode_keeps_observation_but_pause_private_and_away_stop_it() {
+    let (state, activity) = fixture();
+    state.inner.lock().unwrap().status.dnd = true;
+    assert!(allowed(&state.inner.lock().unwrap(), &activity));
+    state
+        .inner
+        .lock()
+        .unwrap()
+        .companion
+        .view
+        .preferences
+        .paused = true;
+    assert!(!allowed(&state.inner.lock().unwrap(), &activity));
+    state
+        .inner
+        .lock()
+        .unwrap()
+        .companion
+        .view
+        .preferences
+        .paused = false;
+    let away = ActivitySnapshot {
+        idle_seconds: 99999,
+        ..activity.clone()
+    };
+    state.inner.lock().unwrap().buddy.foreground = Some(away.clone());
+    assert!(!allowed(&state.inner.lock().unwrap(), &away));
+    let private = ActivitySnapshot {
+        window_title: "Private browsing".into(),
+        ..activity
+    };
+    state.inner.lock().unwrap().buddy.foreground = Some(private.clone());
+    assert!(!allowed(&state.inner.lock().unwrap(), &private));
+}
+
+#[test]
+fn locked_or_secure_session_rejects_even_a_matching_cached_foreground() {
+    let (state, activity) = fixture();
+    let inner = state.inner.lock().unwrap();
+    assert!(allowed_in_session(&inner, &activity, true));
+    assert!(!allowed_in_session(&inner, &activity, false));
+}

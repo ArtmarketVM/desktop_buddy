@@ -17,6 +17,8 @@ pub struct MemoryUpdate {
     pub content: Option<String>,
     pub event: Option<MemoryEvent>,
     pub confidence: f64,
+    #[serde(default)]
+    pub supersedes: Option<i64>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,9 +37,9 @@ pub fn schema() -> Value {
         "decision":{"type":"string","enum":["stay_silent","update_memory_only","offer_help","offer_skill","execute_explicit_user_action","request_clarification"]},
         "proposed_actions":skills::plan_schema()["properties"]["actions"],
         "memory_updates":{"type":"array","maxItems":4,"items":{"type":"object","additionalProperties":false,"properties":{
-            "kind":{"type":"string","enum":["preference","verified_event"]},"content":{"type":["string","null"],"maxLength":500},
+            "kind":{"type":"string","enum":["preference","fact","verified_event"]},"content":{"type":["string","null"],"maxLength":500},
             "event":{"type":["string","null"],"enum":[null,"step_completed","goal_completed","goal_parked","goal_resumed"]},
-            "confidence":{"type":"number","minimum":0.85,"maximum":1}},"required":["kind","content","event","confidence"]}},
+            "confidence":{"type":"number","minimum":0.85,"maximum":1},"supersedes":{"type":["integer","null"],"minimum":1}},"required":["kind","content","event","confidence","supersedes"]}},
         "state_version":{"type":"string","minLength":1,"maxLength":100},
         "clarification":{"type":["string","null"],"maxLength":500}},
         "required":["situation","decision","proposed_actions","memory_updates","state_version","clarification"]})
@@ -45,6 +47,10 @@ pub fn schema() -> Value {
 /// Background inference must not advertise an action it can never authorize.
 pub fn background_schema() -> Value {
     let mut schema = schema();
+    schema["properties"]["memory_updates"]["items"]["properties"]["supersedes"] =
+        json!({"type":"null"});
+    schema["properties"]["memory_updates"]["items"]["properties"]["kind"]["enum"] =
+        json!(["verified_event"]);
     schema["properties"]["decision"]["enum"] = json!([
         "stay_silent",
         "update_memory_only",
@@ -87,8 +93,11 @@ pub fn parse(response: &Value) -> Result<Reasoning, String> {
     for update in &result.memory_updates {
         if !update.confidence.is_finite()
             || !(0.85..=1.).contains(&update.confidence)
-            || !["preference", "verified_event"].contains(&update.kind.as_str())
-            || (update.kind == "preference" && (update.event.is_some() || update.content.is_none()))
+            || !["preference", "fact", "verified_event"].contains(&update.kind.as_str())
+            || (matches!(update.kind.as_str(), "preference" | "fact")
+                && (update.event.is_some() || update.content.is_none()))
+            || (update.kind == "verified_event" && update.supersedes.is_some())
+            || update.supersedes.is_some_and(|id| id <= 0)
             || (update.kind == "verified_event"
                 && (update.content.is_some()
                     || !matches!(
@@ -229,19 +238,20 @@ pub fn stage_preferences(
 ) -> usize {
     updates
         .iter()
-        .filter(|u| u.kind == "preference")
+        .filter(|u| matches!(u.kind.as_str(), "preference" | "fact"))
         .filter(|u| {
             storage
-                .stage_memory_proposal(
-                    &memory::retriever::MemoryProposal {
-                        operation: "store_memory".into(),
-                        memory_type: "preference".into(),
-                        content: u.content.clone().unwrap_or_default(),
-                        confidence: u.confidence,
-                        source: "explicit_user_statement".into(),
-                    },
+                .correct_user_knowledge(
+                    u.content.as_deref().unwrap_or_default(),
                     statement,
                     conversation,
+                    if u.kind == "fact" {
+                        memory::MemoryType::ExplicitFact
+                    } else {
+                        memory::MemoryType::ExplicitPreference
+                    },
+                    u.confidence,
+                    u.supersedes,
                 )
                 .is_ok()
         })

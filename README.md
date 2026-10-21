@@ -25,7 +25,9 @@ The Mac application uses the project's stable internal code-signing identity. Th
 - **Gentle interventions:** offer help when work appears stuck or drifting, subject to consent, confidence, quiet hours, cooldowns and other suppression rules. Remaining silent is a valid agent decision.
 - **Overdue goal check-ins:** offer **Mark complete**, **Do today** or **Not now** for eligible unfinished overdue goals. **Do today** adds the goal to Today and moves its deadline to the end of the current local day; it preserves unfinished steps and existing focus.
 - **Contextual research:** after applicable search authorization, use Tavily sources to answer a current work question and attach research to the goal's WorkContext.
-- **Completion suggestions:** optionally inspect a limited sample of accessible visible text for evidence of a finished step. Suggestions require user confirmation; time spent alone never proves completion.
+- **Evidence-based completion:** suggest finished work from bounded interface text. A separate opt-in can automatically complete an existing goal/step after an independent receipt check, with durable Undo in Progress. Time alone never proves completion.
+- **Work outside the plan:** offer an open Today task for ongoing work, or a completed item only for a verified result. New goals always require acceptance.
+- **Optional active-window vision:** disabled by default, with separate system permission, ephemeral bounded images, private/excluded-window gates and text fallback. Vision descriptions alone cannot close tasks.
 - **Daily continuity:** summarize saved priorities, waiting items, parked work and confirmed completions across goals, without inventing completed work or assigning a productivity score.
 - **Coaching:** one executable **Tiny Habits** workflow helps turn a goal barrier into a small feasible action and an anchor. It is not a collection of 16 implemented coaching workflows, and finishing a coaching micro-action does not automatically complete its parent goal.
 - **Local voice input:** turn supported local speech recognition into a transcript that enters the same chat/action pipeline as typed text. Raw audio is not sent to Nebius or Tavily.
@@ -39,12 +41,15 @@ These capabilities have different prerequisites. The companion can remain visibl
 | Nebius Token Factory      | Hosted chat-completions API                        | Runs the configured language models; it is the inference provider                                              |
 | NVIDIA Nemotron           | `nvidia/nemotron-3-super-120b-a12b`                | Background reasoning, goal matching, completion analysis and auxiliary operations                              |
 | Kimi K3                   | `moonshotai/Kimi-K3`, through Nebius               | Interactive dialogue planning, action authorization/review, answers, research synthesis and checkpoint wording |
+| Optional foreground vision | `nvidia/Nemotron-3.5-Super-VL` through Nebius; account support must be checked | Adds visual context when separately enabled; does not replace native receipt evidence |
 | Tavily                    | Search API                                         | Retrieves web sources; it is not a dialogue model                                                              |
 | Native speech recognition | macOS Apple Speech / Windows installed recognizers | Converts local audio to text before chat processing                                                            |
 
 The language models run in the cloud. An NVIDIA GPU is not required on the user's computer. The developer panel distinguishes the **configured model** from a provider-reported model ID when one is available.
 
 Runtime overrides can change these roles. In particular, setting `NEBIUS_MODEL_ID` without `NEBIUS_REASONING_MODEL_ID` makes the interactive role use that explicitly selected primary model too. The checked-in `.env.example` includes a primary override; copying it unchanged therefore does **not** retain the default Nemotron/Kimi split. Remove that model override to use built-in routing, or set both role overrides intentionally.
+
+See [Personal AI observation](docs/PERSONAL_AI_OBSERVATION.md) for consent, evidence, journal, personalization and limits.
 
 ## How decisions become actions
 
@@ -90,7 +95,7 @@ Research uses the relevant goal, step and checkpoint to form a limited query. Ta
 
 Tracking startup follows saved onboarding consent and the saved tracking request; it does not universally reset to paused. OS permissions and privacy gates still apply. Quiet Mode/DND, quiet or working hours, snooze, excluded/private apps and other context gates can suppress background interruptions.
 
-Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. Full raw accessibility text is not stored as permanent Personal Memory; an explicitly enabled completion feature can send a bounded, filtered visible-text sample to Nebius.
+Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. Optional screenshot buffers are transient and never stored in the local journal. Full raw accessibility text is not stored as permanent Personal Memory; an explicitly enabled completion feature can send a bounded, filtered visible-text sample to Nebius.
 
 Provider keys remain runtime-only: Windows uses Credential Manager; macOS uses Keychain through a pinned credential helper that verifies the calling application's signing identity. Saved keys take precedence over environment keys. Removing a saved key does not revoke it at the provider and can expose an existing environment fallback.
 

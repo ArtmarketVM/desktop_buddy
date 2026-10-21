@@ -7,6 +7,8 @@ pub struct Preferences {
     pub paused: bool,
     pub daily_checkins: bool,
     pub screen_task_detection: bool,
+    pub use_screenshots: bool,
+    pub automatic_completion: bool,
     pub hide_fullscreen: bool,
     pub morning_delay_minutes: u32,
     pub cooldown_minutes: u32,
@@ -22,6 +24,8 @@ impl Default for Preferences {
             paused: false,
             daily_checkins: true,
             screen_task_detection: true,
+            use_screenshots: false,
+            automatic_completion: false,
             hide_fullscreen: true,
             morning_delay_minutes: 10,
             cooldown_minutes: 60,
@@ -62,6 +66,9 @@ impl Preferences {
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
+    AutomaticCompletion,
+    UnplannedWork,
+    UnplannedCompleted,
     NewTask,
     Completion,
     GoalCompletion,
@@ -288,6 +295,7 @@ impl Detection {
         Ok(self)
     }
     pub fn validate_evidence(self, visible: &str) -> Result<Self, String> {
+        let visible = visible.split("\n[Visual context").next().unwrap_or(visible);
         if matches!(self.kind.as_str(), "completion" | "goal_completion") {
             let evidence = self
                 .evidence

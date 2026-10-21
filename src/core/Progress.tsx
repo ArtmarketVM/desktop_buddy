@@ -1,3 +1,4 @@
+import { WorkJournal } from "./WorkJournal";
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { PeriodPicker, endOfMonth } from "./PeriodPicker";
@@ -477,6 +478,7 @@ export function Progress({
           )}
         </ul>
       )}
+      {period === "day" && <WorkJournal day={newest} />}
     </section>
   );
 }

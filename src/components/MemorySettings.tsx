@@ -10,6 +10,7 @@ import {
 } from "../api/memory";
 
 const memoryCategories = [
+  "Personal knowledge",
   "Work",
   "Preferences",
   "Patterns",
@@ -18,6 +19,11 @@ const memoryCategories = [
 ] as const;
 type Category = (typeof memoryCategories)[number];
 function memoryCategory(item: MemoryItem): Category {
+  if (
+    item.memory_type === "explicit_fact" &&
+    item.scope.scope_type === "global"
+  )
+    return "Personal knowledge";
   if (item.memory_type.includes("preference")) return "Preferences";
   if (item.memory_type === "behavioral_pattern") return "Patterns";
   if (item.event_kind === "waiting_state") return "Waiting";
@@ -43,7 +49,7 @@ function readable(content: string): string {
 const COMPACT: Record<keyof MemoryControls, [string, string]> = {
   enabled: [
     "Remember",
-    "Facts you tell sumi, where you stopped on each goal, and the ways of working you confirm. Kept on this Mac.",
+    "Facts you tell sumi, where you stopped on each goal, and the ways of working you confirm. Kept on this computer.",
   ],
   remember_work_context: [
     "Where I left off",
@@ -107,6 +113,7 @@ export function MemorySettings({
   const [message, setMessage] = useState("");
   const [editing, setEditing] = useState<MemoryItem | WorkContext | null>(null);
   const [draft, setDraft] = useState("");
+  const [knowledge, setKnowledge] = useState("");
   const [nextAction, setNextAction] = useState("");
   const [waitingFor, setWaitingFor] = useState("");
   const [confirmation, setConfirmation] = useState<{
@@ -223,6 +230,41 @@ export function MemorySettings({
           {part !== "controls" && (
             <>
               {part === "all" && <h3>View what sumi remembers</h3>}
+              {category === "Personal knowledge" && (
+                <div className="card">
+                  <p>
+                    Your main work, side projects and typical tasks. Add only
+                    the context you want sumi to remember.
+                  </p>
+                  <textarea
+                    aria-label="Personal knowledge"
+                    value={knowledge}
+                    maxLength={500}
+                    disabled={
+                      blocked ||
+                      !data.controls.enabled ||
+                      !data.controls.remember_work_context
+                    }
+                    onChange={(e) => setKnowledge(e.target.value)}
+                  />
+                  <button
+                    disabled={
+                      blocked ||
+                      !knowledge.trim() ||
+                      !data.controls.enabled ||
+                      !data.controls.remember_work_context
+                    }
+                    onClick={() =>
+                      void run(async () => {
+                        await memoryApi.addKnowledge(knowledge);
+                        setKnowledge("");
+                      }, "Personal knowledge saved.")
+                    }
+                  >
+                    Remember this
+                  </button>
+                </div>
+              )}
               <div className="memory-filter" role="group" aria-label="Category">
                 {memoryCategories.map((value) => (
                   <button
@@ -265,6 +307,24 @@ export function MemorySettings({
                           {item.evidence_count} supporting events
                         </p>
                       ) : null}
+                      {item.archived &&
+                        item.memory_type === "behavioral_pattern" && (
+                          <button
+                            disabled={
+                              blocked ||
+                              !data.controls.enabled ||
+                              !data.controls.learn_from_feedback
+                            }
+                            onClick={() =>
+                              void run(
+                                () => memoryApi.confirmPattern(item.id),
+                                "Work pattern confirmed.",
+                              )
+                            }
+                          >
+                            Use this pattern
+                          </button>
+                        )}
                       <div className="memory-actions">
                         <button
                           type="button"

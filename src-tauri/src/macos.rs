@@ -16,14 +16,18 @@ use tauri::{Manager, WebviewWindow};
 #[link(name = "Carbon", kind = "framework")]
 #[link(name = "Speech", kind = "framework")]
 #[link(name = "CoreAudio", kind = "framework")]
+#[link(name = "ScreenCaptureKit", kind = "framework")]
 extern "C" {
     fn buddy_free(value: *mut c_char);
     fn buddy_accessibility(prompt: bool) -> bool;
+    fn buddy_session_active() -> bool;
     fn buddy_idle() -> f64;
     fn buddy_foreground(metadata: bool) -> *mut c_char;
     fn buddy_fullscreen() -> bool;
     fn buddy_pin_window(window: *mut c_void);
     fn buddy_context(window: u64, selected: bool) -> *mut c_char;
+    fn buddy_screen_permission(request: bool) -> bool;
+    fn buddy_capture_window(window: u64) -> *mut c_char;
     fn buddy_apps() -> *mut c_char;
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
         -> *mut c_char;
@@ -203,6 +207,10 @@ impl crate::collector::ActivityCollector for MacCollector {
         self.excluded = excluded.to_vec();
     }
     fn collect(&mut self) -> Result<crate::models::ActivitySnapshot, String> {
+        if !session_active() {
+            self.tracker = Default::default();
+            return Err("Desktop session is inactive or locked".into());
+        }
         let active = foreground(false)?;
         if self.previous_window != active.window {
             self.tracker = Default::default();
@@ -257,6 +265,23 @@ impl crate::collector::ActivityCollector for MacCollector {
             media_playing: active.media,
         })
     }
+}
+
+pub(crate) fn session_active() -> bool {
+    unsafe { buddy_session_active() }
+}
+pub(crate) fn screen_permission(request: bool) -> bool {
+    unsafe { buddy_screen_permission(request) }
+}
+pub(crate) fn capture_window(window: u64) -> Result<String, String> {
+    if foreground(false)?.window != window {
+        return Err("Capture foreground changed".into());
+    }
+    let image = decode(unsafe { buddy_capture_window(window) })?;
+    if foreground(false)?.window != window {
+        return Err("Capture foreground changed".into());
+    }
+    Ok(image)
 }
 
 #[cfg(test)]
