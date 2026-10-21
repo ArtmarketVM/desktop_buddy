@@ -87,6 +87,8 @@ export function GoalOrder({
   const blocked = disabled || !desktop;
   const allIds = allGoals.map((goal) => goal.id);
   const visibleIds = goals.map((goal) => goal.id);
+  const allKey = allIds.join(",");
+  const visibleKey = visibleIds.join(",");
   const bounds = () =>
     rows.current.slice(0, goals.length).map((row) => {
       const rect = row?.getBoundingClientRect();
@@ -113,13 +115,18 @@ export function GoalOrder({
       stopPointer();
       window.removeEventListener("blur", blur);
     };
+    // Mount-only listener: cancel() reads refs and state setters, so the first instance stays correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     if (press.current || keyboardState.current) {
       cancel();
       announce("Goals changed. Start the move again.");
     }
-  }, [allIds.join(","), visibleIds.join(","), blocked]);
+    // Cancel an in-progress move only when the goal lists or availability change;
+    // cancel() is recreated every render and would otherwise abort every drag frame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allKey, visibleKey, blocked]);
   async function commit(
     all: number[],
     visible: number[],

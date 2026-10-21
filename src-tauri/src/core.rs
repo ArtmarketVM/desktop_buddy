@@ -1102,6 +1102,10 @@ impl Storage {
     }
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Tauri command arguments are the frontend IPC contract"
+)]
 #[tauri::command(async)]
 pub fn finish_core_setup(
     state: State<AppState>,

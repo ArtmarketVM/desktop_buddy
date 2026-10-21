@@ -690,8 +690,10 @@ fn migration_failure_rolls_back_without_replacing_existing_data() {
 #[test]
 fn default_preferences_are_not_reclassified_as_explicit_user_choices() {
     let s = store();
-    let mut prefs = crate::goal_analysis::AiPreferences::default();
-    prefs.enabled = false;
+    let prefs = crate::goal_analysis::AiPreferences {
+        enabled: false,
+        ..crate::goal_analysis::AiPreferences::default()
+    };
     s.write_setting("ai_assistance_preferences", &prefs)
         .unwrap();
     let items = list(&s, Scope::global());

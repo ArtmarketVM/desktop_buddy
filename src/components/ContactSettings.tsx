@@ -84,55 +84,6 @@ export function RoleResearch({
   );
 }
 
-export function ContactSettings() {
-  const [url, setUrl] = useState("");
-  const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  useEffect(() => {
-    if (desktop)
-      void api
-        .contactEndpoint()
-        .then((value) => setUrl(value ?? ""))
-        .catch(() => setMessage("Contact setup is unavailable."));
-  }, []);
-  return (
-    <form
-      className="provider-settings"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setBusy(true);
-        void api
-          .saveContactEndpoint(url)
-          .then(() =>
-            setMessage(
-              "Contact service setting saved. Reopen the feedback card or profile to use the connection.",
-            ),
-          )
-          .catch((e) => setMessage(String(e)))
-          .finally(() => setBusy(false));
-      }}
-    >
-      <label>
-        Private contact service URL
-        <input
-          type="url"
-          value={url}
-          maxLength={2048}
-          placeholder="https://your-project.supabase.co/functions/v1/buddy-contact"
-          onChange={(event) => setUrl(event.target.value)}
-        />
-      </label>
-      <p className="helper">
-        Connect a deployed service for feedback and confirmed email
-        subscriptions. This URL is public; all database and email-provider
-        secrets stay on the server. An empty URL uses email drafts.
-      </p>
-      <button disabled={!desktop || busy}>Save contact connection</button>
-      {message && <p role="status">{message}</p>}
-    </form>
-  );
-}
-
 export function EmailUpdates() {
   const [connected, setConnected] = useState(false);
   const [consent, setConsent] = useState(false);

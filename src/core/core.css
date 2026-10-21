@@ -2734,8 +2734,7 @@ p.error .text-button {
 .settings-card .mac-permissions .callout {
   margin: 8px 0;
 }
-.core-settings .privacy-preview,
-.core-settings .privacy-notes {
+.core-settings .privacy-preview {
   margin-top: 14px;
   font-size: var(--text-caption);
   color: var(--muted);
@@ -3039,10 +3038,6 @@ p.error .text-button {
   font-size: var(--text-caption);
   color: var(--muted);
 }
-.settings-card .memory-settings .danger-zone h3 {
-  width: 100%;
-  margin: 8px 0 0;
-}
 .settings-card .memory-settings details {
   margin-top: 10px;
   font-size: var(--text-caption);
@@ -3067,9 +3062,6 @@ p.error .text-button {
   color: var(--text);
   font-size: var(--text-caption);
   font-weight: 500;
-}
-.settings-card .memory-settings .danger-zone > p {
-  display: none;
 }
 .settings-card .memory-settings > p[role="status"] {
   margin: 6px 0 10px;
@@ -3116,40 +3108,6 @@ p.error .text-button {
   > button:not(.day-chip) {
   height: 26px;
   padding: 0 9px;
-  font-weight: 400;
-}
-.settings-card .memory-settings .danger-zone {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-top: 12px;
-  padding: 0;
-  border: 0;
-  gap: 10px 12px;
-}
-.settings-card .memory-settings .danger-zone label {
-  display: inline-flex;
-  align-items: center;
-  font-size: var(--text-caption);
-  flex: none;
-  gap: 8px;
-}
-.core-workspace .settings-card .memory-settings .danger-zone select {
-  min-height: 28px;
-  height: 28px;
-  margin: 0;
-  padding: 0 8px;
-  border-radius: 3px;
-  font-size: var(--text-caption);
-  width: 220px;
-}
-.core-workspace .settings-card .memory-settings .danger-zone > button {
-  min-height: 0;
-  padding: 0 10px;
-  border-radius: 3px;
-  font-size: var(--text-caption);
-  color: var(--danger);
-  height: 26px;
   font-weight: 400;
 }
 .settings-card .memory-settings details > summary {

@@ -79,6 +79,13 @@ pub fn minimize_title(title: &str) -> String {
         .collect()
 }
 
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "only the Windows collector has a browser provider"
+    )
+)]
 /// A provider may return only metadata from the foreground browser chrome,
 /// never document nodes. Unknown media playback is false, not a guessed video.
 pub trait BrowserActivityProvider: Send {

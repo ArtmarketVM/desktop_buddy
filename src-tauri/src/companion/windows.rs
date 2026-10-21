@@ -100,7 +100,7 @@ pub fn context(window: usize, selected: bool) -> Result<String, String> {
         .map_err(|_| "This application does not expose accessible text")?;
     worker.pending = false;
     if reply.window != window || reply.selected != selected {
-        return Err("Screen context changed")?;
+        return Err("Screen context changed".into());
     }
     Ok(reply.text)
 }

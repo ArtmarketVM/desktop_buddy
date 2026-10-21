@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { desktop } from "../api/tauri";
 import { isMac } from "../api/platform";
 import { invoke } from "@tauri-apps/api/core";
-import { ProviderKey } from "../components/Settings";
+import { ProviderKey } from "./ProviderKey";
 import type { UserSettings } from "../types";
 import { AvatarPicker } from "../components/ProfileFields";
 import { coreApi } from "./api";

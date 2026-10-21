@@ -636,6 +636,7 @@ impl Storage {
             Ok(self.connection.last_insert_rowid())
         }
     }
+    #[cfg(test)]
     /// Inference can only cite distinct, same-scope confirmed episodes, never raw observations.
     pub(crate) fn observe_inference(
         &mut self,
@@ -889,7 +890,7 @@ pub fn working_memory(inner: &Inner) -> Result<WorkingMemory, String> {
     let foreground = inner
         .status
         .tracking
-        .then(|| inner.buddy.foreground.as_ref())
+        .then_some(inner.buddy.foreground.as_ref())
         .flatten();
     Ok(WorkingMemory {
         active_goal_id: goal.map(|g| g.id),

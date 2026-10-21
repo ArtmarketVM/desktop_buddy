@@ -44,6 +44,16 @@ pub struct Record {
 fn db(e: rusqlite::Error) -> String {
     e.to_string()
 }
+/// goal_id, step_id, topic, status, result_json, expires_at, consent_json
+type RecordRow = (
+    i64,
+    Option<String>,
+    String,
+    String,
+    Option<String>,
+    i64,
+    String,
+);
 impl Storage {
     pub(crate) fn initialize_research(&self) -> Result<(), String> {
         self.connection
@@ -54,7 +64,7 @@ impl Storage {
         Ok(())
     }
     pub fn research_record(&self, goal: i64, id: i64) -> Result<Record, String> {
-        let row: Option<(i64, Option<String>, String, String, Option<String>, i64, String)> = self.connection.query_row(
+        let row: Option<RecordRow> = self.connection.query_row(
             "SELECT goal_id,step_id,topic,status,result_json,expires_at,consent_json FROM contextual_research WHERE id=?1 AND goal_id=?2",params![id,goal],
             |r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?))).optional().map_err(db)?;
         let (goal_id, step_id, topic, status, result, expires_at, consent) =

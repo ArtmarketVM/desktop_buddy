@@ -1,5 +1,5 @@
 import { ESLint } from "eslint";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
 mkdirSync(".tools/quality", { recursive: true });
 const eslint = new ESLint();
@@ -30,4 +30,16 @@ console.log((await eslint.loadFormatter("stylish")).format(results));
 console.log(
   `ESLint: ${counts.errors} errors, ${counts.warnings} warnings in ${counts.files} files. Report: .tools/quality/eslint.json`,
 );
-process.exitCode = counts.errors ? 1 : 0;
+// Errors always fail. Warnings may not exceed the committed budget; lower it when they drop.
+const budget = JSON.parse(
+  readFileSync(new URL("./lint-budget.json", import.meta.url), "utf8"),
+).eslintWarnings;
+if (counts.warnings > budget)
+  console.error(
+    `ESLint warnings exceed the budget of ${budget} in scripts/lint-budget.json.`,
+  );
+else if (counts.warnings < budget)
+  console.log(
+    `ESLint warnings are below the budget of ${budget}; lower it in scripts/lint-budget.json.`,
+  );
+process.exitCode = counts.errors || counts.warnings > budget ? 1 : 0;

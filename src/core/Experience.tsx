@@ -282,7 +282,6 @@ export function Experience({
                       snapshot={snapshot}
                       busy={busy}
                       run={run}
-                      edit={setEditor}
                       enhancement={enhancement}
                     />
                   )}
@@ -332,7 +331,6 @@ export function Experience({
             snapshot={snapshot}
             busy={busy}
             run={run}
-            edit={setEditor}
             enhancement={enhancement}
           />
         </>

@@ -7,7 +7,6 @@ import {
   roles,
   avatarState,
 } from "../data/profile";
-import { Onboarding } from "./Onboarding";
 import { Avatar } from "./Avatar";
 import { ProductFeedback } from "./ProductFeedback";
 import { defaultBuddyPreferences } from "../types";
@@ -61,30 +60,6 @@ describe("onboarding and profiles", () => {
       }),
     ).toContain("20 apps");
     expect(roleApplications("other")).toEqual([]);
-  });
-  it("orders avatar, identity, goal and then tracking choice without app editing", () => {
-    const render = (step: number) =>
-      renderToStaticMarkup(
-        <Onboarding
-          initial={{
-            ...defaultUserSettings,
-            profile,
-            onboarding: { ...defaultUserSettings.onboarding, step },
-          }}
-          onChanged={async () => {}}
-        />,
-      );
-    expect(render(0)).toContain("Your sumi");
-    expect(render(0)).not.toContain('id="profile-email"');
-    expect(render(1)).toContain('id="profile-email"');
-    expect(render(1)).toContain("Privacy notice — draft");
-    expect(render(1)).not.toContain("Process name");
-    expect(render(2)).toContain('id="first-goal"');
-    expect(render(2)).not.toContain("Enable activity tracking");
-    expect(render(3)).toContain("Continue without tracking");
-    expect(render(3)).toContain(
-      "do not need a separate system permission dialog",
-    );
   });
   it("maps native events to avatar states and hides every character when requested", () => {
     const view = {

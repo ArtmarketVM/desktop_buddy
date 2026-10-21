@@ -14,7 +14,7 @@ Infrastructure is published on `codex/quality-gates`. Merge this branch first; D
 | Visual gate | Blocking after baseline approval; comparison never updates expectations. Failed screenshots/diffs/traces and a clickable review gallery are retained as CI artifacts. |
 | Windows native checks | [Native build job](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488229545/job/118854177460) passed acceptance, Rust formatting and Windows x64 installer validation on `f5ab8ff8852e6ee2cae6c98f3240429489428861`. The initial visual job in that run failed due to shallow history; it was fixed and passed separately in the visual run above. |
 | macOS native checks | [Apple Silicon CI](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39487091175) passed acceptance, formatting, `.app` and `.dmg` validation on `71d556390085dbe3e583da3c29098d5430633866`: 242 frontend and 606 Rust tests passed, 2 Rust tests ignored. |
-| Lint rollout | Non-blocking. ESLint: 16 errors / 16 warnings. Local Windows Clippy: 61 unique warnings; macOS CI Clippy: 79. Detailed reports are CI artifacts. No blanket suppressions or application rewrites. |
+| Lint gates | Blocking since 21 October 2026; see [Lint gates](#lint-gates). The initial non-blocking rollout below is historical. |
 | Privacy | **Integration blocker remains explicit:** the app constant is owned by Developer 2 and still opens the 404 URL. Developer 2 must set `/docs/privacy.html`; merge the policy/font assets into `main` for existing Pages publication, then run `npm run verify:privacy`. The canonical URL currently returns 200 but the public page still has Google Fonts. |
 
 CI native results remain valid for this handoff: later changes affect only visual tests, reviewed PNGs, review tooling, CI orchestration and documentation; application source, Rust dependencies and production npm dependencies are unchanged. Native builds are CI validation artifacts, not installed signed releases or complete manual product acceptance. Existing manual/live-account acceptance cases remain required.
@@ -65,7 +65,59 @@ The visual job explicitly fetches the agreed base commit because Actions' defaul
 
 CI always uploads the HTML report, actual/expected/diff images, traces, candidate images and environment metadata, including failures. Browser visual coverage does **not** validate native Tauri window behaviour, updater, signing, credentials, permissions, or macOS rendering.
 
+## Lint gates
+
+Both lint gates block CI since 21 October 2026 (base `62c765e`, v0.39.2).
+
+| Gate | Command | CI step | Fails when |
+| --- | --- | --- | --- |
+| ESLint | `npm run lint` | `platform-checks.yml`, both platforms | any error, or warnings above `eslintWarnings` |
+| Clippy | `npm run lint:rust` | `ci.yml` `rust-lint`, Windows x64 and Apple Silicon | compilation fails, any error, or unique warnings above `clippyWarnings` |
+
+Budgets live in `scripts/lint-budget.json` and are both **0**. A budget may only go down; the scripts print a reminder when the count drops below it. `Required application checks` now requires `rust-lint` whenever the Rust suite applies, and `scripts/ci.verify.mjs` fails if a lint step regains `continue-on-error` or loses its budget check. The `rust-lint` job pins Rust **1.99.1**, the stable version CI used for the last measured run, so a new Clippy release cannot fail the gate without a code change. Bump it deliberately and fix or justify any new findings in the same change.
+
+Counts at the base and after this change:
+
+| Check | Base `62c765e` | Now |
+| --- | --- | --- |
+| ESLint | 11 errors, 13 warnings in 11 files | 0 errors, 0 warnings |
+| Clippy, Apple Silicon (local, 1.99.0 and 1.99.1) | 78 unique warnings | 0 |
+| Clippy, Windows x64 (CI artifact for `8c54921`, same Rust source as the base) | 60 unique warnings | 0 expected; first confirmed by the next Windows `rust-lint` run |
+
+Windows Clippy cannot run on macOS (`ring` needs a Windows C toolchain), so the Windows count is derived from the CI report and fixed site by site; the first CI run of this branch is its verification.
+
+### Deliberate exceptions
+
+Each exception is narrow and states its reason in code. No file-level or blanket suppressions exist.
+
+- ESLint `no-unused-vars` uses `ignoreRestSiblings`: `src/api/memory.ts` destructures server-managed metadata out of a work context so it never enters a save request.
+- `src/data/profile.ts` has one `no-control-regex` disable on the shared pattern that rejects control characters in role and app labels.
+- Four `react-hooks/exhaustive-deps` disables, each with a comment: voice recording in `src/companion/Conversation.tsx` starts only when compact voice mode is entered; role carousel placement in `src/components/ProfileFields.tsx` runs once per `disabled` change; and two drag-cancellation effects in `src/core/GoalOrder.tsx` must not re-run on every render.
+- Clippy `too_many_arguments` (8): three dialogue stages in `agent_dialogue.rs`, two chat entry points and `finish_core_setup` whose arguments are the Tauri IPC contract, and the `request_at`/`observe_at` test seams. A shared context struct is a separate refactor.
+- Clippy `if_same_then_else` on `buddy::mode`: interventions and suggestions share a window mode but keep separate eligibility rules.
+- Clippy `duplicated_attributes` on the macOS `#[link]` blocks: each names a different library.
+- `dead_code` only off Windows for Windows-only helpers that are unit-tested on every platform: `BrowserActivityProvider`, `process_basename`, `installer_helper`, `executable`.
+
+### Removed in this change
+
+- Unused frontend modules: legacy `Settings`, `PrivacySettings`, `Onboarding`, `GoalHistoryView`, `TrackingSettings` and the `ContactSettings` form, their legacy-only tests, and CSS rules whose classes no longer appear in any source file. `ProviderKey` moved to `src/core/ProviderKey.tsx`.
+- The `GoalRow`/`GoalAreas` `edit` callback, which nothing called after the row editor was retired in 0.34.0.
+- The proactive recommendation pipeline (`buddy::recommend`, Nebius search-plan and resource-selection calls) and its provider tests. Nothing has called it since contextual research replaced it in `4e1ad7b`.
+- Unused Rust items: `EXPLICIT_PROMPT`, `proposal_schema`, `skills::catalog`, `ChatContract::context`, the `structured_chat_actions` wrapper, and the macOS autostart, voice-language and transcription FFI wrappers that `macos_speech` and the autostart plugin replaced. Test-only helpers (`ChatContract::bind`, `observe_inference`, `planning_context`) are now `#[cfg(test)]`. Vault reads in `http.rs` use `cfg!(test)` instead of `#[cfg(test)]`, so the credential code compiles in test builds while tests still never touch the user's vault.
+
+### Local validation on Apple Silicon macOS
+
+Covers commit `35865d1` and later documentation-only changes:
+
+- `npm run lint`: 0 errors, 0 warnings, exit 0.
+- `npm run lint:rust`: 0 errors, 0 warnings, exit 0 on both Rust 1.99.0 and 1.99.1.
+- `npm test`: 49 files, 257 tests passed. `npm run build` passed. `node --test scripts/ci.verify.mjs`: 13 passed. `actionlint` passed.
+- `cargo fmt --check` passed. `cargo test --locked`: 605 passed, 2 ignored. The 5 fewer tests than before are the removed recommendation-pipeline tests.
+- Not run locally: Windows Clippy, the Windows visual gate and native packaging. CI covers them. `visual/baselines/` is unchanged.
+
 ## Initial lint rollout
+
+Superseded by [Lint gates](#lint-gates); kept as the measured starting point.
 
 `npm run lint` uses ESLint recommended TypeScript and React Hooks checks. `npm run lint:rust` runs `cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --message-format=json -- -W clippy::all`. No blanket suppressions or automated application rewrites are introduced. Existing lint findings remain visible. Both native CI workflows start with non-blocking lint steps and always upload detailed JSON, counts and compiler logs from `.tools/quality/`.
 

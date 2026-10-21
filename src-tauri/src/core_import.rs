@@ -217,7 +217,7 @@ fn valid_voice_audio(audio: &[u8]) -> bool {
         && word(34) == 16
         && audio.get(36..40) == Some(b"data")
         && size(40) as usize == audio.len() - 44
-        && (audio.len() - 44) % 2 == 0
+        && (audio.len() - 44).is_multiple_of(2)
 }
 #[cfg(windows)]
 fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {

@@ -425,8 +425,10 @@ mod tests {
     }
     #[test]
     fn completion_reviews_have_their_own_bounded_budget_and_deduplicate() {
-        let mut memory = Memory::default();
-        memory.shown = 3;
+        let mut memory = Memory {
+            shown: 3,
+            ..Memory::default()
+        };
         let prompt = Intervention {
             id: "receipt".into(),
             kind: Kind::Completion,

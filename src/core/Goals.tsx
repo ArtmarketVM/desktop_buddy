@@ -107,7 +107,6 @@ export function GoalRow({
   snapshot,
   busy,
   run,
-  edit,
   readOnly = false,
   showStatus = true,
   initialExpanded = false,
@@ -117,7 +116,6 @@ export function GoalRow({
   snapshot: CoreSnapshot;
   busy: boolean;
   run: (work: () => Promise<unknown>) => Promise<boolean>;
-  edit: (goal: CoreGoal) => void;
   enhancement?: GoalEnhancement;
   readOnly?: boolean;
   showStatus?: boolean;
@@ -153,7 +151,7 @@ export function GoalRow({
         Math.min(anchor.top, window.innerHeight - panel.height - 12),
       ),
     });
-  }, [menu]);
+  }, [menu, menuSurface, menuTrigger]);
   const [stepText, setStepText] = useState("");
   const [adding, setAdding] = useState(initialAdding);
   const [highlight, setHighlight] = useState(-1);
@@ -168,7 +166,6 @@ export function GoalRow({
   }>({ prefix: "", items: [] });
   const disabled = busy || !desktop || readOnly;
   const today = snapshot.today.includes(goal.id);
-  const active = snapshot.focused_goal_id === goal.id;
   const area =
     snapshot.areas.find((item) => item.id === goal.area_id)?.title ?? "General";
   async function addSteps(titles: string[]) {
@@ -822,13 +819,11 @@ export function GoalAreas({
   snapshot,
   busy,
   run,
-  edit,
   enhancement,
 }: {
   snapshot: CoreSnapshot;
   busy: boolean;
   run: (work: () => Promise<unknown>) => Promise<boolean>;
-  edit: (goal: CoreGoal) => void;
   enhancement?: GoalEnhancement;
 }) {
   const [query, setQuery] = useState("");
@@ -895,7 +890,6 @@ export function GoalAreas({
                 snapshot={snapshot}
                 busy={busy}
                 run={run}
-                edit={edit}
                 enhancement={enhancement}
                 initialExpanded={false}
               />
@@ -925,7 +919,6 @@ export function GoalAreas({
               snapshot={snapshot}
               busy={busy}
               run={run}
-              edit={edit}
               enhancement={enhancement}
               readOnly={goal.status === "completed"}
               initialExpanded={false}

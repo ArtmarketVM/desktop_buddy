@@ -1,6 +1,8 @@
 //! The user's words constrain operations; the model resolves exact objects and arguments.
 //! This never selects a goal by title, relaxes permissions, or supplies invented IDs.
-use crate::skills::{Action, Plan};
+use crate::skills::Action;
+#[cfg(test)]
+use crate::skills::Plan;
 use serde_json::{json, Value};
 
 #[cfg(test)]
@@ -343,7 +345,7 @@ impl Contract {
                     .unwrap_or_default()
                     .to_string();
                 self.validate_action(&Action {
-                    name: name.into(),
+                    name,
                     input: Value::Null,
                     instruction: None,
                 })
@@ -429,10 +431,6 @@ impl Contract {
         }
         .filter(|(_, literal)| !literal.trim().is_empty() && literal.chars().count() <= 500)
     }
-    pub fn context(&self) -> Value {
-        json!({"allowed_operations":self.skills,"read_only":self.read_only,
-            "rule":"Resolve IDs from authoritative state. Do not substitute another operation. If uncertain, request clarification."})
-    }
     pub fn validate_action(&self, action: &Action) -> Result<(), String> {
         let read = crate::skills::registry()
             .iter()
@@ -450,6 +448,7 @@ impl Contract {
         }
         Ok(())
     }
+    #[cfg(test)]
     pub fn bind(&self, plan: &mut Plan, latest: &str) -> Result<(), String> {
         for action in &mut plan.actions {
             self.validate_action(action)?;

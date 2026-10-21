@@ -589,12 +589,11 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
             activity.last(),
             inner.tracking_settings.idle_seconds,
         )
+        && inner.buddy.shown.is_none()
     {
-        if inner.buddy.shown.is_none() {
-            inner.buddy.decision(decision.clone());
-            crate::buddy::sync(app, &mut inner)?;
-            inner.last_nudge = Some(Instant::now());
-        }
+        inner.buddy.decision(decision.clone());
+        crate::buddy::sync(app, &mut inner)?;
+        inner.last_nudge = Some(Instant::now());
     }
     Ok(decision)
 }

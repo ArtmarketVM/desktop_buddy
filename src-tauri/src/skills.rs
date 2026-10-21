@@ -454,9 +454,6 @@ pub fn registry() -> Vec<Skill> {
     skills.extend(enhancements::registry());
     skills
 }
-pub fn catalog() -> Value {
-    json!(registry().into_iter().map(|s|json!({"name":s.name,"description":s.description,"input_schema":s.input_schema,"permission":s.safety,"result_schema":s.result_schema})).collect::<Vec<_>>())
-}
 /// Argument/result contracts already exist in the response schema and Rust registry.
 /// Avoid duplicating their full schemas in every user message to the planner.
 pub fn planning_catalog() -> Value {
@@ -707,6 +704,7 @@ pub fn snapshot(storage: &Storage, conversation: i64) -> Result<Snapshot, String
         privacy_revision: None,
     })
 }
+#[cfg(test)]
 pub fn planning_context(snap: &Snapshot, share: bool) -> Value {
     if !share {
         return json!({"state_version":snap.version,"sharing":false,"goals":[],"references":References::default(),"deleted_goals":[]});

@@ -8,7 +8,6 @@ vi.mock("../api/tauri", () => ({ desktop: true }));
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn().mockResolvedValue(1),
 }));
-const edit = vi.fn();
 const goal = (id: number): CoreGoal => ({
   id,
   title: `Goal ${id}`,
@@ -38,7 +37,6 @@ function setup() {
             await work();
             return true;
           }}
-          edit={edit}
         />
       ))}
     </>,

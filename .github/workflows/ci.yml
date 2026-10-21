@@ -52,7 +52,6 @@ jobs:
   rust-lint:
     needs: [plan, platforms]
     if: needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch'
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -74,8 +73,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      # Pinned so a new stable Clippy cannot fail the zero-warning gate without a code change.
+      # Bump deliberately together with any new findings (docs/QUALITY_GATES.md).
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           components: clippy
           targets: ${{ matrix.target }}
       - uses: Swatinem/rust-cache@v2
@@ -96,7 +98,7 @@ jobs:
           if-no-files-found: warn
   complete:
     name: Required application checks
-    needs: [plan, platforms, visual]
+    needs: [plan, platforms, visual, rust-lint]
     if: always()
     runs-on: ubuntu-latest
     steps:
@@ -105,10 +107,13 @@ jobs:
           PLAN: ${{ needs.plan.result }}
           PLATFORMS: ${{ needs.platforms.result }}
           VISUAL: ${{ needs.visual.result }}
+          RUST_LINT: ${{ needs.rust-lint.result }}
           CHECKS_REQUIRED: ${{ needs.plan.outputs.checks }}
           VISUAL_REQUIRED: ${{ needs.plan.outputs.visual }}
+          RUST_LINT_REQUIRED: ${{ needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch' }}
         run: |
           test "$PLAN" = success
           if [ "$CHECKS_REQUIRED" = true ]; then test "$PLATFORMS" = success; fi
           if [ "$VISUAL_REQUIRED" = true ]; then test "$VISUAL" = success; fi
-          for result in "$PLATFORMS" "$VISUAL"; do test "$result" = success || test "$result" = skipped; done
+          if [ "$RUST_LINT_REQUIRED" = true ]; then test "$RUST_LINT" = success; fi
+          for result in "$PLATFORMS" "$VISUAL" "$RUST_LINT"; do test "$result" = success || test "$result" = skipped; done

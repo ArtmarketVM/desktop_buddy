@@ -368,6 +368,10 @@ fn prose_reply(
     Ok(reply)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "dialogue stages pass request-scoped state explicitly; a shared context struct is a separate refactor"
+)]
 async fn present(
     state: &AppState,
     service: &Service<'_>,
@@ -513,6 +517,10 @@ fn validate_review_checks(value: &Value, review: &mut Review) -> Result<(), Stri
     Ok(())
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "dialogue stages pass request-scoped state explicitly; a shared context struct is a separate refactor"
+)]
 async fn review(
     state: &AppState,
     service: &Service<'_>,
@@ -684,6 +692,10 @@ async fn duplicate_question(
     })
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "dialogue stages pass request-scoped state explicitly; a shared context struct is a separate refactor"
+)]
 async fn reviewed_answer(
     mut reply: ChatReply,
     state: &AppState,

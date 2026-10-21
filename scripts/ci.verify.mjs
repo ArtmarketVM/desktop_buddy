@@ -348,3 +348,19 @@ test("workflow policy retains both signed platforms, strict visual gating and ma
   assert.doesNotMatch(visual, /--update-snapshots=all/);
   assert.doesNotMatch(release + platforms + visual, /pull_request_target/);
 });
+test("lint gates block and their warning budgets cannot be bypassed", () => {
+  const read = (path) =>
+    readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const ci = read(".github/workflows/ci.yml"),
+    platforms = read(".github/workflows/platform-checks.yml");
+  assert.doesNotMatch(ci + platforms, /continue-on-error/);
+  assert.match(platforms, /run: npm run lint\n/);
+  assert.match(ci, /run: npm run lint:rust\n/);
+  assert.match(ci, /needs: \[plan, platforms, visual, rust-lint\]/);
+  assert.match(ci, /test "\$RUST_LINT" = success/);
+  const budget = JSON.parse(read("scripts/lint-budget.json"));
+  assert.ok(Number.isInteger(budget.eslintWarnings));
+  assert.ok(Number.isInteger(budget.clippyWarnings));
+  assert.match(read("scripts/lint-frontend.mjs"), /counts\.warnings > budget/);
+  assert.match(read("scripts/lint-rust.mjs"), /summary\.warnings > budget/);
+});

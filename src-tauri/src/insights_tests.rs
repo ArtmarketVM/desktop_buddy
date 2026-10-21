@@ -122,8 +122,10 @@ fn retention_clears_usage_but_preserves_active_rules_and_budget() {
 
 #[test]
 fn budget_obeys_daily_limit_cooldown_day_rollover_and_zero() {
-    let mut p = BuddyPreferences::default();
-    p.daily_nudge_limit = 3;
+    let mut p = BuddyPreferences {
+        daily_nudge_limit: 3,
+        ..BuddyPreferences::default()
+    };
     let mut b = NudgeBudget {
         day: "2026-09-30".into(),
         count: 3,

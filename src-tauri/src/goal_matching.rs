@@ -454,6 +454,10 @@ Examples:
 4. open_goals: [{"id":3,"title":"Write hackathon pitch deck"},{"id":4,"title":"Reply to accountant about VAT"}]; activity: app="chrome", domain="mail.google.com", page_title="Inbox – Gmail", visible_text="Re: Q3 VAT return – Hi Katya, attached are the figures…" → {"goal_id":4,"confidence":0.85,"reason":"Open email thread is about the VAT return in goal 4."}
 5. open_goals: [{"id":3,"title":"Write hackathon pitch deck"}]; activity: app="chrome", domain="docs.google.com", page_title="Untitled document – Google Docs" → {"goal_id":null,"confidence":0.35,"reason":"Generic untitled document; could be anything."}"#;
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "test seam for request(): injects the endpoint, key and model explicitly"
+)]
 async fn request_at(
     client: &reqwest::Client,
     url: &str,

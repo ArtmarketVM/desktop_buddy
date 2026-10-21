@@ -4,6 +4,8 @@ use rusqlite::{params, Connection, OptionalExtension};
 pub struct Storage {
     pub connection: Connection,
 }
+/// id, process_name, window_title, active_seconds, browser_context, window_id
+type LastActivity = (i64, String, String, u64, Option<String>, Option<u64>);
 impl Storage {
     pub fn open(path: &std::path::Path) -> Result<Self, String> {
         let connection = Connection::open(path).map_err(|e| e.to_string())?;
@@ -325,7 +327,7 @@ impl Storage {
             .map(serde_json::to_string)
             .transpose()
             .map_err(|e| e.to_string())?;
-        let last: Option<(i64, String, String, u64, Option<String>, Option<u64>)> = self.connection.query_row("SELECT id,process_name,window_title,active_seconds,browser_context,window_id FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 1", [goal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,r.get(4)?,r.get(5)?))).optional().map_err(|e| e.to_string())?;
+        let last: Option<LastActivity> = self.connection.query_row("SELECT id,process_name,window_title,active_seconds,browser_context,window_id FROM activity WHERE goal_id=?1 ORDER BY id DESC LIMIT 1", [goal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?,r.get(4)?,r.get(5)?))).optional().map_err(|e| e.to_string())?;
         if let Some((id, process, title, seconds, previous_browser, window)) = last {
             if process == item.process_name
                 && title == item.window_title
@@ -409,6 +411,25 @@ impl Storage {
         Ok(())
     }
 }
+
+pub(crate) fn insert_goal(tx: &rusqlite::Transaction<'_>, text: &str) -> Result<Goal, String> {
+    tx.execute(
+        "UPDATE goals SET status='deferred' WHERE status='active'",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    let now = Utc::now().to_rfc3339();
+    tx.execute(
+        "INSERT INTO goals(text,status,created_at) VALUES(?1,'active',?2)",
+        params![text, now],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(Goal {
+        id: tx.last_insert_rowid(),
+        text: text.into(),
+        created_at: now,
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -463,23 +484,4 @@ mod tests {
         assert_eq!(s.goal().unwrap().unwrap().id, next.id);
         assert!(s.recent(next.id).unwrap().is_empty());
     }
-}
-
-pub(crate) fn insert_goal(tx: &rusqlite::Transaction<'_>, text: &str) -> Result<Goal, String> {
-    tx.execute(
-        "UPDATE goals SET status='deferred' WHERE status='active'",
-        [],
-    )
-    .map_err(|e| e.to_string())?;
-    let now = Utc::now().to_rfc3339();
-    tx.execute(
-        "INSERT INTO goals(text,status,created_at) VALUES(?1,'active',?2)",
-        params![text, now],
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(Goal {
-        id: tx.last_insert_rowid(),
-        text: text.into(),
-        created_at: now,
-    })
 }

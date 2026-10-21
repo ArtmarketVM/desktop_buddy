@@ -176,9 +176,11 @@ export function Progress({
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [hover, setHover] = useState<string | null>(null);
-  const days = snapshot.week.length
-    ? [...snapshot.week].reverse()
-    : [snapshot.summary];
+  const days = useMemo(
+    () =>
+      snapshot.week.length ? [...snapshot.week].reverse() : [snapshot.summary],
+    [snapshot.week, snapshot.summary],
+  );
   const newest = anchor ?? snapshot.date;
   const oldest = days[0]?.day ?? snapshot.date;
   const goals = useMemo(() => {

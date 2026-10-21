@@ -7,6 +7,13 @@ pub struct InstalledApp {
     pub name: String,
 }
 
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "installed-app discovery reads the Windows registry; tests run on every platform"
+    )
+)]
 fn installer_helper(name: &str) -> bool {
     name.contains("unins")
         || name.contains("setup")
@@ -18,10 +25,17 @@ fn installer_helper(name: &str) -> bool {
 }
 
 // Inventory only: never execute registry commands, follow folders or return installation paths.
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "installed-app discovery reads the Windows registry; tests run on every platform"
+    )
+)]
 fn executable(icon: &str) -> Option<String> {
     let value = icon.trim();
-    let path = if value.starts_with('"') {
-        value[1..].split('"').next()?
+    let path = if let Some(quoted) = value.strip_prefix('"') {
+        quoted.split('"').next()?
     } else {
         value
             .rsplit_once(',')

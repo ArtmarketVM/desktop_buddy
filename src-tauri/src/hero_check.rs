@@ -130,7 +130,7 @@ pub async fn run() -> Result<Value, String> {
         rows.push(json!({"stage":stage,"status":if voice_native {"passed"}else{"transcript_fixture"},"latency_ms":started.elapsed().as_millis(),"microphone_capture_verified":false}));
 
         stage="voice_transcript_to_shared_actions";let started=Instant::now();
-        send(&state,&service,&command,true).await?;
+        send(&state,&service,command,true).await?;
         let a=goal_id(&state,"AI DEMO Hackathon")?;
         {let i=state.inner.lock().unwrap();require(i.storage.goal_plan(a)?.steps.len()==2 && i.storage.core_snapshot(None)?.focused_goal_id==Some(a),"Voice transcript did not create and focus the expected two-step goal")?;}
         passed(&mut rows,stage,started);

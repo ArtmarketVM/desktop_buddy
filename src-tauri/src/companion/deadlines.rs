@@ -560,8 +560,10 @@ mod tests {
         }
         {
             let s = Storage::open(&path).unwrap();
-            let mut memory = Memory::default();
-            memory.shown = 3;
+            let mut memory = Memory {
+                shown: 3,
+                ..Memory::default()
+            };
             assert!(next(&s, &memory, None, DAY, now() + 3599)
                 .unwrap()
                 .is_none());

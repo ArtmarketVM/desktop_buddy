@@ -1,4 +1,4 @@
-import { isMac, systemName } from "../api/platform";
+import { isMac } from "../api/platform";
 import { useEffect, useRef, useState } from "react";
 import { ArrowUp, FileUp, Mic, Square, X, Plus } from "lucide-react";
 import { desktop } from "../api/tauri";
