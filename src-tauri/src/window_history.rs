@@ -5,9 +5,10 @@ use rusqlite::params;
 use serde::Serialize;
 use std::time::Instant;
 
+type Previous = (i64, ActivitySnapshot, Option<i64>, Instant, DateTime<Utc>);
 #[derive(Default)]
 pub struct Recorder {
-    previous: Option<(i64, ActivitySnapshot, Option<i64>, Instant, DateTime<Utc>)>,
+    previous: Option<Previous>,
 }
 #[derive(Serialize)]
 pub struct WindowSession {
@@ -50,6 +51,10 @@ impl Recorder {
             Utc::now(),
         )
     }
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "test seam for observe(): injects both clocks explicitly"
+    )]
     fn observe_at(
         &mut self,
         storage: &Storage,

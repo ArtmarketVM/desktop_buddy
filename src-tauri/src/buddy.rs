@@ -1,4 +1,4 @@
-use crate::{commands::AppState, models::*, nebius, tavily};
+use crate::{commands::AppState, models::*};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, State};
 
@@ -59,6 +59,10 @@ impl Runtime {
         self.shown = Some(Instant::now());
     }
 }
+#[allow(
+    clippy::if_same_then_else,
+    reason = "interventions and suggestions share the expanded mode but have separate eligibility rules"
+)]
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
     if view.companion.chat_open {
         3
@@ -562,121 +566,4 @@ pub fn due(inner: &crate::commands::Inner) -> bool {
             chrono::Utc::now().timestamp().saturating_sub(t)
                 >= inner.buddy.view.preferences.interval_minutes as i64 * 60
         })
-}
-pub async fn recommend(app: &AppHandle, state: &AppState) -> Result<(), String> {
-    let _guard = state
-        .recommendation
-        .try_lock()
-        .map_err(|_| "A suggestion is already being prepared")?;
-    let (goal, context, activity, memory, revision) = {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if !due(&inner) {
-            return Ok(());
-        }
-        let goal = inner.storage.goal()?.ok_or("Set a goal first")?;
-        let activity: Vec<_> = inner
-            .storage
-            .recent(goal.id)?
-            .into_iter()
-            .filter(|a| !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name))
-            .collect();
-        if activity.is_empty() || !crate::tracking::notifications_allowed(&inner) {
-            return Ok(());
-        }
-        inner.buddy.last_search = Some(Instant::now());
-        inner.buddy.last_attempt_at = Some(chrono::Utc::now().timestamp());
-        inner
-            .storage
-            .write_setting("buddy_last_attempt", &inner.buddy.last_attempt_at)?;
-        let context = inner.storage.goal_context(&goal)?;
-        let memory = inner.storage.recommendation_memory(goal.id)?;
-        (goal, context, activity, memory, inner.buddy.revision)
-    };
-    let plan = nebius::search_plan(&state.client, &context, &activity, &memory).await?;
-    let Some(query) = plan.query else {
-        return Ok(());
-    };
-    // Consent and session must still match before sending the derived query to Tavily.
-    {
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if !valid(&inner, goal.id, revision)? {
-            return Ok(());
-        }
-    }
-    let results = tavily::tavily_search(&state.client, &query).await?;
-    let candidates = {
-        let inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if !valid(&inner, goal.id, revision)? {
-            return Ok(());
-        }
-        crate::recommendations::fresh_candidates(
-            results,
-            inner.storage.seen_resource_keys(goal.id)?,
-        )
-    };
-    if candidates.is_empty() {
-        return Ok(());
-    }
-    let selection = nebius::select_resource(&state.client, &context, &candidates, &memory).await?;
-    let Some(index) = selection.index else {
-        return Ok(());
-    };
-    let result = candidates
-        .get(index)
-        .ok_or("Nebius selected an unavailable resource")?;
-    let mut inner = state
-        .inner
-        .lock()
-        .map_err(|_| "Application state unavailable")?;
-    if !valid(&inner, goal.id, revision)? {
-        return Ok(());
-    }
-    // Recheck against retained history at the write boundary, not just before selection.
-    let seen = inner.storage.seen_resource_keys(goal.id)?;
-    if crate::recommendations::resource_key(&result.url).is_none_or(|key| seen.contains(&key)) {
-        return Ok(());
-    }
-    let reason = format!(
-        "{}\nTry this: {}",
-        selection.reason.trim(),
-        selection
-            .next_action
-            .as_deref()
-            .ok_or("No next action returned")?
-            .trim()
-    );
-    let id = inner
-        .storage
-        .record_recommendation(goal.id, &result.title, &result.url, &reason)?;
-    inner.buddy.view.suggestion = Some(Suggestion {
-        id,
-        title: result.title.chars().take(180).collect(),
-        url: result.url.clone(),
-        reason,
-    });
-    inner.buddy.view.decision = None;
-    inner.buddy.shown = Some(Instant::now());
-    inner.last_nudge = Some(Instant::now());
-    sync(app, &mut inner)
-}
-fn valid(inner: &crate::commands::Inner, goal: i64, revision: u64) -> Result<bool, String> {
-    Ok(inner.status.tracking
-        && crate::tracking::notifications_allowed(inner)
-        && inner.storage.nudge_allowed(&inner.buddy.view.preferences)?
-        && !inner.status.dnd
-        && !snoozed(&inner.buddy.view)
-        && inner.buddy.view.quiet_reason.is_none()
-        && inner.buddy.view.preferences.proactive
-        && inner.buddy.shown.is_none()
-        && inner.buddy.revision == revision
-        && inner.storage.goal()?.map(|g| g.id) == Some(goal))
 }

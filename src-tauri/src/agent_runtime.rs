@@ -382,11 +382,7 @@ fn prepare(inner: &mut Inner, now: i64) -> Result<Option<Job>, String> {
     crate::engine_observability::record(
         inner,
         "reason",
-        &serde_json::to_value(event.kind)
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string(),
+        serde_json::to_value(event.kind).unwrap().as_str().unwrap(),
         "scheduled",
         None,
         event.goal_id,

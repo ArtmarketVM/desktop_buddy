@@ -83,12 +83,14 @@ pub struct Runtime {
 }
 impl Runtime {
     pub fn load(storage: &Storage) -> Result<Self, String> {
-        let mut view = View::default();
-        view.preferences = storage
-            .read_setting::<Preferences>("companion_preferences")?
-            .unwrap_or_default()
-            .validate()?;
-        view.inbox = storage.read_setting("companion_inbox")?.unwrap_or_default();
+        let view = View {
+            preferences: storage
+                .read_setting::<Preferences>("companion_preferences")?
+                .unwrap_or_default()
+                .validate()?,
+            inbox: storage.read_setting("companion_inbox")?.unwrap_or_default(),
+            ..View::default()
+        };
         Ok(Self {
             screen_context: None,
             screen_context_epoch: 0,
@@ -465,7 +467,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
             inner.companion.memory.slots.push(slot.into());
             let prompt = Intervention {
                 id: fingerprint(&format!("{day}:{slot}")),
-                kind: kind.clone(),
+                kind,
                 text: if kind == Kind::EndOfDay {
                     inner.storage.continuity_report(crate::continuity::View::EndOfDay,None,chrono::Local::now().date_naive()).map(|r|r.compact()).unwrap_or_else(|_|"Daily continuity is disabled. Enable Memory and Remember work context in Settings > Memory to see saved context.".into())
                 } else if kind == Kind::Midday {
@@ -771,7 +773,7 @@ pub async fn detect(app: &AppHandle, state: &AppState) -> Result<(), String> {
     }
     let sampled = fingerprint(&text);
     {
-        let mut inner = state
+        let inner = state
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;

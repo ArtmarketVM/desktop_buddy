@@ -141,21 +141,6 @@ fn persists_preferences_and_deduplicates_per_goal() {
         .seen_suggestion(next.id, "https://example.com/")
         .unwrap());
 }
-#[test]
-fn discards_results_after_goal_or_consent_changes() {
-    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
-    let mut inner = state.inner.lock().unwrap();
-    let goal = inner.storage.set_goal("Learn Rust").unwrap();
-    inner.status.tracking = true;
-    crate::tracking::allow_notifications(&mut inner);
-    inner.buddy.view.preferences.proactive = true;
-    assert!(valid(&inner, goal.id, 0).unwrap());
-    inner.buddy.clear();
-    assert!(!valid(&inner, goal.id, 0).unwrap());
-    assert!(!valid(&inner, goal.id + 1, 1).unwrap());
-    inner.buddy.view.preferences.proactive = false;
-    assert!(!valid(&inner, goal.id, 1).unwrap());
-}
 
 #[test]
 fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {

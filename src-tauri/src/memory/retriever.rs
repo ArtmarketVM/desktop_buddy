@@ -63,12 +63,6 @@ pub struct MemoryProposal {
     pub confidence: f64,
     pub source: String,
 }
-pub fn proposal_schema() -> Value {
-    json!({"anyOf":[{"type":"null"},{"type":"object","additionalProperties":false,"properties":{
-        "operation":{"type":"string","enum":["store_memory"]},"type":{"type":"string","enum":["preference"]},
-        "content":{"type":"string","minLength":1,"maxLength":500},"confidence":{"type":"number","minimum":0.85,"maximum":1},
-        "source":{"type":"string","enum":["explicit_user_statement"]}},"required":["operation","type","content","confidence","source"]}]})
-}
 fn size(value: &Value) -> usize {
     serde_json::to_vec(value).unwrap().len()
 }

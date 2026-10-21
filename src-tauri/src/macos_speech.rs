@@ -2,6 +2,10 @@
 use std::ffi::{c_char, CStr, CString};
 
 #[cfg(target_os = "macos")]
+#[allow(
+    clippy::duplicated_attributes,
+    reason = "each #[link] names a different library; the shared kind is not a duplicate"
+)]
 #[link(name = "buddy_speech", kind = "static")]
 #[link(name = "Foundation", kind = "framework")]
 #[link(name = "AVFoundation", kind = "framework")]

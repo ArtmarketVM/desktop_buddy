@@ -5,6 +5,10 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::sync::OnceLock;
 use tauri::{Manager, WebviewWindow};
 
+#[allow(
+    clippy::duplicated_attributes,
+    reason = "each #[link] names a different library; the shared kind is not a duplicate"
+)]
 #[link(name = "buddy_macos", kind = "static")]
 #[link(name = "AppKit", kind = "framework")]
 #[link(name = "ApplicationServices", kind = "framework")]
@@ -23,10 +27,7 @@ extern "C" {
     fn buddy_apps() -> *mut c_char;
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
         -> *mut c_char;
-    fn buddy_autostart(executable: *const c_char, enabled: bool) -> *mut c_char;
     fn buddy_shortcuts(callback: extern "C" fn(u32)) -> u32;
-    fn buddy_voice_languages() -> *mut c_char;
-    fn buddy_transcribe(audio: *const u8, length: usize, language: *const c_char) -> *mut c_char;
 }
 fn decode<T: DeserializeOwned>(pointer: *mut c_char) -> Result<T, String> {
     if pointer.is_null() {
@@ -88,18 +89,6 @@ pub fn write_key(name: &str, key: Option<&str>) -> Result<(), String> {
             if key.is_some() { 1 } else { 2 },
         )
     })
-}
-pub fn autostart(enabled: bool) -> Result<(), String> {
-    let path = std::env::current_exe().map_err(|_| "Could not locate the installed application")?;
-    let path = string(path.to_str().ok_or("Invalid application path")?)?;
-    decode(unsafe { buddy_autostart(path.as_ptr(), enabled) })
-}
-pub fn voice_languages() -> Result<Vec<String>, String> {
-    decode(unsafe { buddy_voice_languages() })
-}
-pub fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
-    let language = string(language)?;
-    decode(unsafe { buddy_transcribe(audio.as_ptr(), audio.len(), language.as_ptr()) })
 }
 pub fn request_accessibility_permission(window: WebviewWindow) -> Result<bool, String> {
     if window.label() != "main" {

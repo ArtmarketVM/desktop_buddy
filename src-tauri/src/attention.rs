@@ -158,8 +158,10 @@ mod tests {
     }
     #[test]
     fn normalizes_preferences_and_rejects_invalid_limits() {
-        let mut p = BuddyPreferences::default();
-        p.excluded_apps = vec![" Editor.EXE ".into(), "editor.exe".into()];
+        let mut p = BuddyPreferences {
+            excluded_apps: vec![" Editor.EXE ".into(), "editor.exe".into()],
+            ..BuddyPreferences::default()
+        };
         assert_eq!(
             validate_preferences(p.clone()).unwrap().excluded_apps,
             vec!["editor.exe"]

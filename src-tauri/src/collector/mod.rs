@@ -86,6 +86,13 @@ impl DurationTracker {
         duration.as_secs()
     }
 }
+#[cfg_attr(
+    not(windows),
+    allow(
+        dead_code,
+        reason = "the Windows collector reads process paths; tests run on every platform"
+    )
+)]
 pub fn process_basename(path: &str) -> String {
     path.rsplit(['\\', '/'])
         .next()

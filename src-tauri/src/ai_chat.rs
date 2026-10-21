@@ -422,7 +422,7 @@ pub fn search_buddy_conversations(
 }
 #[tauri::command(async)]
 pub fn create_buddy_conversation(app: AppHandle, state: State<AppState>) -> Result<i64, String> {
-    let mut inner = state
+    let inner = state
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
@@ -439,7 +439,7 @@ pub fn select_buddy_conversation(
     app: AppHandle,
     state: State<AppState>,
 ) -> Result<(), String> {
-    let mut inner = state
+    let inner = state
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
@@ -1366,24 +1366,6 @@ pub fn apply_chat_actions(
     }
     lines
 }
-async fn structured_chat_actions(
-    request: &Value,
-    conversation: i64,
-    state: &AppState,
-    revision: u64,
-    share: bool,
-) -> Result<Option<(String, u64, bool)>, String> {
-    let service = Service::configured(&state.client)?;
-    crate::agent_runtime::handle_explicit_actions(
-        request,
-        conversation,
-        state,
-        revision,
-        share,
-        &service,
-    )
-    .await
-}
 
 pub(crate) fn invalidate_skill_state(inner: &mut crate::commands::Inner) -> u64 {
     let previous_revision = inner.privacy_revision;
@@ -1504,6 +1486,10 @@ async fn send_message(
     .await
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "mirrors the send_buddy_message IPC fields one-to-one"
+)]
 async fn send_message_with_coaching(
     text: String,
     attachment_text: Option<String>,
@@ -1695,7 +1681,7 @@ async fn send_message_with_coaching(
         revision = outcome.revision;
         (outcome.reply, outcome.committed)
     };
-    goal_analysis::ensure_revision(&state, revision)?;
+    goal_analysis::ensure_revision(state, revision)?;
     reply.resources.retain(|r| {
         !viewed.iter().any(|url| {
             crate::recommendations::resource_key(url)
@@ -1732,6 +1718,10 @@ async fn send_message_with_coaching(
     Ok(reply)
 }
 
+#[allow(
+    clippy::too_many_arguments,
+    reason = "Tauri command arguments are the frontend IPC contract"
+)]
 #[tauri::command(async)]
 pub async fn send_buddy_message(
     text: String,
