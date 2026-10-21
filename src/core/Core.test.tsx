@@ -78,7 +78,6 @@ describe("core daily flow boundaries", () => {
         snapshot: emptyCore(),
         busy: false,
         run: async () => true,
-        edit: () => {},
         initialAdding: true,
       }),
     );

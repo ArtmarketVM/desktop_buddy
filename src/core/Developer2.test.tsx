@@ -92,7 +92,6 @@ describe("automatic AI and relevant progress", () => {
         snapshot,
         busy: false,
         run: async () => true,
-        edit: () => {},
         initialAdding: true,
       }),
     );
