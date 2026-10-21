@@ -49,11 +49,11 @@ export function GoalWorkContext({
           ? anchor.bottom + 8
           : Math.max(12, anchor.top - panel.height - 8),
     });
-  }, [open, context?.updated_at, message, pending]);
+  }, [open, context?.updated_at, message, pending, surfaceRef, triggerRef]);
   useLayoutEffect(() => {
     if (open)
       surfaceRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
-  }, [open]);
+  }, [open, surfaceRef]);
   async function act(operation: "park" | "resume") {
     setPending(operation);
     setMessage("");

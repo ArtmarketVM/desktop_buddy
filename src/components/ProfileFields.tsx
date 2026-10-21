@@ -290,6 +290,9 @@ export function RoleCarousel({
       cancelAnimationFrame(frame.current);
       clearTimeout(settled.current);
     };
+    // Initial placement only; the effect below follows role changes with a smooth move.
+    // Depending on `selected` here would rebind the listeners and jump on every choice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [disabled]);
   useEffect(() => {
     if (lastRole.current !== role) {

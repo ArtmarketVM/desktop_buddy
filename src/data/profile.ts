@@ -9,6 +9,9 @@ export function roleApplications(id: string) {
   const role = roles.find((r) => r.id === id);
   return applications.filter((app) => role?.applications.includes(app.process));
 }
+// Rejects ASCII control characters in user-entered role and app labels.
+// eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this pattern.
+const controlCharacter = /[\x00-\x1f\x7f]/;
 export function identityError(profile: UserProfile): string | null {
   const parts = profile.email.trim().split("@");
   if (!profile.name.trim() || profile.name.trim().length > 120)
@@ -29,13 +32,13 @@ export function identityError(profile: UserProfile): string | null {
     return "Tell us your role.";
   if (
     (profile.custom_role ?? "").length > 120 ||
-    /[\x00-\x1f\x7f]/.test(profile.custom_role ?? "")
+    controlCharacter.test(profile.custom_role ?? "")
   )
     return "Use at most 120 characters for your role.";
   if (
     (profile.applications ?? []).length > 20 ||
     (profile.applications ?? []).some(
-      (app) => !app.trim() || app.length > 80 || /[\x00-\x1f\x7f]/.test(app),
+      (app) => !app.trim() || app.length > 80 || controlCharacter.test(app),
     )
   )
     return "List up to 20 apps, each with at most 80 characters.";

@@ -223,6 +223,9 @@ export function Conversation({
       setMuted(false);
       onState("idle");
     };
+    // Recording starts and stops only when the compact voice mode is entered or left;
+    // depending on the latest onState/startRecording would restart recording on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [compact, mode]);
   useEffect(() => {
     if (compact && mode === "text") input.current?.focus();

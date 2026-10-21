@@ -15,7 +15,12 @@ export default tseslint.config(
       "react-hooks/exhaustive-deps": "warn",
       "@typescript-eslint/no-unused-vars": [
         "error",
-        { argsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+        {
+          argsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+          // `const { server_field: _, ...input } = value` deliberately omits fields from a request.
+          ignoreRestSiblings: true,
+        },
       ],
     },
   },
