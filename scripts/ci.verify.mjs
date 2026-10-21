@@ -331,6 +331,8 @@ test("workflow policy retains both signed platforms, strict visual gating and ma
   assert.match(release, /node scripts\/verify-release.mjs/);
   assert.match(release, /gh release create.*--draft/);
   assert.match(platforms, /aarch64-apple-darwin/);
+  assert.match(platforms, /runner: windows-2022/);
+  assert.doesNotMatch(platforms, /windows-latest/);
   assert.match(platforms, /x86_64-pc-windows-msvc/);
   assert.doesNotMatch(platforms, /x86_64-apple-darwin|universal-apple/);
   assert.match(

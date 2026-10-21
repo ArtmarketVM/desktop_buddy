@@ -218,7 +218,40 @@ test("every mapped frontend case still exists in its source file", () => {
       if (!selector.startsWith("frontend:")) continue;
       const [file, title] = selector.slice("frontend:".length).split("::");
       const source = readFileSync(join(projectRoot, file), "utf8");
-      assert.ok(source.includes(JSON.stringify(title)), `${id}: missing ${selector}`);
+      assert.ok(
+        source.includes(JSON.stringify(title)),
+        `${id}: missing ${selector}`,
+      );
     }
   }
+});
+
+test("reused Rust evidence is explicit in the human-readable acceptance report", () => {
+  const run = "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/123";
+  const report = {
+    version: "fixture",
+    commit: "fixture",
+    dirty: false,
+    platform: "test",
+    architecture: "test",
+    osRelease: "test",
+    startedAt: "test",
+    mode: "test",
+    exitCode: 0,
+    counts: {},
+    suites: {
+      rust: {
+        id: "rust",
+        status: "passed",
+        counts: { passed: 2, failed: 0, skipped: 1 },
+        log: "rust-reused.log",
+        reusedFrom: { run },
+      },
+    },
+    items: [],
+  };
+  const text = markdown(report);
+  assert.match(text, /passed \(reused\)/);
+  assert.ok(text.includes(run));
+  assert.ok(text.includes("rust-reused.log"));
 });

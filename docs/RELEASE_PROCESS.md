@@ -2,7 +2,7 @@
 
 ## Workflow ownership
 
-`ci.yml` classifies changes and calls the same platform/visual validation used by `release.yml`. Ordinary CI does not build installers. `platform-checks.yml` owns Windows x64 and Apple Silicon checks; `visual-checks.yml` owns the strict reviewed Windows browser matrix. The old automatic Windows/macOS installer workflows are removed.
+`ci.yml` classifies changes and calls the same platform/visual validation used by `release.yml`. Ordinary CI does not build installers. `platform-checks.yml` owns Windows x64 (pinned Windows 2022 runner) and Apple Silicon checks; `visual-checks.yml` owns the strict reviewed Windows browser matrix. The old automatic Windows/macOS installer workflows are removed.
 
 - Ordinary Markdown/text changes: workflow-policy checks and the aggregate gate; no Node dependency install, Rust compilation or screenshots. The acceptance checklist is an explicit exception.
 - Frontend/application changes: both platform acceptance reports and applicable screenshots. CSS does not invalidate matching Rust test evidence.

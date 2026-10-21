@@ -269,8 +269,12 @@ export function markdown(report) {
     "| --- | --- | --- | --- |",
   ];
   for (const suite of Object.values(report.suites)) {
+    const status = suite.reusedFrom ? `${suite.status} (reused)` : suite.status;
+    const evidence = suite.reusedFrom
+      ? `Reused from ${suite.reusedFrom.run}; ${suite.log}`
+      : (suite.reason ?? suite.log ?? "Not executed");
     lines.push(
-      `| ${suite.id} | ${suite.status} | ${cell(suite.counts ? JSON.stringify(suite.counts) : "See log")} | ${cell(suite.reason ?? suite.log ?? "Not executed")} |`,
+      `| ${suite.id} | ${status} | ${cell(suite.counts ? JSON.stringify(suite.counts) : "See log")} | ${cell(evidence)} |`,
     );
   }
   lines.push(
@@ -480,6 +484,11 @@ export async function main(args = process.argv.slice(2)) {
             recordedAt: proof.recordedAt,
           },
         };
+        report.suites.rust.log = "rust-reused.log";
+        writeFileSync(
+          join(output, "rust-reused.log"),
+          `Rust tests were not executed in this run.\nMatching validated inputs reused from commit ${proof.commit}.\nSource evidence: ${proof.run}\nCounts: ${JSON.stringify(proof.suite.counts)}\n`,
+        );
         writeFileSync(
           join(output, "suite-progress.json"),
           JSON.stringify(report.suites, null, 2),
