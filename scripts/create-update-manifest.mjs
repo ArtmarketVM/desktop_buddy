@@ -132,8 +132,7 @@ if (
     directory,
     version,
     tag: process.argv[2],
-    notes:
-      "A refreshed Windows workspace with signed, on-demand app updates. See the GitHub release for details.",
+    notes: "",
   });
   const trust = readTrust(root);
   const compatibilityPath = resolve(root, "updates/compatibility.json");

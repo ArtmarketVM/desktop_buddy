@@ -30,8 +30,7 @@ export function createMacManifest({ directory, version, tag, trust }) {
     throw new Error("Missing macOS updater archive.");
   return {
     version,
-    notes:
-      "Compact Buddy, local chat history and voice input, with signed macOS updates.",
+    notes: "",
     pub_date: new Date().toISOString(),
     platforms,
   };

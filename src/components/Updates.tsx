@@ -180,12 +180,6 @@ export function UpdateDialog({
               Download the signed update and restart sumi. Your saved goals,
               profile and API keys stay on this device.
             </p>
-            {snapshot.info?.notes && (
-              <details className="release-notes">
-                <summary>What's new</summary>
-                <pre>{snapshot.info.notes}</pre>
-              </details>
-            )}
             <p className="helper">Save any unsaved edits before updating.</p>
           </>
         )}
