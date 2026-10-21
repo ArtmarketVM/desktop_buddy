@@ -191,6 +191,7 @@ test("every mapped Rust test exists as an annotated test in source", () => {
     "engine_observability/hero_tests.rs",
     "ai_chat_tests.rs",
     "buddy_tests.rs",
+    "companion/mod.rs",
     "core_tests.rs",
   ];
   const names = new Set(

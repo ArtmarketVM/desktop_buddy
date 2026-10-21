@@ -333,15 +333,15 @@ partial(
   "P05-04",
   rust(
     "dnd_and_each_privacy_gate_suppress_ai",
-    "modes_and_cadence_respect_preferences_pause_and_dnd",
+    "delivery_respects_only_quiet_meeting_idle_pause_and_the_single_fullscreen_setting",
   ),
-  "Verify native suppression during actual quiet and working hours.",
+  "Verify native suppression during actual quiet hours, meetings and idle periods.",
 );
 partial(
   "P05-05",
   rust(
     "explicit_user_action_uses_the_registry_and_background_cannot_execute_it",
-    "desktop_companion_respects_fullscreen_without_hiding_explicit_chat",
+    "single_fullscreen_setting_hides_both_mascot_and_chat",
   ),
   "Send an explicit command while installed-app background restrictions are active.",
 );
