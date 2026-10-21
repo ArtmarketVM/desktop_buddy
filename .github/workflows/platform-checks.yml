@@ -92,6 +92,9 @@ jobs:
       - name: Lint frontend (errors and warnings over the committed budget fail)
         if: steps.proof.outputs.reusable != 'true'
         run: npm run lint
+      - name: Find unused files, exports and dependencies (findings over the committed budget fail)
+        if: steps.proof.outputs.reusable != 'true'
+        run: npm run lint:unused
       - name: Run applicable checks once and preserve the full acceptance report
         if: steps.proof.outputs.reusable != 'true'
         run: |

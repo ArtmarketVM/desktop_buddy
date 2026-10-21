@@ -355,6 +355,7 @@ test("lint gates block and their warning budgets cannot be bypassed", () => {
     platforms = read(".github/workflows/platform-checks.yml");
   assert.doesNotMatch(ci + platforms, /continue-on-error/);
   assert.match(platforms, /run: npm run lint\n/);
+  assert.match(platforms, /run: npm run lint:unused\n/);
   assert.match(ci, /run: npm run lint:rust\n/);
   assert.match(ci, /cargo clippy --locked --release --manifest-path src-tauri\/Cargo.toml --all-targets -- -D warnings/);
   assert.match(ci, /needs: \[plan, platforms, visual, rust-lint\]/);
@@ -362,6 +363,8 @@ test("lint gates block and their warning budgets cannot be bypassed", () => {
   const budget = JSON.parse(read("scripts/lint-budget.json"));
   assert.ok(Number.isInteger(budget.eslintWarnings));
   assert.ok(Number.isInteger(budget.clippyWarnings));
+  assert.ok(Number.isInteger(budget.unusedCode));
   assert.match(read("scripts/lint-frontend.mjs"), /counts\.warnings > budget/);
   assert.match(read("scripts/lint-rust.mjs"), /summary\.warnings > budget/);
+  assert.match(read("scripts/lint-unused.mjs"), /unique\.length > budget/);
 });
