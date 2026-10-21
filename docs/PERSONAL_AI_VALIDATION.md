@@ -2,15 +2,17 @@
 
 ## Scope and evidence
 
-Implementation starts at upstream `7387877`, after release 0.39.4 and the second developer's cleanup. No production goals, chats, messages or screenshots were used in provider tests. Tests use synthetic English fixtures and an isolated in-memory database. Release/platform CI results must be checked separately; local macOS checks do not establish a Windows pass.
+Implementation starts at upstream `7387877`, after release 0.39.4 and the second developer's cleanup. No production goals, chats, messages or screenshots were used in provider tests. Tests use synthetic English fixtures and an isolated in-memory database. The final release source is `aee23f443cf784878242639ad5b740963b0b9b8a`. Both platform gates and signed installer publication passed; native desktop checks are distinguished from CI below.
 
 | Check | Recorded result |
 | --- | --- |
-| Frontend suite | 47 files, 232 tests passed |
+| Frontend suite | 47 files, 232 tests passed on each supported platform |
 | Frontend production build | Passed (TypeScript, Vite, synchronized manifests) |
 | ESLint / Knip | Zero errors, warnings or unused-code findings |
-| Rust full suite | 624 passed, 0 failed, 2 intentionally ignored; final changed-source verification also runs in CI |
-| Local Clippy | Zero warnings/errors; Windows and release-mode validation remain CI gates |
+| Rust full suite | macOS arm64: 624 passed; Windows x64: 621 passed; zero failures and two intentionally ignored on each platform |
+| Clippy | Zero warnings/errors, debug and release modes on both platforms |
+| Visual regression | All 34 owner-approved baselines passed strict comparison |
+| Tooling / release checks | 10 tooling tests and 18 release/signature tests passed |
 | Real provider | Eight synthetic cases passed, without mock provider responses |
 
 ## Real-provider cases
@@ -38,11 +40,22 @@ The canonical Windows visual candidate job [39621146427](https://github.com/Artm
 
 Native review found that Accessibility's composite PID/hash identity is not a ScreenCaptureKit window number. Capture now resolves one unique window by owner, title and bounds and checks fresh foreground metadata around capture. Quartz session state and Windows input-desktop checks prevent disclosure in locked/secure sessions. The Windows zero-warning gate caught a constant-chunk iterator warning; the implementation was corrected without suppressing it. These findings required another source validation; earlier failed/superseded runs are not release passes.
 
-The signed standalone Mac probe could not collect foreground metadata before system Accessibility authorization. No personal screen data or provider request was used. A local public Quartz probe confirmed an available, logged-in, unlocked console session; physical lock/unlock and permitted image capture are still manual items below.
+The signed Mac probe passed after the owner granted Accessibility and Screen Recording and activated the synthetic fixture window: interface text was available and a bounded image was captured (39952 base64 bytes). There were zero cloud requests; image data was discarded without being printed or saved. Normal LaunchServices launch was required for correct macOS permission attribution; direct executable invocation did not establish the same application identity. A public Quartz probe confirmed an available, logged-in, unlocked console session. Physical lock/unlock remains untested.
+
+## Published and installed verification
+
+- [Trusted main validation](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39626567132): passed for the release source on both platforms.
+- [Signed release workflow](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39627337841): passed, including macOS arm64 and Windows x64 packaging and publication.
+- [Public 0.40.0 release](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.40.0): includes both installers and signed updater assets; no Intel or universal Mac build.
+- This Mac updated from 0.39.4 through the normal Update & restart flow. Both installed bundle metadata and Settings → About show 0.40.0.
+- Installed app signature and immutable credential helper verification passed on the host. Sandboxed trust-store checks are not substituted for host verification. Internal signing is not Apple notarization.
+- Installed Settings → Privacy showed tracking Running, Accessibility Granted, screenshots OFF and automatic completion OFF. Nebius and Tavily showed Connected; NVIDIA Nemotron showed Model listed. Connection indicators alone do not prove inference; the eight real-provider cases above provide separate inference evidence. User settings were not changed.
+- The two ignored Rust checks require chargeable provider credentials or an isolated native credential-store write environment. They are not counted as passes. A physical Windows desktop session and the remaining manual checklist are not covered by installer CI.
 
 ## Native/manual acceptance checklist
 
-- [ ] macOS public-fixture Accessibility and bounded capture with OS permissions.
+- [x] macOS public-fixture Accessibility and bounded capture with OS permissions.
+- [x] Installed macOS updater, 0.40.0 About screen, stable app/helper signatures and default-OFF observation controls.
 - [ ] Physical Windows foreground capture and occlusion handling.
 - [ ] Real Telegram, Gmail, WhatsApp Web and a previously unlisted app; no outgoing messages required.
 - [ ] Screenshot OFF/ON/OFF during a request; exclusion, private window, pause, lock and foreground switch.

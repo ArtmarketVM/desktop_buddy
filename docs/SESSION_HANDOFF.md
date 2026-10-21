@@ -5,8 +5,10 @@ Read this short file first in a new task. Verify Git and release state before re
 ## Product and current state
 
 - Repository: `ArtmarketVM/desktop_buddy`; default branch: `main`.
-- Last fetched main: `7387877` (dead-code cleanup merged). Latest public release at implementation start: **0.39.4**.
-- Personal AI observation work targets **0.40.0** on `codex/personal-ai-workflow`; check GitHub for current CI/publication status.
+- Verified release source on main: `aee23f443cf784878242639ad5b740963b0b9b8a` ([PR #45](https://github.com/ArtmarketVM/desktop_buddy/pull/45)). The second developer's cleanup was included before implementation.
+- **0.40.0 is published for both supported platforms**: [release](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.40.0). This Mac installed it through the normal updater; About, tracking permission and stable app/helper signatures were verified.
+- [Main validation](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39626567132) and [signed publication](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39627337841) passed. Frontend: 232 tests per platform; Rust: 624 macOS / 621 Windows passed, two intentionally ignored each; 34 approved visual comparisons; zero lint findings.
+- Eight real-provider synthetic observation cases passed. Native macOS Accessibility and bounded capture passed on a public fixture with zero cloud requests. Physical Windows capture and the remaining manual scenarios are explicitly unchecked in the validation document.
 - Architecture and limitations: `docs/PERSONAL_AI_OBSERVATION.md`. Validation: `docs/PERSONAL_AI_VALIDATION.md`.
 - Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
 - CI/release optimization is implemented on main through `8c54921`: shared validation, input-bound proof reuse, separate Cargo bundle caches and one monitor process. Both native cold/warm runs passed. See `docs/RELEASE_PROCESS.md` for measurements and run links. No product version bump or new installer release was made for this infrastructure change.
@@ -28,7 +30,8 @@ Read this short file first in a new task. Verify Git and release state before re
 - `work_events` is an additive local schema, separate from history and Personal Memory. Durable Undo rejects changed plans. Pending unplanned-work offers remain runtime-only; observed journal entries survive restart.
 - 0.39.2 removed What's new and repeated current-channel updater descriptions. No version-specific descriptions are implemented yet.
 - ESLint, Clippy and Knip now block at zero findings. Canonical Windows visual baselines require explicit human owner review before replacement; never auto-accept candidates.
-- Native microphone, installed-app permissions and live-provider behavior remain distinct from synthetic acceptance tests.
+- Native microphone and full real-app end-to-end scenarios remain distinct from the passed observation/provider fixtures. Do not infer those passes from CI. Screenshots and automatic completion were verified OFF in the installed app; do not enable them without the user’s consent.
+- The native audit required normal LaunchServices launch for correct macOS permission attribution. Avoid repeated permission requests based solely on direct executable invocation. Temporary audit bundle registration shares the production identity; do not reset TCC or remove that registration blindly.
 
 ## Start and finish a task
 
