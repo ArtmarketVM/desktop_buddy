@@ -1,24 +1,20 @@
 {
   "schemaVersion": 1,
   "applicationBase": "11760017314095d75374449690c2a1c42c5af08a",
-  "captureCommit": "c4aad93bc06b1593b26e8f4156aeb59e98f3f526",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39488577476",
-  "artifactId": 12293954001,
-  "approvedOn": "2026-10-20",
+  "captureCommit": "5c8c61cf4b2541d4d7158bc3e41a52dba5112549",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39621146427",
+  "approvedOn": "2026-10-21",
   "approvedBy": "Repository owner, explicit chat confirmation after reviewing all 34 candidates",
-  "approval": "The owner confirmed: reviewed and approve all 34.",
+  "approval": "Просмотрел, подтверждаю все 34",
   "knownExistingIssues": [
     "Settings Privacy content extends beyond the right edge at the 720-pixel viewport; Developer 1 must treat a fix as an intentional visual change."
   ],
   "environment": {
-    "imageVersion": "20261012.333.1",
-    "commit": "c4aad93bc06b1593b26e8f4156aeb59e98f3f526",
-    "imageOS": "win22",
-    "osVersion": "Microsoft Windows NT 10.0.20348.0",
-    "playwright": "Version 1.56.1",
-    "runnerOS": "Windows",
-    "applicationBase": "11760017314095d75374449690c2a1c42c5af08a",
-    "node": "v24.21.0"
+    "commit": "5c8c61cf4b2541d4d7158bc3e41a52dba5112549",
+    "runner": "Windows",
+    "image": "20261012.333.1",
+    "node": "v24.21.0",
+    "reused": ""
   },
   "screenshots": {
     "wide-light/buddy.png": {
@@ -57,7 +53,7 @@
       "height": 873
     },
     "wide-light/settings-privacy.png": {
-      "sha256": "ce8d67976277dd70b7572c62ba50f2bea2c57acbc24396548f1a4238a38b4c4d",
+      "sha256": "309f483bed62a0e5f33420e5258fb67156b173914ede4efdf85dc67061202b65",
       "width": 1280,
       "height": 873
     },
@@ -92,7 +88,7 @@
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "b2ad88731cd232e44f9951005c3dd7492ee34bc595969b4b0b1966b650a92a08",
+      "sha256": "dafe7d07c1386dfeb80431b0add5ba1e53ccab03729e24d45893ad7a20855c0e",
       "width": 1280,
       "height": 873
     },
@@ -102,12 +98,12 @@
       "height": 873
     },
     "wide-dark/settings-privacy.png": {
-      "sha256": "b4891f9b7f150975348ace43c02578ec4c6d7d3740597657f191fd7de60dd04c",
+      "sha256": "532ae7fb50d6542c06ebdc2949ee0456bae63e0367256a6ccee222f635d32e00",
       "width": 1280,
       "height": 873
     },
     "wide-dark/today.png": {
-      "sha256": "98da216471f4928ff47d9a31457f32c2612db51b382a48779cc698e6a8e3a7ed",
+      "sha256": "0eb6e844fdc23a09bba0b1bba45f34343d991ed7e42758f821685b2afcc3412e",
       "width": 1280,
       "height": 873
     },
@@ -137,12 +133,12 @@
       "height": 873
     },
     "narrow-light/settings-general.png": {
-      "sha256": "3f97febb4adcb626cffcc749802ecd8f2327476d7d075ee2d24706cb88c3cfcd",
+      "sha256": "24c55be595d8f0f1da32d2db3d90d94051f00816139b5a89e667f92d7289fc69",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-privacy.png": {
-      "sha256": "09ce1ecd38ff8bba0756765da34c81170dc5e4308447c3fe37841e4b42d3342f",
+      "sha256": "45d12a0728a3ad3db2f7354c5f0547dd7b54f2a865de5460068b7188ef1947d5",
       "width": 720,
       "height": 873
     },
@@ -157,7 +153,7 @@
       "height": 873
     },
     "narrow-dark/chats.png": {
-      "sha256": "c0ab436e204226bfe69c485def78ea7b13ae5089265f8aa41b68e5d40224e591",
+      "sha256": "1497bca20ec05c74049418568633f4711a412e1fbafefa34a33576eebf695137",
       "width": 720,
       "height": 873
     },
@@ -172,22 +168,22 @@
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "1bbc1c5d5ef21232863eb19a41e59d5f42f0f8f6c245de7c2ac3f0abc2c4c0f2",
+      "sha256": "cc1d84372a490e05214b9053edc2e187794ad4bc9f65a5aaf4b1efad4f0a58de",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-general.png": {
-      "sha256": "d5c03532135a1fce4c7da66accb0feb6ca3a98f5a62573b034991e8f4b07cc37",
+      "sha256": "3e105d251ee4036bc7597983cdd691168d24bd2f2e2919f5b0a30724a47bbe08",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-privacy.png": {
-      "sha256": "aad59b6bacfbbb952e5920e983c6a2a8b83cfb6ae66c5bda1b164190275fdbd4",
+      "sha256": "c1309a72bd61ae472b659774d3e3e63bc744b6eb60a3fb14b0eabaf4bc6aaf54",
       "width": 720,
       "height": 873
     },
     "narrow-dark/today.png": {
-      "sha256": "a543cb682aec145fecfef267499e7e57e98a51b01c013ae4d57e087e491d7fb8",
+      "sha256": "9f1c7363dcc693bd2e622d00a02d546ce94015001f12fa57137c4997f3b9126a",
       "width": 720,
       "height": 873
     }
@@ -223,5 +219,7 @@
       ],
       "notTaken": "Five other captures differed only by 1-16 antialiased corner pixels (wide-dark/today, narrow-dark/today, narrow-dark/settings-general, narrow-light/settings-general, narrow-light/chats). Their approved baselines were kept unchanged."
     }
-  ]
+  ],
+  "previousReviewCommit": "7387877",
+  "changeReason": "Privacy observation settings and disclosure copy. Seven additional screenshots have 1–11 changed rasterization pixels without layout movement. All 34 were captured and strictly compared again in the same Windows job."
 }
