@@ -1,0 +1,91 @@
+name: Windows browser visual coverage
+on:
+  workflow_call:
+    inputs:
+      candidates:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      candidates:
+        description: Generate provisional candidates for owner review, never accepted automatically
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  visual:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    concurrency:
+      group: visual-${{ github.sha }}-${{ inputs.candidates || false }}
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the agreed base without regenerating baselines
+        run: git fetch --no-tags --depth=1 origin 11760017314095d75374449690c2a1c42c5af08a
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - id: inputs
+        run: node scripts/ci-inputs.mjs --visual
+      - uses: actions/cache/restore@v4
+        id: cache
+        if: ${{ !inputs.candidates }}
+        with:
+          path: |
+            .tools/ci/visual
+            test-results
+            playwright-report
+          key: visual-proof-v1-${{ steps.inputs.outputs.validation_key }}
+      - id: proof
+        if: ${{ !inputs.candidates }}
+        run: node scripts/ci-proof.mjs visual-inspect '${{ steps.inputs.outputs.validation_key }}'
+      - run: npm ci
+        if: steps.proof.outputs.reusable != 'true'
+      - run: npx playwright install chromium
+        if: steps.proof.outputs.reusable != 'true'
+      - name: Compare reviewed baselines without updating them
+        if: ${{ !inputs.candidates && steps.proof.outputs.reusable != 'true' }}
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: .tools/ci/visual/report.json
+        run: |
+          mkdir -p .tools/ci/visual
+          npm run test:visual -- --reporter=line,json,html
+          node scripts/ci-proof.mjs visual-record '${{ steps.inputs.outputs.validation_key }}'
+      - name: Generate candidates and verify repeatability for human review
+        if: inputs.candidates
+        run: npm run test:visual:candidates
+      - name: Record visual provenance
+        run: |
+          mkdir -p test-results
+          node --input-type=module -e 'import {writeFileSync} from "node:fs"; writeFileSync("test-results/environment.json", JSON.stringify({commit:process.env.GITHUB_SHA,runner:process.env.RUNNER_OS,image:process.env.ImageVersion,node:process.version,reused:process.env.REUSED},null,2))'
+        env:
+          REUSED: ${{ steps.proof.outputs.reusable }}
+      - uses: actions/cache/save@v4
+        if: success() && !inputs.candidates && steps.proof.outputs.reusable != 'true' && steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: |
+            .tools/ci/visual
+            test-results
+            playwright-report
+          key: visual-proof-v1-${{ steps.inputs.outputs.validation_key }}
+      - name: Build review gallery
+        if: always()
+        run: node scripts/visual-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-windows-2022
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .tools/ci/visual
+            playwright-report
+            test-results
+            visual/baselines
+          if-no-files-found: warn

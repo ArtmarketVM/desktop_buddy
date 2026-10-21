@@ -1,3 +1,4 @@
+import { rustProof, writeProof } from "./ci-proof.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import {
   createWriteStream,
@@ -295,6 +296,8 @@ export function markdown(report) {
 
 export async function main(args = process.argv.slice(2)) {
   let plan = false;
+  let rustEvidence;
+  let rustKey;
   let output = join(
     projectRoot,
     ".tools",
@@ -303,10 +306,22 @@ export async function main(args = process.argv.slice(2)) {
   );
   for (let index = 0; index < args.length; index++) {
     if (args[index] === "--plan") plan = true;
+    else if (args[index] === "--rust-evidence" && args[index + 1])
+      rustEvidence = resolve(projectRoot, args[++index]);
+    else if (args[index] === "--rust-key" && args[index + 1])
+      rustKey = args[++index];
     else if (args[index] === "--output" && args[index + 1])
       output = resolve(projectRoot, args[++index]);
     else throw new Error(`Unknown or incomplete argument: ${args[index]}`);
   }
+  if (Boolean(rustEvidence) !== Boolean(rustKey))
+    throw new Error("Rust evidence requires both a path and an input key");
+  if (
+    rustEvidence &&
+    (relative(projectRoot, rustEvidence).startsWith("..") ||
+      !/^[a-f0-9]{64}$/.test(rustKey))
+  )
+    throw new Error("Invalid Rust evidence location or key");
   const outputRelative = relative(projectRoot, output);
   if (
     !outputRelative ||
@@ -454,6 +469,27 @@ export async function main(args = process.argv.slice(2)) {
       };
       continue;
     }
+    if (spec.id === "rust" && rustEvidence) {
+      const proof = rustProof(rustEvidence, rustKey);
+      if (proof) {
+        report.suites.rust = {
+          ...proof.suite,
+          reusedFrom: {
+            commit: proof.commit,
+            run: proof.run,
+            recordedAt: proof.recordedAt,
+          },
+        };
+        writeFileSync(
+          join(output, "suite-progress.json"),
+          JSON.stringify(report.suites, null, 2),
+        );
+        console.log(
+          `[acceptance] rust: reused verified matching inputs from ${proof.run}`,
+        );
+        continue;
+      }
+    }
     const suite = await command(spec, output);
     if (spec.id === "frontend") {
       try {
@@ -502,6 +538,10 @@ export async function main(args = process.argv.slice(2)) {
         suite.reason =
           "Suite exited successfully but produced no TAP test counts";
       }
+    }
+    if (spec.id === "rust" && rustEvidence && suite.status === "passed") {
+      const { captured: _captured, ...recorded } = suite;
+      writeProof(rustEvidence, rustKey, "rust", { suite: recorded });
     }
     delete suite.captured;
     report.suites[spec.id] = suite;

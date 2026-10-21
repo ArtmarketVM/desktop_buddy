@@ -151,6 +151,8 @@ The [hackathon demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) documents `--check-
 
 The [release workflow](.github/workflows/release.yml) runs frontend tests/build, locked Rust tests on both supported systems and release safeguards before publishing both signed update channels. [Quality gates](docs/QUALITY_GATES.md) describe strict Windows browser comparisons against owner-reviewed baselines and the non-blocking lint rollout. Keep physical microphone, actual foreground tracking, displayed interventions and full restart acceptance separate from mocked/backend evidence.
 
+For current CI, validation reuse and publishing commands, see [the release process](docs/RELEASE_PROCESS.md). New development sessions should begin with [the short handoff](docs/SESSION_HANDOFF.md).
+
 ## Architecture entry points
 
 | Area                            | Primary source                                                                                                                                                                                        |

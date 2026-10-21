@@ -1,3 +1,7 @@
+# Current workflow entry points
+
+As of the CI optimization, `ci.yml` is the automatic change-aware entry point. `release.yml` shares platform/visual validation and publishes only after both succeed. Ordinary CI does not build installers. Use `visual-checks.yml` with `candidates=true` for provisional owner review; approved baselines and strict comparisons remain unchanged. Use Application checks with `validate_installers=true` only when native packaging validation is needed. See [release process](RELEASE_PROCESS.md) for proof trust, cache invalidation, monitoring and current validation evidence. The chronology below documents the earlier infrastructure and its superseded workflow names.
+
 # Quality gates and visual handoff
 
 ## Final handoff: 20 October 2026

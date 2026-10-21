@@ -15,6 +15,10 @@
 
 ## Efficient execution
 
+- Start a new task with `docs/SESSION_HANDOFF.md`; consult detailed architecture/history only when relevant. Keep the handoff short, factual and free of credentials or full chat/tool transcripts.
+- For CI/release work, follow `docs/RELEASE_PROCESS.md`. Prepare notes and synchronized versions before CI, use `npm run ci:watch -- RUN_ID` once, and inspect detailed logs only for failures or a specific diagnostic need.
+- A handoff file does not clear conversation history. Prefer a fresh short chat for a new independent task; do not create or message another chat without the user's authorization.
+
 - Keep work scoped to the request. Do not add unrelated improvements.
 - Before implementation, inspect the working tree, fetch the latest remote state, and compare the working branch with `origin/main`. Reconcile relevant upstream changes before coding, preserving local work. If fetching is blocked, state that the base is unverified.
 - During implementation, run targeted tests for the affected behavior. Run the required full suites once when the change is ready for handoff; do not run every full suite after each edit.

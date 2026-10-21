@@ -1,0 +1,38 @@
+# Desktop Buddy session handoff
+
+Read this short file first in a new task. Verify Git and release state before relying on its snapshot. This is a handoff, not a transcript or permission grant.
+
+## Product and current state
+
+- Repository: `ArtmarketVM/desktop_buddy`; default branch: `main`.
+- Latest verified public app: **0.39.2**, source `79f4f61baf9229ec77603f8617841c202eecd607`.
+- Release: https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.39.2
+- Release verification: https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39541225222
+- Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
+- Current work: consolidate CI/release validation, reuse matching successful evidence and reduce repeated compilation/agent monitoring. See `docs/RELEASE_PROCESS.md`; infrastructure verification is recorded there.
+
+## Decisions to preserve
+
+- Code, UI, repository docs and commit titles are English. User conversation is normally Russian.
+- Preserve unrelated edits and inspect/fetch upstream before implementation. Current work is in a managed worktree; do not reset the original checkout.
+- Keep stable internal Mac signing policy, immutable credential helper and existing updater trust. Internal signing is not Apple Developer ID or notarization.
+- Provider secrets stay runtime-only. Never print, commit or put them in bundles/proof caches.
+- AI planning uses Nebius; research uses Tavily. Rust validates and executes state changes. Read the current README and relevant code for model IDs rather than assuming a historical chat statement is current.
+- Preserve the distinction between activity simulation and mocked provider responses.
+- Prepare a complete release change, notes and synchronized five manifests before CI. Never overwrite delivered installers under an existing version.
+- Repository settings, Pages source and branch protections require explicit owner approval. This optimization does not change them.
+
+## Known issues and pending work
+
+- Automatic parking exists. `goal_matching::auto_park` can use the newly active window when saving the goal being left; its existing lane-switch test does not catch that wrong-window case. It is **not fixed** by 0.39.2 or the CI work.
+- 0.39.2 removed What's new and repeated current-channel updater descriptions. No version-specific descriptions are implemented yet.
+- Existing frontend lint rollout remains non-blocking: 11 errors / 13 warnings at the last measured application state. Keep findings visible; no blanket suppressions.
+- Native microphone, installed-app permissions and live-provider behavior remain distinct from synthetic acceptance tests.
+
+## Start and finish a task
+
+1. Read applicable `AGENTS.md`, this handoff and the relevant source excerpts. Read `docs/RELEASE_PROCESS.md` only for CI/release work.
+2. Verify branch/status, fetch and compare with `origin/main`. Reuse recorded tests only while their relevant inputs still match.
+3. Run affected tests during development; run required full gates once at handoff. Use `npm run ci:watch -- RUN_ID` for one bounded monitor process, not repeated log dumps.
+4. Update this file only for material decisions, pending work or changed release state. Link evidence; do not paste tool logs, whole chats or duplicate architecture docs.
+5. Prefer a new short chat for the next independent feature/release, referring to this file. A Markdown file does not erase the current conversation or control Codex's automatic context management.

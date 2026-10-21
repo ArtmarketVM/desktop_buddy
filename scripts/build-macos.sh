@@ -57,6 +57,10 @@ if [[ "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
   node -e 'require("fs").writeFileSync(process.argv[1], JSON.stringify({bundle:{macOS:{signingIdentity:process.env.APPLE_SIGNING_IDENTITY}}}))' "$identity_config"
   config+=(--config "$identity_config")
 fi
+if [[ -n "${BUDDY_PREBUILT_FRONTEND_KEY:-}" ]]; then
+  node scripts/ci-proof.mjs prebuilt "$BUDDY_PREBUILT_FRONTEND_KEY"
+  config+=(--config .tools/ci/prebuilt-frontend.json)
+fi
 npm run tauri -- build "${config[@]}" --target "$target" --bundles app -- --locked
 version="$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")"
 bundle="src-tauri/target/$target/release/bundle"

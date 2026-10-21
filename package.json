@@ -21,7 +21,11 @@
     "test:contact": "node --test server/contact.verify.mjs",
     "tauri": "tauri",
     "dev:macos": "tauri dev",
-    "build:macos": "bash scripts/build-macos.sh"
+    "build:macos": "bash scripts/build-macos.sh",
+    "test:ci": "node --test scripts/ci.verify.mjs",
+    "ci:watch": "node scripts/watch-ci.mjs",
+    "ci:plan": "node scripts/ci-inputs.mjs --plan",
+    "release:prepare": "node scripts/prepare-release.mjs"
   },
   "dependencies": {
     "@fontsource/instrument-sans": "^5.3.0",
