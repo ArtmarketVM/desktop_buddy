@@ -8,7 +8,6 @@ import {
   avatarState,
 } from "../data/profile";
 import { Avatar } from "./Avatar";
-import { ProductFeedback } from "./ProductFeedback";
 import { defaultBuddyPreferences } from "../types";
 
 const profile: UserProfile = {
@@ -87,11 +86,5 @@ describe("onboarding and profiles", () => {
         <Avatar appearance={{ ...profile.avatar, visible: false }} />,
       ),
     ).toBe("");
-  });
-  it("offers stars and optional text with an explicit local-storage disclosure", () => {
-    const html = renderToStaticMarkup(<ProductFeedback goalId={7} />);
-    expect(html).toContain("5 stars");
-    expect(html).toContain("Anything to add? (optional)");
-    expect(html).toContain("No feedback is uploaded");
   });
 });

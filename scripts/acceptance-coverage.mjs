@@ -238,38 +238,20 @@ contract(
 
 partial(
   "P04-01",
-  [
-    ...rust(
-      "park_active_goal_saves_step_and_stops_its_timer_without_claiming_completion",
-      "last_result_uses_only_confirmed_completion_and_waiting_survives_resume",
-    ),
-    ui(
-      "src/core/GoalWorkContext.test.tsx",
-      "parks the exact goal through Rust and shows its authoritative receipt",
-    ),
-  ],
+  rust(
+    "park_active_goal_saves_step_and_stops_its_timer_without_claiming_completion",
+    "last_result_uses_only_confirmed_completion_and_waiting_survives_resume",
+  ),
   "Verify the Today entry point and native timer/UI state.",
 );
 partial(
   "P04-02",
-  [
-    ui(
-      "src/core/GoalWorkContext.test.tsx",
-      "keeps parked checkpoints compact until explicitly opened",
-    ),
-    ...rust("six_parallel_contexts_are_isolated"),
-  ],
+  rust("six_parallel_contexts_are_isolated"),
   "Verify Park from Goals and both expandable context records in the installed app.",
 );
 partial(
   "P04-03",
-  [
-    ...rust("resume_restores_context_focus_and_step_without_starting_a_timer"),
-    ui(
-      "src/core/GoalWorkContext.test.tsx",
-      "resumes the exact parked goal without a frontend state mutation",
-    ),
-  ],
+  rust("resume_restores_context_focus_and_step_without_starting_a_timer"),
   "Verify installed UI focus, Today, and the stopped manual timer.",
 );
 partial(
@@ -318,13 +300,7 @@ contract(
 );
 partial(
   "P04-10",
-  [
-    ...rust("invalid_or_stale_generated_checkpoint_never_parks_the_goal"),
-    ui(
-      "src/core/GoalWorkContext.test.tsx",
-      "failed generation leaves the action available and shows no success receipt",
-    ),
-  ],
+  rust("invalid_or_stale_generated_checkpoint_never_parks_the_goal"),
   "Check missing real account configuration and recovery guidance on each device.",
 );
 contract(

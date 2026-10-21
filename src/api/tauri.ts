@@ -12,15 +12,11 @@ import type {
   Dashboard,
   Decision,
   SearchResult,
-  GoalPlan,
-  GoalProposal,
-  AppCategory,
   TrackingSettings,
   GoalHistory,
   UserProfile,
   UserSettings,
   OnboardingState,
-  ProductFeedback,
   InstalledApp,
 } from "../types";
 export const desktop = isTauri();
@@ -76,32 +72,12 @@ export const api = {
   onboardingGoal: (text: string) => invoke("create_onboarding_goal", { text }),
   finishOnboarding: (allowTracking: boolean) =>
     invoke<void>("finish_onboarding", { allowTracking }),
-  saveUserProfile: (profile: UserProfile, autostart: boolean) =>
-    invoke<void>("save_user_profile", { profile, autostart }),
-  productFeedback: (feedback: ProductFeedback) =>
-    invoke<void>("save_product_feedback", { feedback }),
   trackingSettings: () => invoke<TrackingSettings>("get_tracking_settings"),
   saveTrackingSettings: (settings: TrackingSettings) =>
     invoke<void>("set_tracking_settings", { settings }),
   goalHistory: (goalId: number | null = null) =>
     invoke<GoalHistory[]>("get_goal_history", { goalId }),
-  appRule: (
-    goalId: number,
-    processName: string,
-    category: AppCategory | null,
-  ) => invoke<void>("set_app_rule", { goalId, processName, category }),
-  saveGoalPlan: (title: string, plan: GoalPlan) =>
-    invoke<void>("save_goal_plan", { title, plan }),
-  transitionGoal: (
-    id: number,
-    action: "complete" | "defer" | "resume",
-    confirmed = false,
-  ) => invoke<void>("transition_goal", { id, action, confirmed }),
-  refineGoal: (id: number, revision: number) =>
-    invoke<GoalProposal>("refine_goal", { id, revision }),
   snooze: (enabled: boolean) => invoke<void>("snooze_buddy", { enabled }),
-  rateRecommendation: (id: number, helpful: boolean | null) =>
-    invoke<void>("rate_recommendation", { id, helpful }),
   privacyPreview: () => invoke<unknown>("get_privacy_preview"),
   retention: (days: number) => invoke<void>("set_retention", { days }),
   clearHistory: () => invoke<void>("clear_local_history", { confirmed: true }),

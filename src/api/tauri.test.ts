@@ -14,49 +14,12 @@ describe("provider settings commands", () => {
     await api.goalHistory(7);
     expect(invoke).toHaveBeenLastCalledWith("get_goal_history", { goalId: 7 });
   });
-  it("sets and clears an app rule for an explicit goal", async () => {
-    await api.appRule(7, "editor.exe", "work");
-    expect(invoke).toHaveBeenLastCalledWith("set_app_rule", {
-      goalId: 7,
-      processName: "editor.exe",
-      category: "work",
-    });
-    await api.appRule(7, "editor.exe", null);
-    expect(invoke).toHaveBeenLastCalledWith("set_app_rule", {
-      goalId: 7,
-      processName: "editor.exe",
-      category: null,
-    });
-  });
-  it("passes explicit completion confirmation and a goal revision for refinement", async () => {
-    await api.transitionGoal(7, "complete", true);
-    expect(invoke).toHaveBeenLastCalledWith("transition_goal", {
-      id: 7,
-      action: "complete",
-      confirmed: true,
-    });
-    await api.refineGoal(7, 2);
-    expect(invoke).toHaveBeenLastCalledWith("refine_goal", {
-      id: 7,
-      revision: 2,
-    });
-  });
   it("snoozes and resumes without changing tracking or DND", async () => {
     await api.snooze(true);
     expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: true });
     await api.snooze(false);
     expect(invoke).toHaveBeenLastCalledWith("snooze_buddy", { enabled: false });
   });
-  it.each([true, false, null])(
-    "sends recommendation feedback %s",
-    async (helpful) => {
-      await api.rateRecommendation(42, helpful);
-      expect(invoke).toHaveBeenLastCalledWith("rate_recommendation", {
-        id: 42,
-        helpful,
-      });
-    },
-  );
   it("saves an explicit provider key through the native boundary", async () => {
     await api.providerKey("nebius", "test-key");
     expect(invoke).toHaveBeenLastCalledWith("set_provider_key", {
