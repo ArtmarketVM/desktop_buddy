@@ -50,7 +50,7 @@ jobs:
     if: needs.plan.outputs.visual == 'true'
     uses: ./.github/workflows/visual-checks.yml
   rust-lint:
-    needs: [plan, platforms]
+    needs: plan
     if: needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch'
     strategy:
       fail-fast: false
@@ -85,10 +85,11 @@ jobs:
           workspaces: src-tauri
           shared-key: buddy-lint-${{ matrix.target }}-v2
           save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-      - uses: actions/download-artifact@v4
-        with:
-          name: validation-${{ matrix.name }}
-          path: .
+      # Tauri's context macro only needs ../dist to exist; Clippy never reads the bundle,
+      # so lint runs alongside the platform checks instead of waiting for their frontend build.
+      - name: Provide a placeholder frontend
+        shell: bash
+        run: mkdir -p dist && printf '<!doctype html>\n' > dist/index.html
       - run: npm run lint:rust
       # Release builds compile code gated on not(debug_assertions) that debug lint and tests never see.
       - name: Check the release configuration

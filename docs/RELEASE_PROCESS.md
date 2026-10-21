@@ -7,7 +7,7 @@
 - Ordinary Markdown/text changes: workflow-policy checks and the aggregate gate; no Node dependency install, Rust compilation or screenshots. The acceptance checklist is an explicit exception.
 - Frontend/application changes: both platform acceptance reports and applicable screenshots. CSS does not invalidate matching Rust test evidence.
 - Backend, embedded role data, dependency, build-policy or toolchain changes: affected Rust evidence is invalidated. Unknown changes conservatively schedule validation; an unavailable diff schedules all gates.
-- Rust lint keeps the existing non-blocking policy, runs for changed Rust inputs on push/PR and is outside the signed release dependency chain. Manual reuse/packaging validation does not repeat those reports. It consumes the already-built frontend from the same CI run.
+- Rust lint blocks `Required application checks` for changed Rust inputs on push/PR: debug Clippy within the zero budget, then release-profile Clippy with `-D warnings`. It starts right after `plan`, in parallel with the platform checks, using a placeholder `dist` because Clippy does not read the bundle. `release.yml` does not repeat it; the release commit already passed it on main. Manual reuse/packaging validation does not repeat those reports.
 - Explicit `validate_installers=true` on Application checks builds unsigned validation packages on both systems. Do not install an unsigned Mac candidate: its credential helper cannot read saved keys.
 - A real release always builds and verifies both signed update packages once. It cannot publish until both platform and visual gates succeed.
 
@@ -31,7 +31,7 @@ Per-commit/per-platform concurrency serializes overlapping CI and release valida
 
 Cargo caches have stable platform/target namespaces shared between appropriate workflows, with separate test and bundle keys so an immutable test cache cannot prevent saving release artifacts. Workspace artifacts are retained; Cargo still decides what needs recompilation. Saving compiled artifacts and proof is restricted to main. Only CI dev/test debug symbols are disabled; test assertions and release optimization/signing settings are unchanged. No new local Rust target directory is required for routine frontend work.
 
-Non-blocking Clippy compilation is separate from the signed release path. Both platform Rust tests, formatting, the full 122-item acceptance mapping and immutable helper/signature checks remain available. Automated acceptance does not establish the manual/live parts of that checklist.
+Clippy compilation uses its own `buddy-lint-*` cache and is separate from the signed release path. Both platform Rust tests, formatting, the full 122-item acceptance mapping and immutable helper/signature checks remain available. Automated acceptance does not establish the manual/live parts of that checklist.
 
 ## Prepare a complete release once
 
@@ -40,7 +40,7 @@ Non-blocking Clippy compilation is separate from the signed release path. Both p
 3. Run `npm run release:prepare -- X.Y.Z --notes-file PATH`. It validates the notes and updates all five version manifests together. It performs no Git operations, network publication or signing.
 4. Review the diff and run affected local checks once. Commit/push only within the user's authorization; preserve unrelated files.
 5. Dispatch **Publish Windows and macOS release**, `release_tag=vX.Y.Z`, from main. Preflight requires a new version, completed notes and synchronized manifests. Applicable trusted proofs are reused; misses run the normal acceptance suites.
-6. Run `npm run ci:watch -- RUN_ID` once. It emits only stage changes, waits one minute between requests and retries temporary monitoring failures with bounded backoff. A monitoring failure means the outcome is unknown, not that the build failed. Read detailed logs only for failures or an explicit diagnostic need.
+6. Run `npm run ci:watch -- RUN_ID` once. It emits only stage changes, waits one minute between requests and retries temporary monitoring failures with bounded backoff. A monitoring failure means the outcome is unknown, not that the build failed. Read detailed logs only for failures or an explicit diagnostic need. Assistants start it once as a background process and wait for it to exit; they do not re-arm short watchers or poll run status in between.
 7. After success, verify the actual public version, both channels and asset/signature/checksum results once. Record source/results and stop. Documentation-only follow-ups do not require repeating application tests or installers.
 
 Do not change Pages/protection settings, trusted signing keys or approved screenshots to make a release pass. Do not bump the app version or publish a new installer merely for CI/documentation work.
@@ -79,6 +79,8 @@ The final effective bundle-cache verification used the same commit (`8c54921`) a
 Evidence: [cold run 39567639225](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39567639225), [warm run 39569944975](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39569944975). Both passed the strict visual gate. These timings cover unsigned validation packages, not production signing/publication. The cold total also includes fresh acceptance; packaging rows isolate the native packaging steps. Native packaging, linking, signing and cache downloads still take time. No fixed speedup is promised for different changes or runner images.
 
 The documentation-only follow-up uses the same classifier: only the small workflow-policy/unit checks and aggregate gate apply. Confirm the associated run from the final documentation commit; no application or installer change is included.
+
+Signed releases since then: the 0.39.4 release (both signed installers, verification and publication) took 11m16s in [run 39590858703](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39590858703), inside the 10–15 minute target for a small change with warm caches.
 
 ## References
 
