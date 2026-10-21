@@ -53,7 +53,32 @@ Measure cold and warm runs separately: wall time, number of test/packaging execu
 
 ## Validation of this infrastructure change
 
-Local workflow syntax/expression checks use checksum-pinned actionlint 1.7.12. CI regression tests cover selective gates, input changes, version normalization, binary integrity, expiry/failure rejection, preserved ignored tests, report/frontend corruption, monitoring and release preparation. Native cold/warm and packaging checks are pending until their run links/results are recorded here.
+Local workflow syntax/expression checks use checksum-pinned actionlint 1.7.12. CI regression tests cover selective gates, input changes, version normalization, binary integrity, expiry/failure rejection, preserved ignored tests, report/frontend corruption, monitoring and release preparation. The following completed checks exercise the real GitHub runners; validation installers are test artifacts and were not published as an application release.
+
+| Check                                     | Result                                                                                      | Evidence                                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Local frontend tests and production build | 265 tests passed; build passed                                                              | Reused while application inputs remained unchanged                                       |
+| Release policy tests                      | 18 passed                                                                                   | Local `npm run test:release`                                                             |
+| CI/proof/acceptance regressions           | 22 passed                                                                                   | Local `node --test scripts/ci.verify.mjs scripts/acceptance.verify.mjs`                  |
+| Initial cold required gates               | Passed in 9m44s, including queue time                                                       | [Run 39562112737](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39562112737) |
+| Warm required gates                       | Passed in 60s, including queue time; both platform suites and visual evidence reused        | [Run 39567015380](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39567015380) |
+| Both native validation packages           | Passed; matching acceptance evidence reused; no repeated Vite build in either packaging log | [Run 39565766616](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39565766616) |
+
+These are measured validation runs, not a signed-release duration or token-cost comparison. Cold/warm runs had different cache states and runner snapshots; they are not a controlled speedup benchmark. Windows is now pinned to Windows 2022: a moving `windows-latest` alias supplied different images for the same commit, correctly invalidating the proof. One obsolete prototype run was cancelled after that diagnosis.
+
+The final effective bundle-cache verification used the same commit (`8c54921`) and platform environments:
+
+| Measurement                                                           | Cold bundle cache             | Warm bundle cache                        |
+| --------------------------------------------------------------------- | ----------------------------- | ---------------------------------------- |
+| Required checks plus both validation installers, including queue time | 17m10s                        | 5m02s                                    |
+| Windows native packaging step                                         | 7m40s                         | 3m21s                                    |
+| Apple Silicon native packaging step                                   | 5m32s                         | 2m35s                                    |
+| Acceptance execution                                                  | Fresh, both platforms         | Verified evidence reused, both platforms |
+| Cargo bundle cache                                                    | New platform namespaces saved | Exact full-key hits, both platforms      |
+
+Evidence: [cold run 39567639225](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39567639225), [warm run 39569944975](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39569944975). Both passed the strict visual gate. These timings cover unsigned validation packages, not production signing/publication. The cold total also includes fresh acceptance; packaging rows isolate the native packaging steps. Native packaging, linking, signing and cache downloads still take time. No fixed speedup is promised for different changes or runner images.
+
+The documentation-only follow-up uses the same classifier: only the small workflow-policy/unit checks and aggregate gate apply. Confirm the associated run from the final documentation commit; no application or installer change is included.
 
 ## References
 

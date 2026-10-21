@@ -9,7 +9,7 @@ Read this short file first in a new task. Verify Git and release state before re
 - Release: https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.39.2
 - Release verification: https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39541225222
 - Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
-- Current work: consolidate CI/release validation, reuse matching successful evidence and reduce repeated compilation/agent monitoring. See `docs/RELEASE_PROCESS.md`; infrastructure verification is recorded there.
+- CI/release optimization is implemented on main through `8c54921`: shared validation, input-bound proof reuse, separate Cargo bundle caches and one monitor process. Both native cold/warm runs passed. See `docs/RELEASE_PROCESS.md` for measurements and run links. No product version bump or new installer release was made for this infrastructure change.
 
 ## Decisions to preserve
 
