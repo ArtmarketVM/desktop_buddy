@@ -139,9 +139,13 @@ async fn native_fixture() -> Result<Value, String> {
     let sample = match crate::collector::create(false).collect() {
         Ok(sample) => sample,
         Err(_) => {
+            #[cfg(target_os = "macos")]
+            let accessibility = crate::macos::get_accessibility_permission();
+            #[cfg(not(target_os = "macos"))]
+            let accessibility = true;
             return Ok(
-                json!({"all_passed":false,"fixture":"public_native_window_only","cloud_requests":0,"status":"foreground_collection_unavailable_check_accessibility_permission"}),
-            )
+                json!({"all_passed":false,"fixture":"public_native_window_only","cloud_requests":0,"status":"foreground_collection_unavailable_check_accessibility_permission","accessibility_permission":accessibility,"interactive_session":crate::collector::session_active()}),
+            );
         }
     };
     if sample.window_title != "Buddy Observation Fixture" {

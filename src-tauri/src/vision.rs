@@ -40,9 +40,19 @@ pub(crate) async fn enrich(
         i.last_consent_change
     };
     let window = activity.window_id.ok_or("No foreground window")?;
-    let image = tauri::async_runtime::spawn_blocking(move || capture(window))
-        .await
-        .map_err(|_| "Window capture unavailable")?;
+    let expected = activity.clone();
+    let image = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        if !crate::collector::matches_foreground(&expected) {
+            return Err("Capture foreground changed".into());
+        }
+        let image = capture(window)?;
+        if !crate::collector::matches_foreground(&expected) {
+            return Err("Capture foreground changed".into());
+        }
+        Ok(image)
+    })
+    .await
+    .map_err(|_| "Window capture unavailable")?;
     let Ok(image) = image else {
         if let Ok(mut i) = state.inner.lock() {
             i.vision.status = "capture_unavailable";

@@ -20,6 +20,7 @@ use tauri::{Manager, WebviewWindow};
 extern "C" {
     fn buddy_free(value: *mut c_char);
     fn buddy_accessibility(prompt: bool) -> bool;
+    fn buddy_session_active() -> bool;
     fn buddy_idle() -> f64;
     fn buddy_foreground(metadata: bool) -> *mut c_char;
     fn buddy_fullscreen() -> bool;
@@ -206,6 +207,10 @@ impl crate::collector::ActivityCollector for MacCollector {
         self.excluded = excluded.to_vec();
     }
     fn collect(&mut self) -> Result<crate::models::ActivitySnapshot, String> {
+        if !session_active() {
+            self.tracker = Default::default();
+            return Err("Desktop session is inactive or locked".into());
+        }
         let active = foreground(false)?;
         if self.previous_window != active.window {
             self.tracker = Default::default();
@@ -262,6 +267,9 @@ impl crate::collector::ActivityCollector for MacCollector {
     }
 }
 
+pub(crate) fn session_active() -> bool {
+    unsafe { buddy_session_active() }
+}
 pub(crate) fn screen_permission(request: bool) -> bool {
     unsafe { buddy_screen_permission(request) }
 }

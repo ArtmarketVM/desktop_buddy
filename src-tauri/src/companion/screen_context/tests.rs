@@ -273,3 +273,11 @@ async fn quiet_mode_keeps_observation_but_pause_private_and_away_stop_it() {
     state.inner.lock().unwrap().buddy.foreground = Some(private.clone());
     assert!(!allowed(&state.inner.lock().unwrap(), &private));
 }
+
+#[test]
+fn locked_or_secure_session_rejects_even_a_matching_cached_foreground() {
+    let (state, activity) = fixture();
+    let inner = state.inner.lock().unwrap();
+    assert!(allowed_in_session(&inner, &activity, true));
+    assert!(!allowed_in_session(&inner, &activity, false));
+}

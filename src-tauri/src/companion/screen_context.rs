@@ -31,7 +31,11 @@ fn same_window(a: &ActivitySnapshot, b: &ActivitySnapshot) -> bool {
         && a.browser == b.browser
 }
 pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot) -> bool {
-    inner.status.tracking
+    allowed_in_session(inner, activity, crate::collector::session_active())
+}
+fn allowed_in_session(inner: &Inner, activity: &ActivitySnapshot, session_active: bool) -> bool {
+    session_active
+        && inner.status.tracking
         && !inner.status.demo
         && !inner.status.mock_ai
         && inner.companion.view.preferences.screen_task_detection

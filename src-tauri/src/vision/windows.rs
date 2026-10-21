@@ -9,10 +9,12 @@ struct Bounds {
     target: HWND,
     rect: RECT,
     blocked: bool,
+    reached_target: bool,
 }
 unsafe extern "system" fn overlaps(window: HWND, data: LPARAM) -> windows::core::BOOL {
     let b = &mut *(data.0 as *mut Bounds);
     if window == b.target {
+        b.reached_target = true;
         return false.into();
     } // All subsequent windows are behind the target.
     if IsWindowVisible(window).as_bool() && !IsIconic(window).as_bool() {
@@ -31,7 +33,10 @@ unsafe extern "system" fn overlaps(window: HWND, data: LPARAM) -> windows::core:
 pub(super) fn capture(id: u64) -> Result<String, String> {
     unsafe {
         let hwnd = HWND(id as usize as *mut _);
-        if GetForegroundWindow() != hwnd || IsIconic(hwnd).as_bool() {
+        if !crate::collector::session_active()
+            || GetForegroundWindow() != hwnd
+            || IsIconic(hwnd).as_bool()
+        {
             return Err("Foreground changed".into());
         }
         let mut rect = RECT::default();
@@ -49,9 +54,11 @@ pub(super) fn capture(id: u64) -> Result<String, String> {
                 bottom: origin.y + rect.bottom,
             },
             blocked: false,
+            reached_target: false,
         };
         let _ = EnumWindows(Some(overlaps), LPARAM(&mut bounds as *mut _ as isize));
-        if bounds.blocked
+        if !bounds.reached_target
+            || bounds.blocked
             || !(1..=10000).contains(&rect.right)
             || !(1..=10000).contains(&rect.bottom)
         {
@@ -111,13 +118,22 @@ pub(super) fn capture(id: u64) -> Result<String, String> {
             target: hwnd,
             rect: bounds.rect,
             blocked: false,
+            reached_target: false,
         };
         let _ = EnumWindows(Some(overlaps), LPARAM(&mut after as *mut _ as isize));
-        if !copied || read != h || after.blocked || GetForegroundWindow() != hwnd {
+        if !copied
+            || read != h
+            || !after.reached_target
+            || after.blocked
+            || !crate::collector::session_active()
+            || GetForegroundWindow() != hwnd
+        {
             return Err("Capture context changed".into());
         }
         let rgb: Vec<u8> = pixels
-            .chunks_exact(4)
+            .as_chunks::<4>()
+            .0
+            .iter()
             .flat_map(|p| [p[2], p[1], p[0]])
             .collect();
         let mut jpeg = Vec::new();

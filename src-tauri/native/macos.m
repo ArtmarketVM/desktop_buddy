@@ -46,6 +46,14 @@ static NSString *canonicalProcess(NSString *executable, NSString *bundle) {
 static NSString *processName(NSRunningApplication *application) {
     return canonicalProcess(application.executableURL.lastPathComponent ?: application.localizedName, application.bundleIdentifier);
 }
+// Public Quartz session API. The lock marker is supplied by WindowServer; absent
+// markers mean unlocked, but missing/non-console session data always fails closed.
+bool buddy_session_active(void) {
+    NSDictionary *session = CFBridgingRelease(CGSessionCopyCurrentDictionary());
+    return session && [session[(__bridge NSString *)kCGSessionOnConsoleKey] boolValue]
+        && [session[(__bridge NSString *)kCGSessionLoginDoneKey] boolValue]
+        && ![session[@"CGSSessionScreenIsLocked"] boolValue];
+}
 bool buddy_accessibility(bool prompt) {
     return AXIsProcessTrustedWithOptions((__bridge CFDictionaryRef)@{(__bridge NSString *)kAXTrustedCheckOptionPrompt: @(prompt)});
 }
@@ -86,6 +94,7 @@ static NSString *addressBar(AXUIElementRef root, NSUInteger depth, NSUInteger *v
 }
 char *buddy_foreground(bool metadata) {
     @autoreleasepool {
+        if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
         if (!buddy_accessibility(false)) return failure(@"Allow Desktop Buddy in System Settings > Privacy & Security > Accessibility, then resume tracking.");
         NSRunningApplication *application = NSWorkspace.sharedWorkspace.frontmostApplication;
         if (!application) return failure(@"No foreground application is available");
@@ -152,6 +161,7 @@ static void visibleText(AXUIElementRef root, NSUInteger depth, NSUInteger *visit
 }
 char *buddy_context(uint64_t identity, bool selected) {
     @autoreleasepool {
+        if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
         if (!buddy_accessibility(false)) return failure(@"Allow Desktop Buddy in Accessibility settings, or paste the text into Buddy.");
         pid_t pid = (pid_t)(identity >> 32);
         if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) return failure(@"Screen context changed");
@@ -317,18 +327,35 @@ char *buddy_transcribe(const unsigned char *audio, size_t length, const char *la
 bool buddy_screen_permission(bool request) {
     return CGPreflightScreenCaptureAccess() || (request && CGRequestScreenCaptureAccess());
 }
-char *buddy_capture_window(uint64_t windowID) {
+char *buddy_capture_window(uint64_t identity) {
     @autoreleasepool {
+        if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
         if (!CGPreflightScreenCaptureAccess()) return failure(@"Screen Recording permission is unavailable");
-        pid_t pid = NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier;
+        pid_t pid = (pid_t)(identity >> 32);
+        if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) return failure(@"Screen context changed");
+        AXUIElementRef focused = focusedWindow(pid);
+        if (!focused || windowID(pid, focused) != identity) { if (focused) CFRelease(focused); return failure(@"Screen context changed"); }
+        CGRect expectedFrame = elementFrame(focused);
+        NSString *expectedTitle = text(attribute(focused, kAXTitleAttribute), 160);
+        CFRelease(focused);
+        if (CGRectIsNull(expectedFrame) || CGRectIsEmpty(expectedFrame)) return failure(@"Focused window bounds unavailable");
         dispatch_group_t group = dispatch_group_create();
         dispatch_group_enter(group);
         __block NSData *jpeg = nil;
         [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent *content, NSError *error) {
+            // Accessibility identities contain PID + AX hash, not a CGWindowID.
+            // Resolve one unique ScreenCaptureKit window by owner, title and bounds.
             SCWindow *selected = nil;
+            NSUInteger matches = 0;
             for (SCWindow *window in content.windows) {
-                if (window.windowID == windowID && window.owningApplication.processID == pid) { selected = window; break; }
+                CGRect frame = window.frame;
+                BOOL sameFrame = fabs(frame.origin.x - expectedFrame.origin.x) <= 1
+                    && fabs(frame.origin.y - expectedFrame.origin.y) <= 1
+                    && fabs(frame.size.width - expectedFrame.size.width) <= 1
+                    && fabs(frame.size.height - expectedFrame.size.height) <= 1;
+                if (window.owningApplication.processID == pid && sameFrame && [text(window.title, 160) isEqualToString:expectedTitle]) { selected = window; matches++; }
             }
+            if (matches != 1) selected = nil;
             if (!selected || error || selected.frame.size.width < 2 || selected.frame.size.height < 2) { dispatch_group_leave(group); return; }
             SCContentFilter *filter = [[SCContentFilter alloc] initWithDesktopIndependentWindow:selected];
             SCStreamConfiguration *config = [SCStreamConfiguration new];
@@ -337,7 +364,7 @@ char *buddy_capture_window(uint64_t windowID) {
             config.height = MAX(1, selected.frame.size.height * scale);
             config.showsCursor = NO;
             [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
-                if (image && !captureError && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == pid) {
+                if (image && !captureError && buddy_session_active() && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == pid) {
                     NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCGImage:image];
                     NSData *data = [bitmap representationUsingType:NSBitmapImageFileTypeJPEG properties:@{NSImageCompressionFactor:@0.65}];
                     if (data.length <= 300000) jpeg = data;

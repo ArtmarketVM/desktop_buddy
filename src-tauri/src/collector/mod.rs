@@ -10,6 +10,35 @@ pub trait ActivityCollector: Send {
     fn configure(&mut self, _settings: &crate::tracking::TrackingSettings, _excluded: &[String]) {}
     fn collect(&mut self) -> Result<ActivitySnapshot, String>;
 }
+/// Never disclose a cached sample after switching to a locked/secure desktop.
+pub(crate) fn session_active() -> bool {
+    if cfg!(test) {
+        return true; // Unit fixtures use the explicit session-policy seam instead of host state.
+    }
+    #[cfg(target_os = "macos")]
+    {
+        crate::macos::session_active()
+    }
+    #[cfg(windows)]
+    {
+        windows::session_active()
+    }
+    #[cfg(not(any(windows, target_os = "macos")))]
+    {
+        false
+    }
+}
+/// Fresh metadata check around pixel capture; never trust a collector-tick cache alone.
+pub(crate) fn matches_foreground(expected: &ActivitySnapshot) -> bool {
+    create(false).collect().is_ok_and(|live| {
+        live.window_id.is_some()
+            && live.window_id == expected.window_id
+            && live.process_name == expected.process_name
+            && crate::browser::minimize_title(&live.window_title)
+                == crate::browser::minimize_title(&expected.window_title)
+            && !crate::companion::sensitive_window(&live)
+    })
+}
 pub fn foreground_fullscreen() -> bool {
     #[cfg(windows)]
     {

@@ -9,7 +9,7 @@ Implementation starts at upstream `7387877`, after release 0.39.4 and the second
 | Frontend suite | 47 files, 232 tests passed |
 | Frontend production build | Passed (TypeScript, Vite, synchronized manifests) |
 | ESLint / Knip | Zero errors, warnings or unused-code findings |
-| Rust full suite | 622 passed, 0 failed, 2 intentionally ignored; final changed-source verification recorded in CI |
+| Rust full suite | 624 passed, 0 failed, 2 intentionally ignored; final changed-source verification also runs in CI |
 | Local Clippy | Zero warnings/errors; Windows and release-mode validation remain CI gates |
 | Real provider | Eight synthetic cases passed, without mock provider responses |
 
@@ -31,6 +31,14 @@ A first run rejected the positive receipt because the model returned confidence 
 A six-lane, 30-iteration synthetic benchmark measured full analytics snapshots at 38544 microseconds versus lightweight current-work snapshots at 13620 microseconds, with zero AI calls. This verifies reduced aggregation work, not battery savings. An installed 0.39.2 process baseline over 60 seconds observed mean CPU 9.2%, peak 53.7%, maximum resident memory 48848 KiB; the session was not a controlled idle or power comparison. No energy improvement percentage is claimed.
 
 Observation disclosures are capped at 24 attempts per rolling hour per process; screenshots at one attempt per two minutes. Restart resets the in-process quota. Interactive chat is separate. Unchanged samples and the shared background lock suppress repeated calls. Models can still misclassify; opt-in, review and Undo remain necessary.
+
+## Final-review corrections
+
+The canonical Windows visual candidate job [39621146427](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39621146427) generated and strictly compared all 34 screenshots. The owner reviewed and approved all 34; provenance is in `visual/baselines/review.json`. Final source is compared to these baselines without regeneration.
+
+Native review found that Accessibility's composite PID/hash identity is not a ScreenCaptureKit window number. Capture now resolves one unique window by owner, title and bounds and checks fresh foreground metadata around capture. Quartz session state and Windows input-desktop checks prevent disclosure in locked/secure sessions. The Windows zero-warning gate caught a constant-chunk iterator warning; the implementation was corrected without suppressing it. These findings required another source validation; earlier failed/superseded runs are not release passes.
+
+The signed standalone Mac probe could not collect foreground metadata before system Accessibility authorization. No personal screen data or provider request was used. A local public Quartz probe confirmed an available, logged-in, unlocked console session; physical lock/unlock and permitted image capture are still manual items below.
 
 ## Native/manual acceptance checklist
 
