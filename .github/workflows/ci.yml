@@ -90,6 +90,9 @@ jobs:
           name: validation-${{ matrix.name }}
           path: .
       - run: npm run lint:rust
+      # Release builds compile code gated on not(debug_assertions) that debug lint and tests never see.
+      - name: Check the release configuration
+        run: cargo clippy --locked --release --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
       - uses: actions/upload-artifact@v4
         if: always()
         with:

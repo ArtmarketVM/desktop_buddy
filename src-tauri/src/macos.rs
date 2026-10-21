@@ -28,6 +28,9 @@ extern "C" {
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
         -> *mut c_char;
     fn buddy_shortcuts(callback: extern "C" fn(u32)) -> u32;
+    // Only installed release builds register a login item; see `autostart::sync`.
+    #[cfg(not(debug_assertions))]
+    fn buddy_autostart(executable: *const c_char, enabled: bool) -> *mut c_char;
 }
 fn decode<T: DeserializeOwned>(pointer: *mut c_char) -> Result<T, String> {
     if pointer.is_null() {
@@ -54,6 +57,14 @@ pub struct Foreground {
     pub idle: f64,
     pub media: bool,
     pub address: Option<String>,
+}
+/// Registers or removes the macOS login item. Called only from release builds
+/// (`autostart::sync`), so debug Clippy and tests never compile a caller.
+#[cfg(not(debug_assertions))]
+pub fn autostart(enabled: bool) -> Result<(), String> {
+    let path = std::env::current_exe().map_err(|_| "Could not locate the installed application")?;
+    let path = string(path.to_str().ok_or("Invalid application path")?)?;
+    decode(unsafe { buddy_autostart(path.as_ptr(), enabled) })
 }
 pub fn foreground(metadata: bool) -> Result<Foreground, String> {
     decode(unsafe { buddy_foreground(metadata) })

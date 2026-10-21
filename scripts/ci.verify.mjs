@@ -356,6 +356,7 @@ test("lint gates block and their warning budgets cannot be bypassed", () => {
   assert.doesNotMatch(ci + platforms, /continue-on-error/);
   assert.match(platforms, /run: npm run lint\n/);
   assert.match(ci, /run: npm run lint:rust\n/);
+  assert.match(ci, /cargo clippy --locked --release --manifest-path src-tauri\/Cargo.toml --all-targets -- -D warnings/);
   assert.match(ci, /needs: \[plan, platforms, visual, rust-lint\]/);
   assert.match(ci, /test "\$RUST_LINT" = success/);
   const budget = JSON.parse(read("scripts/lint-budget.json"));
