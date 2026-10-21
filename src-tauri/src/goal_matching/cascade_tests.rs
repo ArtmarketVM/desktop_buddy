@@ -136,6 +136,10 @@ fn a_sustained_lane_switch_parks_the_previous_goal_and_returning_resumes_it() {
         parked.context.next_action.as_deref(),
         Some("Deliver Orion launch")
     );
+    assert_eq!(
+        parked.context.last_window.as_deref(),
+        Some("Orion launch deck")
+    );
     assert!(parked.resumed_at.is_none());
     feed(&mut i, &sample("Orion launch deck"), base, 100, 160);
     assert_eq!(i.storage.goal().unwrap().map(|g| g.id), Some(ids[0]));

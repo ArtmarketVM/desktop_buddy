@@ -22,6 +22,7 @@ impl Storage {
         store.initialize_skills()?;
         store.initialize_goal_matching()?;
         store.initialize_unplanned_work()?;
+        store.initialize_work_journal()?;
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -103,6 +104,20 @@ impl Storage {
             })
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        let journal_ready: bool = tx
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='work_events')",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if journal_ready {
+            tx.execute(
+                "DELETE FROM work_events WHERE ?1 IS NULL OR julianday(occurred_at)<julianday(?1)",
+                [cutoff],
+            )
+            .map_err(|e| e.to_string())?;
+        }
         let coaching_ready: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='coaching_sessions')", [], |r| r.get(0)).map_err(|e|e.to_string())?;
         if coaching_ready {
             tx.execute("DELETE FROM coaching_sessions WHERE ?1 IS NULL OR (julianday(updated_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM memories m WHERE m.id=coaching_sessions.memory_id AND m.pinned=1))", [cutoff]).map_err(|e|e.to_string())?;

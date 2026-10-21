@@ -376,6 +376,7 @@ fn verified_episode_is_remembered_once_and_memory_updates_do_not_loop() {
     let mut result = Reasoning::silent(job.snapshot.version.clone());
     result.decision = Decision::UpdateMemoryOnly;
     result.memory_updates = vec![MemoryUpdate {
+        supersedes: None,
         kind: "verified_event".into(),
         content: None,
         event: Some(MemoryEvent::StepCompleted),
@@ -413,6 +414,7 @@ fn unverified_or_mismatched_episode_never_writes_memory() {
     let mut completion = event(EventKind::CompletionConfirmed, id);
     completion.step_id = Some("step-0".into());
     let update = MemoryUpdate {
+        supersedes: None,
         kind: "verified_event".into(),
         content: None,
         event: Some(MemoryEvent::StepCompleted),
@@ -517,6 +519,7 @@ fn malformed_reasoning_and_background_preference_guesses_are_rejected() {
     let mut result = Reasoning::silent(job.snapshot.version.clone());
     result.decision = Decision::UpdateMemoryOnly;
     result.memory_updates = vec![MemoryUpdate {
+        supersedes: None,
         kind: "preference".into(),
         content: Some("Likes short replies".into()),
         event: None,

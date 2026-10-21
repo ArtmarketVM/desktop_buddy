@@ -68,6 +68,7 @@ export const servicesQuery = queryClient.query(
   () => serviceStatusApi.read(),
 );
 export type NoticedSuggestion = {
+  completed?: boolean;
   id: string;
   title: string;
   seconds: number;

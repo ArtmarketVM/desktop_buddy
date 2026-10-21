@@ -1,5 +1,5 @@
 //! One transient, redacted Accessibility sample shared by completion and matching.
-use super::{progress_suppressed, redact_sample, sensitive_window};
+use super::{redact_sample, sensitive_window};
 use crate::{
     commands::{AppState, Inner},
     models::ActivitySnapshot,
@@ -15,6 +15,14 @@ pub(crate) struct CachedText {
     at: Instant,
     text: Result<String, String>,
 }
+pub(crate) fn capability(inner: &Inner) -> &'static str {
+    match inner.companion.screen_context.as_ref().map(|c| &c.text) {
+        Some(Ok(text)) if !text.trim().is_empty() => "available",
+        Some(Ok(_)) => "no_accessible_text",
+        Some(Err(_)) => "unavailable",
+        None => "not_sampled",
+    }
+}
 fn same_window(a: &ActivitySnapshot, b: &ActivitySnapshot) -> bool {
     a.window_id.is_some()
         && a.window_id == b.window_id
@@ -28,7 +36,8 @@ pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot) -> bool {
         && !inner.status.mock_ai
         && inner.companion.view.preferences.screen_task_detection
         && inner.storage.ai_preferences().is_ok_and(|p| p.enabled)
-        && !progress_suppressed(inner)
+        && !inner.companion.view.preferences.paused
+        && activity.idle_seconds < inner.tracking_settings.idle_seconds
         && !sensitive_window(activity)
         && !crate::attention::excluded(&inner.buddy.view.preferences, &activity.process_name)
         && inner

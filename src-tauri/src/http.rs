@@ -286,6 +286,26 @@ pub fn enabled(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// A single observation request, cancelled locally when foreground or consent changes.
+pub(crate) async fn post_guarded_json(
+    client: &reqwest::Client,
+    url: &str,
+    key: &str,
+    payload: &Value,
+    check: Preflight<'_>,
+) -> Result<Value, String> {
+    check()?;
+    let request = post_background_once_json(client, url, key, payload);
+    tokio::pin!(request);
+    let mut watch = tokio::time::interval(Duration::from_millis(200));
+    loop {
+        tokio::select! {
+            result=&mut request=>{check()?;return result;}
+            _=watch.tick()=>{check()?;}
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

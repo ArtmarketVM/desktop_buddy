@@ -37,7 +37,7 @@ function NoticedWorkOffer({
   const [title, setTitle] = useState(suggestion.title);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const respond = async (action: "add" | "dismiss" | "not_now") => {
+  const respond = async (action: "add" | "dismiss" | "not_now" | "chat") => {
     setBusy(true);
     setError("");
     try {
@@ -72,7 +72,11 @@ function NoticedWorkOffer({
         <h2>Work noticed</h2>
         <span>{duration(suggestion.seconds)} observed today</span>
       </div>
-      <p>Add this unlisted work to what you completed today?</p>
+      <p>
+        {suggestion.completed
+          ? "A result was noticed. Add this to today’s completed work?"
+          : "You’re working on something outside your goals. Add it to Today?"}
+      </p>
       <input
         aria-label="Noticed work title"
         value={title}
@@ -86,7 +90,7 @@ function NoticedWorkOffer({
           disabled={busy || !title.trim()}
           onClick={() => void respond("add")}
         >
-          Add to completed
+          {suggestion.completed ? "Add completed" : "Add to Today"}
         </button>
         <button
           type="button"
@@ -102,7 +106,15 @@ function NoticedWorkOffer({
           disabled={busy}
           onClick={() => void respond("dismiss")}
         >
-          Dismiss
+          Skip
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          disabled={busy}
+          onClick={() => void respond("chat")}
+        >
+          Chat
         </button>
       </div>
       {(error || loadError) && <p role="alert">{error || loadError}</p>}

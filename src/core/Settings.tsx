@@ -1,3 +1,4 @@
+import { ObservationSettings } from "./ObservationSettings";
 import { MemorySettings } from "../components/MemorySettings";
 import { MacPermissions } from "../components/MacPermissions";
 import { TrackingStatus } from "./TrackingStatus";
@@ -23,6 +24,7 @@ import { WindowActivity } from "./WindowActivity";
 import { Hint } from "./Hint";
 import { memoryApi } from "../api/memory";
 import { AvatarPicker } from "../components/ProfileFields";
+import { defaultCompanionPreferences } from "../companion/types";
 import { CompanionSettings } from "../companion/CompanionSettings";
 import { PersonalAiEnginePanel } from "../ai/PersonalAiEngine";
 import { AiSettings } from "../ai/AiSettings";
@@ -45,11 +47,11 @@ export function describePrivacy(
   preview: string,
   tracking: boolean,
   goalTitle: string | null,
+  screenshots = false,
 ): string {
   if (!tracking)
-    return "Tracking is paused, so sumi records nothing and sends nothing. Turn it on above and this sentence will tell you exactly what it sees.";
-  const never =
-    "It never sends what is on your screen, what you type, or who you are.";
+    return "Background tracking is paused. No new activity is collected; explicitly requested chat and research can still use the context you permit.";
+  const sharing = `Enabled AI checks may send bounded interface text, window metadata, ${goalTitle ? "this goal" : "relevant goals"} and permitted relevant memories to Nebius. ${screenshots ? "Optional active-window images may also be sent; images are not saved in local history." : "Screenshots are off."} This preview does not show the exact next request.`;
   const goal = goalTitle ? `your goal, “${goalTitle}”` : "your current goal";
   let apps: { app: string; seconds: number }[];
   try {
@@ -72,7 +74,7 @@ export function describePrivacy(
     apps = [];
   }
   if (!apps.length)
-    return `sumi has not recorded any activity yet. When it checks your progress it will tell Nebius the last window titles and ${goal}. ${never}`;
+    return `sumi has not recorded any activity yet. Your permitted context may include ${goal}. ${sharing}`;
   const spell = ({ app, seconds }: { app: string; seconds: number }) => {
     const m = Math.round(seconds / 60);
     return `${app} for ${m < 1 ? "under a minute" : `${m} minute${m === 1 ? "" : "s"}`}`;
@@ -84,7 +86,7 @@ export function describePrivacy(
           .slice(0, -1)
           .map(spell)
           .join(", ")} and ${spell(apps[apps.length - 1])}`;
-  return `Right now sumi knows you have been in ${list}. When it checks your progress it tells Nebius those window titles and ${goal}. ${never}`;
+  return `Right now sumi knows you have been in ${list}. Your permitted context may include ${goal}. ${sharing}`;
 }
 
 export function CoreSettings({
@@ -179,6 +181,7 @@ export function CoreSettings({
     preview,
     data.status.tracking,
     data.goal?.text ?? null,
+    data.buddy.companion?.preferences.use_screenshots ?? false,
   );
   useEffect(() => {
     if (sectionRequest) setSection(sectionRequest.section);
@@ -470,6 +473,7 @@ export function CoreSettings({
               </span>
             </div>
             <MacPermissions variant="row" />
+
             <div className="setting-row">
               <span>Working days</span>
               <span
@@ -586,6 +590,12 @@ export function CoreSettings({
               </button>
             </div>
           </section>
+          <ObservationSettings
+            preferences={
+              data.buddy.companion?.preferences ?? defaultCompanionPreferences
+            }
+            onChanged={onChanged}
+          />
           <div className="privacy-sentence">
             <span className="privacy-cell" aria-hidden="true" />
             <p role="status">{privacySentence}</p>

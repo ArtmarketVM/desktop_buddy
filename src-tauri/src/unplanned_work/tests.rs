@@ -65,10 +65,12 @@ fn offer(inner: &mut Inner) -> String {
             title: "Handle unrelated emails".into(),
             seconds: 120,
             app: "chrome".into(),
+            completed: true,
         },
         key,
         day: Local::now().date_naive().to_string(),
         goals: goals(inner).unwrap(),
+        receipt_key: None,
         consent: inner.last_consent_change,
         at: Instant::now(),
     });
@@ -86,7 +88,7 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     assert_eq!(s.unplanned_milliseconds(&key, &day).unwrap(), 120000);
     assert!(s.core_snapshot(None).unwrap().goals.is_empty());
     let id = s
-        .confirm_unplanned_work(&key, &day, "Handle unrelated emails")
+        .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
         .unwrap();
     let snap = s.core_snapshot(None).unwrap();
     assert_eq!(snap.goals[0].id, id);
@@ -102,7 +104,7 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     );
     assert_eq!(snap.hourly.iter().map(|h| h.seconds).sum::<u64>(), 120);
     assert!(s
-        .confirm_unplanned_work(&key, &day, "Handle unrelated emails")
+        .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
         .is_err());
     assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 1);
 }
@@ -145,7 +147,13 @@ fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
         .unwrap();
     let day = Local::now().date_naive().to_string();
     let new = s
-        .confirm_unplanned_work(&context_key(&sample()), &day, "Handle unrelated emails")
+        .confirm_unplanned_work(
+            &context_key(&sample()),
+            &day,
+            "Handle unrelated emails",
+            true,
+            None,
+        )
         .unwrap();
     assert_eq!(
         s.connection
@@ -356,9 +364,17 @@ async fn classifier_uses_minimized_redacted_context_once_without_credentials_or_
         "api_key=fictional-secret-canary\nInbox\n{}",
         "Email replies ".repeat(100)
     );
-    let result = classify(&service, &sample(), &text, &json!([]), 120, &|| Ok(()))
-        .await
-        .unwrap();
+    let result = classify(
+        &service,
+        &sample(),
+        &text,
+        &json!([]),
+        120,
+        &Value::Null,
+        &|| Ok(()),
+    )
+    .await
+    .unwrap();
     assert_eq!(result.title.as_deref(), Some("Handle unrelated emails"));
 }
 
@@ -375,7 +391,13 @@ fn returning_to_the_same_window_never_relabels_an_earlier_session() {
     }
     let day = Local::now().date_naive().to_string();
     let id = s
-        .confirm_unplanned_work("afternoon-session", &day, "Handle unrelated emails")
+        .confirm_unplanned_work(
+            "afternoon-session",
+            &day,
+            "Handle unrelated emails",
+            true,
+            None,
+        )
         .unwrap();
     assert_eq!(s.relevant_seconds(id, Some(&day)).unwrap(), 120);
     assert_eq!(
@@ -383,4 +405,41 @@ fn returning_to_the_same_window_never_relabels_an_earlier_session() {
         120000
     );
     assert!(s.unplanned_decided(&context_key(&sample()), &day).unwrap());
+}
+
+#[test]
+fn ongoing_work_is_added_open_and_acceptance_does_not_double_count_the_observation() {
+    let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    fixtures(&s, None);
+    let key = context_key(&sample());
+    let day = Local::now().date_naive().to_string();
+    let observed = s
+        .record_work_event(
+            &format!("noticed:{key}"),
+            None,
+            None,
+            "Prepare interview follow-ups",
+            "Browser",
+            crate::work_journal::Outcome::Observed,
+        )
+        .unwrap();
+    let id = s
+        .confirm_unplanned_work(&key, &day, "Prepare interview follow-ups", false, None)
+        .unwrap();
+    let snap = s.core_snapshot(None).unwrap();
+    assert_eq!(snap.goals[0].status, "open");
+    assert!(snap.today.contains(&id));
+    assert!(snap.summary.completed_goals.is_empty());
+    let events = s.work_journal(&day).unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].status, "planned");
+    let source: i64 = s
+        .connection
+        .query_row(
+            "SELECT source_event_id FROM work_events WHERE goal_id=?1",
+            [id],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(source, observed);
 }

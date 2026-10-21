@@ -53,6 +53,43 @@ pub struct MemoryOverview {
     pub more: bool,
 }
 impl Storage {
+    /// The latest human message is the source. Screen/assistant text cannot use this path.
+    pub(crate) fn store_user_knowledge(
+        &self,
+        content: &str,
+        statement: &str,
+        conversation: i64,
+        kind: MemoryType,
+        confidence: f64,
+    ) -> Result<(), String> {
+        let controls = self.memory_controls()?;
+        if !controls.remember_conversation_context
+            || !controls.allows(kind, &Scope::global())
+            || !confidence.is_finite()
+            || confidence < 0.95
+            || confidence > 1.0
+        {
+            return Err("Personal knowledge is disabled or uncertain".into());
+        }
+        Scope {
+            scope_type: ScopeType::Conversation,
+            scope_id: Some(conversation),
+        }
+        .validate(&self.connection)?;
+        let content = safe_text(content, 500)?;
+        if content.chars().count() < 10 || !statement.contains(&content) {
+            return Err("Knowledge must quote the current user's own statement".into());
+        }
+        let exists:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM memories WHERE scope_type='global' AND memory_type=?1 AND content=?2 AND archived=0)",params![kind.name(),content],|r|r.get(0)).map_err(db_error)?;
+        if !exists {
+            self.create_memory(MemoryInput {
+                memory_type: kind,
+                scope: Scope::global(),
+                content,
+            })?;
+        }
+        Ok(())
+    }
     pub fn memory_controls(&self) -> Result<MemoryControls, String> {
         self.connection.query_row("SELECT enabled,remember_work_context,remember_preferences,learn_from_feedback,remember_conversation_context FROM memory_controls WHERE id=1", [], |r| Ok(MemoryControls {
             enabled:r.get(0)?,remember_work_context:r.get(1)?,remember_preferences:r.get(2)?,learn_from_feedback:r.get(3)?,remember_conversation_context:r.get(4)?
@@ -323,4 +360,38 @@ pub fn pin_work_context(
     }
     inner.mark_consent_change();
     Ok(())
+}
+
+impl Storage {
+    pub(crate) fn correct_user_knowledge(
+        &self,
+        content: &str,
+        statement: &str,
+        conversation: i64,
+        kind: MemoryType,
+        confidence: f64,
+        supersedes: Option<i64>,
+    ) -> Result<(), String> {
+        atomic(&self.connection, || {
+            let previous = supersedes.map(|id| self.memory(id, false)).transpose()?;
+            if previous.as_ref().is_some_and(|m| {
+                m.scope != Scope::global() || m.memory_type == MemoryType::Episodic
+            }) {
+                return Err("Only personal knowledge can be superseded".into());
+            }
+            self.store_user_knowledge(content, statement, conversation, kind, confidence)?;
+            if let Some(old) = previous {
+                if old.content != content {
+                    self.archive_memory(old.id, true)?;
+                    self.record_memory_event(
+                        Scope::global(),
+                        EventKind::MeaningfulCorrection,
+                        "user",
+                        None,
+                    )?;
+                }
+            }
+            Ok(())
+        })
+    }
 }

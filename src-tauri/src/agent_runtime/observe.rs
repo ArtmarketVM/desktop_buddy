@@ -22,7 +22,7 @@ pub(super) struct Observation {
     pub(super) stuck: bool,
 }
 pub(super) fn observe(inner: &mut Inner, now: i64) -> Result<(), String> {
-    let snapshot = inner.storage.core_snapshot(None)?;
+    let snapshot = inner.storage.core_work_snapshot()?;
     let states: BTreeMap<_, _> = snapshot
         .goals
         .iter()

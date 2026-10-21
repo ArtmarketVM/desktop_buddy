@@ -485,6 +485,7 @@ impl Storage {
             )
             .map_err(db)?;
         if !restoring
+            && plan.done_when.trim().is_empty()
             && !keep_open
             && !plan.steps.is_empty()
             && plan.steps.iter().all(|step| step.done)
@@ -539,7 +540,10 @@ impl Storage {
         };
         for id in ids {
             let plan = self.goal_plan(id)?;
-            if !plan.steps.is_empty() && plan.steps.iter().all(|step| step.done) {
+            if plan.done_when.trim().is_empty()
+                && !plan.steps.is_empty()
+                && plan.steps.iter().all(|step| step.done)
+            {
                 self.core_transition(id, "complete")?;
             }
         }
@@ -972,11 +976,27 @@ impl Storage {
         anchor: Option<&str>,
         period: Option<&str>,
     ) -> Result<CoreSnapshot, String> {
+        self.core_snapshot_with_progress(anchor, period, true)
+    }
+    /// Background decisions need current lanes, not a rebuilt seven-day Progress report.
+    pub(crate) fn core_work_snapshot(&self) -> Result<CoreSnapshot, String> {
+        self.core_snapshot_with_progress(None, None, false)
+    }
+    fn core_snapshot_with_progress(
+        &self,
+        anchor: Option<&str>,
+        period: Option<&str>,
+        progress: bool,
+    ) -> Result<CoreSnapshot, String> {
         self.adopt_core_goals()?;
         let today = Local::now().date_naive();
         let date = today.to_string();
         let anchor = anchor.map(day).transpose()?.unwrap_or(today);
-        let days = period_days(period, anchor)?;
+        let days = if progress {
+            period_days(period, anchor)?
+        } else {
+            0
+        };
         let mut q = self
             .connection
             .prepare("SELECT id,title FROM core_areas ORDER BY title COLLATE NOCASE")
@@ -1092,9 +1112,22 @@ impl Storage {
             today: items,
             areas,
             goals,
-            summary: self.core_progress(&date)?,
+            summary: if progress {
+                self.core_progress(&date)?
+            } else {
+                DayProgress {
+                    day: date.clone(),
+                    completed: vec![],
+                    completed_goals: vec![],
+                    goals: vec![],
+                }
+            },
             week,
-            hourly: self.core_hourly(&anchor.to_string())?,
+            hourly: if progress {
+                self.core_hourly(&anchor.to_string())?
+            } else {
+                vec![]
+            },
             timer: self.core_timer()?,
             focused_goal_id: self.goal()?.map(|g| g.id),
             preferences: self.read_setting("core_preferences")?.unwrap_or_default(),

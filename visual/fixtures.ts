@@ -221,6 +221,8 @@ export function fixtureReply(
       return {
         focus_check: { recent_activity: [{ app: "Code", seconds: 3300 }] },
       };
+    case "screenshot_permission":
+      return false;
     case "get_unplanned_work_suggestion":
       return null;
     case "get_goal_match_suggestion":

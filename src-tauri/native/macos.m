@@ -4,6 +4,7 @@
 #import <Carbon/Carbon.h>
 #import <Speech/Speech.h>
 #import <CoreAudio/CoreAudio.h>
+#import <ScreenCaptureKit/ScreenCaptureKit.h>
 #include <sys/stat.h>
 
 // Every exported string is owned by Rust after the call and freed with buddy_free.
@@ -309,5 +310,43 @@ char *buddy_transcribe(const unsigned char *audio, size_t length, const char *la
         [task cancel];
         [NSFileManager.defaultManager removeItemAtURL:url error:nil];
         return transcript.length ? json(transcript) : failure(@"No local transcript was available. Check the installed Dictation language, try again, or paste a transcript.");
+    }
+}
+
+// Capture one desktop-independent window. Never include the desktop or other windows.
+bool buddy_screen_permission(bool request) {
+    return CGPreflightScreenCaptureAccess() || (request && CGRequestScreenCaptureAccess());
+}
+char *buddy_capture_window(uint64_t windowID) {
+    @autoreleasepool {
+        if (!CGPreflightScreenCaptureAccess()) return failure(@"Screen Recording permission is unavailable");
+        pid_t pid = NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier;
+        dispatch_group_t group = dispatch_group_create();
+        dispatch_group_enter(group);
+        __block NSData *jpeg = nil;
+        [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent *content, NSError *error) {
+            SCWindow *selected = nil;
+            for (SCWindow *window in content.windows) {
+                if (window.windowID == windowID && window.owningApplication.processID == pid) { selected = window; break; }
+            }
+            if (!selected || error || selected.frame.size.width < 2 || selected.frame.size.height < 2) { dispatch_group_leave(group); return; }
+            SCContentFilter *filter = [[SCContentFilter alloc] initWithDesktopIndependentWindow:selected];
+            SCStreamConfiguration *config = [SCStreamConfiguration new];
+            double scale = MIN(1.0, 1280.0 / MAX(selected.frame.size.width, selected.frame.size.height));
+            config.width = MAX(1, selected.frame.size.width * scale);
+            config.height = MAX(1, selected.frame.size.height * scale);
+            config.showsCursor = NO;
+            [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
+                if (image && !captureError && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == pid) {
+                    NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCGImage:image];
+                    NSData *data = [bitmap representationUsingType:NSBitmapImageFileTypeJPEG properties:@{NSImageCompressionFactor:@0.65}];
+                    if (data.length <= 300000) jpeg = data;
+                }
+                dispatch_group_leave(group);
+            }];
+        }];
+        if (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) != 0) return failure(@"Window capture timed out");
+        if (!jpeg) return failure(@"Safe active-window capture is unavailable");
+        return json([jpeg base64EncodedStringWithOptions:0]);
     }
 }

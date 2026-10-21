@@ -3,6 +3,8 @@ export interface CompanionPreferences {
   paused: boolean;
   daily_checkins: boolean;
   screen_task_detection: boolean;
+  use_screenshots: boolean;
+  automatic_completion: boolean;
   hide_fullscreen: boolean;
   morning_delay_minutes: number;
   cooldown_minutes: number;
@@ -16,6 +18,8 @@ export const defaultCompanionPreferences: CompanionPreferences = {
   paused: false,
   daily_checkins: true,
   screen_task_detection: true,
+  use_screenshots: false,
+  automatic_completion: false,
   hide_fullscreen: true,
   morning_delay_minutes: 10,
   cooldown_minutes: 60,
@@ -28,6 +32,9 @@ export const defaultCompanionPreferences: CompanionPreferences = {
 export interface Intervention {
   id: string;
   kind:
+    | "automatic_completion"
+    | "unplanned_work"
+    | "unplanned_completed"
     | "new_task"
     | "completion"
     | "goal_completion"
@@ -91,6 +98,7 @@ export interface CompanionReply {
 }
 export type CompanionAction = "task" | "ask" | "research" | "explain" | "save";
 export type InterventionResponse =
+  | "chat"
   | "accept"
   | "ignore"
   | "tomorrow"

@@ -8,13 +8,13 @@ struct ExplicitFocus {
 impl Storage {
     pub fn mark_explicit_focus(&self, id: i64) -> Result<(), String> {
         let goal = self
-            .core_snapshot(None)?
+            .core_work_snapshot()?
             .goals
             .into_iter()
             .find(|g| g.id == id && g.status == "open")
             .ok_or("Choose an open goal")?;
         let mut order: Vec<i64> = self
-            .core_snapshot(None)?
+            .core_work_snapshot()?
             .goals
             .iter()
             .map(|g| g.id)
@@ -35,7 +35,7 @@ impl Storage {
         let Some(saved) = saved else { return Ok(None) };
         let current = self.goal()?;
         let valid = current.as_ref().is_some_and(|g| g.id == saved.goal_id)
-            && self.core_snapshot(None)?.goals.iter().any(|g| {
+            && self.core_work_snapshot()?.goals.iter().any(|g| {
                 g.id == saved.goal_id && g.created_at == saved.created_at && g.status == "open"
             });
         if valid {
@@ -76,7 +76,7 @@ fn usable_context(c: &crate::memory::WorkContext, sample: &ActivitySnapshot) -> 
             .is_some_and(|app| app.eq_ignore_ascii_case(&sample.process_name))
 }
 pub(super) fn resolve(inner: &Inner, sample: &ActivitySnapshot) -> Result<Resolution, String> {
-    let snapshot = inner.storage.core_snapshot(None)?;
+    let snapshot = inner.storage.core_work_snapshot()?;
     let explicit = inner.storage.explicit_focus()?;
     let remember = inner.storage.memory_controls()?.remember_work_context
         && inner.storage.memory_controls()?.enabled;

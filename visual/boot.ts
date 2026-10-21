@@ -17,9 +17,14 @@ const unexpected: string[] = [];
 const state = { calls, unexpected, ready: false };
 Object.assign(window, { __visual: state });
 mockIPC(
-  (command) => {
+  (command, args) => {
     calls.push(command);
     try {
+      if (
+        command === "screenshot_permission" &&
+        (args as { request?: boolean } | undefined)?.request !== false
+      )
+        throw new Error("Visual fixtures cannot request system permissions");
       return structuredClone(fixtureReply(command, theme, buddy));
     } catch (error) {
       unexpected.push(command);
