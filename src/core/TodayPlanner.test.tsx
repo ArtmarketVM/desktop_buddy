@@ -12,6 +12,25 @@ import { emptyCore, type CoreGoal } from "./types";
 
 afterEach(cleanup);
 
+it("keeps due-today goals included when choosing additional goals", async () => {
+  const data = snapshot();
+  data.today = [1];
+  const save = vi.fn().mockResolvedValue(true);
+  render(
+    <TodayPlanner
+      snapshot={data}
+      disabled={false}
+      save={save}
+      onDirty={vi.fn()}
+      createNew={vi.fn()}
+    />,
+  );
+  expect(screen.queryByRole("button", { name: /Previous goal 1/ })).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: /Previous goal 2/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Done" }));
+  expect(save).toHaveBeenCalledWith([1, 2]);
+});
+
 function snapshot() {
   return {
     ...emptyCore(),

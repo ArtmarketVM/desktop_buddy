@@ -2,6 +2,9 @@ import type { SearchResult } from "../types";
 export interface CompanionPreferences {
   paused: boolean;
   daily_checkins: boolean;
+  summary_minute?: number;
+  quiet_hours_enabled?: boolean;
+  quiet_days?: number[];
   screen_task_detection: boolean;
   use_screenshots: boolean;
   automatic_completion: boolean;
@@ -12,11 +15,13 @@ export interface CompanionPreferences {
   quiet_end_minute: number;
   movement_reminder: boolean;
   deadline_reminders: boolean;
-  system_deadline_notifications: boolean;
 }
 export const defaultCompanionPreferences: CompanionPreferences = {
   paused: false,
   daily_checkins: true,
+  summary_minute: 1080,
+  quiet_hours_enabled: false,
+  quiet_days: [],
   screen_task_detection: true,
   use_screenshots: false,
   automatic_completion: false,
@@ -27,7 +32,6 @@ export const defaultCompanionPreferences: CompanionPreferences = {
   quiet_end_minute: 540,
   movement_reminder: true,
   deadline_reminders: true,
-  system_deadline_notifications: true,
 };
 export interface Intervention {
   id: string;
@@ -37,6 +41,7 @@ export interface Intervention {
     | "unplanned_completed"
     | "new_task"
     | "completion"
+    | "goal_match"
     | "goal_completion"
     | "no_goals"
     | "midday"
@@ -60,6 +65,7 @@ export interface CompanionView {
   progress_status?: string;
   preferences: CompanionPreferences;
   chat_open: boolean;
+  quiet_mode?: boolean;
   intent: "ask" | "task" | "research" | "selection";
   seed: string;
   intervention: Intervention | null;
@@ -83,6 +89,7 @@ export interface CompanionView {
 export const defaultCompanionView: CompanionView = {
   preferences: defaultCompanionPreferences,
   chat_open: false,
+  quiet_mode: false,
   intent: "ask",
   seed: "",
   intervention: null,
@@ -98,6 +105,8 @@ export interface CompanionReply {
 }
 export type CompanionAction = "task" | "ask" | "research" | "explain" | "save";
 export type InterventionResponse =
+  | "no"
+  | "on_it"
   | "chat"
   | "accept"
   | "ignore"
@@ -105,5 +114,4 @@ export type InterventionResponse =
   | "summary"
   | "today"
   | "start"
-  | "snooze"
   | "reschedule";

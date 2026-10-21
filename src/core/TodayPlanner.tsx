@@ -10,16 +10,21 @@ export function TodayPlanner({
   save,
   onDirty,
   createNew,
+  dayLabel,
 }: {
   snapshot: CoreSnapshot;
   disabled: boolean;
   save: (ids: number[]) => Promise<boolean>;
   onDirty: (dirty: boolean) => void;
   createNew: () => void;
+  dayLabel?: string;
 }) {
   const [selected, setSelected] = useState<number[]>([]);
   const goals = browseGoals(snapshot);
   const ids = selected.filter((id) => goals.some((goal) => goal.id === id));
+  const existing = snapshot.today.filter((id) =>
+    snapshot.goals.some((goal) => goal.id === id && goal.status === "open"),
+  );
   useEffect(() => {
     onDirty(ids.length > 0);
     return () => onDirty(false);
@@ -27,9 +32,15 @@ export function TodayPlanner({
 
   return (
     <section className="today-picker" aria-labelledby="today-picker-title">
-      <h3 id="today-picker-title">Choose from your previous goals</h3>
+      <h3 id="today-picker-title">
+        {dayLabel
+          ? `Choose goals for ${dayLabel}`
+          : "Choose from your previous goals"}
+      </h3>
       <p className="helper">
-        Select the goals you want to work on today, then click Done.
+        {existing.length > 0
+          ? "Goals already in Today stay included. Choose any other goals, then click Done."
+          : `Select the goals you want to work on ${dayLabel ? "that day" : "today"}, then click Done.`}
       </p>
       <ul className="finder-list" aria-label="Previous goals">
         {goals.map((goal) => {
@@ -67,12 +78,13 @@ export function TodayPlanner({
       </ul>
       <div className="today-picker-actions">
         <p className="helper" role="status">
-          {ids.length} {ids.length === 1 ? "goal" : "goals"} selected
+          {ids.length + existing.length}{" "}
+          {ids.length + existing.length === 1 ? "goal" : "goals"} selected
         </p>
         <button
           type="button"
-          disabled={disabled || ids.length === 0}
-          onClick={() => void save(ids)}
+          disabled={disabled || ids.length + existing.length === 0}
+          onClick={() => void save([...existing, ...ids])}
         >
           {disabled ? "Saving…" : "Done"}
         </button>
@@ -84,7 +96,7 @@ export function TodayPlanner({
           disabled={disabled}
           onClick={createNew}
         >
-          Add a new goal instead
+          {dayLabel ? "Back to Today" : "Add a new goal instead"}
         </button>
       )}
     </section>

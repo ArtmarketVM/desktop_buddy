@@ -34,6 +34,7 @@ export interface GoalDetails {
 export interface CorePreferences {
   working_days: number[];
   movement_reminders: boolean;
+  movement_interval_minutes?: number;
   vision_model: string;
 }
 interface GoalTime {
@@ -100,6 +101,7 @@ export const emptyCore = (): CoreSnapshot => {
     preferences: {
       working_days: [1, 2, 3, 4, 5],
       movement_reminders: true,
+      movement_interval_minutes: 45,
       vision_model: "",
     },
   };

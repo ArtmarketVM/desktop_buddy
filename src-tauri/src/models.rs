@@ -141,7 +141,6 @@ pub struct BuddyView {
     pub preferences: BuddyPreferences,
     pub suggestion: Option<Suggestion>,
     pub decision: Option<Decision>,
-    pub snoozed_until: Option<i64>,
     pub quiet_reason: Option<String>,
     pub desktop_visible: bool,
     pub visibility_reason: Option<String>,

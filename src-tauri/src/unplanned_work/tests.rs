@@ -1,6 +1,6 @@
 use super::*;
 use crate::{history::UsageInterval, storage::Storage, tracking::ActivityState};
-use chrono::Duration as CD;
+use chrono::{Duration as CD, Timelike};
 
 fn sample() -> ActivitySnapshot {
     ActivitySnapshot {
@@ -461,4 +461,37 @@ fn observation_excerpt_preserves_late_receipts_and_bounded_untrusted_visual_cont
     let mut private = sample();
     private.window_title = "Private browsing".into();
     assert!(observation_excerpt(&private, &text).is_none());
+}
+
+#[test]
+fn unlisted_work_checks_continue_after_hours_and_quiet_discards_pending_offers() {
+    let state = ready();
+    let mut inner = state.inner.lock().unwrap();
+    let now = Instant::now();
+    let current_minute = Local::now().hour() * 60 + Local::now().minute();
+    inner.tracking_settings.working_start_minute = (current_minute + 60) % 1440;
+    inner.tracking_settings.working_end_minute = (current_minute + 120) % 1440;
+    inner.unplanned_work.sample = Some(sample());
+    inner.unplanned_work.stable_since = Some(now - STABLE);
+    inner.unplanned_work.last_seen = Some(now);
+    assert!(due_inner(&inner, now));
+    fixtures(&inner.storage, None);
+    offer(&mut inner);
+    assert!(pending(&mut inner).unwrap().is_some());
+    inner.status.dnd = true;
+    crate::companion::enforce_quiet(&mut inner);
+    assert!(pending(&mut inner).unwrap().is_none());
+    assert!(!due_inner(&inner, now));
+    inner.status.dnd = false;
+    assert!(pending(&mut inner).unwrap().is_none());
+    assert_eq!(
+        inner
+            .storage
+            .unplanned_milliseconds(
+                &context_key(&sample()),
+                &Local::now().date_naive().to_string()
+            )
+            .unwrap(),
+        120_000
+    );
 }

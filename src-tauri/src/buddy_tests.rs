@@ -50,31 +50,21 @@ fn ratings_can_be_replaced_and_cleared_without_duplicates() {
 }
 
 #[test]
-fn snooze_suppresses_display_and_scheduling_without_pausing_tracking() {
+fn quiet_mode_keeps_a_resting_mascot_without_pausing_tracking() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.status.tracking = true;
-    crate::tracking::allow_notifications(&mut inner);
-    inner.status.mock_ai = false;
-    inner.status.nebius_configured = true;
-    inner.status.tavily_configured = true;
-    inner.buddy.view.preferences.proactive = true;
+    inner.buddy.view.avatar.visible = true;
     inner.buddy.view.preferences.suggestions_only = false;
-    inner.buddy.view.snoozed_until = Some(chrono::Utc::now().timestamp() + 3600);
-    assert!(!due(&inner));
-    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
+    inner.status.dnd = true;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
     assert!(inner.status.tracking);
-    inner.buddy.view.snoozed_until = Some(chrono::Utc::now().timestamp() - 1);
-    assert!(due(&inner));
-    inner.buddy.last_search = Some(Instant::now() - Duration::from_secs(600));
-    inner.buddy.view.preferences.interval_minutes = 5;
-    assert!(due(&inner));
-    inner.buddy.view.preferences.interval_minutes = 30;
-    assert!(!due(&inner));
+    inner.status.dnd = false;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
 }
 
 #[test]
-fn modes_and_cadence_respect_preferences_pause_and_dnd() {
+fn retired_research_never_schedules_while_display_respects_preferences_pause_and_dnd() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.status.tracking = true;
@@ -88,11 +78,11 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     inner.status.mock_ai = false;
     inner.status.nebius_configured = true;
     inner.status.tavily_configured = true;
-    assert!(due(&inner));
+    assert!(!due(&inner));
     inner.buddy.last_search = Some(Instant::now());
     assert!(!due(&inner));
     inner.buddy.last_search = Some(Instant::now() - Duration::from_secs(901));
-    assert!(due(&inner));
+    assert!(!due(&inner));
     inner.buddy.view.suggestion = Some(Suggestion {
         id: 1,
         title: "Resource".into(),
@@ -102,7 +92,7 @@ fn modes_and_cadence_respect_preferences_pause_and_dnd() {
     assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
     inner.buddy.view.avatar.visible = false;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
-    assert!(due(&inner));
+    assert!(!due(&inner));
     inner.buddy.view.avatar.visible = true;
     inner.status.dnd = true;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
@@ -143,7 +133,7 @@ fn persists_preferences_and_deduplicates_per_goal() {
 }
 
 #[test]
-fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {
+fn single_fullscreen_setting_hides_both_mascot_and_chat() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.buddy.view.preferences.suggestions_only = false;
@@ -151,7 +141,7 @@ fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {
     assert_eq!(display_mode(&inner.status, &inner.buddy.view, false), 1);
     assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 0);
     inner.buddy.view.companion.chat_open = true;
-    assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 3);
+    assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 0);
     inner.buddy.view.companion.chat_open = false;
     inner.buddy.view.companion.preferences.hide_fullscreen = false;
     assert_eq!(display_mode(&inner.status, &inner.buddy.view, true), 1);
@@ -160,7 +150,7 @@ fn desktop_companion_respects_fullscreen_without_hiding_explicit_chat() {
 }
 
 #[test]
-fn hidden_character_keeps_checkins_but_respects_quiet_and_snooze() {
+fn hidden_character_keeps_checkins_but_respects_quiet() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     let view = &mut inner.buddy.view;
@@ -182,9 +172,6 @@ fn hidden_character_keeps_checkins_but_respects_quiet_and_snooze() {
     inner.buddy.view.quiet_reason = Some("Meeting".into());
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
     inner.buddy.view.quiet_reason = None;
-    inner.buddy.view.snoozed_until = Some(i64::MAX);
-    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
-    inner.buddy.view.snoozed_until = None;
     inner.buddy.view.companion.intervention = None;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
 }
@@ -225,7 +212,7 @@ fn mascot_anchor_survives_chat_resize_screen_edges_and_native_drag() {
 }
 
 #[test]
-fn deadline_cards_work_without_tracking_but_never_bypass_quiet_reasons() {
+fn deadline_cards_continue_after_hours_but_respect_idle_meetings_and_quiet_mode() {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     inner.buddy.view.companion.intervention = Some(crate::companion::engine::Intervention {
@@ -239,18 +226,33 @@ fn deadline_cards_work_without_tracking_but_never_bypass_quiet_reasons() {
         expires_at: i64::MAX,
     });
     inner.status.tracking = false;
-    inner.buddy.view.quiet_reason = Some("Waiting for a pause in input".into());
+    inner.buddy.view.quiet_reason = None;
     assert_eq!(mode(&inner.status, &inner.buddy.view), 2);
-    for reason in [
-        "Quiet hours",
-        "Outside working hours",
-        "You are away",
-        "Meeting or presentation",
-    ] {
+    for reason in ["You are away", "Meeting or presentation"] {
         inner.buddy.view.quiet_reason = Some(reason.into());
         assert_ne!(mode(&inner.status, &inner.buddy.view), 2);
     }
-    inner.buddy.view.quiet_reason = None;
+    inner
+        .buddy
+        .view
+        .companion
+        .intervention
+        .as_mut()
+        .unwrap()
+        .kind = crate::companion::engine::Kind::EndOfDay;
+    assert_ne!(mode(&inner.status, &inner.buddy.view), 2);
     inner.status.dnd = true;
     assert_ne!(mode(&inner.status, &inner.buddy.view), 2);
+}
+
+#[test]
+fn quiet_mode_keeps_only_the_resting_mascot_even_if_chat_or_a_card_was_open() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.buddy.view.preferences.suggestions_only = false;
+    inner.buddy.view.companion.chat_open = true;
+    inner.status.dnd = true;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 1);
+    inner.buddy.view.avatar.visible = false;
+    assert_eq!(mode(&inner.status, &inner.buddy.view), 0);
 }

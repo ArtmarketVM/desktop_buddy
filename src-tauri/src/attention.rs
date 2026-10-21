@@ -67,29 +67,6 @@ pub fn meeting(activity: &ActivitySnapshot) -> bool {
             .any(|marker| title.contains(marker)))
 }
 
-pub fn quiet_reason(
-    preferences: &BuddyPreferences,
-    activity: Option<&ActivitySnapshot>,
-    fullscreen: bool,
-    card_visible: bool,
-) -> Option<String> {
-    if preferences.suppress_fullscreen && fullscreen {
-        return Some("Fullscreen application".into());
-    }
-    let activity = activity?;
-    if excluded(preferences, &activity.process_name) {
-        Some("Excluded application".into())
-    } else if preferences.suppress_fullscreen && fullscreen {
-        Some("Fullscreen application".into())
-    } else if preferences.suppress_meetings && meeting(activity) {
-        Some("Meeting application".into())
-    } else if preferences.wait_for_input_pause && activity.idle_seconds < 5 && !card_visible {
-        Some("Waiting for a pause in input".into())
-    } else {
-        None
-    }
-}
-
 pub fn validate_preferences(mut preferences: BuddyPreferences) -> Result<BuddyPreferences, String> {
     if preferences.daily_nudge_limit > 50
         || ![5, 15, 30, 60].contains(&preferences.nudge_interval_minutes)
@@ -131,30 +108,15 @@ mod tests {
         }
     }
     #[test]
-    fn suppresses_fullscreen_meetings_exclusions_and_recent_input() {
-        let mut prefs = BuddyPreferences::default();
-        let mut a = activity();
-        assert!(quiet_reason(&prefs, Some(&a), false, false).is_none());
-        assert_eq!(
-            quiet_reason(&prefs, Some(&a), true, false).as_deref(),
-            Some("Fullscreen application")
-        );
-        prefs.excluded_apps = vec!["EDITOR.EXE".into()];
+    fn exclusions_are_exact_process_names_and_do_not_imply_meeting_detection() {
+        let prefs = BuddyPreferences {
+            excluded_apps: vec!["EDITOR.EXE".into()],
+            ..Default::default()
+        };
+        let a = activity();
         assert!(excluded(&prefs, &a.process_name));
-        prefs.excluded_apps.clear();
-        a.process_name = "ms-teams.exe".into();
-        a.window_title = "Design — Microsoft Teams meeting".into();
-        assert!(meeting(&a));
-        assert_eq!(
-            quiet_reason(&prefs, Some(&a), false, false).as_deref(),
-            Some("Meeting application")
-        );
-        a = activity();
-        a.idle_seconds = 0;
-        assert!(quiet_reason(&prefs, Some(&a), false, false).is_some());
-        assert!(quiet_reason(&prefs, Some(&a), false, true).is_none());
-        a.idle_seconds = 90;
-        assert!(quiet_reason(&prefs, Some(&a), false, true).is_none());
+        assert!(!meeting(&a));
+        assert!(!excluded(&prefs, "editor-helper.exe"));
     }
     #[test]
     fn normalizes_preferences_and_rejects_invalid_limits() {

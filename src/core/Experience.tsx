@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pause, Plus } from "lucide-react";
 import { queryClient } from "../data/client";
 import { useQuery } from "../data/useQuery";
@@ -21,7 +21,6 @@ import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
 import { Toasts } from "../components/Toasts";
 import { NoticedWork } from "./NoticedWork";
-import { GoalMatchToasts } from "../components/GoalMatchToasts";
 
 export function Experience({
   page,
@@ -31,6 +30,7 @@ export function Experience({
   enhancement,
   dashboard,
   onSettings,
+  planningRequest,
 }: {
   page: WorkspacePage;
   onDirty: (dirty: boolean) => void;
@@ -39,6 +39,7 @@ export function Experience({
   enhancement?: GoalEnhancement;
   dashboard: Dashboard;
   onSettings: () => void;
+  planningRequest?: { revision: number; tomorrow: boolean };
 }) {
   const [anchor, setAnchor] = useState<string | null>(null);
   const [progressPeriod, setProgressPeriod] = useState<ProgressPeriod>("week");
@@ -49,15 +50,32 @@ export function Experience({
   const [quickDirty, setQuickDirty] = useState(false);
   const [skipPlanningDate, setSkipPlanningDate] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
+  const [planningDate, setPlanningDate] = useState<string | null>(null);
   const snapshotAnchor = page === "activity" ? anchor : null;
   const snapshotPeriod = page === "activity" ? progressPeriod : "week";
-  const [movementDismissed, setMovementDismissed] = useState(0);
   const workspace = workspaceQuery(snapshotAnchor, snapshotPeriod);
   const workspaceState = useQuery(workspace, desktop);
   const captured = useQuery(draftsQuery, desktop);
   const snapshot = workspaceState.data;
   const drafts = captured.data;
   const ready = !desktop || workspaceState.ready;
+  const handledPlanning = useRef(0);
+  const quietMode = !!(
+    dashboard.status.dnd || dashboard.buddy.companion?.quiet_mode
+  );
+  useEffect(() => {
+    if (
+      !planningRequest ||
+      !ready ||
+      handledPlanning.current === planningRequest.revision
+    )
+      return;
+    handledPlanning.current = planningRequest.revision;
+    const date = new Date(`${snapshot.date}T12:00:00`);
+    if (planningRequest.tomorrow) date.setDate(date.getDate() + 1);
+    setPlanningDate(date.toLocaleDateString("en-CA"));
+    setSkipPlanningDate(null);
+  }, [planningRequest, snapshot.date, ready]);
   const displayedError = error || workspaceState.error || captured.error;
   const refresh = useCallback(async () => {
     if (desktop)
@@ -104,9 +122,10 @@ export function Experience({
   const finishedToday = today.filter((goal) => goal.status === "completed");
   const planningToday =
     ready &&
-    snapshot.day_mode === "plan" &&
-    today.length === 0 &&
-    browseGoals(snapshot).length > 0;
+    (planningDate !== null ||
+      (snapshot.day_mode === "plan" &&
+        today.length === 0 &&
+        browseGoals(snapshot).length > 0));
   const timeFor = (id: number) =>
     snapshot.summary.goals.find((goal) => goal.goal_id === id)
       ?.relevant_seconds ?? 0;
@@ -136,14 +155,6 @@ export function Experience({
     (sum, goal) => sum + (goal.relevant_seconds ?? 0),
     0,
   );
-  const movement =
-    !dashboard.status.dnd &&
-    !dashboard.buddy.companion?.preferences.paused &&
-    (!dashboard.buddy.snoozed_until ||
-      dashboard.buddy.snoozed_until * 1000 <= Date.now()) &&
-    snapshot.preferences.movement_reminders &&
-    snapshot.focused_goal_id !== null &&
-    Math.floor(focusedSeconds / 2700) > movementDismissed;
   return (
     <div className="core-workspace">
       {displayedError && (
@@ -178,29 +189,37 @@ export function Experience({
       </div>
       {page === "focus" && (
         <>
-          {movement && (
-            <div className="movement-note">
-              <span>A little stretch or a sip of water?</span>
-              <button
-                className="text-button"
-                onClick={() =>
-                  setMovementDismissed(Math.floor(focusedSeconds / 2700))
-                }
-              >
-                Thanks, got it
-              </button>
-            </div>
-          )}
           <div className="today-layout">
             <section className="core-section today-goals">
               {planningToday && skipPlanningDate !== snapshot.date ? (
                 <TodayPlanner
-                  key={snapshot.date}
-                  snapshot={snapshot}
+                  key={planningDate ?? snapshot.date}
+                  snapshot={
+                    planningDate && planningDate !== snapshot.date
+                      ? { ...snapshot, today: [] }
+                      : snapshot
+                  }
+                  dayLabel={
+                    planningDate && planningDate !== snapshot.date
+                      ? planningDate
+                      : undefined
+                  }
                   disabled={busy || !desktop}
                   onDirty={setQuickDirty}
-                  save={(ids) => run(() => coreApi.planGoals(ids))}
-                  createNew={() => setSkipPlanningDate(snapshot.date)}
+                  save={async (ids) => {
+                    const saved = await run(() =>
+                      coreApi.planGoals(ids, planningDate ?? undefined),
+                    );
+                    if (saved) {
+                      setPlanningDate(null);
+                      setSkipPlanningDate(snapshot.date);
+                    }
+                    return saved;
+                  }}
+                  createNew={() => {
+                    setPlanningDate(null);
+                    setSkipPlanningDate(snapshot.date);
+                  }}
                 />
               ) : (
                 <div className="section-heading today-actions">
@@ -243,11 +262,11 @@ export function Experience({
               {snapshot.day_mode === "unset" && (
                 <div className="morning-plan">
                   <p>
-                    {snapshot.preferences.working_days.includes(
-                      new Date().getDay(),
-                    )
-                      ? "What would you like to move forward today?"
-                      : "A quieter day? Make a plan only if you want one."}
+                    {(
+                      dashboard.buddy.companion?.preferences.quiet_days ?? []
+                    ).includes(new Date().getDay())
+                      ? "A quiet day? Make a plan only if you want one."
+                      : "What would you like to move forward today?"}
                   </p>
                   <button
                     disabled={busy || !desktop}
@@ -299,7 +318,7 @@ export function Experience({
               )}
             </section>
           </div>
-          <NoticedWork onChanged={refresh} />
+          <NoticedWork onChanged={refresh} quietMode={quietMode} />
           {(focusedSeconds > 0 || finishedItems.length > 0) && (
             <TodaySummary day={snapshot.summary} items={finishedItems} />
           )}
@@ -365,8 +384,7 @@ export function Experience({
           }
         />
       )}
-      <Toasts />
-      <GoalMatchToasts onChanged={refresh} />
+      <Toasts quietMode={quietMode} />
     </div>
   );
 }

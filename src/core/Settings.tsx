@@ -6,17 +6,9 @@ import { isMac } from "../api/platform";
 import { invoke } from "../data/ipc";
 import { useEffect, useState } from "react";
 import { api, desktop } from "../api/tauri";
-import {
-  defaultTrackingSettings,
-  defaultUserSettings,
-  type Dashboard,
-} from "../types";
+import { defaultUserSettings, type Dashboard } from "../types";
 import { ProviderRow } from "./ProviderRow";
-import {
-  servicesQuery,
-  workspaceQuery,
-  trackingQuery,
-} from "../data/resources";
+import { servicesQuery, workspaceQuery } from "../data/resources";
 import { useQuery } from "../data/useQuery";
 import { queryClient } from "../data/client";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -32,13 +24,6 @@ import { coreApi } from "./api";
 import { emptyCore } from "./types";
 
 const sections = ["General", "Profile", "AI", "Privacy", "About"] as const;
-const time = (value: number) =>
-  `${String(Math.floor(value / 60)).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`;
-const minutes = (value: string) => {
-  const [h, m] = value.split(":").map(Number);
-  return h * 60 + m;
-};
-
 export const PRIVACY_POLICY_URL =
   "https://artmarketvm.github.io/desktop_buddy/docs/privacy.html";
 
@@ -101,14 +86,13 @@ export function CoreSettings({
   onChanged: () => Promise<void>;
   onDirty: (dirty: boolean) => void;
   onUpdates: () => void;
-  sectionRequest?: { section: "Privacy"; revision: number };
+  sectionRequest?: { section: "Privacy" | "General"; revision: number };
   active?: boolean;
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
   const [profile, setProfile] = useState(settings.profile);
   const [autostart, setAutostart] = useState(settings.autostart);
   const [preferences, setPreferences] = useState(emptyCore().preferences);
-  const [hours, setHours] = useState(defaultTrackingSettings);
   const [goals, setGoals] = useState(emptyCore().goals);
   const [logGoal, setLogGoal] = useState<number | null>(null);
   const [forgetGoal, setForgetGoal] = useState<number | null>(null);
@@ -187,23 +171,14 @@ export function CoreSettings({
     if (sectionRequest) setSection(sectionRequest.section);
   }, [sectionRequest]);
   const workspace = useQuery(workspaceQuery(null, "week"), desktop && active);
-  const tracking = useQuery(trackingQuery, desktop && active);
   useEffect(() => {
-    if (!workspace.ready || !tracking.ready) return;
+    if (!workspace.ready) return;
     setGoals(workspace.data.goals);
     if (!dirty && !busy) {
       setPreferences(workspace.data.preferences);
-      setHours(tracking.data);
     }
     setReady(true);
-  }, [
-    workspace.data,
-    workspace.ready,
-    tracking.data,
-    tracking.ready,
-    dirty,
-    busy,
-  ]);
+  }, [workspace.data, workspace.ready, dirty, busy]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
@@ -258,12 +233,8 @@ export function CoreSettings({
           profile.email,
         );
         await coreApi.preferences(preferences);
-        await api.saveTrackingSettings(hours);
         // Keep the draft authoritative until the shared reads reflect the save.
-        await Promise.all([
-          workspaceQuery(null, "week").refresh(),
-          trackingQuery.refresh(),
-        ]);
+        await workspaceQuery(null, "week").refresh();
       })
     ) {
       setDirty(false);
@@ -369,7 +340,7 @@ export function CoreSettings({
                 currentPreferences={data.buddy.companion?.preferences}
               />
               <label className="toggle-row">
-                <span>Remind me to move every 45 minutes</span>
+                <span>Remind me to stretch</span>
                 <input
                   type="checkbox"
                   checked={preferences.movement_reminders}
@@ -391,6 +362,28 @@ export function CoreSettings({
                       );
                   }}
                 />
+              </label>
+              <label className="setting-row">
+                <span>Stretch interval</span>
+                <select
+                  aria-label="Stretch interval"
+                  value={preferences.movement_interval_minutes ?? 45}
+                  disabled={blocked || !preferences.movement_reminders}
+                  onChange={(event) => {
+                    const next = {
+                      ...preferences,
+                      movement_interval_minutes: Number(event.target.value),
+                    };
+                    setPreferences(next);
+                    void run(() => coreApi.preferences(next));
+                  }}
+                >
+                  {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minutes
+                    </option>
+                  ))}
+                </select>
               </label>
             </section>
             <section className="settings-card" aria-label="Nudges">
@@ -474,83 +467,6 @@ export function CoreSettings({
             </div>
             <MacPermissions variant="row" />
 
-            <div className="setting-row">
-              <span>Working days</span>
-              <span
-                className="day-chips"
-                role="group"
-                aria-label="Working days"
-              >
-                {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map(
-                  (label, day) => {
-                    const on = preferences.working_days.includes(day);
-                    return (
-                      <button
-                        type="button"
-                        key={day}
-                        className="day-chip"
-                        aria-pressed={on}
-                        disabled={blocked}
-                        onClick={() => {
-                          const next = {
-                            ...preferences,
-                            working_days: on
-                              ? preferences.working_days.filter(
-                                  (d) => d !== day,
-                                )
-                              : [...preferences.working_days, day].sort(),
-                          };
-                          setPreferences(next);
-                          void run(() => coreApi.preferences(next));
-                        }}
-                      >
-                        {label}
-                      </button>
-                    );
-                  },
-                )}
-              </span>
-            </div>
-            <div
-              className="setting-row"
-              role="group"
-              aria-label="Working hours"
-            >
-              <span>Working hours</span>
-              <span className="quiet-hours">
-                <input
-                  type="time"
-                  aria-label="Start time"
-                  value={time(hours.working_start_minute)}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const next = {
-                      ...hours,
-                      working_start_minute: minutes(e.target.value),
-                    };
-                    setHours(next);
-                    void run(() => api.saveTrackingSettings(next));
-                  }}
-                />
-                <span className="quiet-hours-to">to</span>
-                <input
-                  type="time"
-                  aria-label="End time"
-                  value={time(hours.working_end_minute)}
-                  disabled={blocked}
-                  onChange={(e) => {
-                    if (!e.target.value) return;
-                    const next = {
-                      ...hours,
-                      working_end_minute: minutes(e.target.value),
-                    };
-                    setHours(next);
-                    void run(() => api.saveTrackingSettings(next));
-                  }}
-                />
-              </span>
-            </div>
             <label className="setting-row">
               <span>Keep history</span>
               <select
@@ -853,13 +769,9 @@ export function CoreSettings({
 
       {(error ||
         workspace.error ||
-        tracking.error ||
         (section === "AI" && serviceStateQuery.error)) && (
         <p className="error" role="alert">
-          {error ||
-            workspace.error ||
-            tracking.error ||
-            serviceStateQuery.error}
+          {error || workspace.error || serviceStateQuery.error}
         </p>
       )}
     </div>

@@ -8,20 +8,19 @@ import { Avatar } from "./Avatar";
 import { defaultCompanionView } from "../companion/types";
 import { CompanionChat } from "../companion/CompanionChat";
 import { InterventionCard } from "../companion/InterventionCard";
+import { interventionState } from "../companion/interventionPresentation";
 import { BuddyActionBar } from "../companion/BuddyActionBar";
 import { useBuddyPointer } from "../companion/useBuddyPointer";
 import { useBuddyActions } from "../companion/useBuddyActions";
 
 export function DesktopBuddy({
   view,
-  onDismiss,
   onDnd,
   goal = null,
   plan = null,
   onChanged = async () => {},
 }: {
   view: BuddyView;
-  onDismiss: () => void;
   onDnd: () => void;
   goal?: Goal | null;
   plan?: GoalPlan | null;
@@ -33,13 +32,20 @@ export function DesktopBuddy({
   const [mode, setMode] = useState<"text" | "voice">("text");
   const [responseState, setResponseState] = useState<AvatarState | null>(null);
   const responseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastActivity = useRef("");
   useEffect(() => {
-    if (view.activity_event === "goal_completed") {
+    const activity = `${view.activity_revision}:${view.activity_event}`;
+    const changed = activity !== lastActivity.current;
+    lastActivity.current = activity;
+    if (view.companion?.quiet_mode) {
+      if (responseTimer.current) clearTimeout(responseTimer.current);
+      setResponseState(null);
+    } else if (changed && view.activity_event === "goal_completed") {
       setResponseState("success");
       if (responseTimer.current) clearTimeout(responseTimer.current);
       responseTimer.current = setTimeout(() => setResponseState(null), 1600);
     }
-  }, [view.activity_revision, view.activity_event]);
+  }, [view.activity_revision, view.activity_event, view.companion?.quiet_mode]);
   useEffect(
     () => () => {
       if (responseTimer.current) clearTimeout(responseTimer.current);
@@ -49,7 +55,11 @@ export function DesktopBuddy({
   const pointer = useRef<{ x: number; y: number; dragged: boolean } | null>(
     null,
   );
-  const companion = view.companion ?? defaultCompanionView;
+  const current = view.companion ?? defaultCompanionView;
+  const quietMode = !!current.quiet_mode;
+  const companion = quietMode
+    ? { ...current, chat_open: false, intervention: null, notice: null }
+    : current;
   const actions = useBuddyActions(companion.chat_open || busy);
   useEffect(() => {
     if (!companion.chat_open) setMode("text");
@@ -63,7 +73,7 @@ export function DesktopBuddy({
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
   }, [companion.chat_open, onChanged]);
-  const card = view.suggestion || view.decision;
+  const card = !quietMode && (view.suggestion || view.decision);
   const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
   const root = useRef<HTMLElement>(null);
   useBuddyPointer(
@@ -102,15 +112,14 @@ export function DesktopBuddy({
     !card
   )
     return null;
-  const state: AvatarState =
-    responseState ??
-    (companion.chat_open
-      ? chatState
-      : companion.intervention
-        ? companion.intervention.kind === "movement"
-          ? "stretching"
-          : "attention"
-        : companion.state);
+  const state: AvatarState = quietMode
+    ? "sleeping"
+    : (responseState ??
+      (companion.intervention
+        ? interventionState(companion.intervention)
+        : companion.chat_open
+          ? chatState
+          : companion.state));
   return (
     <main
       ref={root}
@@ -152,13 +161,20 @@ export function DesktopBuddy({
         <InterventionCard
           prompt={companion.intervention}
           busy={busy}
-          respond={(response) =>
+          respond={(response, deadline) =>
             void action(
-              () => api.companionRespond(companion.intervention!.id, response),
-              response === "accept" &&
-                ["new_task", "completion", "deadline"].includes(
-                  companion.intervention!.kind,
+              () =>
+                api.companionRespond(
+                  companion.intervention!.id,
+                  response,
+                  deadline,
                 ),
+              response === "accept" &&
+                [
+                  "completion",
+                  "goal_completion",
+                  "unplanned_completed",
+                ].includes(companion.intervention!.kind),
             )
           }
         />
@@ -195,11 +211,8 @@ export function DesktopBuddy({
                   This is related
                 </button>
               )}
-              <button className="text-button" onClick={onDismiss}>
-                Not now · 1 hour
-              </button>
               <button className="text-button" onClick={onDnd}>
-                Do not disturb
+                Quiet mode
               </button>
             </div>
             <small>Closes after 45 seconds.</small>
@@ -279,7 +292,7 @@ export function DesktopBuddy({
           />
         </>
       )}
-      {error && (
+      {!quietMode && error && (
         <small className="companion-error" role="alert">
           {error}
         </small>

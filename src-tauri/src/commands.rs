@@ -62,7 +62,6 @@ impl AppState {
             storage.buddy_preferences()?,
         )?);
         buddy.position = storage.read_setting("buddy_position")?;
-        buddy.view.snoozed_until = storage.read_setting("buddy_snooze")?;
         buddy.last_attempt_at = storage.read_setting("buddy_last_attempt")?;
         let retention_days = storage.read_setting("retention_days")?.unwrap_or(0);
         crate::privacy::validate_retention(retention_days)?;
@@ -72,6 +71,8 @@ impl AppState {
             storage.purge_history(Some(&cutoff))?;
         }
         let tracking = crate::tracking::requested(&storage)?;
+        let companion = crate::companion::Runtime::load(&storage)?;
+        buddy.view.companion = companion.view.clone();
         Ok(Self {
             screen_context_read: tokio::sync::Mutex::new(()),
             companion_request: tokio::sync::Mutex::new(()),
@@ -81,7 +82,7 @@ impl AppState {
                 engine: Default::default(),
                 agent: crate::agent_runtime::AgentRuntime::load(&storage)?,
                 goal_matching: Default::default(),
-                companion: crate::companion::Runtime::load(&storage)?,
+                companion,
                 tracking_settings: storage.tracking_settings()?,
                 activity_state: Default::default(),
                 usage: Default::default(),
@@ -482,25 +483,9 @@ pub fn collect(state: &AppState) -> Result<(), String> {
     }
     Ok(())
 }
-pub fn should_analyze(state: &AppState) -> bool {
-    let Ok(inner) = state.inner.lock() else {
-        return false;
-    };
-    inner.status.tracking
-        && crate::tracking::notifications_allowed(&inner)
-        && inner.status.ai_enabled
-        && crate::insights::explicit_category(&inner).is_ok_and(|c| c.is_none())
-        && inner
-            .storage
-            .nudge_allowed(&inner.buddy.view.preferences)
-            .unwrap_or(false)
-        && inner.buddy.view.quiet_reason.is_none()
-        && !crate::buddy::snoozed(&inner.buddy.view)
-        && !inner.status.dnd
-        && inner
-            .last_analysis
-            .map(|t| t.elapsed() >= Duration::from_secs(if inner.status.demo { 20 } else { 60 }))
-            .unwrap_or(true)
+/// Automatic focus warnings are retired; explicit focus analysis remains available.
+pub fn should_analyze(_state: &AppState) -> bool {
+    false
 }
 async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<Decision, String> {
     let _guard = state
@@ -559,10 +544,7 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
         return Err("Focus check discarded because the goal or consent changed".into());
     }
     if automatic
-        && (inner.buddy.view.quiet_reason.is_some()
-            || crate::buddy::snoozed(&inner.buddy.view)
-            || inner.status.dnd
-            || !inner.status.tracking)
+        && (inner.buddy.view.quiet_reason.is_some() || inner.status.dnd || !inner.status.tracking)
     {
         return Err("Focus check discarded while sumi is quiet".into());
     }
@@ -583,7 +565,6 @@ async fn analyze(app: &AppHandle, state: &AppState, automatic: bool) -> Result<D
     if inner.buddy.view.quiet_reason.is_none()
         && crate::tracking::notifications_allowed(&inner)
         && crate::insights::explicit_category(&inner)?.is_none()
-        && !crate::buddy::snoozed(&inner.buddy.view)
         && should_nudge(
             &inner.status,
             cooldown,

@@ -434,12 +434,27 @@ export function Conversation({
           </button>
         </header>
       )}
-      {view.intervention && (
+      {!view.quiet_mode && view.intervention && (
         <InterventionCard
           prompt={view.intervention}
           busy={busy}
-          respond={(action) => {
-            void run(() => api.companionRespond(view.intervention!.id, action));
+          respond={(action, deadline) => {
+            void run(async () => {
+              await api.companionRespond(
+                view.intervention!.id,
+                action,
+                deadline,
+              );
+              if (
+                action === "accept" &&
+                [
+                  "completion",
+                  "goal_completion",
+                  "unplanned_completed",
+                ].includes(view.intervention!.kind)
+              )
+                onState("success");
+            });
           }}
         />
       )}

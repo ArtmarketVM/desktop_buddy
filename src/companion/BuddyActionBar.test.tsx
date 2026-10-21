@@ -52,7 +52,6 @@ const view = {
   preferences: defaultBuddyPreferences,
   suggestion: null,
   decision: null,
-  snoozed_until: null,
   quiet_reason: null,
   avatar: appearance,
   companion: defaultCompanionView,
@@ -85,9 +84,7 @@ it.each(["desktop", "workspace"])(
   "%s controls use the selected avatar color and retire from interaction after idle",
   (surface) => {
     if (surface === "desktop")
-      render(
-        <DesktopBuddy view={view} onDismiss={() => {}} onDnd={() => {}} />,
-      );
+      render(<DesktopBuddy view={view} onDnd={() => {}} />);
     else showWorkspace();
     expect(bar().style.getPropertyValue("--buddy-control-color")).toBe(
       appearance.color,
@@ -143,7 +140,7 @@ it("an open workspace chat pins controls and they hide again after closing", () 
   expect(buttons().getAttribute("aria-hidden")).toBe("true");
 });
 it("native text and voice controls retain their existing open-chat callbacks", async () => {
-  render(<DesktopBuddy view={view} onDismiss={() => {}} onDnd={() => {}} />);
+  render(<DesktopBuddy view={view} onDnd={() => {}} />);
   await act(async () =>
     fireEvent.click(screen.getByRole("button", { name: "Write to sumi" })),
   );
@@ -159,7 +156,6 @@ it("an open native chat keeps controls visible even after the idle deadline", ()
         ...view,
         companion: { ...defaultCompanionView, chat_open: true },
       }}
-      onDismiss={() => {}}
       onDnd={() => {}}
     />,
   );
@@ -204,4 +200,38 @@ it("native hover reveals controls without a click and overrides stale DOM hover 
   act(() => result.current.setNativeHovered(false));
   advance();
   expect(result.current.visible).toBe(false);
+});
+
+it("quiet mode closes the workspace bubble, rests, and routes explicit chat to the workspace", () => {
+  const changed = async () => {};
+  const ui = render(
+    <WorkspaceBuddy dashboard={dashboard} onChanged={changed} />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Open sumi chat" }));
+  expect(screen.getByText("Input mode: text")).toBeTruthy();
+  ui.rerender(
+    <WorkspaceBuddy
+      dashboard={{
+        ...dashboard,
+        buddy: {
+          ...view,
+          companion: { ...defaultCompanionView, quiet_mode: true },
+        },
+      }}
+      onChanged={changed}
+    />,
+  );
+  expect(screen.queryByText("Input mode: text")).toBeNull();
+  expect(
+    screen.getByRole("img", { name: "sumi companion, sleeping" }),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Open sumi chat" }));
+  expect(api.openChat).toHaveBeenCalledWith("ask");
+  expect(screen.queryByText("Input mode: text")).toBeNull();
+  act(() =>
+    window.dispatchEvent(new CustomEvent("buddy:ask-goal", { detail: {} })),
+  );
+  expect(screen.queryByText("Input mode: text")).toBeNull();
+  ui.rerender(<WorkspaceBuddy dashboard={dashboard} onChanged={changed} />);
+  expect(screen.queryByText("Input mode: text")).toBeNull();
 });

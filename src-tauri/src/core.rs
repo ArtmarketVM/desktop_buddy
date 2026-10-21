@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, State};
 pub struct CorePreferences {
     pub working_days: Vec<u8>,
     pub movement_reminders: bool,
+    pub movement_interval_minutes: u32,
     pub vision_model: String,
 }
 impl Default for CorePreferences {
@@ -20,6 +21,7 @@ impl Default for CorePreferences {
         Self {
             working_days: vec![1, 2, 3, 4, 5],
             movement_reminders: true,
+            movement_interval_minutes: 45,
             vision_model: String::new(),
         }
     }
@@ -283,7 +285,7 @@ impl Storage {
         self.initialize_goal_automation()?;
         self.adopt_core_goals()
     }
-    fn adopt_core_goals(&self) -> Result<(), String> {
+    pub(crate) fn adopt_core_goals(&self) -> Result<(), String> {
         self.connection
             .execute(
                 "INSERT OR IGNORE INTO core_areas(title) VALUES('General')",
@@ -934,7 +936,7 @@ impl Storage {
             .map_err(db)?;
         Ok(rows)
     }
-    fn core_progress(&self, date: &str) -> Result<DayProgress, String> {
+    pub(crate) fn core_progress(&self, date: &str) -> Result<DayProgress, String> {
         let mut q=self.connection.prepare("SELECT e.title FROM core_events e WHERE e.day=?1 AND e.kind='completed' AND e.id=(SELECT MAX(x.id) FROM core_events x WHERE x.goal_id=e.goal_id AND x.step_id=e.step_id AND x.day=e.day) ORDER BY e.id").map_err(db)?;
         let completed = q
             .query_map([date], |r| r.get::<_, String>(0))
@@ -1448,9 +1450,14 @@ pub fn plan_core_goals(
     state: State<AppState>,
     app: AppHandle,
     ids: Vec<i64>,
+    date: Option<String>,
 ) -> Result<CoreSnapshot, String> {
     mutate(&state, &app, |storage| {
-        storage.core_plan_goals(&ids, &Local::now().date_naive().to_string())
+        storage.core_plan_goals(
+            &ids,
+            date.as_deref()
+                .unwrap_or(&Local::now().date_naive().to_string()),
+        )
     })
 }
 #[tauri::command(async)]
@@ -1498,6 +1505,7 @@ pub fn set_core_preferences(
     preferences.working_days.sort_unstable();
     preferences.working_days.dedup();
     if preferences.working_days.iter().any(|d| *d > 6)
+        || !(5..=240).contains(&preferences.movement_interval_minutes)
         || preferences.vision_model.len() > 160
         || preferences.vision_model.chars().any(char::is_control)
     {

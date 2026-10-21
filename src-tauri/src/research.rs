@@ -653,47 +653,6 @@ pub(crate) fn respond_offer(
     Ok(job)
 }
 
-pub(crate) fn spawn_from_offer(app: tauri::AppHandle, goal: i64, id: i64) {
-    use tauri::{Emitter, Manager};
-    tauri::async_runtime::spawn(async move {
-        let state = app.state::<AppState>();
-        let conversation = state
-            .inner
-            .lock()
-            .ok()
-            .and_then(|i| i.storage.research_record(goal, id).ok())
-            .and_then(|r| r.consent["conversation"].as_i64());
-        let result = run_authorized(&state, goal, id).await;
-        if let Ok(mut inner) = state.inner.lock() {
-            let text=match result {Ok(ref result)=>receipt(result),Err(_)=>"Research could not finish. Check provider settings and the current goal, then request a new search. No result was attached.".into()};
-            if let Some(conversation) = conversation {
-                // Save to the original chat; never overwrite another conversation's answer.
-                let reply = crate::ai_chat::ChatReply {
-                    message: text.clone(),
-                    resources: vec![],
-                    ..Default::default()
-                };
-                let _ = inner
-                    .storage
-                    .save_answer_to(conversation, &reply, Some(goal));
-            }
-            if inner.storage.current_conversation().ok() == conversation {
-                inner.companion.view.notice = Some(if result.is_ok() {
-                    "Research saved in this goal's work context.".into()
-                } else {
-                    text
-                });
-            }
-            let _ = app.emit("buddy://chat-updated", ());
-            let _ = crate::buddy::sync(&app, &mut inner);
-            crate::companion::emit(
-                &app,
-                "research.finished",
-                json!({"goal_id":goal,"research_id":id}),
-            );
-        };
-    });
-}
 pub fn attachment_list_schema() -> Value {
     json!({"type":"array","maxItems":3,"items":{"type":"object","additionalProperties":false,"properties":{
         "research_id":{"type":"integer"},"step_id":{"type":["string","null"]},"summary":{"type":"string"},"next_action":{"type":"string"},

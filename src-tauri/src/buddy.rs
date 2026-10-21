@@ -31,7 +31,6 @@ impl Runtime {
                 preferences,
                 suggestion: None,
                 decision: None,
-                snoozed_until: None,
                 quiet_reason: None,
                 desktop_visible: false,
                 visibility_reason: Some("Starting sumi".into()),
@@ -64,20 +63,18 @@ impl Runtime {
     reason = "interventions and suggestions share the expanded mode but have separate eligibility rules"
 )]
 pub fn mode(status: &Status, view: &BuddyView) -> u8 {
-    if view.companion.chat_open {
+    if status.dnd || view.companion.quiet_mode {
+        if view.avatar.visible && !view.preferences.suggestions_only {
+            1
+        } else {
+            0
+        }
+    } else if view.companion.chat_open {
         3
-    } else if snoozed(view) {
-        0
     } else if view.companion.intervention.is_some()
         && !status.dnd
         && !view.companion.preferences.paused
-        && (view.quiet_reason.is_none()
-            || (view.quiet_reason.as_deref() == Some("Waiting for a pause in input")
-                && view
-                    .companion
-                    .intervention
-                    .as_ref()
-                    .is_some_and(|p| p.kind == crate::companion::engine::Kind::Deadline)))
+        && view.quiet_reason.is_none()
     {
         2
     } else if status.tracking
@@ -95,13 +92,8 @@ pub fn mode(status: &Status, view: &BuddyView) -> u8 {
         0
     }
 }
-pub fn snoozed(view: &BuddyView) -> bool {
-    view.snoozed_until
-        .is_some_and(|t| t > chrono::Utc::now().timestamp())
-}
-
 pub fn display_mode(status: &Status, view: &BuddyView, fullscreen: bool) -> u8 {
-    if fullscreen && view.companion.preferences.hide_fullscreen && !view.companion.chat_open {
+    if fullscreen && view.companion.preferences.hide_fullscreen {
         0
     } else {
         mode(status, view)
@@ -113,8 +105,6 @@ fn visibility_reason(view: &BuddyView, fullscreen: bool) -> Option<String> {
         Some("Hidden in Settings".into())
     } else if fullscreen && view.companion.preferences.hide_fullscreen {
         Some("Hidden in full-screen apps".into())
-    } else if snoozed(view) {
-        Some("sumi is snoozed".into())
     } else if view.preferences.suggestions_only {
         Some("Waiting for a suggestion".into())
     } else {
@@ -203,52 +193,7 @@ fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<()
     inner.buddy.view.activity_event = inner.activity_state.event;
     inner.buddy.view.activity_revision = inner.activity_state.revision;
     inner.buddy.fullscreen = !inner.status.demo && crate::collector::foreground_fullscreen();
-    inner.buddy.view.quiet_reason = crate::attention::quiet_reason(
-        &inner.buddy.view.preferences,
-        inner
-            .buddy
-            .foreground
-            .as_ref()
-            .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none()),
-        inner.buddy.fullscreen,
-        inner.buddy.shown.is_some() || inner.companion.view.intervention.is_some(),
-    );
-    if !inner.status.demo && crate::collector::foreground_meeting() {
-        inner.buddy.view.quiet_reason = Some("Meeting or presentation".into());
-    }
-    if !inner.tracking_settings.working_now() {
-        inner.buddy.view.quiet_reason = Some("Outside working hours".into());
-    } else if inner
-        .buddy
-        .foreground
-        .as_ref()
-        .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
-        .is_some_and(|a| a.media_playing)
-    {
-        inner.buddy.view.quiet_reason = Some("Media playback".into());
-    } else if inner
-        .buddy
-        .foreground
-        .as_ref()
-        .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
-        .is_some_and(|a| a.idle_seconds >= inner.tracking_settings.idle_seconds)
-        || (!inner.status.demo
-            && crate::collector::foreground_idle_seconds()
-                .is_some_and(|idle| idle >= inner.tracking_settings.idle_seconds))
-    {
-        inner.buddy.view.quiet_reason = Some("You are away".into());
-    }
-    let local = chrono::Local::now();
-    if inner.companion.view.preferences.paused {
-        inner.buddy.view.quiet_reason = Some("Companion paused".into());
-    } else if inner
-        .companion
-        .view
-        .preferences
-        .quiet(chrono::Timelike::hour(&local) * 60 + chrono::Timelike::minute(&local))
-    {
-        inner.buddy.view.quiet_reason = Some("Quiet hours".into());
-    }
+    inner.buddy.view.quiet_reason = crate::companion::delivery_reason(inner);
     if inner
         .buddy
         .shown
@@ -439,10 +384,6 @@ pub fn show_desktop_buddy(
         inner
             .storage
             .save_buddy_preferences(&inner.buddy.view.preferences)?;
-        inner.buddy.view.snoozed_until = None;
-        inner
-            .storage
-            .write_setting("buddy_snooze", &Option::<i64>::None)?;
     }
     inner.buddy.clear();
     sync(&app, &mut inner)
@@ -465,26 +406,6 @@ pub fn set_buddy_preferences(
     inner.usage = Default::default();
     inner.collector = crate::collector::create(inner.status.demo);
     inner.buddy.foreground = None;
-    sync(&app, &mut inner)
-}
-#[tauri::command(async)]
-pub fn snooze_buddy(enabled: bool, app: AppHandle, state: State<AppState>) -> Result<(), String> {
-    let mut inner = state
-        .inner
-        .lock()
-        .map_err(|_| "Application state unavailable")?;
-    if enabled {
-        inner.agent.suspend();
-    }
-    inner.buddy.view.snoozed_until = if enabled {
-        Some(chrono::Utc::now().timestamp() + 3600)
-    } else {
-        None
-    };
-    inner
-        .storage
-        .write_setting("buddy_snooze", &inner.buddy.view.snoozed_until)?;
-    inner.buddy.clear();
     sync(&app, &mut inner)
 }
 #[tauri::command(async)]
@@ -532,6 +453,9 @@ pub fn quit_app(app: AppHandle, state: State<AppState>) -> Result<(), String> {
 }
 #[tauri::command(async)]
 pub fn open_workspace(app: AppHandle) -> Result<(), String> {
+    if let Ok(mut inner) = app.state::<AppState>().inner.lock() {
+        inner.companion.planning_date = chrono::Local::now().date_naive().to_string();
+    }
     let window = app
         .get_webview_window("main")
         .ok_or("Workspace unavailable")?;
@@ -543,27 +467,7 @@ pub fn open_workspace(app: AppHandle) -> Result<(), String> {
         .set_focus()
         .map_err(|_| "Could not focus workspace".to_string())
 }
-pub fn due(inner: &crate::commands::Inner) -> bool {
-    inner.status.tracking
-        && crate::tracking::notifications_allowed(inner)
-        && inner
-            .storage
-            .nudge_allowed(&inner.buddy.view.preferences)
-            .unwrap_or(false)
-        && !inner.status.dnd
-        && !snoozed(&inner.buddy.view)
-        && inner.buddy.view.quiet_reason.is_none()
-        && inner.buddy.view.preferences.proactive
-        && !inner.status.mock_ai
-        && inner.status.nebius_configured
-        && inner.status.tavily_configured
-        && inner.buddy.shown.is_none()
-        && inner.buddy.last_search.is_none_or(|t| {
-            t.elapsed()
-                >= Duration::from_secs(inner.buddy.view.preferences.interval_minutes as u64 * 60)
-        })
-        && inner.buddy.last_attempt_at.is_none_or(|t| {
-            chrono::Utc::now().timestamp().saturating_sub(t)
-                >= inner.buddy.view.preferences.interval_minutes as i64 * 60
-        })
+/// Automatic research/help offers are retired. Research stays explicitly requested.
+pub fn due(_inner: &crate::commands::Inner) -> bool {
+    false
 }

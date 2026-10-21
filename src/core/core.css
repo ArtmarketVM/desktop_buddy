@@ -1898,6 +1898,19 @@ details.today-summary > .today-summary-head {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+.toast .avatar {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  --text: var(--canvas);
+}
+.toast button.toast-primary {
+  padding: 6px 12px;
+  border-radius: var(--radius-card);
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
 
 /* Pixel captions: the one place the grid becomes letters. */
 .ideas-label {

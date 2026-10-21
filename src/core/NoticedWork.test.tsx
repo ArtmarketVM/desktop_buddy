@@ -181,3 +181,13 @@ it("offers an open Today task for ongoing work and never labels it completed", a
     }),
   );
 });
+
+it("quiet mode hides and discards a cached review instead of replaying it on exit", () => {
+  noticedQuery.setData(offer);
+  const changed = async () => {};
+  const ui = render(<NoticedWork onChanged={changed} quietMode />);
+  expect(screen.queryByRole("textbox")).toBeNull();
+  expect(noticedQuery.getSnapshot().data).toBeNull();
+  ui.rerender(<NoticedWork onChanged={changed} />);
+  expect(screen.queryByRole("textbox")).toBeNull();
+});

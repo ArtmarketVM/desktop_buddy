@@ -31,7 +31,6 @@ const empty: Dashboard = {
     preferences: defaultBuddyPreferences,
     suggestion: null,
     decision: null,
-    snoozed_until: null,
     quiet_reason: null,
   },
   goal: null,
@@ -80,7 +79,7 @@ export default function App() {
   const dirty = draftDirty || settingsDirty || setupDirty;
   const [page, setPage] = useState<WorkspacePage>("focus");
   const [settingsSection, setSettingsSection] = useState<{
-    section: "Privacy";
+    section: "Privacy" | "General";
     revision: number;
   }>();
   const loaded = !desktop || dashboard.ready;
@@ -88,6 +87,10 @@ export default function App() {
   const [resetOpen, setResetOpen] = useState(false);
   const [overview, setOverview] = useState(false);
   const [quickRequest, setQuickRequest] = useState(0);
+  const [planningRequest, setPlanningRequest] = useState<{
+    revision: number;
+    tomorrow: boolean;
+  }>();
   const closeOverview = useCallback(() => setOverview(false), []);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     localStorage.getItem("buddy-theme") === "dark" ? "dark" : "light",
@@ -115,6 +118,14 @@ export default function App() {
     let disposed = false;
     let stop: (() => void) | undefined;
     void listen<string>("buddy://navigate", (event) => {
+      if (event.payload === "plan-today" || event.payload === "plan-tomorrow") {
+        setPlanningRequest({
+          revision: Date.now(),
+          tomorrow: event.payload === "plan-tomorrow",
+        });
+        setPage("focus");
+        return;
+      }
       if (pages.some((item) => item.id === event.payload))
         setPage(event.payload as WorkspacePage);
     })
@@ -173,7 +184,6 @@ export default function App() {
           goal={data.goal}
           plan={data.goal_plan}
           onChanged={refresh}
-          onDismiss={() => void run(() => api.snooze(true))}
           onDnd={() => void run(() => api.dnd(true))}
         />
       </main>
@@ -206,9 +216,17 @@ export default function App() {
           onUpdates={() => setUpdatesOpen(true)}
           onboarding={onboarding}
           theme={theme}
-          quietMode={data.status.dnd}
+          quietMode={!!(data.status.dnd || data.buddy.companion?.quiet_mode)}
+          quietScheduled={
+            !data.status.dnd && !!data.buddy.companion?.quiet_mode
+          }
           quietModeDisabled={busy || (!desktop && !preview)}
           onQuietMode={() => {
+            if (!data.status.dnd && data.buddy.companion?.quiet_mode) {
+              setSettingsSection({ section: "General", revision: Date.now() });
+              setPage("settings");
+              return;
+            }
             if (desktop) void run(() => api.dnd(!data.status.dnd));
             else if (preview)
               setData((previous) => ({
@@ -283,6 +301,7 @@ export default function App() {
                 }
               >
                 <Experience
+                  planningRequest={planningRequest}
                   dashboard={data}
                   onSettings={() => {
                     setSettingsSection({

@@ -46,8 +46,16 @@ export const api = {
       goalId,
       revision,
     }),
-  companionRespond: (id: string, action: InterventionResponse) =>
-    invoke<void>("respond_companion_intervention", { id, action }),
+  companionRespond: (
+    id: string,
+    action: InterventionResponse,
+    deadline?: string,
+  ) =>
+    invoke<void>("respond_companion_intervention", {
+      id,
+      action,
+      deadline: deadline ?? null,
+    }),
   companionInbox: (id: string, action: "complete" | "remove") =>
     invoke<void>("update_companion_inbox", { id, action }),
   theme: (theme: "light" | "dark") => invoke<void>("set_user_theme", { theme }),
@@ -72,7 +80,6 @@ export const api = {
     invoke<void>("set_tracking_settings", { settings }),
   goalHistory: (goalId: number | null = null) =>
     invoke<GoalHistory[]>("get_goal_history", { goalId }),
-  snooze: (enabled: boolean) => invoke<void>("snooze_buddy", { enabled }),
   privacyPreview: () => invoke<unknown>("get_privacy_preview"),
   retention: (days: number) => invoke<void>("set_retention", { days }),
   clearHistory: () => invoke<void>("clear_local_history", { confirmed: true }),

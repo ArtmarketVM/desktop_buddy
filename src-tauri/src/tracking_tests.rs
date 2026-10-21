@@ -260,7 +260,7 @@ fn settings_validate_persist_and_obey_day_and_overnight_boundaries() {
 }
 
 #[test]
-fn all_automatic_notification_paths_suppress_outside_hours_idle_and_media() {
+fn activity_delivery_ignores_working_hours_but_respects_quiet_idle_and_media() {
     let state = crate::commands::AppState::new(store()).unwrap();
     let mut inner = state.inner.lock().unwrap();
     let g = inner.storage.set_goal("Goal").unwrap();
@@ -274,11 +274,15 @@ fn all_automatic_notification_paths_suppress_outside_hours_idle_and_media() {
     let a = snapshot("editor.exe", "Code");
     inner.buddy.foreground = Some(a);
     allow_notifications(&mut inner);
-    assert!(crate::buddy::due(&inner));
+    assert!(!crate::buddy::due(&inner));
     let start = inner.tracking_settings.working_end_minute;
     inner.tracking_settings.working_start_minute = start;
     inner.tracking_settings.working_end_minute = (start + 60) % 1440;
     assert!(!crate::buddy::due(&inner));
+    assert!(notifications_allowed(&inner));
+    inner.status.dnd = true;
+    assert!(!notifications_allowed(&inner));
+    inner.status.dnd = false;
     crate::insights::local_nudge(&mut inner).unwrap();
     assert!(inner.buddy.shown.is_none());
     drop(inner);
@@ -437,15 +441,8 @@ fn local_drifting_reminder_requires_opt_in_and_suppresses_confirmed_media() {
     assert!(inner.buddy.shown.is_none());
     inner.buddy.foreground.as_mut().unwrap().media_playing = false;
     crate::insights::local_nudge(&mut inner).unwrap();
-    assert!(inner.buddy.shown.is_some());
-    assert!(inner
-        .buddy
-        .view
-        .decision
-        .as_ref()
-        .unwrap()
-        .reason
-        .contains("no recent input"));
+    assert!(inner.buddy.shown.is_none());
+    assert!(inner.buddy.view.decision.is_none());
 }
 
 #[test]

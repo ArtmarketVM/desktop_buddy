@@ -58,6 +58,9 @@ impl Runtime {
     pub(crate) fn current_sample(&self) -> Option<&ActivitySnapshot> {
         self.sample.as_ref()
     }
+    pub(crate) fn dismiss_suggestion(&mut self) {
+        self.pending_suggestion = None;
+    }
     pub fn clear(&mut self) {
         self.context_revision = self.context_revision.wrapping_add(1);
         self.view = MatchView::default();
@@ -330,9 +333,7 @@ fn candidates(inner: &crate::commands::Inner) -> Result<Value, String> {
 }
 fn cloud_allowed(inner: &crate::commands::Inner) -> bool {
     inner.status.tracking
-        && !inner.status.dnd
-        && !crate::buddy::snoozed(&inner.buddy.view)
-        && !inner.buddy.fullscreen
+        && !crate::companion::quiet_mode(inner)
         && !inner.companion.view.preferences.paused
         && !inner.companion.view.preferences.quiet({
             use chrono::Timelike;
@@ -624,8 +625,9 @@ pub async fn identify(app: &AppHandle, state: &AppState) {
     if let Ok(mut inner) = state.inner.lock() {
         match finish(&mut inner, &job, result, Instant::now()) {
             Ok(Some(suggestion)) => {
-                use tauri::Emitter;
-                let _ = app.emit_to("main", "goal_match_suggestion", suggestion);
+                if let Err(error) = suggestions::enqueue_card(&mut inner, &suggestion) {
+                    inner.last_error = Some(error);
+                }
             }
             Ok(None) => {}
             Err(error) => inner.last_error = Some(error),

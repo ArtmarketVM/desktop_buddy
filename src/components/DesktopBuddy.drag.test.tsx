@@ -49,9 +49,7 @@ it("drags the native chat and mascot together from the header, leaving controls 
         suggestion: null,
         decision: null,
         quiet_reason: null,
-        snoozed_until: null,
       }}
-      onDismiss={() => {}}
       onDnd={() => {}}
     />,
   );

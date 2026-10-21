@@ -80,11 +80,9 @@ describe("compact workspace boundaries", () => {
           preferences: defaultBuddyPreferences,
           suggestion: null,
           decision: null,
-          snoozed_until: null,
           quiet_reason: null,
           companion: { ...defaultCompanionView, chat_open: true },
         }}
-        onDismiss={() => {}}
         onDnd={() => {}}
       />,
     );

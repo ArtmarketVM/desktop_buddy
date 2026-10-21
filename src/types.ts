@@ -128,7 +128,6 @@ export interface BuddyView {
   preferences: BuddyPreferences;
   suggestion: { id: number; title: string; url: string; reason: string } | null;
   decision: Decision | null;
-  snoozed_until: number | null;
   quiet_reason: string | null;
   desktop_visible?: boolean;
   visibility_reason?: string | null;

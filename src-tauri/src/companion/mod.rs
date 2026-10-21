@@ -1,5 +1,15 @@
 mod deadlines;
+mod queue;
+pub(crate) fn quiet_mode(inner: &crate::commands::Inner) -> bool {
+    inner.status.dnd
+        || inner
+            .companion
+            .view
+            .preferences
+            .quiet_at(chrono::Local::now())
+}
 pub mod engine;
+mod schedule;
 pub(crate) mod screen_context;
 #[cfg(windows)]
 pub mod windows;
@@ -13,9 +23,7 @@ use chrono::Timelike;
 use engine::{fingerprint, Intervention, Kind, Memory, Preferences};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::time::Instant;
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_notification::NotificationExt;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InboxTask {
@@ -40,6 +48,7 @@ pub struct ActivityEvent {
 pub struct View {
     pub preferences: Preferences,
     pub chat_open: bool,
+    pub quiet_mode: bool,
     pub intent: String,
     pub seed: String,
     pub intervention: Option<Intervention>,
@@ -55,6 +64,7 @@ impl Default for View {
         Self {
             preferences: Preferences::default(),
             chat_open: false,
+            quiet_mode: false,
             intent: "ask".into(),
             seed: String::new(),
             intervention: None,
@@ -73,18 +83,19 @@ pub struct Runtime {
     pub progress_error: Option<String>,
     pub view: View,
     pub memory: Memory,
-    started: Instant,
     next_detection: i64,
-    next_deadline_check: i64,
     previous_app: String,
     previous_goal: Option<i64>,
+    pub(crate) planning_date: String,
+    last_schedule_tick: Option<i64>,
     sampled_context: String,
     pub(crate) observation_calls: std::collections::VecDeque<std::time::Instant>,
     work_clock: engine::ActiveWorkClock,
+    queue: queue::Queue,
 }
 impl Runtime {
     pub fn load(storage: &Storage) -> Result<Self, String> {
-        let view = View {
+        let mut view = View {
             preferences: storage
                 .read_setting::<Preferences>("companion_preferences")?
                 .unwrap_or_default()
@@ -92,6 +103,10 @@ impl Runtime {
             inbox: storage.read_setting("companion_inbox")?.unwrap_or_default(),
             ..View::default()
         };
+        view.quiet_mode = view.preferences.quiet_at(chrono::Local::now());
+        if view.quiet_mode {
+            view.state = "sleeping".into();
+        }
         Ok(Self {
             screen_context: None,
             screen_context_epoch: 0,
@@ -100,14 +115,15 @@ impl Runtime {
             memory: storage
                 .read_setting("companion_memory")?
                 .unwrap_or_default(),
-            started: Instant::now(),
             next_detection: 0,
-            next_deadline_check: 0,
             previous_app: String::new(),
             previous_goal: None,
+            planning_date: chrono::Local::now().date_naive().to_string(),
+            last_schedule_tick: None,
             sampled_context: String::new(),
             observation_calls: Default::default(),
             work_clock: Default::default(),
+            queue: Default::default(),
         })
     }
     pub(crate) fn invalidate_screen_context(&mut self) {
@@ -128,11 +144,12 @@ pub fn emit(app: &AppHandle, kind: &str, payload: impl Serialize) {
     );
 }
 pub fn observe(inner: &mut Inner, snapshot: &ActivitySnapshot, allowed: bool) {
-    inner.companion.work_clock.observe(
-        allowed
-            && snapshot.idle_seconds < inner.tracking_settings.idle_seconds
-            && !snapshot.media_playing,
-    );
+    // Stretching uses only activity/idle timing even in an excluded app, never its contents.
+    let working = !quiet_mode(inner)
+        && !inner.companion.view.preferences.paused
+        && ((allowed && crate::attention::meeting(snapshot))
+            || snapshot.idle_seconds < inner.tracking_settings.idle_seconds);
+    inner.companion.work_clock.observe(working);
     inner.companion.view.activity = allowed.then(|| ActivityEvent {
         r#type: "activity",
         app: snapshot.process_name.clone(),
@@ -150,19 +167,40 @@ pub fn observe(inner: &mut Inner, snapshot: &ActivitySnapshot, allowed: bool) {
         simulated: inner.status.demo,
     });
 }
+/// Presentation uses context, never the observation exclusion list or media playback.
+pub(crate) fn delivery_reason(inner: &Inner) -> Option<String> {
+    if quiet_mode(inner) {
+        Some("Quiet mode".into())
+    } else if inner.companion.view.preferences.paused {
+        Some("Companion paused".into())
+    } else if inner.buddy.fullscreen && inner.companion.view.preferences.hide_fullscreen {
+        Some("Fullscreen application".into())
+    } else if !crate::collector::session_active() {
+        Some("You are away".into())
+    } else if (!cfg!(test) && crate::collector::foreground_meeting())
+        || inner
+            .buddy
+            .foreground
+            .as_ref()
+            .is_some_and(crate::attention::meeting)
+    {
+        Some("Meeting or presentation".into())
+    } else if inner
+        .buddy
+        .foreground
+        .as_ref()
+        .is_some_and(|a| a.idle_seconds >= inner.tracking_settings.idle_seconds)
+        || (!cfg!(test)
+            && crate::collector::foreground_idle_seconds()
+                .is_some_and(|idle| idle >= inner.tracking_settings.idle_seconds))
+    {
+        Some("You are away".into())
+    } else {
+        None
+    }
+}
 fn suppressed(inner: &Inner) -> bool {
-    let view = &inner.buddy.view;
-    inner.status.dnd
-        || crate::buddy::snoozed(view)
-        || inner.companion.view.chat_open
-        || inner.companion.view.preferences.paused
-        || inner.buddy.fullscreen
-        || view.quiet_reason.is_some()
-        || inner.buddy.foreground.as_ref().is_some_and(|a| {
-            crate::attention::meeting(a)
-                || a.media_playing
-                || a.idle_seconds >= inner.tracking_settings.idle_seconds
-        })
+    delivery_paused(inner) || inner.companion.view.chat_open
 }
 pub(crate) fn offer(
     app: &AppHandle,
@@ -170,60 +208,8 @@ pub(crate) fn offer(
     prompt: Intervention,
     now: i64,
 ) -> Result<(), String> {
-    if suppressed(inner)
-        || inner.companion.view.preferences.quiet(
-            chrono::Timelike::hour(&chrono::Local::now()) * 60
-                + chrono::Timelike::minute(&chrono::Local::now()),
-        )
-    {
-        return Ok(());
-    }
-    if inner.companion.view.intervention.is_some() {
-        return Ok(());
-    }
-    let minute = chrono::Timelike::hour(&chrono::Local::now()) * 60
-        + chrono::Timelike::minute(&chrono::Local::now());
-    if matches!(prompt.kind, Kind::UnplannedWork | Kind::UnplannedCompleted)
-        && !can_offer(inner, None, false, now, minute)
-    {
-        return Ok(());
-    }
-    let progress = matches!(
-        prompt.kind,
-        Kind::Completion | Kind::GoalCompletion | Kind::AutomaticCompletion
-    );
-    let reserved = if progress {
-        inner.companion.memory.reserve_progress(&prompt)
-    } else if prompt.kind == Kind::Deadline {
-        deadlines::reserve(
-            &inner.storage,
-            &mut inner.companion.memory,
-            &prompt,
-            &chrono::Local::now().date_naive().to_string(),
-            now,
-        )?
-    } else {
-        inner.companion.memory.reserve(&prompt, now)
-    };
-    if reserved {
-        inner
-            .storage
-            .write_setting("companion_memory", &inner.companion.memory)?;
-        if prompt.kind == Kind::Deadline
-            && inner
-                .companion
-                .view
-                .preferences
-                .system_deadline_notifications
-            && !inner.status.demo
-        {
-            let _ = app
-                .notification()
-                .builder()
-                .title("sumi · Task overdue")
-                .body(&prompt.text)
-                .show();
-        }
+    queue::enqueue(inner, prompt, now);
+    if let Some(prompt) = queue::deliver(inner, now)? {
         emit(
             app,
             match prompt.kind {
@@ -233,85 +219,64 @@ pub(crate) fn offer(
             },
             &prompt,
         );
-        inner.companion.view.intervention = Some(prompt);
     }
     Ok(())
 }
-fn can_offer(inner: &Inner, goal_id: Option<i64>, research: bool, now: i64, minute: u32) -> bool {
-    if !inner.storage.adaptive_offer_allowed(
-        goal_id,
-        research,
-        now,
-        inner.companion.memory.last_prompt,
-    ) {
-        return false;
-    }
-    // Legacy lifetime counters are retained for compatibility, not layered over scoped memory policy.
-    // This also makes Memory OFF / Learn from feedback OFF revoke learned frequency immediately.
-    let mut memory = inner.companion.memory.clone();
-    memory.accepted = 0;
-    memory.rejected = 0;
-    memory.completion_samples = 0;
-    memory.allowed(
-        now,
-        &inner.companion.view.preferences,
-        minute,
-        suppressed(inner),
-    )
+fn delivery_paused(inner: &Inner) -> bool {
+    delivery_reason(inner).is_some()
 }
-/// Runtime offers open the existing help conversation; they never execute proposed mutations.
-pub(crate) fn offer_agent(
-    app: &AppHandle,
-    inner: &mut Inner,
-    goal_id: Option<i64>,
-    text: &str,
-    stuck: bool,
-    step_id: Option<&str>,
-) -> Result<(), String> {
-    let now = chrono::Utc::now().timestamp();
-    let local = chrono::Local::now();
-    if inner.companion.view.intervention.is_some()
-        || !can_offer(
-            inner,
-            goal_id,
-            stuck,
-            now,
-            local.hour() * 60 + local.minute(),
-        )
-    {
-        return Ok(());
-    }
-    if stuck {
-        if let Ok(prompt) = crate::research::stuck_offer(inner, goal_id, step_id) {
-            return offer(app, inner, prompt, now);
-        }
-        // A disabled research tool may still offer ordinary help, never a hidden search.
-    }
-    let plan_revision = goal_id
-        .map(|id| inner.storage.goal_plan(id).map(|p| p.revision))
-        .transpose()?;
-    offer(
-        app,
+pub(crate) fn queue_match(inner: &mut Inner, goal_id: i64, title: &str, confidence: f64, now: i64) {
+    queue::enqueue(
         inner,
         Intervention {
-            id: fingerprint(&format!("agent:{goal_id:?}:{now}")),
-            kind: Kind::Midday,
-            text: text.into(),
-            confidence: 1.0,
-            goal_id,
-            plan_revision,
+            id: format!("goal-match:{goal_id}:{now}"),
+            kind: Kind::GoalMatch,
+            text: format!("Working on {title}?"),
+            confidence,
+            goal_id: Some(goal_id),
+            plan_revision: None,
             step_id: None,
-            expires_at: now + 120,
+            expires_at: now + 600,
         },
         now,
-    )
+    );
+}
+/// Specific proactive help is retired. Background reasoning may still save context.
+pub(crate) fn offer_agent(
+    _app: &AppHandle,
+    _inner: &mut Inner,
+    _goal_id: Option<i64>,
+    _text: &str,
+    _stuck: bool,
+    _step_id: Option<&str>,
+) -> Result<(), String> {
+    Ok(())
+}
+pub(crate) fn enforce_quiet(inner: &mut Inner) {
+    inner.companion.view.quiet_mode = quiet_mode(inner);
+    if !quiet_mode(inner) {
+        return;
+    }
+    inner.companion.view.chat_open = false;
+    inner.companion.view.intervention = None;
+    inner.companion.queue.clear();
+    inner.companion.view.notice = None;
+    inner.companion.view.state = "sleeping".into();
+    inner.companion.work_clock.observe(false);
+    inner.goal_matching.dismiss_suggestion();
+    inner.unplanned_work.dismiss_suggestion();
+    if inner.buddy.view.suggestion.is_some()
+        || inner.buddy.view.decision.is_some()
+        || inner.buddy.shown.is_some()
+    {
+        inner.buddy.clear();
+    }
 }
 pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     let now = chrono::Utc::now().timestamp();
-    if !inner.status.tracking
-        || inner.status.tracking_error.is_some()
-        || inner.buddy.foreground.is_none()
-    {
+    enforce_quiet(inner);
+    schedule::skip_quiet_summary(inner, now)?;
+    if !inner.status.tracking || inner.status.tracking_error.is_some() {
         inner.companion.work_clock.observe(false);
     }
     let local = chrono::Local::now();
@@ -326,6 +291,9 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
             matches!(
                 p.kind,
                 Kind::Deadline
+                    | Kind::NoGoals
+                    | Kind::EndOfDay
+                    | Kind::Movement
                     | Kind::AutomaticCompletion
                     | Kind::UnplannedWork
                     | Kind::UnplannedCompleted
@@ -365,45 +333,9 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         }
     }
     let plan = goal_id.map(|id| inner.storage.goal_plan(id)).transpose()?;
-    if inner.companion.view.intervention.as_ref().is_some_and(|p| {
-        if p.kind == Kind::Deadline {
-            deadlines::validate(&inner.storage, p, &day, now).is_err()
-        } else {
-            p.expires_at <= now
-                || (!matches!(
-                    p.kind,
-                    Kind::UnplannedWork | Kind::UnplannedCompleted | Kind::AutomaticCompletion
-                ) && p.goal_id != goal_id)
-                || (p.plan_revision.is_some()
-                    && p.plan_revision != plan.as_ref().map(|p| p.revision))
-        }
-    }) {
-        inner.companion.view.intervention = None;
-    }
-    if inner
-        .companion
-        .view
-        .intervention
-        .as_ref()
-        .is_some_and(|prompt| {
-            if prompt.kind == Kind::Deadline {
-                !deadline_context_allowed(inner, minute)
-            } else if matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion) {
-                inner.companion.view.preferences.paused || !inner.status.tracking
-            } else {
-                suppressed(inner)
-                    || inner.companion.view.preferences.quiet(minute)
-                    || (goal.is_some() && !inner.status.tracking)
-            }
-        })
-    {
-        inner.companion.view.intervention = None;
-        inner.companion.memory.last_dismissed = now;
-        inner
-            .storage
-            .write_setting("companion_memory", &inner.companion.memory)?;
-    }
-    inner.companion.view.state = if inner.companion.view.intervention.is_some() {
+    inner.companion.view.state = if quiet_mode(inner) {
+        "sleeping"
+    } else if inner.companion.view.intervention.is_some() {
         "attention"
     } else if inner.companion.view.preferences.paused
         || inner
@@ -431,145 +363,38 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
             .storage
             .write_setting("companion_memory", &inner.companion.memory)?;
     }
-    if !inner.storage.user_settings()?.onboarding.completed
-        || inner.companion.view.intervention.is_some()
-    {
+    if !inner.storage.user_settings()?.onboarding.completed {
         return Ok(());
     }
-    if deadline_context_allowed(inner, minute)
-        && !inner.companion.view.chat_open
-        && inner.companion.started.elapsed().as_secs()
-            >= inner.companion.view.preferences.morning_delay_minutes as u64 * 60
-        && now >= inner.companion.next_deadline_check
-    {
-        // No database scan on each collector tick; suppressed checks do not consume a reminder.
-        inner.companion.next_deadline_check = now + 30;
+    for prompt in schedule::candidates(inner, now)? {
+        queue::enqueue(inner, prompt, now);
+    }
+    if inner.companion.view.preferences.deadline_reminders {
         if let Some(prompt) =
             deadlines::next(&inner.storage, &inner.companion.memory, goal_id, &day, now)?
         {
-            if deadlines::requested(&inner.storage, &prompt, &day, now)?
-                || deadline_allowed(inner, now, minute)
-            {
-                offer(app, inner, prompt, now)?;
-                return Ok(());
-            }
+            queue::enqueue(inner, prompt, now);
         }
     }
-    if !can_offer(inner, goal_id, false, now, minute) {
-        return Ok(());
-    }
-    let (total, completed, average): (u32,u32,f64) = inner.storage.connection.query_row("SELECT COUNT(*),COALESCE(SUM(status='completed'),0),COALESCE(AVG(CASE WHEN status='completed' THEN MAX(0,(julianday(completed_at)-julianday(created_at))*86400) END),0) FROM (SELECT status,created_at,completed_at FROM goals ORDER BY id DESC LIMIT 30)",[],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|_| "Nudge history unavailable")?;
-    inner.companion.memory.completion_samples = total;
-    inner.companion.memory.completion_rate = if total > 0 {
-        completed as f64 / total as f64
-    } else {
-        0.
-    };
-    inner.companion.memory.average_completion_seconds = average as u64;
-    let preferences = &inner.companion.view.preferences;
-    let goal_age = goal
-        .as_ref()
-        .and_then(|g| chrono::DateTime::parse_from_rfc3339(&g.created_at).ok())
-        .map(|t| now.saturating_sub(t.timestamp()))
-        .unwrap_or(0);
-    let overdue_or_overrun = goal_id
-        .map(|id| stuck_due(&inner.storage, id, now))
-        .transpose()?
-        .unwrap_or(false);
-    let scheduled = engine::scheduled_slot(
-        preferences,
-        goal.is_some(),
-        minute,
-        inner.companion.started.elapsed().as_secs(),
-        now.saturating_sub(inner.companion.memory.last_progress),
-        goal_age,
-        inner.companion.work_clock.seconds(),
-    );
-    let slot = if preferences.daily_checkins
-        && (12 * 60..15 * 60).contains(&minute)
-        && overdue_or_overrun
-        && inner.companion.started.elapsed().as_secs()
-            >= preferences.morning_delay_minutes as u64 * 60
-    {
-        Some(("midday", Kind::Midday, "What is getting in the way?"))
-    } else {
-        scheduled
-    };
-    if let Some((slot, kind, text)) = slot {
-        let stuck = kind != Kind::Midday || overdue_or_overrun;
-        if stuck && !inner.companion.memory.slots.iter().any(|s| s == slot) {
-            inner.companion.memory.slots.push(slot.into());
-            let prompt = Intervention {
-                id: fingerprint(&format!("{day}:{slot}")),
-                kind,
-                text: if kind == Kind::EndOfDay {
-                    inner.storage.continuity_report(crate::continuity::View::EndOfDay,None,chrono::Local::now().date_naive()).map(|r|r.compact()).unwrap_or_else(|_|"Daily continuity is disabled. Enable Memory and Remember work context in Settings > Memory to see saved context.".into())
-                } else if kind == Kind::Midday {
-                    plan.as_ref()
-                        .and_then(|p| p.steps.iter().find(|s| !s.done))
-                        .map(|s| {
-                            format!(
-                                "A small next step, if useful: {}. Want help getting started?",
-                                s.text
-                            )
-                        })
-                        .unwrap_or_else(|| {
-                            "What is getting in the way? sumi can help choose a small next step."
-                                .into()
-                        })
-                } else {
-                    text.into()
-                },
-                confidence: 1.0,
-                goal_id,
-                plan_revision: plan.as_ref().map(|p| p.revision),
-                step_id: None,
-                expires_at: now + 120,
-            };
-            offer(app, inner, prompt, now)?;
+    if let Some(prompt) = queue::deliver(inner, now)? {
+        if prompt.kind == Kind::NoGoals {
+            crate::frontend_events::changed(
+                app,
+                &[crate::frontend_events::Resource::Workspace],
+                false,
+            );
         }
+        emit(
+            app,
+            match prompt.kind {
+                Kind::NewTask => "task.detected",
+                Kind::Completion => "task.completion_suspected",
+                _ => "intervention.requested",
+            },
+            &prompt,
+        );
     }
     Ok(())
-}
-fn deadline_context_allowed(inner: &Inner, minute: u32) -> bool {
-    inner.companion.view.preferences.deadline_reminders
-        && inner.tracking_settings.working_at(minute)
-        && !inner.companion.view.preferences.quiet(minute)
-        && !inner.companion.view.preferences.paused
-        && !inner.status.dnd
-        && !crate::buddy::snoozed(&inner.buddy.view)
-        && !inner.buddy.fullscreen
-        && inner
-            .buddy
-            .view
-            .quiet_reason
-            .as_deref()
-            .is_none_or(|reason| reason == "Waiting for a pause in input")
-        && !inner
-            .buddy
-            .foreground
-            .as_ref()
-            .filter(|_| inner.status.tracking && inner.status.tracking_error.is_none())
-            .is_some_and(|a| {
-                sensitive_window(a)
-                    || crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name)
-                    || crate::attention::meeting(a)
-                    || a.media_playing
-                    || a.idle_seconds >= inner.tracking_settings.idle_seconds
-            })
-}
-fn deadline_allowed(inner: &Inner, now: i64, minute: u32) -> bool {
-    deadline_context_allowed(inner, minute)
-        && inner.companion.started.elapsed().as_secs()
-            >= inner.companion.view.preferences.morning_delay_minutes as u64 * 60
-        && !inner.companion.view.chat_open
-        && {
-            let mut memory = inner.companion.memory.clone();
-            memory.accepted = 0;
-            memory.rejected = 0;
-            memory.completion_samples = 0;
-            memory.allowed(now, &inner.companion.view.preferences, minute, false)
-        }
 }
 pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, String> {
     let snapshot = storage.core_work_snapshot()?;
@@ -594,14 +419,10 @@ pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, Stri
                 .unwrap_or(false)))
 }
 fn progress_suppressed(inner: &Inner) -> bool {
-    inner.status.dnd
-        || crate::buddy::snoozed(&inner.buddy.view)
+    quiet_mode(inner)
         || inner.companion.view.preferences.paused
-        || inner.buddy.fullscreen
         || inner.buddy.foreground.as_ref().is_some_and(|a| {
-            crate::attention::meeting(a)
-                || a.media_playing
-                || a.idle_seconds >= inner.tracking_settings.idle_seconds
+            crate::attention::meeting(a) || a.idle_seconds >= inner.tracking_settings.idle_seconds
         })
 }
 fn progress_status(inner: &Inner, _minute: u32) -> String {
@@ -620,11 +441,11 @@ fn progress_status(inner: &Inner, _minute: u32) -> String {
     } else if inner.buddy.foreground.is_none() {
         "Waiting for activity in your work app to check progress.".into()
     } else if progress_suppressed(inner) {
-        "Automatic progress checks are paused by Do not disturb, snooze, or your companion settings.".into()
+        "Automatic progress checks are paused by Quiet mode or your companion settings.".into()
     } else if let Some(error) = &inner.companion.progress_error {
         format!("Last progress check failed: {error}. sumi will retry when activity is available.")
     } else {
-        "Automatic progress checks are on. Review completion proposals in sumi chat; notifications follow your quiet hours.".into()
+        "Automatic progress checks are on. Review completion proposals in sumi chat; sumi can suggest progress whenever you are working, unless Quiet mode or your quiet schedule is active.".into()
     }
 }
 pub fn detection_due(inner: &Inner) -> bool {
@@ -645,7 +466,6 @@ pub fn detection_due(inner: &Inner) -> bool {
             .is_some_and(|a| !sensitive_window(a))
         && inner.storage.goal().is_ok_and(|goal| goal.is_some())
         && chrono::Utc::now().timestamp() >= inner.companion.next_detection
-        && inner.companion.memory.progress_shown < 64
 }
 pub(crate) fn sensitive_window(activity: &ActivitySnapshot) -> bool {
     let title = activity.window_title.to_ascii_lowercase();
@@ -1013,7 +833,7 @@ pub async fn detect(app: &AppHandle, state: &AppState) -> Result<(), String> {
                 Intervention {
                     id: format!("work-event-{event}"),
                     kind: Kind::AutomaticCompletion,
-                    text: format!("Completed: {}", prompt.text),
+                    text: format!("You completed “{}”.", prompt.text),
                     confidence: 1.0,
                     goal_id: Some(goal.id),
                     plan_revision: None,
@@ -1131,6 +951,13 @@ pub fn open_companion_chat(
             .map_err(|_| "Application state unavailable")?;
         if !inner.storage.user_settings()?.onboarding.completed {
             return Err("Finish setup first".into());
+        }
+        if quiet_mode(&inner) {
+            enforce_quiet(&mut inner);
+            crate::buddy::sync(&app, &mut inner)?;
+            drop(inner);
+            let _ = app.emit("buddy://navigate", "chats");
+            return crate::buddy::open_workspace(app);
         }
         // Closing a window does not end the conversation. Only the explicit New chat action
         // starts another one; the mascot and main window resume the same selected chat.
@@ -1408,6 +1235,7 @@ pub async fn companion_submit(
 pub fn respond_companion_intervention(
     id: String,
     action: String,
+    deadline: Option<String>,
     app: AppHandle,
     state: State<AppState>,
 ) -> Result<(), String> {
@@ -1423,47 +1251,50 @@ pub fn respond_companion_intervention(
         .filter(|p| p.id == id && p.expires_at > chrono::Utc::now().timestamp())
         .ok_or("This suggestion expired. sumi will wait for another good moment.")?;
     let now = chrono::Utc::now().timestamp();
-    let research_job = if prompt.kind == Kind::Research {
-        if !["accept", "ignore"].contains(&action.as_str()) {
-            return Err("Unknown research response".into());
+    if matches!(prompt.kind, Kind::Midday | Kind::Research) {
+        return Err("This retired help offer is no longer available".into());
+    }
+    if prompt.kind == Kind::GoalMatch {
+        use crate::goal_matching::suggestions::Response;
+        let response = match action.as_str() {
+            "accept" => Response::Yes,
+            "no" => Response::No,
+            "ignore" => Response::NotNow,
+            "chat" => Response::Chat,
+            _ => return Err("Unknown goal suggestion response".into()),
+        };
+        crate::goal_matching::suggestions::respond(
+            &mut inner,
+            prompt.goal_id.ok_or("Goal changed")?,
+            response,
+            std::time::Instant::now(),
+        )?;
+        inner.companion.view.intervention = None;
+        crate::buddy::sync(&app, &mut inner)?;
+        return Ok(());
+    }
+    if action == "chat" {
+        if prompt.kind == Kind::Deadline {
+            deadlines::validate(
+                &inner.storage,
+                &prompt,
+                &chrono::Local::now().date_naive().to_string(),
+                now,
+            )?;
         }
-        crate::research::respond_offer(&mut inner, &prompt, action == "accept")?
-    } else {
-        None
-    };
-    if prompt.kind == Kind::Deadline {
-        let was_active = inner
-            .storage
-            .goal()?
-            .is_some_and(|g| Some(g.id) == prompt.goal_id);
+        inner.companion.view.chat_open = true;
+        inner.companion.view.intent = "ask".into();
+        inner.companion.view.seed = format!("Can we talk about this? {}", prompt.text);
+    } else if prompt.kind == Kind::Deadline {
         let goal_id = deadlines::respond(
             &mut inner.storage,
             &prompt,
             &action,
+            deadline.as_deref(),
             &chrono::Local::now().date_naive().to_string(),
             now,
         )?;
-        if action == "accept" {
-            if was_active {
-                inner.storage.ensure_today_focus()?;
-                inner.usage = Default::default();
-                inner.activity_state.stop(true);
-                inner.buddy.foreground = None;
-                inner.goal_matching.clear();
-            }
-            inner.companion.memory.last_progress = now;
-            emit(&app, "goal.completed", &prompt);
-            let _ = app.emit("buddy://goal-completed", &prompt);
-        } else if action == "start" {
-            inner.status.tracking = crate::tracking::requested(&inner.storage)?;
-            inner.collector = crate::collector::create(inner.status.demo);
-            inner.usage = Default::default();
-            inner.activity_state.stop(false);
-            inner.buddy.foreground = None;
-            inner.goal_matching.clear();
-            inner.buddy.clear();
-            let _ = app.emit("buddy://navigate", "focus");
-        } else if matches!(action.as_str(), "today" | "reschedule") {
+        if action == "reschedule" {
             emit(&app, "goal.rescheduled", json!({"goal_id":goal_id}));
         }
     } else if prompt.kind == Kind::AutomaticCompletion {
@@ -1494,11 +1325,6 @@ pub fn respond_companion_intervention(
         }
     } else if action == "accept" {
         match prompt.kind {
-            Kind::Research => {
-                inner.companion.view.chat_open = true;
-                inner.companion.view.notice =
-                    Some("Researching this step. You can keep working.".into());
-            }
             Kind::NewTask => {
                 append_task(
                     &mut inner.storage,
@@ -1524,35 +1350,25 @@ pub fn respond_companion_intervention(
                 let _ = app.emit("buddy://goal-completed", &prompt);
             }
             Kind::Movement => {}
-            Kind::Midday => {
-                inner.companion.view.chat_open = true;
-                inner.companion.view.intent = "ask".into();
-                inner.companion.view.seed.clear();
-                inner.companion.view.notice = None;
+            Kind::NoGoals => {
+                let _ = app.emit("buddy://navigate", "plan-today");
+            }
+            Kind::EndOfDay => {
+                let _ = app.emit("buddy://navigate", "activity");
             }
             _ => {
                 let _ = app.emit("buddy://navigate", "focus");
             }
         }
     } else if action == "tomorrow" && prompt.kind == Kind::EndOfDay {
-        let goal = inner
-            .storage
-            .goal()?
-            .filter(|g| Some(g.id) == prompt.goal_id)
-            .ok_or("The active goal changed")?;
-        if Some(inner.storage.goal_plan(goal.id)?.revision) != prompt.plan_revision {
-            return Err("The plan changed. Review it first.".into());
-        }
-        inner.storage.transition_goal(goal.id, "defer")?;
-        inner.status.tracking = false;
-        inner.activity_state.stop(false);
-        inner.usage = Default::default();
-        inner.buddy.foreground = None;
-        emit(&app, "goal.deferred", &goal);
+        let _ = app.emit("buddy://navigate", "plan-tomorrow");
     } else if action == "summary" && prompt.kind == Kind::EndOfDay {
         let _ = app.emit("buddy://navigate", "activity");
     } else if action != "ignore" {
         return Err("Unknown confirmation action".into());
+    }
+    if prompt.kind == Kind::NoGoals {
+        schedule::respond_planning(&mut inner.companion.memory, &action, now);
     }
     let scope = prompt
         .goal_id
@@ -1589,16 +1405,11 @@ pub fn respond_companion_intervention(
     inner.privacy_revision += 1;
     crate::buddy::sync(&app, &mut inner)?;
     drop(inner);
-    if let Some(id) = research_job {
-        crate::research::spawn_from_offer(
-            app.clone(),
-            prompt.goal_id.ok_or("Research goal missing")?,
-            id,
-        );
-    }
     if action == "accept"
         && ![
             Kind::NewTask,
+            Kind::NoGoals,
+            Kind::EndOfDay,
             Kind::Completion,
             Kind::GoalCompletion,
             Kind::Movement,
@@ -1608,6 +1419,8 @@ pub fn respond_companion_intervention(
         ]
         .contains(&prompt.kind)
         || action == "summary"
+        || (action == "accept" && matches!(prompt.kind, Kind::NoGoals | Kind::EndOfDay))
+        || (action == "tomorrow" && prompt.kind == Kind::EndOfDay)
         || (prompt.kind == Kind::Deadline && action == "start")
     {
         crate::buddy::open_workspace(app)?;
@@ -1653,81 +1466,95 @@ pub fn update_companion_inbox(
 mod tests {
     use super::*;
     #[test]
-    fn deadline_checkins_respect_attention_privacy_cooldown_and_startup_delay() {
+    fn saved_quiet_weekdays_are_resting_from_the_first_dashboard_without_manual_dnd() {
+        use chrono::Datelike;
+        let storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        let prefs = Preferences {
+            quiet_days: vec![chrono::Local::now().weekday().num_days_from_sunday() as u8],
+            ..Default::default()
+        };
+        storage
+            .write_setting("companion_preferences", &prefs)
+            .unwrap();
+        let state = AppState::new(storage).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        assert!(!inner.status.dnd);
+        assert!(quiet_mode(&inner));
+        assert!(inner.buddy.view.companion.quiet_mode);
+        assert_eq!(inner.buddy.view.companion.state, "sleeping");
+        inner.status.tracking = true;
+        enforce_quiet(&mut inner);
+        assert!(inner.status.tracking);
+        inner.companion.view.preferences.quiet_days.clear();
+        enforce_quiet(&mut inner);
+        assert!(!inner.companion.view.quiet_mode);
+    }
+    #[test]
+    fn quiet_mode_clears_bubbles_keeps_resting_and_preserves_tracking_and_goal() {
         let state =
             AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
         let mut inner = state.inner.lock().unwrap();
+        let goal = inner.storage.set_goal("Customer emails").unwrap();
         inner.status.tracking = true;
-        inner.companion.started = Instant::now() - std::time::Duration::from_secs(601);
-        inner.companion.view.preferences.quiet_start_minute = 0;
-        inner.companion.view.preferences.quiet_end_minute = 0;
-        inner.companion.memory = Memory::default();
+        inner.activity_state.state = crate::tracking::ActivityState::Focused;
+        inner.companion.view.chat_open = true;
+        inner.companion.view.notice = Some("A late reply".into());
+        inner.companion.view.intervention = Some(Intervention {
+            id: "quiet-test".into(),
+            kind: Kind::Deadline,
+            text: "Due now".into(),
+            confidence: 1.,
+            goal_id: Some(goal.id),
+            plan_revision: None,
+            step_id: None,
+            expires_at: i64::MAX,
+        });
+        inner.status.dnd = true;
+        enforce_quiet(&mut inner);
+        assert!(inner.companion.view.quiet_mode);
+        assert_eq!(inner.companion.view.state, "sleeping");
+        assert!(!inner.companion.view.chat_open);
+        assert!(inner.companion.view.intervention.is_none());
+        assert!(inner.companion.view.notice.is_none());
+        assert!(inner.status.tracking);
+        assert_eq!(
+            inner.activity_state.state,
+            crate::tracking::ActivityState::Focused
+        );
+        assert_eq!(inner.storage.goal().unwrap().unwrap().id, goal.id);
+        inner.status.dnd = false;
+        enforce_quiet(&mut inner);
+        assert!(!inner.companion.view.quiet_mode);
+        assert!(!inner.companion.view.chat_open);
+        assert!(inner.companion.view.intervention.is_none());
+    }
+    #[test]
+    fn delivery_respects_only_quiet_meeting_idle_pause_and_the_single_fullscreen_setting() {
+        let state =
+            AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        assert!(!delivery_paused(&inner));
         inner.buddy.foreground = Some(ActivitySnapshot {
-            process_name: "editor".into(),
-            idle_seconds: 10,
+            idle_seconds: 300,
             ..Default::default()
         });
-        assert!(deadline_allowed(&inner, 10000, 600));
-        for gate in [
-            "dnd",
-            "quiet",
-            "paused",
-            "chat",
-            "fullscreen",
-            "meeting",
-            "media",
-            "idle",
-            "private",
-            "excluded",
-            "hours",
-            "startup",
-            "cooldown",
-            "budget",
-            "tracking",
-            "error",
-            "disabled",
-            "no_window",
-        ] {
-            inner.status.dnd = gate == "dnd";
-            inner.status.tracking = gate != "tracking";
-            inner.status.tracking_error = (gate == "error").then(|| "fixture".into());
-            inner.companion.view.chat_open = gate == "chat";
-            inner.companion.view.preferences.paused = gate == "paused";
-            inner.companion.view.preferences.deadline_reminders = gate != "disabled";
-            inner.companion.view.preferences.daily_checkins = false;
-            inner.companion.view.preferences.quiet_start_minute =
-                if gate == "quiet" { 500 } else { 0 };
-            inner.companion.view.preferences.quiet_end_minute =
-                if gate == "quiet" { 700 } else { 0 };
-            inner.companion.started = Instant::now()
-                - std::time::Duration::from_secs(if gate == "startup" { 1 } else { 601 });
-            inner.companion.memory.last_prompt = if gate == "cooldown" { 9999 } else { 0 };
-            inner.companion.memory.shown = if gate == "budget" { 3 } else { 0 };
-            inner.buddy.fullscreen = gate == "fullscreen";
-            inner.buddy.view.preferences.excluded_apps = if gate == "excluded" {
-                vec!["editor".into()]
-            } else {
-                vec![]
-            };
-            inner.buddy.foreground = (gate != "no_window").then(|| ActivitySnapshot {
-                process_name: "editor".into(),
-                window_title: if gate == "meeting" {
-                    "Zoom Meeting".into()
-                } else if gate == "private" {
-                    ".env — Editor".into()
-                } else {
-                    "Work".into()
-                },
-                media_playing: gate == "media",
-                idle_seconds: if gate == "idle" { 86400 } else { 10 },
-                ..Default::default()
-            });
-            assert!(
-                deadline_allowed(&inner, 10000, if gate == "hours" { 0 } else { 600 })
-                    == matches!(gate, "tracking" | "error" | "no_window"),
-                "{gate}"
-            );
-        }
+        assert!(delivery_paused(&inner));
+        inner.buddy.foreground.as_mut().unwrap().idle_seconds = 0;
+        inner.buddy.foreground.as_mut().unwrap().media_playing = true;
+        inner.buddy.view.preferences.excluded_apps = vec![String::new()];
+        assert!(!delivery_paused(&inner));
+        inner.buddy.fullscreen = true;
+        assert!(delivery_paused(&inner));
+        inner.companion.view.preferences.hide_fullscreen = false;
+        assert!(!delivery_paused(&inner));
+        // Legacy suppression fields cannot override the visible fullscreen setting.
+        inner.buddy.view.preferences.suppress_fullscreen = true;
+        assert!(!delivery_paused(&inner));
+        inner.status.dnd = true;
+        assert!(delivery_paused(&inner));
+        inner.status.dnd = false;
+        inner.companion.view.preferences.paused = true;
+        assert!(delivery_paused(&inner));
     }
     #[test]
     fn hidden_character_does_not_suppress_checkins_but_attention_gates_do() {
@@ -1753,7 +1580,7 @@ mod tests {
         assert!(suppressed(&inner));
         inner.buddy.foreground.as_mut().unwrap().window_title = "Zoom Workplace".into();
         inner.buddy.foreground.as_mut().unwrap().media_playing = true;
-        assert!(suppressed(&inner));
+        assert!(!suppressed(&inner));
     }
     #[test]
     fn quick_tasks_preserve_other_developers_plan_and_reject_stale_updates() {

@@ -166,10 +166,10 @@ fn local_rules_need_opt_in_and_respect_all_quiet_controls_without_ai() {
     local_nudge(&mut i).unwrap();
     assert!(i.buddy.shown.is_none());
     i.buddy.fullscreen = false;
-    i.buddy.view.snoozed_until = Some(Utc::now().timestamp() + 60);
+    i.status.dnd = true;
     local_nudge(&mut i).unwrap();
     assert!(i.buddy.shown.is_none());
-    i.buddy.view.snoozed_until = None;
+    i.status.dnd = false;
     i.buddy.foreground.as_mut().unwrap().active_seconds = 119;
     local_nudge(&mut i).unwrap();
     assert!(i.buddy.shown.is_none());
@@ -185,14 +185,8 @@ fn local_rules_need_opt_in_and_respect_all_quiet_controls_without_ai() {
         .save_app_rule(goal.id, "editor.exe", Some(Category::Distraction))
         .unwrap();
     local_nudge(&mut i).unwrap();
-    assert!(i
-        .buddy
-        .view
-        .decision
-        .as_ref()
-        .unwrap()
-        .reason
-        .contains("You marked editor.exe"));
+    assert!(i.buddy.view.decision.is_none());
+    assert_eq!(explicit_category(&i).unwrap(), Some(Category::Distraction));
     assert!(!i.status.ai_enabled);
 }
 
@@ -222,7 +216,7 @@ fn explicit_rules_skip_automatic_ai_and_budget_blocks_searches() {
     i.buddy.foreground = Some(snapshot());
     i.buddy.view.preferences.proactive = true;
     drop(i);
-    assert!(crate::commands::should_analyze(&state));
+    assert!(!crate::commands::should_analyze(&state));
     for category in [Category::Work, Category::Neutral, Category::Distraction] {
         state
             .inner
@@ -235,7 +229,7 @@ fn explicit_rules_skip_automatic_ai_and_budget_blocks_searches() {
     }
     let i = state.inner.lock().unwrap();
     i.storage.save_app_rule(g.id, "editor.exe", None).unwrap();
-    assert!(crate::buddy::due(&i));
+    assert!(!crate::buddy::due(&i));
     i.storage.reserve_nudge(&i.buddy.view.preferences).unwrap();
     assert!(!crate::buddy::due(&i));
     drop(i);

@@ -229,7 +229,7 @@ impl StateTracker {
 }
 
 pub fn notifications_allowed(inner: &crate::commands::Inner) -> bool {
-    inner.tracking_settings.working_now()
+    !crate::companion::quiet_mode(inner)
         && inner.activity_state.state != ActivityState::Paused
         && !inner
             .buddy
@@ -283,6 +283,16 @@ impl Storage {
 
 #[cfg(test)]
 pub(crate) fn allow_notifications(inner: &mut crate::commands::Inner) {
+    let mut preferences: crate::core::CorePreferences = inner
+        .storage
+        .read_setting("core_preferences")
+        .unwrap()
+        .unwrap_or_default();
+    preferences.working_days = (0..7).collect();
+    inner
+        .storage
+        .write_setting("core_preferences", &preferences)
+        .unwrap();
     let now = chrono::Local::now();
     inner.tracking_settings.working_start_minute = now.hour() * 60 + now.minute();
     inner.tracking_settings.working_end_minute =

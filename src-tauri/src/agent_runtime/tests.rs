@@ -40,13 +40,12 @@ fn state() -> (AppState, i64) {
     {
         let mut inner = state.inner.lock().unwrap();
         inner.status.tracking = true;
+        crate::tracking::allow_notifications(&mut inner);
         inner.companion.view.preferences.screen_task_detection = true;
         inner.status.mock_ai = false;
         inner.status.nebius_configured = true;
         inner.companion.view.preferences.quiet_start_minute = 0;
         inner.companion.view.preferences.quiet_end_minute = 0;
-        inner.tracking_settings.working_start_minute = 0;
-        inner.tracking_settings.working_end_minute = 0;
         inner.activity_state.state = crate::tracking::ActivityState::Focused;
         inner.buddy.foreground = Some(ActivitySnapshot {
             process_name: "Editor".into(),
