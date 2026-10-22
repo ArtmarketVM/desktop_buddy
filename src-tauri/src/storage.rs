@@ -22,6 +22,7 @@ impl Storage {
         store.initialize_skills()?;
         store.initialize_goal_matching()?;
         store.initialize_unplanned_work()?;
+        store.initialize_activity_review()?;
         store.initialize_work_journal()?;
         Ok(store)
     }
@@ -104,6 +105,9 @@ impl Storage {
             })
             .transpose()?;
         let tx = self.connection.transaction().map_err(|e| e.to_string())?;
+        // Explicit deletion wins. Automatic retention preserves unfinished reviews
+        // and their encrypted evidence until a durable daily summary exists.
+        tx.execute("DELETE FROM review_periods WHERE ?1 IS NULL OR (summary IS NOT NULL AND julianday(ends_at)<julianday(?1))",[cutoff]).map_err(|e|e.to_string())?;
         let journal_ready: bool = tx
             .query_row(
                 "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='work_events')",
@@ -113,7 +117,7 @@ impl Storage {
             .map_err(|e| e.to_string())?;
         if journal_ready {
             tx.execute(
-                "DELETE FROM work_events WHERE ?1 IS NULL OR julianday(occurred_at)<julianday(?1)",
+                "DELETE FROM work_events WHERE ?1 IS NULL OR (julianday(occurred_at)<julianday(?1) AND NOT EXISTS(SELECT 1 FROM review_periods p WHERE p.summary IS NULL AND julianday(work_events.occurred_at)>=julianday(p.starts_at) AND julianday(work_events.occurred_at)<julianday(p.ends_at)))",
                 [cutoff],
             )
             .map_err(|e| e.to_string())?;
@@ -146,17 +150,17 @@ impl Storage {
         )
         .map_err(|e| e.to_string())?;
         tx.execute(
-            "DELETE FROM goal_relevant_daily WHERE ?1 IS NULL OR day<?1",
+            "DELETE FROM goal_relevant_daily WHERE ?1 IS NULL OR (day<?1 AND NOT EXISTS(SELECT 1 FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE p.summary IS NULL AND (date(i.started_at,'localtime')=goal_relevant_daily.day OR date(i.ended_at,'localtime')=goal_relevant_daily.day)))",
             [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
         tx.execute(
-            "DELETE FROM goal_relevant_step_daily WHERE ?1 IS NULL OR day<?1",
+            "DELETE FROM goal_relevant_step_daily WHERE ?1 IS NULL OR (day<?1 AND NOT EXISTS(SELECT 1 FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE p.summary IS NULL AND (date(i.started_at,'localtime')=goal_relevant_step_daily.day OR date(i.ended_at,'localtime')=goal_relevant_step_daily.day)))",
             [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
         tx.execute(
-            "DELETE FROM usage_daily WHERE ?1 IS NULL OR day<?1",
+            "DELETE FROM usage_daily WHERE ?1 IS NULL OR (day<?1 AND NOT EXISTS(SELECT 1 FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE p.summary IS NULL AND (date(i.started_at,'localtime')=usage_daily.day OR date(i.ended_at,'localtime')=usage_daily.day)))",
             [cutoff_day.as_deref()],
         )
         .map_err(|e| e.to_string())?;
@@ -196,9 +200,14 @@ impl Storage {
             ("recommendation_history", "created_at"),
             ("suggestions", "timestamp"),
         ] {
+            let protection = if table == "usage_intervals" {
+                " AND (?1 IS NULL OR NOT EXISTS(SELECT 1 FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE p.summary IS NULL AND i.source_id=usage_intervals.id))"
+            } else {
+                ""
+            };
             tx.execute(
                 &format!(
-                    "DELETE FROM {table} WHERE ?1 IS NULL OR julianday({column})<julianday(?1)"
+                    "DELETE FROM {table} WHERE (?1 IS NULL OR julianday({column})<julianday(?1)){protection}"
                 ),
                 [cutoff],
             )

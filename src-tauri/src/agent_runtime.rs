@@ -688,6 +688,17 @@ pub async fn tick(app: &AppHandle) {
     } else {
         (false, false)
     };
+    {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let state = handle.state::<AppState>();
+            if let Err(error) = crate::activity_review::run_due(&handle, &state).await {
+                if let Ok(mut inner) = state.inner.lock() {
+                    inner.last_error = Some(error);
+                }
+            }
+        });
+    }
     if crate::unplanned_work::due(&state) {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {

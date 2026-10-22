@@ -47,9 +47,11 @@ export function ObservationSettings({
           Use screenshots
           <small>
             Optional active-window images are sent to Nebius to help understand
-            layouts when text is insufficient. Images are temporary and are not
-            saved in history. Excluded and detected private windows are skipped.
-            Sensitive content detection cannot be guaranteed.
+            layouts when text is insufficient. Images and interface-text samples
+            are encrypted locally for review until the daily summary is saved at
+            the configured Daily summary time, then deleted. Excluded and
+            detected private windows are skipped. Sensitive content detection
+            cannot be guaranteed.
           </small>
         </span>
         <input

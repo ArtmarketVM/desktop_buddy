@@ -49,6 +49,7 @@ pub(super) fn setup(names: &[&str]) -> (AppState, Vec<i64>) {
 }
 pub(super) fn sample(title: &str) -> ActivitySnapshot {
     ActivitySnapshot {
+        timestamp: chrono::Utc::now().to_rfc3339(),
         process_name: "Editor".into(),
         window_title: title.into(),
         idle_seconds: 1,
@@ -90,7 +91,7 @@ fn explicit_focus_wins_without_inflating_other_goal_activity() {
     assert_eq!(view.state, State::Drifting);
 }
 #[test]
-fn explicit_focus_counts_activity_that_names_no_other_goal() {
+fn explicit_focus_keeps_the_chosen_lane_but_generic_activity_remains_pending() {
     let (state, ids) = setup(&["Orion launch", "Vega budget"]);
     let mut i = state.inner.lock().unwrap();
     i.storage.mark_explicit_focus(ids[0]).unwrap();
@@ -108,8 +109,7 @@ fn explicit_focus_counts_activity_that_names_no_other_goal() {
             matched.goal_id.as_deref(),
             Some(ids[0].to_string().as_str())
         );
-        assert_eq!(matched.confidence, 1., "{title}");
-        assert_eq!(work_state::compute(&i).unwrap().state, State::Working);
+        assert_eq!(matched.confidence, 0., "{title}");
     }
     // Several goals matching at once is ambiguous and stays out of the selected goal's time.
     let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
@@ -203,7 +203,7 @@ fn six_lanes_strong_local_match_is_ready_at_thirty_seconds() {
     assert_eq!(i.goal_matching.metrics.nemotron_calls, 0);
 }
 #[tokio::test]
-async fn ambiguity_calls_nemotron_once_then_keeps_the_result_for_stable_context() {
+async fn ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_refresh() {
     use wiremock::{matchers::method, Mock, MockServer, ResponseTemplate};
     let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta", "Vega budget"]);
     let base = Instant::now();
@@ -230,16 +230,20 @@ async fn ambiguity_calls_nemotron_once_then_keeps_the_result_for_stable_context(
     .await;
     let mut i = state.inner.lock().unwrap();
     finish(&mut i, &job, result, base + AI_STABLE).unwrap();
-    feed(&mut i, &a, base, 63, 1200);
+    feed(&mut i, &a, base, 63, 357);
     assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
-    assert!(!due_inner(&i, base + Duration::from_secs(1200)));
+    assert!(!due_inner(&i, base + Duration::from_secs(357)));
     assert_eq!(i.goal_matching.metrics.nemotron_calls, 1);
+    feed(&mut i, &a, base, 360, 363);
+    assert!(i.goal_matching.view.goal_id.is_none());
+    assert!(due_inner(&i, base + Duration::from_secs(363)));
 }
 #[test]
 fn work_context_disambiguates_similar_goals_and_respects_memory_off() {
     let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta", "Vega budget"]);
     let mut i = state.inner.lock().unwrap();
     checkpoint(&mut i, ids[1], "Editor", None);
+    i.storage.connection.execute("UPDATE work_contexts SET summary='Atlas launch requirements identified' WHERE goal_id=?1",[ids[1]]).unwrap();
     let base = Instant::now();
     let a = sample("Atlas launch");
     feed(&mut i, &a, base, 0, 30);
@@ -293,7 +297,7 @@ fn similar_goals_and_unknown_context_are_never_guessed() {
     assert!(due_inner(&i, base + AI_STABLE));
     feed(&mut i, &sample("Untitled document"), base, 63, 153);
     assert!(i.goal_matching.view.goal_id.is_none());
-    assert!(!due_inner(&i, base + Duration::from_secs(153)));
+    assert!(due_inner(&i, base + Duration::from_secs(153)));
     assert_eq!(work_state::compute(&i).unwrap().confidence, 0.);
 }
 #[test]
@@ -321,7 +325,7 @@ fn waiting_context_and_live_step_survive_a_lane_switch_without_tick_memories() {
     let (state, ids) = setup(&["Orion launch", "Quartz research"]);
     let mut i = state.inner.lock().unwrap();
     checkpoint(&mut i, ids[1], "Research", Some("Reviewer feedback"));
-    let mut a = sample("Workspace");
+    let mut a = sample("Requirements identified");
     a.process_name = "Research".into();
     let base = Instant::now();
     feed(&mut i, &a, base, 0, 30);
@@ -366,8 +370,8 @@ fn cloud_null_or_failure_is_cached_and_new_privacy_invalidates_it() {
             })
         };
         finish(&mut i, &job, result, base + AI_STABLE).unwrap();
-        feed(&mut i, &a, base, 63, 600);
-        assert!(!due_inner(&i, base + Duration::from_secs(600)));
+        feed(&mut i, &a, base, 63, 300);
+        assert!(!due_inner(&i, base + Duration::from_secs(300)));
         assert_eq!(i.goal_matching.metrics.nemotron_calls, 1);
         i.privacy_revision += 1;
         feed(&mut i, &a, base, 603, 696);
@@ -513,7 +517,7 @@ async fn synthetic_switching_benchmark() {
         (0, 90, "Editor", "Orion launch", ids[0]),
         (114, 90, "Editor", "Vega budget", ids[1]),
         (204, 90, "Editor", "Atlas launch beta", ids[5]),
-        (294, 90, "Research", "Workspace", ids[3]),
+        (294, 90, "Research", "Requirements identified", ids[3]),
         (384, 90, "Editor", "Cobalt audit", ids[2]),
         (474, 90, "Editor", "Orion launch", ids[0]),
     ];

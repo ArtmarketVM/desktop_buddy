@@ -1,4 +1,5 @@
 mod accuracy_check;
+mod activity_review;
 mod agent_dialogue;
 mod agent_runtime;
 mod ai_chat;
@@ -391,6 +392,10 @@ pub fn run() {
             }
         })
         .invoke_handler(tauri::generate_handler![
+            activity_review::get_activity_review,
+            activity_review::review_activity,
+            activity_review::get_activity_evidence,
+            activity_review::set_activity_review_context,
             commands::get_accessibility_permission,
             tracking::set_goal_monitoring,
             vision::screenshot_permission,

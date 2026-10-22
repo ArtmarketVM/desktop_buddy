@@ -25,7 +25,9 @@ mockIPC(
         (args as { request?: boolean } | undefined)?.request !== false
       )
         throw new Error("Visual fixtures cannot request system permissions");
-      return structuredClone(fixtureReply(command, theme, buddy));
+      return structuredClone(
+        fixtureReply(command, theme, buddy, query.has("review")),
+      );
     } catch (error) {
       unexpected.push(command);
       throw error;

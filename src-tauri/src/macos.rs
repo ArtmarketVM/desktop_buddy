@@ -28,6 +28,7 @@ extern "C" {
     fn buddy_context(window: u64, selected: bool) -> *mut c_char;
     fn buddy_screen_permission(request: bool) -> bool;
     fn buddy_capture_window(window: u64) -> *mut c_char;
+    fn buddy_review_key(secret: *const c_char) -> *mut c_char;
     fn buddy_apps() -> *mut c_char;
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
         -> *mut c_char;
@@ -52,6 +53,12 @@ fn decode<T: DeserializeOwned>(pointer: *mut c_char) -> Result<T, String> {
 }
 fn string(value: &str) -> Result<CString, String> {
     CString::new(value).map_err(|_| "Invalid macOS integration input".into())
+}
+/// Independent local evidence key. Provider credentials continue to use the
+/// immutable signed helper and its unchanged allowlist.
+pub(crate) fn review_key(secret: Option<&str>) -> Result<Option<String>, String> {
+    let secret = secret.map(string).transpose()?;
+    decode(unsafe { buddy_review_key(secret.as_ref().map_or(std::ptr::null(), |s| s.as_ptr())) })
 }
 #[derive(Deserialize)]
 pub struct Foreground {

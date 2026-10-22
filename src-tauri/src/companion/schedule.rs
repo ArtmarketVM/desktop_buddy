@@ -157,6 +157,18 @@ pub(super) fn summary(storage: &Storage, days: &[NaiveDate]) -> Result<String, S
         sentences
             .push("There are no completed steps or timed activities to show for today.".into());
     }
+    let review = storage.activity_review()?;
+    if review
+        .summaries
+        .iter()
+        .any(|s| days.iter().any(|day| day.to_string() == s.day))
+    {
+        sentences.push(
+            "Your activity review is saved in My progress, including unresolved work.".into(),
+        );
+    } else if review.pending_summary_count > 0 {
+        sentences.push("Your activity review is still pending; its context remains saved.".into());
+    }
     sentences.push("Review today, or plan tomorrow?".into());
     Ok(sentences.join(" "))
 }

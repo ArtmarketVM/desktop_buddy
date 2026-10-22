@@ -4,6 +4,7 @@ import { queryClient } from "../data/client";
 import { useQuery } from "../data/useQuery";
 import { draftsQuery, workspaceQuery } from "../data/resources";
 import { desktop } from "../api/tauri";
+import { invoke } from "../data/ipc";
 import type { WorkspacePage } from "../components/AppShell";
 import { coreApi } from "./api";
 import { Composer } from "./Composer";
@@ -21,6 +22,7 @@ import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
 import { Toasts } from "../components/Toasts";
 import { NoticedWork } from "./NoticedWork";
+import { ActivityReview } from "./ActivityReview";
 
 export function Experience({
   page,
@@ -51,6 +53,28 @@ export function Experience({
   const [skipPlanningDate, setSkipPlanningDate] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [planningDate, setPlanningDate] = useState<string | null>(null);
+  const [planningGoal, setPlanningGoal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!desktop) return;
+    const ping = () =>
+      void invoke("set_activity_review_context", {
+        active:
+          document.visibilityState === "visible" &&
+          (page === "focus" || page === "resources" || editor !== null),
+        goalId: editor?.status === "open" ? editor.id : planningGoal,
+      }).catch(() => {});
+    ping();
+    const timer = window.setInterval(ping, 10000);
+    document.addEventListener("visibilitychange", ping);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", ping);
+      void invoke("set_activity_review_context", {
+        active: false,
+        goalId: null,
+      }).catch(() => {});
+    };
+  }, [page, editor, planningGoal]);
   const snapshotAnchor = page === "activity" ? anchor : null;
   const snapshotPeriod = page === "activity" ? progressPeriod : "week";
   const workspace = workspaceQuery(snapshotAnchor, snapshotPeriod);
@@ -156,13 +180,24 @@ export function Experience({
     0,
   );
   return (
-    <div className="core-workspace">
+    <div
+      className="core-workspace"
+      onFocusCapture={(event) => {
+        const row = (event.target as HTMLElement).closest<HTMLElement>(
+          "[data-goal-id]",
+        );
+        setPlanningGoal(row ? Number(row.dataset.goalId) : null);
+      }}
+    >
       {displayedError && (
         <p className="error" role="alert">
           {displayedError}
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
+      {page === "activity" && (
+        <ActivityReview goals={snapshot.goals} onChanged={refresh} history />
+      )}
       {page === "activity" &&
         (!dashboard.status.tracking || dashboard.status.tracking_error) && (
           <p className="callout" role="status">
@@ -319,6 +354,7 @@ export function Experience({
             </section>
           </div>
           <NoticedWork onChanged={refresh} quietMode={quietMode} />
+          <ActivityReview goals={snapshot.goals} onChanged={refresh} />
           {(focusedSeconds > 0 || finishedItems.length > 0) && (
             <TodaySummary day={snapshot.summary} items={finishedItems} />
           )}

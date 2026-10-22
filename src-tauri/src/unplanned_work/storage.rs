@@ -20,7 +20,7 @@ impl Storage {
         self.connection.query_row("SELECT EXISTS(SELECT 1 FROM unplanned_work_decisions WHERE context_key=?1 AND day=?2)",params![key,day],|r|r.get(0)).map_err(db)
     }
     pub(super) fn unplanned_milliseconds(&self, key: &str, day: &str) -> Result<i64, String> {
-        self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0) FROM unplanned_work_intervals WHERE context_key=?1 AND day=?2",params![key,day],|r|r.get(0)).map_err(db)
+        self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0) FROM unplanned_work_intervals u WHERE context_key=?1 AND day=?2 AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned'))",params![key,day],|r|r.get(0)).map_err(db)
     }
     pub(super) fn observe_unplanned_interval(
         &self,
@@ -45,6 +45,10 @@ impl Storage {
         }
         let bucket = context_key(&interval.activity);
         let key = session;
+        let reviewed:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM review_intervals WHERE started_at=?1 AND ended_at=?2 AND (manual=1 OR status='assigned'))",params![interval.start.to_rfc3339(),interval.end.to_rfc3339()],|r|r.get(0)).map_err(db)?;
+        if reviewed {
+            return Ok(());
+        }
         if self.unplanned_decided(&bucket, &day)? {
             return Ok(());
         }
@@ -99,7 +103,7 @@ impl Storage {
                 "A goal with that title already exists. Rename this work before adding it.".into(),
             );
         }
-        let mut q=self.connection.prepare("SELECT u.started_at,u.ended_at,u.milliseconds,u.app,u.title,u.domain,u.page_title,u.source_interval_id,u.source_step,i.goal_id,i.match_confidence FROM unplanned_work_intervals u LEFT JOIN usage_intervals i ON i.id=u.source_interval_id WHERE u.context_key=?1 AND u.day=?2 ORDER BY u.id").map_err(db)?;
+        let mut q=self.connection.prepare("SELECT u.started_at,u.ended_at,u.milliseconds,u.app,u.title,u.domain,u.page_title,u.source_interval_id,u.source_step,i.goal_id,i.match_confidence FROM unplanned_work_intervals u LEFT JOIN usage_intervals i ON i.id=u.source_interval_id WHERE u.context_key=?1 AND u.day=?2 AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned')) ORDER BY u.id").map_err(db)?;
         let rows = q
             .query_map(params![key, day], |r| {
                 Ok(Recorded {
@@ -120,7 +124,9 @@ impl Storage {
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;
         drop(q);
-        let tx = self.connection.transaction().map_err(db)?;
+        // Keep an immutable connection borrow so the daily summary can be
+        // refreshed inside this same transaction. SQLite still rejects nesting.
+        let tx = self.connection.unchecked_transaction().map_err(db)?;
         tx.execute("INSERT OR IGNORE INTO core_areas(title) VALUES('Work')", [])
             .map_err(db)?;
         let area: i64 = tx
@@ -194,6 +200,7 @@ impl Storage {
             tx.execute("INSERT INTO usage_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,process_name) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,row.app,row.ms]).map_err(db)?;
             tx.execute("INSERT INTO goal_relevant_daily(day,goal_id,process_name,milliseconds) VALUES(?1,?2,?3,?4) ON CONFLICT(day,goal_id,process_name) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,row.app,row.ms]).map_err(db)?;
             tx.execute("INSERT INTO goal_relevant_step_daily(day,goal_id,step_id,milliseconds) VALUES(?1,?2,'',?3) ON CONFLICT(day,goal_id,step_id) DO UPDATE SET milliseconds=milliseconds+excluded.milliseconds",params![day,goal,row.ms]).map_err(db)?;
+            tx.execute("UPDATE review_intervals SET goal_id=?1,status='assigned',source_id=(SELECT id FROM usage_intervals WHERE goal_id=?1 AND started_at=?2 AND ended_at=?3),source_step='',manual=1,reason='User accepted noticed work' WHERE started_at=?2 AND ended_at=?3",params![goal,row.from,row.to]).map_err(db)?;
         }
         tx.execute(
             "INSERT INTO unplanned_work_decisions(context_key,day,goal_id) VALUES(?1,?2,?3)",
@@ -205,6 +212,22 @@ impl Storage {
             params![key, day],
         )
         .map_err(db)?;
+        let periods = {
+            let mut q = tx
+                .prepare(
+                    "SELECT DISTINCT period_id FROM review_intervals WHERE goal_id=?1 AND manual=1",
+                )
+                .map_err(db)?;
+            let rows = q
+                .query_map([goal], |r| r.get::<_, i64>(0))
+                .map_err(db)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(db)?;
+            rows
+        };
+        for period in periods {
+            self.refresh_review_summary(period)?;
+        }
         tx.commit().map_err(db)?;
         Ok(goal)
     }

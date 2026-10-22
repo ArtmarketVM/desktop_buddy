@@ -18,6 +18,7 @@ pub struct Inner {
     pub window_history: crate::window_history::Recorder,
     pub unplanned_work: crate::unplanned_work::Runtime,
     pub(crate) vision: crate::vision::Runtime,
+    pub(crate) review_planning: Option<crate::activity_review::PlanningContext>,
     pub retention_days: u32,
     pub last_cleanup: Instant,
     pub privacy_revision: u64,
@@ -89,6 +90,7 @@ impl AppState {
                 window_history: Default::default(),
                 unplanned_work: Default::default(),
                 vision: Default::default(),
+                review_planning: None,
                 retention_days,
                 last_cleanup: Instant::now(),
                 privacy_revision: 0,
@@ -408,20 +410,37 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             }
         };
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
-        let allowed = !snapshot
-            .process_name
-            .eq_ignore_ascii_case("desktop-buddy.exe")
-            && !snapshot.process_name.eq_ignore_ascii_case("desktop-buddy")
+        let in_sumi = ["desktop-buddy.exe", "desktop-buddy", "Desktop Buddy"]
+            .iter()
+            .any(|name| snapshot.process_name.eq_ignore_ascii_case(name));
+        let planning = inner
+            .review_planning
+            .as_ref()
+            .filter(|p| p.at.elapsed() < Duration::from_secs(30));
+        let planning_goal = planning.and_then(|p| p.goal_id);
+        let allowed = (!in_sumi || planning.is_some())
+            && !inner.companion.view.preferences.paused
             && !crate::attention::excluded(&inner.buddy.view.preferences, &snapshot.process_name)
             && !crate::companion::sensitive_window(&snapshot);
+        if in_sumi {
+            snapshot.process_name = "desktop-buddy".into();
+            snapshot.window_title = planning_goal
+                .map(|id| format!("Planning goal {id} in sumi"))
+                .unwrap_or_else(|| "Planning in sumi".into());
+            snapshot.browser = None;
+        }
         if !inner.tracking_settings.browser_metadata {
             snapshot.browser =
                 crate::browser::context(&snapshot.process_name, &snapshot.window_title, None);
         }
-        crate::goal_matching::observe_inner(&mut inner, &snapshot, allowed)?;
-        inner.buddy.foreground = allowed.then(|| snapshot.clone());
-        crate::companion::observe(&mut inner, &snapshot, allowed);
-        let selected_goal = inner.storage.goal()?.map(|g| g.id);
+        crate::goal_matching::observe_inner(&mut inner, &snapshot, allowed && !in_sumi)?;
+        inner.buddy.foreground = (allowed && !in_sumi).then(|| snapshot.clone());
+        crate::companion::observe(&mut inner, &snapshot, allowed && !in_sumi);
+        let selected_goal = if in_sumi {
+            planning_goal
+        } else {
+            inner.storage.goal()?.map(|g| g.id)
+        };
         let crate::commands::Inner {
             window_history,
             storage,
@@ -444,40 +463,62 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 selected_goal,
             );
         }
-        let Some(goal) = inner.storage.goal()? else {
-            crate::unplanned_work::observe(&mut inner, &snapshot, allowed, None)?;
-            inner.usage = Default::default();
-            inner.activity_state.stop(false);
-            return Ok(());
-        };
+        let goal = if in_sumi { None } else { inner.storage.goal()? };
+        let goal_id = selected_goal;
         let revision = inner.activity_state.revision;
-        let activity_state = inner
-            .activity_state
-            .sample(goal.id, &snapshot, allowed, &settings);
-        if allowed && inner.activity_state.revision != revision {
+        let activity_state =
+            inner
+                .activity_state
+                .sample(goal_id.unwrap_or(0), &snapshot, allowed, &settings);
+        if let Some(goal) = goal
+            .as_ref()
+            .filter(|_| allowed && inner.activity_state.revision != revision)
+        {
             inner
                 .storage
                 .tracking_event(goal.id, inner.activity_state.event)?;
         }
         let mut observed_interval = None;
-        if let Some(interval) = inner
-            .usage
-            .observe(goal.id, &snapshot, allowed, activity_state)
-        {
-            let attribution = crate::goal_matching::attribution(&inner, &snapshot)?;
+        if let Some(interval) =
             inner
-                .storage
-                .record_interval_with_match(goal.id, &interval, Some(attribution))?;
-            observed_interval = Some(interval);
+                .usage
+                .observe(goal_id.unwrap_or(0), &snapshot, allowed, activity_state)
+        {
+            if inner.storage.review_interval_available(&interval)? {
+                let attribution = if in_sumi {
+                    crate::relevance::ActivityMatch {
+                        goal_id: planning_goal.map(|id| id.to_string()),
+                        confidence: if planning_goal.is_some() { 1. } else { 0. },
+                        reason: "Explicit in-app planning context".into(),
+                    }
+                } else {
+                    crate::goal_matching::attribution(&inner, &snapshot)?
+                };
+                if let Some(goal) = &goal {
+                    inner.storage.record_interval_with_match(
+                        goal.id,
+                        &interval,
+                        Some(crate::relevance::ActivityMatch {
+                            goal_id: attribution.goal_id.clone(),
+                            confidence: attribution.confidence,
+                            reason: attribution.reason.clone(),
+                        }),
+                    )?;
+                }
+                inner
+                    .storage
+                    .record_review_interval(&interval, &attribution)?;
+                observed_interval = Some(interval);
+            }
         }
         crate::unplanned_work::observe(
             &mut inner,
             &snapshot,
-            allowed,
-            observed_interval.as_ref().map(|i| (goal.id, i)),
+            allowed && !in_sumi,
+            goal_id.zip(observed_interval.as_ref()),
         )?;
-        inner.buddy.foreground = allowed.then(|| snapshot.clone());
-        if allowed {
+        inner.buddy.foreground = (allowed && !in_sumi).then(|| snapshot.clone());
+        if let Some(goal) = goal.as_ref().filter(|_| allowed) {
             inner.storage.activity(goal.id, &snapshot)?;
         }
     }

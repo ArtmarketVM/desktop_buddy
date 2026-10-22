@@ -14,6 +14,33 @@ static char *json(id value) {
 }
 static char *failure(NSString *message) { return json(@{@"error": message}); }
 void buddy_free(char *value) { free(value); }
+// Separate local evidence key; the immutable provider helper is unchanged.
+char *buddy_review_key(const char *secret) {
+    @autoreleasepool {
+        NSMutableDictionary *query = [@{(__bridge id)kSecClass:(__bridge id)kSecClassGenericPassword,
+            (__bridge id)kSecAttrService:@"com.artmarketvm.desktopbuddy.activity-review",
+            (__bridge id)kSecAttrAccount:@"evidence-v1"} mutableCopy];
+        if (secret) {
+            NSData *data = [[NSString stringWithUTF8String:secret] dataUsingEncoding:NSUTF8StringEncoding];
+            OSStatus status = SecItemUpdate((__bridge CFDictionaryRef)query,(__bridge CFDictionaryRef)@{(__bridge id)kSecValueData:data});
+            if (status == errSecItemNotFound) {
+                query[(__bridge id)kSecValueData] = data;
+                query[(__bridge id)kSecAttrAccessible] = (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly;
+                status = SecItemAdd((__bridge CFDictionaryRef)query,NULL);
+            }
+            if (status != errSecSuccess) return failure(@"Protected activity storage is unavailable");
+            return json([NSString stringWithUTF8String:secret]);
+        }
+        query[(__bridge id)kSecReturnData] = @YES;
+        CFTypeRef result = NULL;
+        OSStatus status = SecItemCopyMatching((__bridge CFDictionaryRef)query,&result);
+        if (status == errSecItemNotFound) return json(NSNull.null);
+        if (status != errSecSuccess) return failure(@"Protected activity storage is unavailable");
+        NSData *data = CFBridgingRelease(result);
+        NSString *value = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
+        return value ? json(value) : failure(@"Protected activity storage is unavailable");
+    }
+}
 static id attribute(AXUIElementRef element, CFStringRef name) {
     CFTypeRef value = NULL;
     if (!element || AXUIElementCopyAttributeValue(element, name, &value) != kAXErrorSuccess) return nil;

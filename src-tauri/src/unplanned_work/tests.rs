@@ -109,6 +109,51 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 1);
 }
 #[test]
+fn accepting_noticed_work_after_summary_updates_the_same_saved_measured_time() {
+    let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    fixtures(&s, None);
+    for index in 0..40 {
+        let mut i = interval(index);
+        i.activity.timestamp = i.start.to_rfc3339();
+        s.record_review_interval(
+            &i,
+            &crate::relevance::ActivityMatch {
+                goal_id: None,
+                confidence: 0.,
+                reason: "Unknown".into(),
+            },
+        )
+        .unwrap();
+    }
+    s.connection
+        .execute("UPDATE review_periods SET analysis_done=1", [])
+        .unwrap();
+    s.finish_due_reviews(Utc::now() + CD::days(2)).unwrap();
+    let goal = s
+        .confirm_unplanned_work(
+            &context_key(&sample()),
+            &Local::now().date_naive().to_string(),
+            "Handle unrelated emails",
+            false,
+            None,
+        )
+        .unwrap();
+    let overview = s.activity_review().unwrap();
+    assert!(overview.summaries[0]
+        .blocks
+        .iter()
+        .all(|b| b.status == "assigned" && b.goal_id == Some(goal)));
+    assert_eq!(
+        overview.summaries[0]
+            .blocks
+            .iter()
+            .map(|b| b.seconds)
+            .sum::<u64>(),
+        120
+    );
+    assert_eq!(s.relevant_seconds(goal, None).unwrap(), 120);
+}
+#[test]
 fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
     let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
     s.core_create_goal(

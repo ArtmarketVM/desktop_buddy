@@ -16,7 +16,7 @@ const SUGGESTION_SNOOZE: Duration = Duration::from_secs(10 * 60);
 pub const LOCAL_STABLE: Duration = Duration::from_secs(30);
 pub const AI_STABLE: Duration = Duration::from_secs(60);
 const AI_COOLDOWN: Duration = Duration::from_secs(90);
-const CACHE_TTL: Duration = Duration::from_secs(600);
+const CACHE_TTL: Duration = Duration::from_secs(300);
 #[derive(Clone, Default, Serialize)]
 pub struct MatchView {
     pub goal_id: Option<i64>,
@@ -49,6 +49,7 @@ pub struct Runtime {
     in_flight: bool,
     context_revision: u64,
     signature: Option<String>,
+    text_fingerprint: Option<String>,
     proposal: MatchView,
     cache: std::collections::VecDeque<Cache>,
     pending_suggestion: Option<suggestions::Pending>,
@@ -69,6 +70,7 @@ impl Runtime {
         self.stable_since = None;
         self.last_seen = None;
         self.signature = None;
+        self.text_fingerprint = None;
         self.pending_suggestion = None;
     }
     #[cfg(test)]
@@ -95,6 +97,7 @@ impl Runtime {
                 ..Default::default()
             };
             self.stable_since = Some(now);
+            self.text_fingerprint = None;
         }
         self.view.enabled = true;
         self.sample = Some(sample.clone());
@@ -123,6 +126,77 @@ fn fingerprint(sample: &ActivitySnapshot) -> String {
         ])
         .to_string(),
     )
+}
+/// Generic window titles are not a permanent assignment. A changed protected
+/// text sample invalidates the cached AI match without retaining the raw text.
+pub(crate) fn observe_text(inner: &mut crate::commands::Inner, a: &ActivitySnapshot, text: &str) {
+    let current = fingerprint(a);
+    let runtime = &mut inner.goal_matching;
+    if !runtime
+        .sample
+        .as_ref()
+        .is_some_and(|sample| fingerprint(sample) == current)
+    {
+        return;
+    }
+    let text_fingerprint = crate::companion::engine::fingerprint(text);
+    if runtime
+        .text_fingerprint
+        .as_ref()
+        .is_some_and(|old| old != &text_fingerprint)
+    {
+        runtime.context_revision = runtime.context_revision.wrapping_add(1);
+        runtime.cache.retain(|cache| cache.key != current);
+        if runtime.view.source.as_deref() == Some("nebius") {
+            runtime.view = MatchView {
+                enabled: true,
+                source: Some("unknown".into()),
+                reason: Some("Visible work changed; waiting for a new goal match".into()),
+                ..Default::default()
+            };
+            runtime.last_attempt = None;
+        }
+    }
+    runtime.text_fingerprint = Some(text_fingerprint);
+}
+pub(crate) fn accept_context_match(
+    inner: &mut crate::commands::Inner,
+    a: &ActivitySnapshot,
+    id: i64,
+    confidence: f64,
+) -> Result<(), String> {
+    if confidence < AUTO_ASSIGN_CONFIDENCE
+        || !inner.storage.ai_preferences()?.automatic_goal_matching
+        || !inner
+            .goal_matching
+            .sample
+            .as_ref()
+            .is_some_and(|sample| fingerprint(sample) == fingerprint(a))
+    {
+        return Ok(());
+    }
+    inner.storage.validate_planning_goal(id)?;
+    select_goal(inner, id)?;
+    let signature = resolution::resolve(inner, a)?.signature;
+    let view = MatchView {
+        goal_id: Some(id),
+        confidence: Some(confidence),
+        reason: Some("AI associated observed work with this goal".into()),
+        source: Some("nebius".into()),
+        enabled: true,
+    };
+    inner.goal_matching.view = view.clone();
+    inner.goal_matching.signature = Some(signature.clone());
+    inner.goal_matching.cache.push_back(Cache {
+        key: fingerprint(a),
+        signature,
+        view,
+        at: Instant::now(),
+    });
+    if inner.goal_matching.cache.len() > 16 {
+        inner.goal_matching.cache.pop_front();
+    }
+    Ok(())
 }
 pub fn observe_inner(
     inner: &mut crate::commands::Inner,
@@ -158,17 +232,11 @@ fn observe_inner_at(
         .stable_since
         .is_some_and(|at| now.saturating_duration_since(at) >= LOCAL_STABLE);
     let explicit = resolved.view.source.as_deref() == Some("explicit_focus");
-    // A still-current verified result does not expire just because time passed.
-    // TTL applies to returning to a previous context, not continuous work in one window.
-    let accepted = (stable
-        && inner.goal_matching.view.source.as_deref() == Some("nebius")
-        && inner.goal_matching.view.goal_id.is_some())
-    .then(|| inner.goal_matching.view.clone());
-    let cached = accepted.or_else(|| {
-        stable
-            .then(|| inner.goal_matching.cached(sample, &resolved.signature, now))
-            .flatten()
-    });
+    // Generic titles cannot keep an AI assignment indefinitely. Periodic
+    // refresh allows a later task in the same window to acquire new evidence.
+    let cached = stable
+        .then(|| inner.goal_matching.cached(sample, &resolved.signature, now))
+        .flatten();
     let view = if explicit {
         resolved.view
     } else if let Some(cached) = cached {
@@ -278,10 +346,8 @@ fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String
     }
     Ok(())
 }
-/// Time counts for the goal the user selected (or a remembered app lane) while they are focused,
-/// unless the window clearly belongs to another goal: a keyword match for a different goal, or an
-/// ambiguous match between several goals, keeps that activity out of the selected goal's time.
-/// A window that names no goal at all, such as a meeting or an email, stays with the selected goal.
+/// Selected goals and remembered lanes need supporting context. Unknown windows
+/// remain pending instead of inheriting the current goal's measured time.
 pub fn attribution(
     inner: &crate::commands::Inner,
     sample: &ActivitySnapshot,
@@ -300,12 +366,8 @@ pub fn attribution(
             .is_some_and(|id| selected(id.parse::<i64>().unwrap_or_default()))
         {
             confidence = local.confidence;
-        } else if inner
-            .storage
-            .matching_goals(sample)?
-            .into_iter()
-            .any(|id| !selected(id))
-        {
+        } else {
+            // Focus alone does not establish the relevance of an unknown window.
             confidence = 0.;
         }
     }
@@ -352,7 +414,10 @@ fn due_inner(inner: &crate::commands::Inner, now: Instant) -> bool {
         && !matching.in_flight
         && matching.sample.is_some()
         && matching.view.goal_id.is_none()
-        && matching.proposal.source.as_deref() == Some("ambiguous")
+        && matches!(
+            matching.proposal.source.as_deref(),
+            Some("ambiguous" | "unknown")
+        )
         && matching
             .stable_since
             .is_some_and(|at| now.saturating_duration_since(at) >= AI_STABLE)
@@ -509,6 +574,9 @@ fn claim(inner: &mut crate::commands::Inner, now: Instant) -> Result<Option<Job>
     if goals.as_array().is_none_or(|g| g.is_empty()) {
         return Ok(None);
     }
+    if !inner.status.mock_ai && !crate::observation::reserve(inner) {
+        return Ok(None);
+    }
     inner.goal_matching.in_flight = true;
     inner.goal_matching.last_attempt = Some(now);
     if !inner.status.mock_ai {
@@ -554,6 +622,12 @@ fn finish(
             if let Some(id) = id {
                 select_goal(inner, id)?;
                 inner.goal_matching.lane_sample = Some((id, job.sample.clone()));
+                inner.storage.classify_review_context(
+                    &job.sample,
+                    Some(id),
+                    None,
+                    &result.reason,
+                )?;
             }
             MatchView {
                 goal_id: id,
@@ -585,6 +659,9 @@ fn finish(
     Ok(suggestion)
 }
 pub async fn identify(app: &AppHandle, state: &AppState) {
+    let Ok(_provider) = state.companion_request.try_lock() else {
+        return;
+    };
     let job = state
         .inner
         .lock()
@@ -602,6 +679,16 @@ pub async fn identify(app: &AppHandle, state: &AppState) {
             .await
             .ok()
             .flatten();
+        let visible_text = if visible_text
+            .as_ref()
+            .is_none_or(|text| text.chars().count() < 120)
+        {
+            crate::vision::enrich(state, &job.sample, visible_text.unwrap_or_default())
+                .await
+                .ok()
+        } else {
+            visible_text
+        };
         let current = state.inner.lock().is_ok_and(|inner| {
             context_current(
                 &inner,
@@ -851,6 +938,36 @@ mod tests {
         runtime.observe(&sample, false);
         assert!(runtime.sample.is_none());
         assert!(runtime.view.goal_id.is_none());
+    }
+    #[test]
+    fn changed_text_invalidates_a_generic_window_ai_assignment_without_retaining_text() {
+        let state =
+            AppState::new(crate::storage::Storage::open(std::path::Path::new(":memory:")).unwrap())
+                .unwrap();
+        let mut inner = state.inner.lock().unwrap();
+        let sample = ActivitySnapshot {
+            process_name: "ChatGPT".into(),
+            window_title: "ChatGPT".into(),
+            ..Default::default()
+        };
+        inner.goal_matching.observe(&sample, true);
+        inner.goal_matching.view = MatchView {
+            goal_id: Some(1),
+            source: Some("nebius".into()),
+            ..Default::default()
+        };
+        observe_text(&mut inner, &sample, "Preparing presentation slides");
+        let revision = inner.goal_matching.context_revision;
+        observe_text(&mut inner, &sample, "Preparing presentation slides");
+        assert_eq!(inner.goal_matching.view.goal_id, Some(1));
+        assert_eq!(inner.goal_matching.context_revision, revision);
+        observe_text(&mut inner, &sample, "Organizing a community event");
+        assert_eq!(inner.goal_matching.view.goal_id, None);
+        assert_ne!(inner.goal_matching.context_revision, revision);
+        assert_ne!(
+            inner.goal_matching.text_fingerprint.as_deref(),
+            Some("Organizing a community event")
+        );
     }
     #[test]
     fn edited_goals_changed_activity_and_revoked_sharing_invalidate_pending_responses() {

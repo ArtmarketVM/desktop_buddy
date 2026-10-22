@@ -1,4 +1,4 @@
-//! Opt-in, bounded, active-window vision. Images live only inside this request.
+//! Opt-in active-window vision with encrypted evidence until the daily summary.
 use crate::{
     commands::{AppState, Inner},
     models::ActivitySnapshot,
@@ -78,13 +78,27 @@ pub(crate) async fn enrich(
     };
     current()?;
     let service = crate::goal_analysis::Service::configured(&state.client)?;
+    {
+        let mut inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Activity review unavailable")?;
+        if let Err(error) = inner
+            .storage
+            .retain_review_evidence(activity, "image", &image)
+        {
+            inner.vision.status = "evidence_storage_unavailable";
+            inner.last_error = Some(error);
+            return Ok(text);
+        }
+    }
     let response = crate::engine_observability::observe_specialist(
         state,
         "foreground_vision",
         request_image(&service, &image, &current),
     )
     .await;
-    // The request owns the only image buffer. Never cache, serialize or log it.
+    // The retained copy is encrypted and deleted with the durable daily summary.
     current()?;
     let mut i = state
         .inner
@@ -103,6 +117,11 @@ pub(crate) async fn enrich(
             } else {
                 "invalid_response"
             };
+            if let Some(description) = &description {
+                if let Err(error) = i.storage.retain_visual_description(activity, description) {
+                    i.last_error = Some(error);
+                }
+            }
             Ok(description
                 .map(|s| format!("{text}\n[Visual context — unverified]\n{s}"))
                 .unwrap_or(text))

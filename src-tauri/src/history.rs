@@ -265,9 +265,9 @@ impl Storage {
                 category.map(|c| serde_json::to_string(&c)).transpose().map_err(|e| e.to_string())?, interval.activity.media_playing, crate::browser::minimize_title(&interval.activity.window_title),if relevant {matched.confidence} else {0.0},matched.reason]).map_err(|e| e.to_string())?;
         if interval.state != ActivityState::Paused {
             let mut cursor = interval.start.timestamp_millis();
-            while cursor < interval.end.timestamp_millis() {
-                let next =
-                    ((cursor.div_euclid(1000) + 1) * 1000).min(interval.end.timestamp_millis());
+            let end_ms = cursor + duration;
+            while cursor < end_ms {
+                let next = ((cursor.div_euclid(1000) + 1) * 1000).min(end_ms);
                 let day = DateTime::from_timestamp_millis(cursor)
                     .ok_or("Invalid sample time")?
                     .with_timezone(&chrono::Local)
