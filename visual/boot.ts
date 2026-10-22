@@ -38,7 +38,9 @@ mockIPC(
         ].includes(command)
       )
         return null;
-      const reply = structuredClone(fixtureReply(command, theme, buddy));
+      const reply = structuredClone(
+        fixtureReply(command, theme, buddy, query.has("review")),
+      );
       if (
         command === "get_dashboard" &&
         ["panel", "mascot"].includes(surface ?? "")

@@ -223,7 +223,7 @@ export function GoalRow({
     setExpanded(!expanded);
   };
   return (
-    <article className={`core-goal ${goal.status}`}>
+    <article className={`core-goal ${goal.status}`} data-goal-id={goal.id}>
       {coaching && (
         <StartCoaching
           goalId={goal.id}

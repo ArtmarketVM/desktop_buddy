@@ -1,4 +1,5 @@
-//! One transient, redacted Accessibility sample shared by completion and matching.
+//! One redacted Accessibility sample shared by completion and matching, with an
+//! encrypted review copy scoped to its original measured activity segment.
 use super::{redact_sample, sensitive_window};
 use crate::{
     commands::{AppState, Inner},
@@ -121,6 +122,12 @@ async fn read_at<F: Future<Output = Result<String, String>>>(
     {
         inner.companion.screen_context = None;
         return Ok(None);
+    }
+    if let Ok(text) = &text {
+        crate::goal_matching::observe_text(&mut inner, activity, text);
+        if let Err(error) = inner.storage.retain_review_evidence(activity, "text", text) {
+            inner.last_error = Some(error);
+        }
     }
     inner.companion.screen_context = Some(CachedText {
         activity: activity.clone(),

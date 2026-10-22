@@ -14,6 +14,7 @@ pub struct Recorder {
 pub struct WindowSession {
     id: i64,
     pub goal_id: Option<i64>,
+    goal_title: Option<String>,
     app: String,
     title: String,
     domain: Option<String>,
@@ -126,12 +127,13 @@ impl Storage {
         if start >= end || (end - start).num_days() > 367 {
             return Err("Invalid activity period".into());
         }
-        let mut q=self.connection.prepare("SELECT id,goal_id,app,title,domain,started_at,ended_at,active_ms/1000,idle_ms/1000 FROM window_activity WHERE julianday(started_at)>=julianday(?1) AND julianday(started_at)<julianday(?2) AND (?3 IS NULL OR goal_id=?3) ORDER BY id DESC LIMIT 500").map_err(|_|"Activity history unavailable")?;
+        let mut q=self.connection.prepare("SELECT id,goal_id,app,title,domain,started_at,ended_at,active_ms/1000,idle_ms/1000,(SELECT text FROM goals WHERE id=window_activity.goal_id) FROM window_activity WHERE julianday(started_at)>=julianday(?1) AND julianday(started_at)<julianday(?2) AND (?3 IS NULL OR goal_id=?3) ORDER BY id DESC LIMIT 500").map_err(|_|"Activity history unavailable")?;
         let rows = q
             .query_map(params![first, last, goal], |r| {
                 Ok(WindowSession {
                     id: r.get(0)?,
                     goal_id: r.get(1)?,
+                    goal_title: r.get(9)?,
                     app: r.get(2)?,
                     title: r.get(3)?,
                     domain: r.get(4)?,

@@ -172,7 +172,11 @@ pub(super) fn resolve(inner: &Inner, sample: &ActivitySnapshot) -> Result<Resolu
                 .collect();
             contexts.retain(|c| plausible.is_empty() || plausible.contains(&c.0));
             let remembered = crate::relevance::classify(&contexts, sample);
-            if let Some(id) = remembered.goal_id.and_then(|id| id.parse().ok()) {
+            if let Some(id) = remembered
+                .goal_id
+                .filter(|_| remembered.confidence >= 0.75)
+                .and_then(|id| id.parse().ok())
+            {
                 view(
                     Some(id),
                     remembered.confidence,

@@ -439,7 +439,7 @@ partial(
 partial(
   "P07-04",
   rust(
-    "ambiguity_calls_nemotron_once_then_keeps_the_result_for_stable_context",
+    "ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_refresh",
     "dnd_sharing_and_cooldown_block_calls_even_for_sustained_ambiguity",
   ),
   "Measure actual roughly 60-second eligibility and live-provider latency.",

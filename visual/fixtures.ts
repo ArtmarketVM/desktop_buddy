@@ -7,6 +7,7 @@ import {
 } from "../src/types";
 import { defaultCompanionView } from "../src/companion/types";
 import { defaultMemoryControls } from "../src/api/memory";
+import type { ActivityReviewData } from "../src/core/activityReviewTypes";
 
 export const NOW = "2026-10-20T10:00:00.000Z";
 const date = "2026-10-20";
@@ -180,6 +181,7 @@ export function fixtureReply(
   command: string,
   theme: "light" | "dark",
   buddy: boolean,
+  review = false,
 ): unknown {
   switch (command) {
     case "get_dashboard":
@@ -224,6 +226,16 @@ export function fixtureReply(
     case "screenshot_permission":
       return false;
     case "get_unplanned_work_suggestion":
+      return null;
+    case "get_activity_review":
+      if (review) return activityReviewFixture;
+      return {
+        pending_seconds: 0,
+        pending_summary_count: 0,
+        blocks: [],
+        summaries: [],
+      };
+    case "set_activity_review_context":
       return null;
     case "get_goal_match_suggestion":
       return null;
@@ -286,3 +298,38 @@ export function fixtureReply(
       throw new Error(`Unmocked visual IPC: ${command}`);
   }
 }
+
+const reviewBlock = {
+  key: "proposal:organize a community event",
+  period_id: 7,
+  day: date,
+  started_at: "2026-10-20T09:00:00Z",
+  ended_at: "2026-10-20T09:20:00Z",
+  seconds: 720,
+  apps: "Telegram, Browser",
+  title: "Event planning",
+  description: "Discussing the community event and researching possible venues",
+  proposed_title: "Organize a community event",
+  reason: "Related work outside the listed goals",
+  status: "pending",
+  goal_id: null,
+  goal_title: null,
+  evidence_ids: [],
+  finalized: false,
+};
+const activityReviewFixture: ActivityReviewData = {
+  pending_seconds: 720,
+  pending_summary_count: 1,
+  blocks: [reviewBlock],
+  summaries: [
+    {
+      period_id: 6,
+      day: "2026-10-19",
+      saved_at: "2026-10-19T18:02:00Z",
+      results: ["Release notes reviewed (confirmed)"],
+      blocks: [
+        { ...reviewBlock, period_id: 6, day: "2026-10-19", finalized: true },
+      ],
+    },
+  ],
+};

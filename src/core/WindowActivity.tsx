@@ -7,6 +7,7 @@ import { Pager, usePage } from "./Pager";
 interface WindowSession {
   id: number;
   goal_id: number | null;
+  goal_title?: string | null;
   app: string;
   title: string;
   domain: string | null;
@@ -88,7 +89,7 @@ export function WindowActivity({
                   <small>
                     {row.goal_id == null
                       ? "No goal assigned"
-                      : "Goal context recorded"}
+                      : `Selected goal at the time: ${row.goal_title ?? "Goal unavailable"}`}
                   </small>
                 </div>
                 <span>{duration(row.active_seconds)}</span>

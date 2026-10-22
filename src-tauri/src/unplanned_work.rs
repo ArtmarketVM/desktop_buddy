@@ -142,15 +142,15 @@ pub(crate) fn observe(
             .is_none_or(|at| now.saturating_duration_since(at) > Duration::from_secs(15));
     if changed {
         inner.unplanned_work.stable_since = Some(now);
-        inner.unplanned_work.session_key = Some(format!(
-            "{}-{}",
-            context_key(a),
-            Utc::now().timestamp_nanos_opt().unwrap_or_default()
-        ));
+        // Accumulate visits to the same context across app switches/restarts.
+        inner.unplanned_work.session_key = Some(context_key(a));
         inner.unplanned_work.generation = inner.unplanned_work.generation.wrapping_add(1);
     }
     inner.unplanned_work.sample = Some(a.clone());
     inner.unplanned_work.last_seen = Some(now);
+    if let Some(context) = inner.storage.current_review_context(a)? {
+        inner.unplanned_work.session_key = Some(context);
+    }
     let session = inner
         .unplanned_work
         .session_key
@@ -455,6 +455,41 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
         return Ok(());
     }
     inner.unplanned_work.last_classified = Some(signature);
+    let existing = result
+        .existing_goal_id
+        .filter(|_| result.confidence >= MIN_CONFIDENCE);
+    let assign_existing = existing.filter(|_| {
+        inner
+            .storage
+            .ai_preferences()
+            .is_ok_and(|p| p.automatic_goal_matching)
+    });
+    let description = if let Some(id) = existing {
+        inner
+            .storage
+            .connection
+            .query_row("SELECT text FROM goals WHERE id=?1", [id], |r| {
+                r.get::<_, String>(0)
+            })
+            .map_err(|_| "The detected goal changed")?
+    } else {
+        result
+            .title
+            .clone()
+            .unwrap_or_else(|| "Activity could not be identified confidently".into())
+    };
+    inner.storage.classify_review_context(
+        &sample,
+        assign_existing,
+        result
+            .title
+            .as_deref()
+            .filter(|_| result.confidence >= MIN_CONFIDENCE),
+        &description,
+    )?;
+    if let Some(id) = assign_existing {
+        crate::goal_matching::accept_context_match(&mut inner, &sample, id, result.confidence)?;
+    }
     if let Some(title) = result
         .title
         .filter(|_| result.existing_goal_id.is_none() && result.confidence >= MIN_CONFIDENCE)
