@@ -968,9 +968,7 @@ pub fn open_companion_chat(
         inner.companion.view.notice = None;
         crate::buddy::sync(&app, &mut inner)?;
     }
-    if let Some(window) = app.get_webview_window("buddy") {
-        window.set_focus().map_err(|_| "Could not focus sumi")?;
-    }
+    crate::buddy::windows::focus_chat(&app)?;
     Ok(())
 }
 #[tauri::command(async)]
@@ -1006,7 +1004,7 @@ pub fn open_companion_context(app: AppHandle) -> Result<(), String> {
         .map(|i| i as &dyn tauri::menu::IsMenuItem<tauri::Wry>)
         .collect();
     let menu = Menu::with_items(&app, &refs).map_err(|_| "Could not create sumi menu")?;
-    app.get_webview_window("buddy")
+    app.get_webview_window("mascot")
         .ok_or("sumi unavailable")?
         .popup_menu(&menu)
         .map_err(|_| "Could not open sumi menu".into())
@@ -1425,9 +1423,7 @@ pub fn respond_companion_intervention(
     {
         crate::buddy::open_workspace(app)?;
     } else if action == "accept" && prompt.kind == Kind::Midday {
-        if let Some(window) = app.get_webview_window("buddy") {
-            window.set_focus().map_err(|_| "Could not focus sumi")?;
-        }
+        crate::buddy::windows::focus_chat(&app)?;
     }
     Ok(())
 }

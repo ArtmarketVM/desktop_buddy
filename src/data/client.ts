@@ -85,5 +85,11 @@ export const queryClient = new QueryClient(
       document.removeEventListener("visibilitychange", focus);
     };
   },
-  () => typeof document === "undefined" || !document.hidden,
+  () =>
+    typeof document === "undefined" ||
+    !document.hidden ||
+    // Floating surfaces must receive state before their native window is shown.
+    ["mascot", "panel"].includes(
+      new URLSearchParams(location.search).get("buddy") ?? "",
+    ),
 );

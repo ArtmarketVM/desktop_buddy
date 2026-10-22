@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { emit, listen } from "@tauri-apps/api/event";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { api, desktop, safeUrl } from "../api/tauri";
 import type { AvatarState, BuddyView, Goal, GoalPlan } from "../types";
@@ -11,6 +12,10 @@ import { InterventionCard } from "../companion/InterventionCard";
 import { interventionState } from "../companion/interventionPresentation";
 import { BuddyActionBar } from "../companion/BuddyActionBar";
 import { useBuddyPointer } from "../companion/useBuddyPointer";
+import {
+  useBuddySurface,
+  type BuddySurface,
+} from "../companion/useBuddySurface";
 import { useBuddyActions } from "../companion/useBuddyActions";
 
 export function DesktopBuddy({
@@ -19,12 +24,14 @@ export function DesktopBuddy({
   goal = null,
   plan = null,
   onChanged = async () => {},
+  surface = "combined",
 }: {
   view: BuddyView;
   onDnd: () => void;
   goal?: Goal | null;
   plan?: GoalPlan | null;
   onChanged?: () => Promise<void>;
+  surface?: BuddySurface;
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -52,6 +59,23 @@ export function DesktopBuddy({
     },
     [],
   );
+  useEffect(() => {
+    if (!desktop || surface !== "panel") return;
+    let stopped = false;
+    let off: (() => void) | undefined;
+    void listen<"text" | "voice">("buddy://chat-mode", ({ payload }) => {
+      if (payload === "text" || payload === "voice") setMode(payload);
+    })
+      .then((unlisten) => {
+        if (stopped) unlisten();
+        else off = unlisten;
+      })
+      .catch(() => {});
+    return () => {
+      stopped = true;
+      off?.();
+    };
+  }, [surface]);
   const pointer = useRef<{ x: number; y: number; dragged: boolean } | null>(
     null,
   );
@@ -76,9 +100,10 @@ export function DesktopBuddy({
   const card = !quietMode && (view.suggestion || view.decision);
   const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
   const root = useRef<HTMLElement>(null);
+  useBuddySurface(root, surface, view, chatState, setChatState);
   useBuddyPointer(
     root,
-    appearance.visible ||
+    (surface !== "panel" && appearance.visible) ||
       companion.chat_open ||
       !!companion.intervention ||
       !!card,
@@ -125,101 +150,110 @@ export function DesktopBuddy({
       ref={root}
       style={
         {
+          "--buddy-tail": `${view.panel?.arrow_offset ?? 32}px`,
           "--mascot-offset-x": `${view.mascot_offset?.[0] ?? 0}px`,
           "--mascot-offset-y": `${view.mascot_offset?.[1] ?? 0}px`,
         } as CSSProperties
       }
-      className={`desktop-buddy ${appearance.visible ? "" : "character-hidden"} ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
+      data-surface={surface}
+      data-side={view.panel?.side}
+      className={`desktop-buddy surface-${surface} ${appearance.visible ? "" : "character-hidden"} ${companion.chat_open ? "chatting" : companion.intervention || card ? "expanded" : "compact"}`}
     >
-      {companion.chat_open ? (
-        <div className="desktop-compact-input">
-          <CompanionChat
-            view={companion}
-            goal={goal}
-            plan={plan}
-            onChanged={onChanged}
-            onState={setChatState}
-            compact
-            onMove={(event) => {
-              if (
-                event.button !== 0 ||
-                !desktop ||
-                (event.target as Element).closest(
-                  "button, input, textarea, a, select",
-                )
+      {surface !== "mascot" &&
+        (companion.chat_open ? (
+          <div className="desktop-compact-input">
+            <CompanionChat
+              view={companion}
+              goal={goal}
+              plan={plan}
+              onChanged={onChanged}
+              onState={setChatState}
+              compact
+              onMove={
+                surface === "panel"
+                  ? undefined
+                  : (event) => {
+                      if (
+                        event.button !== 0 ||
+                        !desktop ||
+                        (event.target as Element).closest(
+                          "button, input, textarea, a, select",
+                        )
+                      )
+                        return;
+                      event.preventDefault();
+                      void action(() => getCurrentWindow().startDragging());
+                    }
+              }
+              mode={mode}
+              onMode={setMode}
+              onClose={() => void action(api.closeChat)}
+            />
+          </div>
+        ) : companion.intervention ? (
+          <InterventionCard
+            compactPreview={surface === "panel"}
+            prompt={companion.intervention}
+            busy={busy}
+            respond={(response, deadline) =>
+              void action(
+                () =>
+                  api.companionRespond(
+                    companion.intervention!.id,
+                    response,
+                    deadline,
+                  ),
+                response === "accept" &&
+                  [
+                    "completion",
+                    "goal_completion",
+                    "unplanned_completed",
+                  ].includes(companion.intervention!.kind),
               )
-                return;
-              event.preventDefault();
-              void action(() => getCurrentWindow().startDragging());
-            }}
-            mode={mode}
-            onMode={setMode}
-            onClose={() => void action(api.closeChat)}
+            }
           />
-        </div>
-      ) : companion.intervention ? (
-        <InterventionCard
-          prompt={companion.intervention}
-          busy={busy}
-          respond={(response, deadline) =>
-            void action(
-              () =>
-                api.companionRespond(
-                  companion.intervention!.id,
-                  response,
-                  deadline,
-                ),
-              response === "accept" &&
-                [
-                  "completion",
-                  "goal_completion",
-                  "unplanned_completed",
-                ].includes(companion.intervention!.kind),
-            )
-          }
-        />
-      ) : (
-        card && (
-          <section className="suggestion-card" aria-live="polite">
-            <span className="eyebrow">
-              {view.suggestion
-                ? "A LITTLE HELP FOR YOUR GOAL"
-                : "A LITTLE CHECK-IN"}
-            </span>
-            <h2>{view.suggestion?.title || "Want a little help?"}</h2>
-            <p>{card.reason}</p>
-            {view.suggestion && (
-              <button
-                onClick={() =>
-                  void action(async () => {
-                    const url = safeUrl(view.suggestion!.url);
-                    if (url) await openUrl(url);
-                  })
-                }
-              >
-                Open resource ↗
-              </button>
-            )}
-            <div className="settings-actions">
-              {view.decision?.id && (
+        ) : (
+          card && (
+            <section className="suggestion-card" aria-live="polite">
+              <span className="eyebrow">
+                {view.suggestion
+                  ? "A LITTLE HELP FOR YOUR GOAL"
+                  : "A LITTLE CHECK-IN"}
+              </span>
+              <h2>{view.suggestion?.title || "Want a little help?"}</h2>
+              <p>{card.reason}</p>
+              {view.suggestion && (
                 <button
-                  className="text-button"
                   onClick={() =>
-                    void action(() => api.feedback(view.decision!.id!, true))
+                    void action(async () => {
+                      const url = safeUrl(view.suggestion!.url);
+                      if (url) await openUrl(url);
+                    })
                   }
                 >
-                  This is related
+                  Open resource ↗
                 </button>
               )}
-              <button className="text-button" onClick={onDnd}>
-                Quiet mode
-              </button>
-            </div>
-            <small>Closes after 45 seconds.</small>
-          </section>
-        )
-      )}
-      {appearance.visible && (
+              <div className="settings-actions">
+                {view.decision?.id && (
+                  <button
+                    className="text-button"
+                    onClick={() =>
+                      void action(() => api.feedback(view.decision!.id!, true))
+                    }
+                  >
+                    This is related
+                  </button>
+                )}
+                <button className="text-button" onClick={onDnd}>
+                  Quiet mode
+                </button>
+              </div>
+              <small>Closes after 45 seconds.</small>
+            </section>
+          )
+        ))}
+      {surface !== "panel" && appearance.visible && (
         <>
           <button
             {...actions.events}
@@ -283,11 +317,21 @@ export function DesktopBuddy({
             actions={actions}
             onWrite={() => {
               setMode("text");
-              if (desktop) void action(api.openChat);
+              if (desktop)
+                void action(async () => {
+                  if (surface === "mascot")
+                    await emit("buddy://chat-mode", "text");
+                  await api.openChat();
+                });
             }}
             onTalk={() => {
               setMode("voice");
-              if (desktop) void action(api.openChat);
+              if (desktop)
+                void action(async () => {
+                  if (surface === "mascot")
+                    await emit("buddy://chat-mode", "voice");
+                  await api.openChat();
+                });
             }}
           />
         </>

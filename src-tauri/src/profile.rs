@@ -327,9 +327,13 @@ pub fn apply_theme(app: &tauri::AppHandle, theme: &str) -> Result<(), String> {
     };
     let icon = tauri::image::Image::new_owned(bytes.to_vec(), 64, 64);
     for window in app.webview_windows().values() {
-        window
-            .set_theme(Some(native))
-            .map_err(|_| "Could not update the window theme")?;
+        // Frameless transparent surfaces use CSS theme tokens; native theme changes
+        // can briefly replace their backing surface with an opaque clear colour.
+        if !matches!(window.label(), "buddy" | "mascot") {
+            window
+                .set_theme(Some(native))
+                .map_err(|_| "Could not update the window theme")?;
+        }
         window
             .set_icon(icon.clone())
             .map_err(|_| "Could not update the window icon")?;

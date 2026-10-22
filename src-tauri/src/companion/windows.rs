@@ -268,9 +268,7 @@ pub fn install_selection_shortcut(app: tauri::AppHandle) {
                     inner.companion.view.chat_open = true;
                     let _ = crate::buddy::sync(&handle, &mut inner);
                 }
-                if let Some(window) = handle.get_webview_window("buddy") {
-                    let _ = window.set_focus();
-                }
+                let _ = crate::buddy::windows::focus_chat(&handle);
             });
         }
         let _ = UnregisterHotKey(None, 0x4244);

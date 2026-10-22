@@ -25,6 +25,7 @@ extern "C" {
     fn buddy_foreground(metadata: bool) -> *mut c_char;
     fn buddy_fullscreen() -> bool;
     fn buddy_pin_window(window: *mut c_void);
+    fn buddy_show_without_focus(window: *mut c_void);
     fn buddy_context(window: u64, selected: bool) -> *mut c_char;
     fn buddy_screen_permission(request: bool) -> bool;
     fn buddy_capture_window(window: u64) -> *mut c_char;
@@ -136,6 +137,13 @@ pub fn pin_window(window: &WebviewWindow) {
         unsafe { buddy_pin_window(handle) };
     }
 }
+pub fn show_without_focus(window: &WebviewWindow) -> Result<(), String> {
+    let handle = window
+        .ns_window()
+        .map_err(|_| "Could not read sumi native window")?;
+    unsafe { buddy_show_without_focus(handle) };
+    Ok(())
+}
 pub fn get_accessibility_permission() -> bool {
     unsafe { buddy_accessibility(false) }
 }
@@ -181,9 +189,7 @@ extern "C" fn selected_shortcut(kind: u32) {
             inner.companion.view.chat_open = true;
             let _ = crate::buddy::sync(&app, &mut inner);
         }
-        if let Some(window) = app.get_webview_window("buddy") {
-            let _ = window.set_focus();
-        }
+        let _ = crate::buddy::windows::focus_chat(&app);
     });
 }
 pub fn install_shortcuts(app: &tauri::AppHandle) {

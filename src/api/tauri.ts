@@ -21,6 +21,11 @@ import type {
 } from "../types";
 export const desktop = isTauri();
 export const api = {
+  mascotFrameReady: () => invoke<void>("mascot_frame_ready"),
+  buddyPanelReady: (generation: number) =>
+    invoke<void>("buddy_panel_ready", { generation }),
+  measureBuddyPanel: (height: number) =>
+    invoke<void>("measure_buddy_panel", { height }),
   setAvatarColor: (color: string) =>
     invoke<void>("set_avatar_color", { color }),
   goalMonitoring: (enabled: boolean) =>

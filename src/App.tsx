@@ -96,6 +96,11 @@ export default function App() {
     localStorage.getItem("buddy-theme") === "dark" ? "dark" : "light",
   );
   const popup = new URLSearchParams(location.search).has("buddy");
+  const surfaceParam = new URLSearchParams(location.search).get("buddy");
+  const surface =
+    surfaceParam === "panel" || surfaceParam === "mascot"
+      ? surfaceParam
+      : "combined";
   const { controller, snapshot: update } = useUpdates(!popup);
   const startupBlocked = desktop && !popup && update.startup !== "ready";
   const settings = data.user_settings ?? defaultUserSettings;
@@ -170,8 +175,11 @@ export default function App() {
   if (popup)
     return (
       <main className="popup-shell">
-        {displayedError && <p role="alert">{displayedError}</p>}
+        {displayedError && surface === "combined" && (
+          <p role="alert">{displayedError}</p>
+        )}
         <DesktopBuddy
+          surface={surface}
           view={
             !desktop &&
             new URLSearchParams(location.search).get("preview") === "chat"

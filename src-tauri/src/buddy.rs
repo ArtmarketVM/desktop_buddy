@@ -1,6 +1,10 @@
 use crate::{commands::AppState, models::*};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, LogicalSize, Manager, PhysicalPosition, State};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, State};
+#[cfg(debug_assertions)]
+pub mod layout_check;
+pub mod placement;
+pub mod windows;
 
 #[cfg(test)]
 #[path = "buddy_tests.rs"]
@@ -17,12 +21,14 @@ pub struct Runtime {
     pub fullscreen: bool,
     window_mode: u8,
     positioned: bool,
+    windows: windows::WindowState,
 }
 impl Runtime {
     pub fn new(preferences: BuddyPreferences) -> Self {
         Self {
             view: BuddyView {
                 mascot_offset: [0.0; 2],
+                panel: None,
                 companion: Default::default(),
                 avatar: Default::default(),
                 activity_state: Default::default(),
@@ -44,6 +50,7 @@ impl Runtime {
             fullscreen: false,
             window_mode: 255,
             positioned: false,
+            windows: Default::default(),
         }
     }
     pub fn clear(&mut self) {
@@ -116,50 +123,7 @@ pub fn remember_position(
     app: &AppHandle,
     inner: &mut crate::commands::Inner,
 ) -> Result<(), String> {
-    if inner.buddy.window_mode == 0 || inner.buddy.window_mode == 255 || !inner.buddy.positioned {
-        return Ok(());
-    }
-    if let Some(window) = app.get_webview_window("buddy") {
-        if let (Ok(p), Ok(s)) = (window.outer_position(), window.outer_size()) {
-            let scale = window
-                .scale_factor()
-                .map_err(|_| "Could not read sumi scale")?;
-            let position = window_anchor(
-                p,
-                (s.width, s.height),
-                inner.buddy.view.mascot_offset,
-                scale,
-            );
-            if inner.buddy.position.as_ref() != Some(&position) {
-                inner.storage.write_setting("buddy_position", &position)?;
-                inner.buddy.position = Some(position);
-            }
-        }
-    }
-    Ok(())
-}
-
-fn window_anchor(
-    position: PhysicalPosition<i32>,
-    size: (u32, u32),
-    offset: [f64; 2],
-    scale: f64,
-) -> BuddyPosition {
-    BuddyPosition {
-        x: (position.x as f64 + size.0 as f64 / 2.0 + offset[0] * scale).round() as i32,
-        y: position.y + size.1 as i32 - (offset[1] * scale).round() as i32,
-    }
-}
-fn mascot_offset(
-    anchor: &BuddyPosition,
-    position: PhysicalPosition<i32>,
-    size: (u32, u32),
-    scale: f64,
-) -> [f64; 2] {
-    [
-        (anchor.x as f64 - position.x as f64 - size.0 as f64 / 2.0) / scale,
-        (position.y + size.1 as i32 - anchor.y) as f64 / scale,
-    ]
+    windows::remember(app, inner)
 }
 
 pub fn clamp_position(
@@ -270,93 +234,7 @@ fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<()
             mode = display_mode(&inner.status, &inner.buddy.view, inner.buddy.fullscreen);
         }
     }
-    let window = app
-        .get_webview_window("buddy")
-        .ok_or("sumi window unavailable")?;
-    if mode == inner.buddy.window_mode && window.is_visible().ok() == Some(mode != 0) {
-        inner.buddy.view.desktop_visible = mode != 0;
-        inner.buddy.view.visibility_reason = (mode == 0)
-            .then(|| visibility_reason(&inner.buddy.view, inner.buddy.fullscreen))
-            .flatten();
-        crate::tray::sync(app, inner);
-        return Ok(());
-    }
-    if mode == 0 {
-        window.hide().map_err(|_| "Could not hide sumi")?;
-    } else {
-        window
-            .set_resizable(false)
-            .map_err(|_| "Could not configure sumi resizing")?;
-        window
-            .set_min_size(None::<LogicalSize<f64>>)
-            .map_err(|_| "Could not configure sumi size")?;
-        let (width, height) = match mode {
-            1 => (160.0, 152.0),
-            3 => (440.0, 660.0),
-            _ => (380.0, 440.0),
-        };
-        window
-            .set_size(LogicalSize::new(width, height))
-            .map_err(|_| "Could not resize sumi")?;
-        let saved_monitor = window.available_monitors().ok().and_then(|monitors| {
-            monitors.into_iter().find(|m| {
-                let a = m.work_area();
-                inner.buddy.position.as_ref().is_some_and(|p| {
-                    p.x >= a.position.x
-                        && p.x < a.position.x + a.size.width as i32
-                        && p.y > a.position.y
-                        && p.y <= a.position.y + a.size.height as i32
-                })
-            })
-        });
-        if let Some(monitor) = saved_monitor.or_else(|| window.primary_monitor().ok().flatten()) {
-            let area = monitor.work_area();
-            let size = window.outer_size().map_err(|_| "Could not position sumi")?;
-            let min_x = area.position.x;
-            let min_y = area.position.y;
-            let max_x = (min_x + area.size.width as i32 - size.width as i32).max(min_x);
-            let max_y = (min_y + area.size.height as i32 - size.height as i32).max(min_y);
-            let position = inner
-                .buddy
-                .position
-                .as_ref()
-                .map(|anchor| {
-                    clamp_position(
-                        anchor,
-                        (min_x, min_y),
-                        (area.size.width, area.size.height),
-                        (size.width, size.height),
-                    )
-                })
-                .unwrap_or(PhysicalPosition::new(
-                    max_x.saturating_sub(20).max(min_x),
-                    max_y.saturating_sub(20).max(min_y),
-                ));
-            let scale = window
-                .scale_factor()
-                .map_err(|_| "Could not read sumi scale")?;
-            inner.buddy.view.mascot_offset = inner
-                .buddy
-                .position
-                .as_ref()
-                .map(|anchor| mascot_offset(anchor, position, (size.width, size.height), scale))
-                .unwrap_or([0.0; 2]);
-            window
-                .set_position(position)
-                .map_err(|_| "Could not position sumi")?;
-            inner.buddy.positioned = true;
-        }
-        window.show().map_err(|_| "Could not show sumi")?;
-        #[cfg(target_os = "macos")]
-        crate::macos::pin_window(&window);
-    }
-    inner.buddy.window_mode = mode;
-    inner.buddy.view.desktop_visible = mode != 0;
-    inner.buddy.view.visibility_reason = (mode == 0)
-        .then(|| visibility_reason(&inner.buddy.view, inner.buddy.fullscreen))
-        .flatten();
-    crate::tray::sync(app, inner);
-    Ok(())
+    windows::sync(app, inner, mode)
 }
 
 #[tauri::command(async)]
@@ -416,6 +294,7 @@ pub fn reset_buddy_position(app: AppHandle, state: State<AppState>) -> Result<()
         .map_err(|_| "Application state unavailable")?;
     inner.buddy.position = None;
     inner.buddy.positioned = false;
+    inner.buddy.windows.forget_position();
     inner.buddy.window_mode = 255;
     inner
         .storage
