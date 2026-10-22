@@ -78,7 +78,7 @@ fn hide(window: &WebviewWindow) -> Result<(), String> {
                 .0 as usize;
             window
                 .run_on_main_thread(move || unsafe {
-                    use windows::Win32::{
+                    use ::windows::Win32::{
                         Foundation::HWND,
                         UI::WindowsAndMessaging::{ShowWindow, SW_HIDE},
                     };
@@ -106,7 +106,7 @@ fn show(window: &WebviewWindow) -> Result<(), String> {
                 .0 as usize;
             window
                 .run_on_main_thread(move || unsafe {
-                    use windows::Win32::{
+                    use ::windows::Win32::{
                         Foundation::HWND,
                         UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE},
                     };
@@ -118,6 +118,28 @@ fn show(window: &WebviewWindow) -> Result<(), String> {
         window.show().map_err(|_| "Could not show sumi")?;
     }
     Ok(())
+}
+fn focus(window: &WebviewWindow) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        let handle = window
+            .hwnd()
+            .map_err(|_| "Could not read sumi native window")?
+            .0 as usize;
+        // Native non-activating presentation deliberately bypasses Tao's visible flag.
+        window
+            .run_on_main_thread(move || unsafe {
+                use ::windows::Win32::{
+                    Foundation::HWND, UI::WindowsAndMessaging::SetForegroundWindow,
+                };
+                let _ = SetForegroundWindow(HWND(handle as *mut _));
+            })
+            .map_err(|_| "Could not focus sumi chat")
+    }
+    #[cfg(not(windows))]
+    window
+        .set_focus()
+        .map_err(|_| "Could not focus sumi chat".into())
 }
 /// Only the fixed window can update the user's anchor; panel motion never writes it.
 pub(super) fn remember(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<(), String> {
@@ -337,9 +359,7 @@ pub fn buddy_panel_ready(
     show(&window)?;
     inner.buddy.windows.painted = generation;
     if panel.mode == 3 && inner.buddy.windows.focus {
-        window
-            .set_focus()
-            .map_err(|_| "Could not focus sumi chat")?;
+        focus(&window)?;
         inner.buddy.windows.focus = false;
     }
     Ok(())
@@ -381,10 +401,10 @@ pub fn focus_chat(app: &AppHandle) -> Result<(), String> {
         if let Some(panel) = inner.buddy.windows.panel {
             inner.buddy.windows.focus = true;
             if inner.buddy.windows.painted == panel.generation {
-                app.get_webview_window("buddy")
-                    .ok_or("sumi card unavailable")?
-                    .set_focus()
-                    .map_err(|_| "Could not focus sumi chat")?;
+                focus(
+                    &app.get_webview_window("buddy")
+                        .ok_or("sumi card unavailable")?,
+                )?;
                 inner.buddy.windows.focus = false;
             }
             false
@@ -397,6 +417,19 @@ pub fn focus_chat(app: &AppHandle) -> Result<(), String> {
         super::open_workspace(app.clone())?;
     }
     Ok(())
+}
+
+#[cfg(debug_assertions)]
+pub(super) fn audit_ready(inner: &crate::commands::Inner, mode: u8) -> bool {
+    if mode == 1 {
+        inner.buddy.windows.ready && inner.buddy.windows.panel.is_none()
+    } else {
+        inner
+            .buddy
+            .windows
+            .panel
+            .is_some_and(|p| p.mode == mode && p.generation == inner.buddy.windows.painted)
+    }
 }
 
 #[cfg(test)]
@@ -440,18 +473,5 @@ mod tests {
             assert_eq!(window["visible"], false);
             assert_eq!(window["backgroundColor"], "#00000000");
         }
-    }
-}
-
-#[cfg(debug_assertions)]
-pub(super) fn audit_ready(inner: &crate::commands::Inner, mode: u8) -> bool {
-    if mode == 1 {
-        inner.buddy.windows.ready && inner.buddy.windows.panel.is_none()
-    } else {
-        inner
-            .buddy
-            .windows
-            .panel
-            .is_some_and(|p| p.mode == mode && p.generation == inner.buddy.windows.painted)
     }
 }

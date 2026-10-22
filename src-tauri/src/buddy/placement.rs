@@ -233,7 +233,15 @@ mod tests {
         assert_eq!(first.side, taller.side);
         assert!(taller.rect.height < 640);
         // Reminder text and its actions must fit without an internal scrollbar.
-        assert!(place(Rect { width: 400, ..work }, m, 1.0, false, 640, None).is_none());
+        assert!(place(
+            Rect { width: 400, ..work },
+            Rect { x: 120, ..m },
+            1.0,
+            false,
+            640,
+            None
+        )
+        .is_none());
         assert!(place(
             Rect {
                 width: 200,

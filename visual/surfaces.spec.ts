@@ -20,7 +20,7 @@ test("the fixed mascot canvas and SVG survive chat, notices and closing", async 
 }, info) => {
   await page.setViewportSize({ width: 160, height: 152 });
   await page.goto(
-    `/visual/index.html?buddy=mascot&theme=${info.project.name.endsWith("dark") ? "dark" : "light"}`,
+    `/visual/surfaces.html?buddy=mascot&theme=${info.project.name.endsWith("dark") ? "dark" : "light"}`,
   );
   const avatar = page.locator(".desktop-character .avatar");
   await expect(avatar).toBeVisible();
@@ -68,7 +68,7 @@ test("reminders fit without scrolling and long details move to chat", async ({
 }, info) => {
   await page.setViewportSize({ width: 328, height: 240 });
   await page.goto(
-    `/visual/index.html?buddy=panel&notification&theme=${info.project.name.endsWith("dark") ? "dark" : "light"}`,
+    `/visual/surfaces.html?buddy=panel&notification&theme=${info.project.name.endsWith("dark") ? "dark" : "light"}`,
   );
   const card = page.locator(".companion-prompt");
   await expect(card).toBeVisible();

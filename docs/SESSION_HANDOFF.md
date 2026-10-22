@@ -65,3 +65,11 @@ Read this short file first in a new task. Verify Git and release state before re
 3. Run affected tests during development; run required full gates once at handoff. Use `npm run ci:watch -- RUN_ID` for one bounded monitor process, not repeated log dumps.
 4. Update this file only for material decisions, pending work or changed release state. Link evidence; do not paste tool logs, whole chats or duplicate architecture docs.
 5. Prefer a new short chat for the next independent feature/release, referring to this file. A Markdown file does not erase the current conversation or control Codex's automatic context management.
+
+## Floating-window work in progress (2026-10-22)
+
+- Branch `codex/stable-mascot-popovers` includes upstream daily activity review `187a015` and the restored stationary-mascot changes. The owner clarified that only the conflicting test-bootstrap section should use the second developer's version; the product changes must remain.
+- `visual/boot.ts` now exactly matches `187a015`. Mascot-specific fixture code lives in `visual/surfaces-boot.ts` and `visual/surfaces.html`.
+- After restoration: 15 targeted Rust buddy tests and four browser surface checks passed. Before restoration, integrated suites passed 672 Rust tests (two ignored) and 255 frontend tests. A signed Mac rehearsal passed 30 cycles / 960 native geometry samples; it is not frame-by-frame compositor or physical Windows proof.
+- Release is not ready: validate the final Windows focus adapter, fix upstream test-only Mac FFI lint and the activity-review visual fixture's missing read-only permission response, then run the required integrated CI. Upstream adds a feature, so reconsider the provisional 0.41.1 version before publishing. Nothing from this branch has been pushed or released.
+- Preserve the pre-existing unrelated edit to `src-tauri/src/observation_check.rs`; exclude it from commits.
