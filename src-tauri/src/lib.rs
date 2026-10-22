@@ -270,14 +270,23 @@ pub fn run() {
         let _ =
             dotenvy::from_path(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../.env"));
     }
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+    #[cfg(debug_assertions)]
+    let layout_rehearsal = buddy::layout_check::enabled();
+    #[cfg(not(debug_assertions))]
+    let layout_rehearsal = false;
+    let builder = tauri::Builder::default();
+    let builder = if layout_rehearsal {
+        builder
+    } else {
+        builder.plugin(tauri_plugin_single_instance::init(|app, _, _| {
             let app = app.clone();
             // Opening a workspace takes application state; leave the native event thread free.
             tauri::async_runtime::spawn(async move {
                 let _ = buddy::open_workspace(app);
             });
         }))
+    };
+    builder
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
@@ -299,7 +308,22 @@ pub fn run() {
             };
             let storage =
                 storage::Storage::open(&dir.join(database)).map_err(std::io::Error::other)?;
+            #[cfg(debug_assertions)]
+            let storage = {
+                let mut storage = storage;
+                if buddy::layout_check::enabled() {
+                    buddy::layout_check::seed(&mut storage).map_err(std::io::Error::other)?;
+                }
+                storage
+            };
+            // The production database remains initialized through the same startup path.
             startup::initialize(app, storage)?;
+            #[cfg(target_os = "macos")]
+            for label in ["mascot", "buddy"] {
+                if let Some(window) = app.get_webview_window(label) {
+                    macos::pin_window(&window);
+                }
+            }
             core_capture::install(app.handle())?;
             tray::install(app)?;
             #[cfg(windows)]
@@ -331,6 +355,12 @@ pub fn run() {
                 if let Some(window) = app.get_webview_window("main") {
                     window.hide()?;
                 }
+            }
+            #[cfg(debug_assertions)]
+            if buddy::layout_check::enabled() {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(buddy::layout_check::run(handle));
+                return Ok(());
             }
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
@@ -376,6 +406,31 @@ pub fn run() {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
                     let _ = window.hide();
+                }
+            }
+            if window.label() == "mascot" && matches!(event, tauri::WindowEvent::Moved(_)) {
+                #[cfg(debug_assertions)]
+                if buddy::layout_check::enabled() {
+                    return;
+                }
+                let app = window.app_handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(mut inner) = app.state::<commands::AppState>().inner.lock() {
+                        let _ = buddy::sync(&app, &mut inner);
+                    };
+                });
+            }
+            if window.label() == "mascot" {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let app = window.app_handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        let _ = buddy::show_desktop_buddy(
+                            false,
+                            app.clone(),
+                            app.state::<commands::AppState>(),
+                        );
+                    });
                 }
             }
             if window.label() == "buddy" {
@@ -482,6 +537,9 @@ pub fn run() {
             contact::send_contact_feedback,
             contact::subscribe_contact_email,
             contact::share_role_profile,
+            buddy::windows::mascot_frame_ready,
+            buddy::windows::buddy_panel_ready,
+            buddy::windows::measure_buddy_panel,
             buddy::show_desktop_buddy,
             product_feedback::save_product_feedback,
             tracking::get_tracking_settings,

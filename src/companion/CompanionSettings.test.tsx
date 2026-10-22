@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import userEvent from "@testing-library/user-event";
 import { api } from "../api/tauri";
 import { CompanionSettings } from "./CompanionSettings";
 import { defaultCompanionPreferences, defaultCompanionView } from "./types";
@@ -31,6 +32,7 @@ it("shows 18:00 by default and saves the selected summary time in Nudges", async
   const time = screen.getByLabelText("Daily summary time") as HTMLInputElement;
   expect(time.value).toBe("18:00");
   fireEvent.change(time, { target: { value: "19:30" } });
+  fireEvent.blur(time);
   await waitFor(() =>
     expect(api.companionPreferences).toHaveBeenCalledWith(
       expect.objectContaining({ summary_minute: 1170 }),
@@ -55,6 +57,7 @@ it("saves overnight quiet hours and full quiet weekdays independently", async ()
   fireEvent.change(screen.getByLabelText("Quiet hours start"), {
     target: { value: "23:00" },
   });
+  fireEvent.blur(screen.getByLabelText("Quiet hours start"));
   await waitFor(() =>
     expect(api.companionPreferences).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -141,3 +144,32 @@ it("exposes one fullscreen toggle and saves it independently of quiet settings",
   );
   expect(screen.queryByText(/snooze/i)).toBeNull();
 });
+
+it.each([
+  ["Daily summary time", "summary_minute", "0930", 570],
+  ["Quiet hours start", "quiet_start_minute", "2230", 1350],
+  ["Quiet hours end", "quiet_end_minute", "0715", 435],
+])(
+  "accepts digits without a separator for %s",
+  async (label, field, digits, expected) => {
+    const user = userEvent.setup();
+    render(
+      <CompanionSettings
+        part="nudges"
+        currentPreferences={{
+          ...defaultCompanionPreferences,
+          quiet_hours_enabled: true,
+        }}
+        onChanged={async () => {}}
+      />,
+    );
+    await user.click(screen.getByLabelText(label as string));
+    await user.keyboard(digits as string);
+    await user.tab();
+    await waitFor(() =>
+      expect(api.companionPreferences).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ [field]: expected }),
+      ),
+    );
+  },
+);

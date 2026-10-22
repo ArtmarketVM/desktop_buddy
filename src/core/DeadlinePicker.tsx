@@ -1,5 +1,8 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { TimeInput } from "../components/TimeInput";
+export { parseClockTime as parseTime } from "../components/TimeInput";
+import { CalendarPopover } from "./CalendarPopover";
 import { useDismissiblePopover } from "../components/useDismissiblePopover";
 
 /** Local "YYYY-MM-DDTHH:MM" strings, the same shape the editor already saves. */
@@ -10,25 +13,8 @@ function localValue(date: Date, withTime: boolean): string {
     ? `${day}T${pad(date.getHours())}:${pad(date.getMinutes())}`
     : `${day}T23:59`;
 }
-/** Accepts "13:00", "1pm", "1:30 pm", "9.15"; returns [hours, minutes] or null. */
-export function parseTime(text: string): [number, number] | null {
-  const m = /^\s*(\d{1,2})(?:[:.h](\d{2}))?\s*(am|pm|a|p)?\s*$/i.exec(text);
-  if (!m) return null;
-  let hours = Number(m[1]);
-  const minutes = m[2] ? Number(m[2]) : 0;
-  const suffix = m[3]?.toLowerCase();
-  if (suffix) {
-    if (hours < 1 || hours > 12) return null;
-    hours = (hours % 12) + (suffix.startsWith("p") ? 12 : 0);
-  }
-  if (hours > 23 || minutes > 59) return null;
-  return [hours, minutes];
-}
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 export function formatDeadline(value: string): string {
   const date = new Date(value);
@@ -62,32 +48,19 @@ export function DeadlinePanel({
     const base = valid ?? new Date();
     return { year: base.getFullYear(), month: base.getMonth() };
   });
-  const [timeText, setTimeText] = useState(
-    valid && withTime ? formatTime(valid) : "",
-  );
-  const [timeError, setTimeError] = useState(false);
-  const timeInput = useRef<HTMLInputElement>(null);
   function pickDay(day: Date) {
     const next = new Date(day);
     if (valid && withTime)
       next.setHours(valid.getHours(), valid.getMinutes(), 0, 0);
     onChange(localValue(next, !!valid && withTime));
   }
-  function commitTime() {
-    const text = timeText.trim();
-    const base = valid ?? new Date();
-    if (!text) {
-      setTimeError(false);
-      onChange(localValue(base, false));
-      return;
+  function commitTime(text: string) {
+    const next = new Date(valid ?? new Date());
+    if (text) {
+      const [hours, minutes] = text.split(":").map(Number);
+      next.setHours(hours, minutes, 0, 0);
     }
-    const parsed = parseTime(text);
-    if (!parsed) return setTimeError(true);
-    setTimeError(false);
-    const next = new Date(base);
-    next.setHours(parsed[0], parsed[1], 0, 0);
-    onChange(localValue(next, true));
-    setTimeText(formatTime(next));
+    onChange(localValue(next, !!text));
   }
   const first = new Date(view.year, view.month, 1);
   const offset = (first.getDay() + 6) % 7; // Monday first
@@ -114,7 +87,6 @@ export function DeadlinePanel({
               const now = new Date();
               setView({ year: now.getFullYear(), month: now.getMonth() });
               onChange(localValue(now, true));
-              setTimeText(formatTime(now));
             }}
           >
             Now
@@ -168,29 +140,13 @@ export function DeadlinePanel({
       </div>
       <label className="deadline-time">
         <span>Time</span>
-        <input
-          ref={timeInput}
-          type="text"
-          inputMode="numeric"
-          placeholder="e.g. 13:00 or 1 pm"
+        <TimeInput
           aria-label="Deadline time"
-          aria-invalid={timeError || undefined}
-          value={timeText}
-          onChange={(event) => setTimeText(event.target.value)}
-          onBlur={commitTime}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              commitTime();
-            }
-          }}
+          value={valid && withTime ? formatTime(valid) : ""}
+          onCommit={commitTime}
+          allowEmpty
         />
       </label>
-      {timeError && (
-        <p className="error deadline-error">
-          Use a time like 13:00 or 1:30 pm.
-        </p>
-      )}
       {extra}
       <div className="deadline-actions">
         {valid && (
@@ -199,7 +155,6 @@ export function DeadlinePanel({
             className="text-button"
             onClick={() => {
               onChange("");
-              setTimeText("");
             }}
           >
             Clear
@@ -223,7 +178,7 @@ export function DeadlinePicker({
   onChange: (value: string) => void;
 }) {
   const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
-    useDismissiblePopover();
+    useDismissiblePopover({ dismissOnViewportChange: false });
   const selected = value ? new Date(value) : null;
   const valid = selected && !Number.isNaN(selected.getTime()) ? selected : null;
   return (
@@ -239,19 +194,23 @@ export function DeadlinePicker({
         {valid ? formatDeadline(value) : "No deadline"}
       </button>
       {open && (
-        <div
-          className="period-popover deadline-popover"
+        <CalendarPopover
           id={id}
-          ref={surfaceRef}
-          role="dialog"
-          aria-label="Deadline"
+          label="Deadline"
+          triggerRef={triggerRef}
+          surfaceRef={surfaceRef}
+          onClose={() => setOpen(false)}
+          width={272}
         >
           <DeadlinePanel
             value={value}
             onChange={onChange}
-            onDone={() => setOpen(false)}
+            onDone={() => {
+              setOpen(false);
+              triggerRef.current?.focus({ preventScroll: true });
+            }}
           />
-        </div>
+        </CalendarPopover>
       )}
     </div>
   );

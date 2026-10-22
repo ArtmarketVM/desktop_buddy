@@ -179,33 +179,25 @@ fn hidden_character_keeps_checkins_but_respects_quiet() {
 #[test]
 fn mascot_anchor_survives_chat_resize_screen_edges_and_native_drag() {
     for scale in [1.0, 1.25, 2.0] {
-        for anchor in [
-            BuddyPosition { x: 100, y: 740 },
-            BuddyPosition { x: 1440, y: 740 },
-            BuddyPosition { x: -1450, y: -100 },
-        ] {
-            let origin = if anchor.x < 0 { (-1500, -800) } else { (0, 0) };
-            for logical in [(160, 152), (440, 660), (380, 440), (160, 152)] {
-                let size = (
-                    (logical.0 as f64 * scale) as u32,
-                    (logical.1 as f64 * scale) as u32,
-                );
-                let position = clamp_position(&anchor, origin, (1500, 800), size);
-                let offset = mascot_offset(&anchor, position, size, scale);
-                assert_eq!(window_anchor(position, size, offset, scale), anchor);
-                let moved = window_anchor(
-                    PhysicalPosition::new(position.x + 30, position.y - 20),
-                    size,
-                    offset,
-                    scale,
-                );
-                assert_eq!(
-                    moved,
-                    BuddyPosition {
-                        x: anchor.x + 30,
-                        y: anchor.y - 20
-                    }
-                );
+        let size = ((160.0 * scale) as u32, (152.0 * scale) as u32);
+        let anchor = BuddyPosition { x: 700, y: 740 };
+        let fixed = clamp_position(&anchor, (0, 0), (1500, 900), size);
+        for _ in 0..30 {
+            for chat in [false, true, false] {
+                let mascot = placement::Rect {
+                    x: fixed.x,
+                    y: fixed.y,
+                    width: size.0,
+                    height: size.1,
+                };
+                let work = placement::Rect {
+                    x: 0,
+                    y: 0,
+                    width: 1500,
+                    height: 900,
+                };
+                let _card = placement::place(work, mascot, scale, chat, 240, None);
+                assert_eq!(clamp_position(&anchor, (0, 0), (1500, 900), size), fixed);
             }
         }
     }

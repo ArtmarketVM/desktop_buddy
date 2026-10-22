@@ -154,6 +154,14 @@ void buddy_pin_window(void *handle) {
         window.hidesOnDeactivate = NO;
     });
 }
+// Showing a reminder must preserve the user's current key window and application.
+void buddy_show_without_focus(void *handle) {
+    if (!handle) return;
+    NSWindow *window = (__bridge NSWindow *)handle;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [window orderFrontRegardless];
+    });
+}
 bool buddy_fullscreen(void) {
     @autoreleasepool {
         if (!buddy_accessibility(false)) return false;

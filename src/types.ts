@@ -118,6 +118,12 @@ export const defaultBuddyPreferences: BuddyPreferences = {
   excluded_apps: [],
 };
 export interface BuddyView {
+  panel?: {
+    generation: number;
+    arrow_offset?: number;
+    mode: number;
+    side: "above" | "below" | "left" | "right";
+  } | null;
   mascot_offset?: [number, number];
   companion?: CompanionView;
   avatar?: AvatarPreferences;

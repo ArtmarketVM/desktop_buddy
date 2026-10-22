@@ -22,6 +22,8 @@ afterEach(async () => {
   await vi.advanceTimersByTimeAsync(0);
   vi.useRealTimers();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
+  history.replaceState(null, "", "/");
 });
 it("shares one bridge, routes resource events, and refreshes after missed events on focus", async () => {
   const load = vi.fn().mockResolvedValue(1);
@@ -100,3 +102,26 @@ it("reset events discard cached personal data before the next IPC can complete",
   expect(query.getSnapshot().data).toEqual([]);
   expect(query.getSnapshot().ready).toBe(false);
 });
+
+it.each(["panel", "mascot", "main"])(
+  "delivers preparation state to hidden %s windows without waking the hidden workspace",
+  async (surface) => {
+    vi.spyOn(document, "hidden", "get").mockReturnValue(true);
+    history.replaceState(
+      null,
+      "",
+      surface === "main" ? "/" : `/?buddy=${surface}`,
+    );
+    const load = vi.fn(async () => ({ generation: 1 }));
+    const query = queryClient.query(
+      `hidden-${surface}`,
+      ["dashboard"],
+      null,
+      load,
+    );
+    cleanup = query.subscribe(() => {});
+    queryClient.invalidate(["dashboard"]);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(load).toHaveBeenCalledTimes(surface === "main" ? 0 : 1);
+  },
+);

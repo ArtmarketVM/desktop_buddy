@@ -190,6 +190,9 @@ export function fixtureReply(
       return core;
     case "get_core_drafts":
       return [];
+    // Simulated read-only state; this never requests or grants OS access.
+    case "get_accessibility_permission":
+      return true;
     case "get_local_voice_languages":
       return ["en-GB"];
     case "get_tracking_settings":

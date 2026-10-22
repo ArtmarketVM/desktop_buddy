@@ -10,7 +10,10 @@ pub fn initialize<R: Runtime>(
 
     // Configured windows have create=false: their first IPC must see initialized state.
     for config in &app.config().app.windows {
-        WebviewWindowBuilder::from_config(app.handle(), config)?.build()?;
+        let window = WebviewWindowBuilder::from_config(app.handle(), config)?.build()?;
+        if matches!(window.label(), "buddy" | "mascot") {
+            window.set_background_color(Some(tauri::window::Color(0, 0, 0, 0)))?;
+        }
     }
     Ok(())
 }
@@ -43,6 +46,7 @@ mod tests {
         app.run_iteration(|_, _| {});
         assert!(app.try_state::<UpdateState>().is_some());
         assert!(app.get_webview_window("buddy").is_some());
+        assert!(app.get_webview_window("mascot").is_some());
         let window = app.get_webview_window("main").unwrap();
         let dashboard = get_ipc_response(
             &window,

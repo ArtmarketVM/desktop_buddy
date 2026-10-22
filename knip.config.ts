@@ -6,6 +6,8 @@ const config: KnipConfig = {
   entry: [
     // Loaded by visual/index.html for the Playwright screens.
     "visual/boot.ts",
+    // Loaded by visual/surfaces.html for the isolated floating-window checks.
+    "visual/surfaces-boot.ts",
     // Documented integration boundary (docs/AI_BUDDY_TAVILY_TRACKING.md).
     "src/ai/contracts.ts!",
     "scripts/*.mjs",

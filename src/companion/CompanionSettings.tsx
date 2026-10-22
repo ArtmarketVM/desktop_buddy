@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { TimeInput } from "../components/TimeInput";
 import { api, desktop } from "../api/tauri";
 import {
   defaultCompanionPreferences,
@@ -91,42 +92,33 @@ export function CompanionSettings({
       {toggle("daily_checkins", "Daily planning and end-of-day summary")}
       <label className="setting-row">
         <span>Daily summary time</span>
-        <input
-          type="time"
+        <TimeInput
+          aria-label="Daily summary time"
           value={time(preferences.summary_minute ?? 1080)}
           disabled={!desktop || busy || !preferences.daily_checkins}
-          onChange={(event) => {
-            if (event.target.value)
-              void update({ summary_minute: minutes(event.target.value) });
-          }}
+          onCommit={(value) => void update({ summary_minute: minutes(value) })}
         />
       </label>
       {toggle("quiet_hours_enabled", "Use quiet hours")}
       <div className="setting-row" role="group" aria-label="Quiet hours">
         <span>Quiet hours</span>
         <span className="quiet-hours">
-          <input
-            type="time"
+          <TimeInput
             aria-label="Quiet hours start"
             value={time(preferences.quiet_start_minute)}
             disabled={!desktop || busy || !preferences.quiet_hours_enabled}
-            onChange={(event) => {
-              if (event.target.value)
-                void update({
-                  quiet_start_minute: minutes(event.target.value),
-                });
-            }}
+            onCommit={(value) =>
+              void update({ quiet_start_minute: minutes(value) })
+            }
           />
           <span className="quiet-hours-to">to</span>
-          <input
-            type="time"
+          <TimeInput
             aria-label="Quiet hours end"
             value={time(preferences.quiet_end_minute)}
             disabled={!desktop || busy || !preferences.quiet_hours_enabled}
-            onChange={(event) => {
-              if (event.target.value)
-                void update({ quiet_end_minute: minutes(event.target.value) });
-            }}
+            onCommit={(value) =>
+              void update({ quiet_end_minute: minutes(value) })
+            }
           />
         </span>
       </div>

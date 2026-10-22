@@ -5,6 +5,7 @@ import type { Intervention, InterventionResponse } from "./types";
 type Props = {
   prompt: Intervention;
   busy: boolean;
+  compactPreview?: boolean;
   respond: (action: InterventionResponse, deadline?: string) => void;
 };
 
@@ -12,7 +13,7 @@ export function InterventionCard(props: Props) {
   return <Choices key={props.prompt.id} {...props} />;
 }
 
-function Choices({ prompt, busy, respond }: Props) {
+function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
   const [rescheduling, setRescheduling] = useState(false);
   const seconds = Number(prompt.id.split(":")[2]);
   const [deadline, setDeadline] = useState(() =>
@@ -71,6 +72,10 @@ function Choices({ prompt, busy, respond }: Props) {
       setError("Choose a future date and time.");
     }
   }
+  const shortened = compactPreview && text.length > 180;
+  const preview = shortened
+    ? `${text.slice(0, 177).replace(/\s+\S*$/, "")}…`
+    : text;
   return (
     <div className="companion-bubble">
       <section
@@ -112,7 +117,7 @@ function Choices({ prompt, busy, respond }: Props) {
           </>
         ) : (
           <>
-            <p>{text}</p>
+            <p>{preview}</p>
             {prompt.kind === "no_goals" && (
               <small>Choose Not now for a reminder in 30 minutes.</small>
             )}
@@ -182,7 +187,7 @@ function Choices({ prompt, busy, respond }: Props) {
                 disabled={busy}
                 onClick={() => respond("chat")}
               >
-                Chat
+                {shortened ? "Details in chat" : "Chat"}
               </button>
             </div>
           </>

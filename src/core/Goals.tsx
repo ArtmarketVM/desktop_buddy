@@ -15,6 +15,7 @@ import { aiApi } from "../ai/api";
 import { StartCoaching } from "../coaching/StartCoaching";
 import { PriorityPicker } from "./Priority";
 import { InlineText } from "./InlineText";
+import { CalendarPopover } from "./CalendarPopover";
 import { DeadlinePanel, DeadlinePicker } from "./DeadlinePicker";
 import { toast } from "../components/Toasts";
 import { GoalOrder } from "./GoalOrder";
@@ -907,7 +908,7 @@ function GoalMeta({
   run: (work: () => Promise<unknown>) => Promise<boolean>;
 }) {
   const { open, setOpen, rootRef, surfaceRef, triggerRef, id } =
-    useDismissiblePopover();
+    useDismissiblePopover({ dismissOnViewportChange: false });
   const [minutes, setMinutes] = useState(
     goal.estimated_minutes ? String(goal.estimated_minutes) : "",
   );
@@ -966,17 +967,20 @@ function GoalMeta({
         {label}
       </button>
       {open && (
-        <div
-          className="period-popover deadline-popover goal-meta-popover"
+        <CalendarPopover
           id={id}
-          ref={surfaceRef}
-          role="dialog"
-          aria-label={`Deadline for ${goal.title}`}
+          label={`Deadline for ${goal.title}`}
+          triggerRef={triggerRef}
+          surfaceRef={surfaceRef}
+          onClose={() => setOpen(false)}
         >
           <DeadlinePanel
             value={localDeadline(goal.due_at)}
             onChange={saveDeadline}
-            onDone={() => setOpen(false)}
+            onDone={() => {
+              setOpen(false);
+              triggerRef.current?.focus({ preventScroll: true });
+            }}
             extra={
               <label className="deadline-time">
                 <span>Takes</span>
@@ -1000,7 +1004,7 @@ function GoalMeta({
               </label>
             }
           />
-        </div>
+        </CalendarPopover>
       )}
     </span>
   );

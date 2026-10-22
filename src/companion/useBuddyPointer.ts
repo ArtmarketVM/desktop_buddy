@@ -147,7 +147,7 @@ export function useBuddyPointer(
   useEffect(() => {
     if (!desktop || !enabled) return;
     const window = getCurrentWindow();
-    if (window.label !== "buddy") return;
+    if (!["buddy", "mascot"].includes(window.label)) return;
     let pressed = false;
     const down = () => {
       pressed = true;

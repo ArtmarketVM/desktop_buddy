@@ -65,3 +65,25 @@ Read this short file first in a new task. Verify Git and release state before re
 3. Run affected tests during development; run required full gates once at handoff. Use `npm run ci:watch -- RUN_ID` for one bounded monitor process, not repeated log dumps.
 4. Update this file only for material decisions, pending work or changed release state. Link evidence; do not paste tool logs, whole chats or duplicate architecture docs.
 5. Prefer a new short chat for the next independent feature/release, referring to this file. A Markdown file does not erase the current conversation or control Codex's automatic context management.
+
+## Floating-window work in progress (2026-10-22)
+
+- Branch `codex/stable-mascot-popovers` includes upstream daily activity review `187a015` and the restored stationary-mascot changes. The owner clarified that only the conflicting test-bootstrap section should use the second developer's version; the product changes must remain.
+- `visual/boot.ts` now exactly matches `187a015`. Mascot-specific fixture code lives in `visual/surfaces-boot.ts` and `visual/surfaces.html`.
+- After restoration: 15 targeted Rust buddy tests passed. Both browser suites now pass together: 12 checks across wide/narrow light/dark projects (5.9 seconds), covering daily activity review and stationary mascot/card surfaces. The missing read-only Accessibility response was added to synthetic fixtures; no OS permissions were requested or changed. Before restoration, integrated suites passed 672 Rust tests (two ignored) and 255 frontend tests. A signed Mac rehearsal passed 30 cycles / 960 native geometry samples; it is not frame-by-frame compositor or physical Windows proof.
+- Release preparation is now 0.42.0, including upstream daily activity review. The owner subsequently authorized pushing all fixes and publishing both installers. PR #49 contains the source integration; final Windows/macOS CI, reviewed visual updates and signed packaging are pending. The Windows focus adapter now returns an owned error; Knip explicitly registers the separate surface fixture.
+- Preserve the pre-existing unrelated edit to `src-tauri/src/observation_check.rs`; exclude it from commits.
+
+- Browser checks run through Playwright (`npm run test:visual`) and the selective CI visual gate, never during normal application startup. The separate native layout rehearsal requires an explicit debug-only flag plus isolated mock/test-data settings; its driver is excluded from release builds.
+
+## Clock and calendar fixes (2026-10-22)
+
+- Shared masked time inputs retain the HH:MM separator across digit entry, selection, deletion, paste and undo. Daily summary, quiet hours and goal deadlines use the same control. Native datetime-local rescheduling retains its built-in separator.
+- Both goal calendars use one viewport-aware portal. Date, time, duration and Done remain reachable at the bottom of a 40-goal list and after resizing to a 420-pixel-high window. Only the date grid scrolls when necessary. Escape cancels an unfinished clock edit.
+- Final local frontend checks: 276 tests passed across 50 files; production build, ESLint and Knip passed with zero findings. Eight Chromium checks passed across wide/narrow light/dark layouts for clocks and calendars. Version metadata is synchronized to 0.42.0. These checks use synthetic data and do not touch installed goals.
+- Preserve existing reviewed baselines until explicit owner review of canonical Windows candidates. The earlier CI failure identified changed Privacy copy from the upstream update; it must be reviewed rather than hidden. Both native platform checks and signed release remain required.
+
+## 0.42.0 release gate (2026-10-22)
+
+- Owner explicitly approved all 34 Windows screenshots and publication in chat. Exact candidates from [run 39756255405](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756255405), source `8fca926`, are now recorded with hashes and approval provenance. The candidate job generated and strictly compared all captures successfully.
+- Both native platform acceptance jobs and debug/release Clippy passed in [run 39756256305](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756256305). Its aggregate gate failed only because the previous reviewed settings images differed; no behavior checks failed. Final strict visual CI on the approved baseline commit and signed publication are pending.

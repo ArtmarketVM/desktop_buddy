@@ -130,3 +130,34 @@ it("keeps quiet mode resting with no chat, notification, or legacy suggestion bu
   expect(html).not.toContain("Should stay hidden");
   expect(html).not.toContain("Here’s what you did today");
 });
+
+it("keeps the mascot mounted on its own surface across chat and notification state", () => {
+  for (const chat_open of [false, true, false]) {
+    const html = renderToStaticMarkup(
+      <DesktopBuddy
+        surface="mascot"
+        view={{ ...view, companion: { ...defaultCompanionView, chat_open } }}
+        onDnd={noop}
+      />,
+    );
+    expect(html).toContain('data-surface="mascot"');
+    expect(html).toContain("desktop-character");
+    expect(html).not.toContain("conversation-composer");
+    expect(html).not.toContain('aria-label="sumi mini chat"');
+  }
+});
+it("renders chat controls without any character or toolbar inside the separate panel", () => {
+  const html = renderToStaticMarkup(
+    <DesktopBuddy
+      surface="panel"
+      view={{
+        ...view,
+        companion: { ...defaultCompanionView, chat_open: true },
+      }}
+      onDnd={noop}
+    />,
+  );
+  expect(html).toContain("conversation-composer");
+  expect(html).not.toContain('class="desktop-character"');
+  expect(html).not.toContain('class="buddy-action-bar"');
+});
