@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "applicationBase": "aeb1dd4cad5ce9d6a2171756ad61f983a3e80dff",
-  "captureCommit": "44aeb854edb14dee2bae54c5de16d361921b22f7",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39682447958",
-  "approvedOn": "2026-10-21",
-  "approvedBy": "Repository owner, explicit chat confirmation after annotated review of all 34 candidates",
-  "approval": "all good - publish",
+  "applicationBase": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
+  "captureCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756255405",
+  "approvedOn": "2026-10-22",
+  "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
+  "approval": "Approved all 34 screenshots and requested publication.",
   "knownExistingIssues": [
     "The previous narrow Privacy working-hours overflow is superseded by the intentional removal of those controls, included in this approval. Native WebView rendering and physical-device interactions are not established by browser screenshots."
   ],
   "environment": {
-    "commit": "44aeb854edb14dee2bae54c5de16d361921b22f7",
+    "commit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
     "runner": "Windows",
     "image": "20261012.333.1",
     "node": "v24.21.0",
@@ -38,17 +38,17 @@
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "63a3369e2fe57dedcb9d2af215e8d9cc1c0b9a3a792fabc14ab87fa8fa10df2d",
+      "sha256": "cc1d84372a490e05214b9053edc2e187794ad4bc9f65a5aaf4b1efad4f0a58de",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-general.png": {
-      "sha256": "30f56867b06001c687c2f1e9f61b1536830a553c4a4c948a99549438f586cbf1",
+      "sha256": "44177b9cd5cd8deec35e1c740fa46432574dbdd9a50a0e6263362a5ea181f846",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-privacy.png": {
-      "sha256": "21f038a35c58ac2c2286849e19d5f7e37becb44d86241cc83522c469a2917288",
+      "sha256": "8fe5033e284e6318f3515ec694d5475240910aee9722fa045c83d9fb5dafc09d",
       "width": 720,
       "height": 873
     },
@@ -78,7 +78,7 @@
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "814aa76740497daf9a8a7f05394d0b170171bfbd28964e7bc1be95f13c56d51b",
+      "sha256": "5e591ded9a441e6d04c63e19bed696af34892f1833b15012aff3cdea0012d059",
       "width": 720,
       "height": 873
     },
@@ -88,7 +88,7 @@
       "height": 873
     },
     "narrow-light/settings-privacy.png": {
-      "sha256": "5685a23a09334a93d14b82924e4384d27461b16d5558c28c4402181b0256f8e2",
+      "sha256": "92e13bd4a1b0eb985018667eed4295d777db514566ea47e1ec69fe8a9bc88f37",
       "width": 720,
       "height": 873
     },
@@ -128,12 +128,12 @@
       "height": 873
     },
     "wide-dark/settings-general.png": {
-      "sha256": "7b23b689512923970179acf08075d5807f83b0a84b8be58097330b85a00b1ade",
+      "sha256": "a648e0c1544668710baf1754337484fa0622c841d97d311692265953a87c9b07",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-privacy.png": {
-      "sha256": "31848cb8e1105ac136ef4c1a9d0265c3ff530ea402f4fa588d5650300ca9ed60",
+      "sha256": "01514e116b65fdd9341e6679200e0a559467cdb9bbba03e5c2e6173aef625a03",
       "width": 1280,
       "height": 873
     },
@@ -163,7 +163,7 @@
       "height": 873
     },
     "wide-light/progress.png": {
-      "sha256": "5e07728c688f7bcc0c5bbd84f8602e9f430880c610c08fc975113efdc417f6a6",
+      "sha256": "358e167d23042ffe788c6b8b5bca1b927a0fc82a2721b37f34183dd0c317d90a",
       "width": 1280,
       "height": 873
     },
@@ -173,12 +173,12 @@
       "height": 873
     },
     "wide-light/settings-general.png": {
-      "sha256": "4c0ca1c5744f4f2d81bf4d6911b947edd16c38fff3bff16e99471d114313a9a1",
+      "sha256": "c764f265ebbc7159a311ecb37af09add842556d07e7e95faf58faed77c19d90e",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-privacy.png": {
-      "sha256": "8905365c326700b4bb0630045d7f0c854c721689eb71d20184edd9d8039de5db",
+      "sha256": "56df1261258e9d9d3a47d2f9549b888cc3f73a7da2e0c1a963e45b36e3c6349a",
       "width": 1280,
       "height": 873
     },
@@ -231,6 +231,19 @@
       }
     }
   ],
-  "previousReviewCommit": "7387877",
-  "changeReason": "Approved General quiet-hours, summary-time and stretch controls; removed working-hours settings in Privacy. Nineteen captures are byte-identical; seven additional captures differ only in edge rasterization pixels."
+  "previousReviewCommit": "8fca926",
+  "changeReason": "Permanent HH:MM fields in General and the integrated encrypted daily-review evidence explanation in Privacy. Other differences are edge rasterization only.",
+  "history": [
+    {
+      "date": "2026-10-22",
+      "reason": "Owner approved all 34 canonical Windows candidates for 0.42.0 after reviewing the gallery and explanation.",
+      "previousReview": {
+        "captureCommit": "44aeb854edb14dee2bae54c5de16d361921b22f7",
+        "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39682447958",
+        "approvedOn": "2026-10-21",
+        "approvedBy": "Repository owner, explicit chat confirmation after annotated review of all 34 candidates",
+        "approval": "all good - publish"
+      }
+    }
+  ]
 }

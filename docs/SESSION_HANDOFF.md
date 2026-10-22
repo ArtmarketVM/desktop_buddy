@@ -82,3 +82,8 @@ Read this short file first in a new task. Verify Git and release state before re
 - Both goal calendars use one viewport-aware portal. Date, time, duration and Done remain reachable at the bottom of a 40-goal list and after resizing to a 420-pixel-high window. Only the date grid scrolls when necessary. Escape cancels an unfinished clock edit.
 - Final local frontend checks: 276 tests passed across 50 files; production build, ESLint and Knip passed with zero findings. Eight Chromium checks passed across wide/narrow light/dark layouts for clocks and calendars. Version metadata is synchronized to 0.42.0. These checks use synthetic data and do not touch installed goals.
 - Preserve existing reviewed baselines until explicit owner review of canonical Windows candidates. The earlier CI failure identified changed Privacy copy from the upstream update; it must be reviewed rather than hidden. Both native platform checks and signed release remain required.
+
+## 0.42.0 release gate (2026-10-22)
+
+- Owner explicitly approved all 34 Windows screenshots and publication in chat. Exact candidates from [run 39756255405](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756255405), source `8fca926`, are now recorded with hashes and approval provenance. The candidate job generated and strictly compared all captures successfully.
+- Both native platform acceptance jobs and debug/release Clippy passed in [run 39756256305](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756256305). Its aggregate gate failed only because the previous reviewed settings images differed; no behavior checks failed. Final strict visual CI on the approved baseline commit and signed publication are pending.
