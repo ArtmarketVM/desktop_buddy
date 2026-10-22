@@ -1657,7 +1657,7 @@ details.today-summary > .today-summary-head {
   font-size: var(--text-body);
 }
 
-/* Deadline picker: calendar plus a free-typed time, like a Notion date. */
+/* Deadline picker: calendar plus a clock with a fixed separator. */
 .deadline-picker {
   position: relative;
 }
@@ -1776,8 +1776,8 @@ details.today-summary > .today-summary-head {
   display: inline-block;
 }
 .goal-meta-popover {
-  left: 0;
-  right: auto;
+  left: auto;
+  right: 0;
   width: 284px;
   z-index: 40;
 }
@@ -2637,4 +2637,59 @@ p.error .text-button {
   .review-editor {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Clock fields keep a fixed separator while only their digits are editable. */
+.clock-input {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+  max-width: 100%;
+}
+.clock-input > .clock-input-field {
+  width: 8ch;
+  min-width: 8ch;
+  font-variant-numeric: tabular-nums;
+}
+.deadline-time > .clock-input {
+  flex: 1;
+}
+.deadline-time .clock-input-field {
+  width: 100%;
+}
+.clock-input-error {
+  margin-top: 4px;
+  max-width: 24ch;
+  font-size: var(--text-caption);
+}
+
+/* Calendar overlays stay within the viewport; actions never scroll out of reach. */
+.viewport-calendar {
+  position: fixed;
+  right: auto;
+  z-index: 250;
+  display: flex;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.viewport-calendar .deadline-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 0;
+}
+.viewport-calendar .period-grid {
+  min-height: 0;
+  overflow: auto;
+  flex-shrink: 1;
+}
+.viewport-calendar .period-head,
+.viewport-calendar .deadline-time,
+.viewport-calendar .deadline-actions,
+.viewport-calendar .deadline-error {
+  flex-shrink: 0;
+}
+.viewport-calendar .deadline-time input[type="number"] {
+  width: 110px;
+  flex: none;
 }

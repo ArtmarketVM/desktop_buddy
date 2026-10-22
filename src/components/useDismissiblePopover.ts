@@ -5,7 +5,8 @@ const openedEvent = "buddy:popover-opened";
 /** One transient popover at a time, including portalled surfaces. */
 export function useDismissiblePopover({
   restoreFocusOnEscape = true,
-}: { restoreFocusOnEscape?: boolean } = {}) {
+  dismissOnViewportChange = true,
+}: { restoreFocusOnEscape?: boolean; dismissOnViewportChange?: boolean } = {}) {
   const id = useId();
   const [open, updateOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -45,8 +46,10 @@ export function useDismissiblePopover({
     document.addEventListener("keydown", escape);
     window.addEventListener(openedEvent, another);
     window.addEventListener("blur", blur);
-    window.addEventListener("resize", blur);
-    window.addEventListener("scroll", blur);
+    if (dismissOnViewportChange) {
+      window.addEventListener("resize", blur);
+      window.addEventListener("scroll", blur);
+    }
     return () => {
       document.removeEventListener("pointerdown", outside, true);
       document.removeEventListener("click", outside, true);
@@ -57,6 +60,6 @@ export function useDismissiblePopover({
       window.removeEventListener("resize", blur);
       window.removeEventListener("scroll", blur);
     };
-  }, [open, id, restoreFocusOnEscape]);
+  }, [open, id, restoreFocusOnEscape, dismissOnViewportChange]);
   return { id, open, setOpen, rootRef, surfaceRef, triggerRef };
 }

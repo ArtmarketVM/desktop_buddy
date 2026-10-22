@@ -1,5 +1,6 @@
 import { mockIPC, mockWindows } from "@tauri-apps/api/mocks";
 import { fixtureReply } from "./fixtures";
+import type { CoreSnapshot } from "../src/core/types";
 import type { Dashboard } from "../src/types";
 
 const query = new URLSearchParams(location.search);
@@ -19,7 +20,9 @@ let chatOpen = true;
 mockWindows(surface === "mascot" ? "mascot" : buddy ? "buddy" : "main");
 const calls: string[] = [];
 const unexpected: string[] = [];
-const state = { calls, unexpected, ready: false };
+const mutations: Array<{ command: string; args: unknown }> = [];
+let calendarData: CoreSnapshot | null = null;
+const state = { calls, unexpected, mutations, ready: false };
 Object.assign(window, { __visual: state });
 mockIPC(
   (command, args) => {
@@ -38,6 +41,54 @@ mockIPC(
         ].includes(command)
       )
         return null;
+      if (query.has("many-goals")) {
+        if (command === "get_core_snapshot") {
+          if (!calendarData) {
+            const data = structuredClone(
+              fixtureReply(command, theme, buddy),
+            ) as CoreSnapshot;
+            data.goals = Array.from({ length: 40 }, (_, i) => ({
+              ...structuredClone(data.goals[0]),
+              id: 100 + i,
+              title: `Calendar goal ${i + 1}`,
+              due_at: null,
+              plan: {
+                ...structuredClone(data.goals[0].plan),
+                goal_id: 100 + i,
+                steps: [],
+                current_step: null,
+              },
+            }));
+            data.today = data.goals.map((goal) => goal.id);
+            data.date_goals = [...data.today];
+            data.focused_goal_id = 100;
+            calendarData = data;
+          }
+          return structuredClone(calendarData);
+        }
+        if (
+          command === "save_core_goal" ||
+          command === "set_core_goal_estimate"
+        ) {
+          if (!calendarData)
+            throw new Error("Calendar fixture not initialized");
+          const input = args as {
+            plan?: { goal_id: number };
+            details?: { due_at: string | null };
+            id?: number;
+            minutes?: number | null;
+          };
+          const goal = calendarData.goals.find(
+            (goal) => goal.id === (input.plan?.goal_id ?? input.id),
+          );
+          if (!goal) throw new Error("Unknown synthetic calendar goal");
+          if (command === "save_core_goal")
+            goal.due_at = input.details?.due_at ?? null;
+          else goal.estimated_minutes = input.minutes ?? null;
+          mutations.push({ command, args: structuredClone(args) });
+          return structuredClone(calendarData);
+        }
+      }
       const reply = structuredClone(
         fixtureReply(command, theme, buddy, query.has("review")),
       );
