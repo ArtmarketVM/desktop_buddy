@@ -134,7 +134,7 @@ fn focus(window: &WebviewWindow) -> Result<(), String> {
                 };
                 let _ = SetForegroundWindow(HWND(handle as *mut _));
             })
-            .map_err(|_| "Could not focus sumi chat")
+            .map_err(|_| "Could not focus sumi chat".to_owned())
     }
     #[cfg(not(windows))]
     window
