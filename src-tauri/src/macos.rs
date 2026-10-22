@@ -29,6 +29,7 @@ extern "C" {
     fn buddy_context(window: u64, selected: bool) -> *mut c_char;
     fn buddy_screen_permission(request: bool) -> bool;
     fn buddy_capture_window(window: u64) -> *mut c_char;
+    #[cfg(not(test))]
     fn buddy_review_key(secret: *const c_char) -> *mut c_char;
     fn buddy_apps() -> *mut c_char;
     fn buddy_keychain(account: *const c_char, secret: *const c_char, operation: i32)
@@ -57,6 +58,7 @@ fn string(value: &str) -> Result<CString, String> {
 }
 /// Independent local evidence key. Provider credentials continue to use the
 /// immutable signed helper and its unchanged allowlist.
+#[cfg(not(test))]
 pub(crate) fn review_key(secret: Option<&str>) -> Result<Option<String>, String> {
     let secret = secret.map(string).transpose()?;
     decode(unsafe { buddy_review_key(secret.as_ref().map_or(std::ptr::null(), |s| s.as_ptr())) })
