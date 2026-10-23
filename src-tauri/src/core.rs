@@ -273,6 +273,12 @@ impl Storage {
             CREATE TABLE IF NOT EXISTS core_day_items(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,PRIMARY KEY(day,goal_id));
             CREATE TABLE IF NOT EXISTS core_events(id INTEGER PRIMARY KEY,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,step_id TEXT NOT NULL,title TEXT NOT NULL,kind TEXT NOT NULL,day TEXT NOT NULL,created_at TEXT NOT NULL);
             CREATE INDEX IF NOT EXISTS core_events_day ON core_events(day);
+            CREATE TRIGGER IF NOT EXISTS mascot_completion_signal AFTER INSERT ON core_events
+            WHEN NEW.kind='completed' AND COALESCE((SELECT kind FROM core_events WHERE goal_id=NEW.goal_id AND step_id=NEW.step_id AND id<>NEW.id ORDER BY id DESC LIMIT 1),'')<>'completed'
+            BEGIN
+                INSERT INTO preferences(name,value) VALUES('mascot_completion_revision','1')
+                ON CONFLICT(name) DO UPDATE SET value=CAST(CAST(value AS INTEGER)+1 AS TEXT);
+            END;
             CREATE TABLE IF NOT EXISTS core_time(day TEXT NOT NULL,goal_id INTEGER NOT NULL REFERENCES goals(id) ON DELETE CASCADE,seconds INTEGER NOT NULL,PRIMARY KEY(day,goal_id));
             CREATE TABLE IF NOT EXISTS core_import_batches(batch_id TEXT PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS deleted_goal_backups(id INTEGER PRIMARY KEY AUTOINCREMENT,title TEXT NOT NULL,deleted_at INTEGER NOT NULL,payload TEXT NOT NULL);
@@ -1496,6 +1502,26 @@ pub fn tick_core_timer(state: State<AppState>) -> Result<CoreSnapshot, String> {
     inner.storage.core_tick_at(Utc::now())?;
     inner.storage.core_snapshot(None)
 }
+/// The visible stretch switch updates both historical preference records atomically.
+fn persist_preferences(
+    storage: &mut Storage,
+    preferences: &CorePreferences,
+) -> Result<crate::companion::engine::Preferences, String> {
+    let mut companion: crate::companion::engine::Preferences = storage
+        .read_setting("companion_preferences")?
+        .unwrap_or_default();
+    companion.movement_reminder = preferences.movement_reminders;
+    let tx = storage.connection.savepoint().map_err(db)?;
+    for (name, value) in [
+        ("core_preferences", serde_json::to_string(preferences)),
+        ("companion_preferences", serde_json::to_string(&companion)),
+    ] {
+        tx.execute("INSERT INTO preferences(name,value) VALUES(?1,?2) ON CONFLICT(name) DO UPDATE SET value=excluded.value", params![name, value.map_err(|_| "Could not serialize settings")?]).map_err(db)?;
+    }
+    tx.commit().map_err(db)?;
+    Ok(companion)
+}
+
 #[tauri::command(async)]
 pub fn set_core_preferences(
     state: State<AppState>,
@@ -1512,13 +1538,21 @@ pub fn set_core_preferences(
         return Err("Invalid workspace settings".into());
     }
     preferences.vision_model = preferences.vision_model.trim().into();
-    state
+    let mut inner = state
         .inner
         .lock()
-        .map_err(|_| "Application state unavailable")?
-        .storage
-        .write_setting("core_preferences", &preferences)?;
-    crate::frontend_events::changed(&app, &[crate::frontend_events::Resource::Workspace], false);
+        .map_err(|_| "Application state unavailable")?;
+    let companion = persist_preferences(&mut inner.storage, &preferences)?;
+    inner.companion.view.preferences = companion;
+    crate::frontend_events::changed(
+        &app,
+        &[
+            crate::frontend_events::Resource::Workspace,
+            crate::frontend_events::Resource::Dashboard,
+        ],
+        false,
+    );
+    crate::buddy::sync(&app, &mut inner)?;
     Ok(())
 }
 

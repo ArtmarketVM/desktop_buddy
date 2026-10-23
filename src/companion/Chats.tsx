@@ -1,3 +1,4 @@
+import { useChatPose } from "./useChatPose";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "../data/useQuery";
 import { conversationsQuery } from "../data/resources";
@@ -17,6 +18,7 @@ export function Chats({
   dashboard: Dashboard;
   onChanged: () => Promise<void>;
 }) {
+  const [, setPose] = useChatPose("workspace");
   const conversationState = useQuery(conversationsQuery, desktop);
   const conversations = conversationState.data;
   const [busy, setBusy] = useState(false);
@@ -263,7 +265,7 @@ export function Chats({
           plan={dashboard.goal_plan}
           embedded
           headerless
-          onState={() => {}}
+          onState={setPose}
           onChanged={onChanged}
         />
       </div>

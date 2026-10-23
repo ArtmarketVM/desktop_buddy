@@ -5,6 +5,7 @@ import { TrackingStatus } from "./TrackingStatus";
 import { isMac } from "../api/platform";
 import { invoke } from "../data/ipc";
 import { useEffect, useState } from "react";
+import { useAutosave } from "../components/useAutosave";
 import { api, desktop } from "../api/tauri";
 import { defaultUserSettings, type Dashboard } from "../types";
 import { ProviderRow } from "./ProviderRow";
@@ -90,9 +91,27 @@ export function CoreSettings({
   active?: boolean;
 }) {
   const settings = data.user_settings ?? defaultUserSettings;
-  const [profile, setProfile] = useState(settings.profile);
-  const [autostart, setAutostart] = useState(settings.autostart);
-  const [preferences, setPreferences] = useState(emptyCore().preferences);
+  const [appearance, setAppearance] = useState(settings.profile.avatar);
+  const identity = useAutosave(
+    {
+      name: settings.profile.name,
+      email: settings.profile.email,
+      autostart: settings.autostart,
+    },
+    (next) => coreApi.identity(next.name, next.autostart, null, next.email),
+    onChanged,
+    (next) =>
+      !next.name.trim()
+        ? "Enter your preferred name to save this change."
+        : null,
+  );
+  const profile = {
+    ...settings.profile,
+    name: identity.value.name,
+    email: identity.value.email,
+    avatar: appearance,
+  };
+  const autostart = identity.value.autostart;
   const [goals, setGoals] = useState(emptyCore().goals);
   const [logGoal, setLogGoal] = useState<number | null>(null);
   const [forgetGoal, setForgetGoal] = useState<number | null>(null);
@@ -106,8 +125,7 @@ export function CoreSettings({
   const [colorBusy, setColorBusy] = useState(false);
   const [ready, setReady] = useState(!desktop);
   const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [dirty, setDirty] = useState(false);
+
   const [trackingConsentPending, setTrackingConsentPending] = useState(false);
   const [retention, setRetention] = useState(data.retention_days);
   const [preview, setPreview] = useState("");
@@ -171,26 +189,29 @@ export function CoreSettings({
     if (sectionRequest) setSection(sectionRequest.section);
   }, [sectionRequest]);
   const workspace = useQuery(workspaceQuery(null, "week"), desktop && active);
+  const preferenceSave = useAutosave(
+    workspace.data.preferences,
+    (next) => coreApi.preferences(next),
+    async () => {
+      await workspaceQuery(null, "week").refresh();
+      await onChanged();
+    },
+  );
+  const preferences = preferenceSave.value;
+  const dirty = identity.pending || preferenceSave.pending;
   useEffect(() => {
     if (!workspace.ready) return;
     setGoals(workspace.data.goals);
-    if (!dirty && !busy) {
-      setPreferences(workspace.data.preferences);
-    }
     setReady(true);
-  }, [workspace.data, workspace.ready, dirty, busy]);
+  }, [workspace.data.goals, workspace.ready]);
   useEffect(() => {
     onDirty(dirty);
     return () => onDirty(false);
   }, [dirty, onDirty]);
-  const change = () => {
-    setDirty(true);
-    setSaved(false);
-  };
   const blocked = busy || colorBusy || !desktop || !ready;
   async function selectColor(next: typeof profile) {
     const previous = profile.avatar.color;
-    setProfile(next);
+    setAppearance(next.avatar);
     setColorBusy(true);
     setError("");
     let committed = false;
@@ -200,10 +221,7 @@ export function CoreSettings({
       await onChanged();
     } catch (e) {
       if (!committed)
-        setProfile((current) => ({
-          ...current,
-          avatar: { ...current.avatar, color: previous },
-        }));
+        setAppearance((current) => ({ ...current, color: previous }));
       setError(queryClient.recordError("settings action", e));
     } finally {
       setColorBusy(false);
@@ -221,24 +239,6 @@ export function CoreSettings({
       return false;
     } finally {
       setBusy(false);
-    }
-  }
-  async function save() {
-    if (
-      await run(async () => {
-        await coreApi.identity(
-          profile.name,
-          autostart,
-          profile.avatar,
-          profile.email,
-        );
-        await coreApi.preferences(preferences);
-        // Keep the draft authoritative until the shared reads reflect the save.
-        await workspaceQuery(null, "week").refresh();
-      })
-    ) {
-      setDirty(false);
-      setSaved(true);
     }
   }
   return (
@@ -266,9 +266,12 @@ export function CoreSettings({
                 required
                 maxLength={120}
                 value={profile.name}
+                onBlur={() => void identity.flush()}
                 onChange={(e) => {
-                  setProfile({ ...profile, name: e.target.value });
-                  change();
+                  identity.update(
+                    { ...identity.value, name: e.target.value },
+                    350,
+                  );
                 }}
               />
             </label>
@@ -278,9 +281,12 @@ export function CoreSettings({
                 type="email"
                 maxLength={254}
                 value={profile.email}
+                onBlur={() => void identity.flush()}
                 onChange={(e) => {
-                  setProfile({ ...profile, email: e.target.value });
-                  change();
+                  identity.update(
+                    { ...identity.value, email: e.target.value },
+                    350,
+                  );
                 }}
               />
             </label>
@@ -309,10 +315,7 @@ export function CoreSettings({
                     const visible = e.target.checked;
                     void run(() => api.showBuddy(visible)).then((ok) => {
                       if (ok)
-                        setProfile((previous) => ({
-                          ...previous,
-                          avatar: { ...previous.avatar, visible },
-                        }));
+                        setAppearance((previous) => ({ ...previous, visible }));
                     });
                   }}
                 />
@@ -329,8 +332,10 @@ export function CoreSettings({
                   checked={autostart}
                   disabled={blocked}
                   onChange={(e) => {
-                    setAutostart(e.target.checked);
-                    change();
+                    identity.update({
+                      ...identity.value,
+                      autostart: e.target.checked,
+                    });
                   }}
                 />
               </label>
@@ -347,19 +352,10 @@ export function CoreSettings({
                   disabled={blocked}
                   onChange={(e) => {
                     const enabled = e.target.checked;
-                    setPreferences({
+                    preferenceSave.update({
                       ...preferences,
                       movement_reminders: enabled,
                     });
-                    change();
-                    const companion = data.buddy.companion?.preferences;
-                    if (companion)
-                      void run(() =>
-                        api.companionPreferences({
-                          ...companion,
-                          movement_reminder: enabled,
-                        }),
-                      );
                   }}
                 />
               </label>
@@ -374,8 +370,7 @@ export function CoreSettings({
                       ...preferences,
                       movement_interval_minutes: Number(event.target.value),
                     };
-                    setPreferences(next);
-                    void run(() => coreApi.preferences(next));
+                    preferenceSave.update(next);
                   }}
                 >
                   {[15, 30, 45, 60, 90, 120].map((minutes) => (
@@ -638,14 +633,14 @@ export function CoreSettings({
                 <input
                   maxLength={160}
                   value={preferences.vision_model}
+                  onBlur={() => void preferenceSave.flush()}
                   placeholder="Model ID"
                   disabled={blocked}
                   onChange={(e) => {
-                    setPreferences({
-                      ...preferences,
-                      vision_model: e.target.value,
-                    });
-                    change();
+                    preferenceSave.update(
+                      { ...preferences, vision_model: e.target.value },
+                      350,
+                    );
                   }}
                 />
               </label>
@@ -753,17 +748,35 @@ export function CoreSettings({
         </details>
         <div
           className="settings-actions settings-save"
-          hidden={section === "Privacy"}
+          role="status"
+          aria-live="polite"
         >
-          <button
-            type="button"
-            onClick={() => void save()}
-            disabled={blocked || !profile.name.trim() || !dirty}
-          >
-            {busy ? "Saving…" : "Save preferences"}
-          </button>
-          {saved && <span role="status">Saved</span>}
-          {dirty && <span className="helper">Unsaved preferences</span>}
+          {identity.error || preferenceSave.error ? (
+            <>
+              <span className="error">
+                {identity.error || preferenceSave.error}
+              </span>
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => {
+                  if (identity.error) void identity.flush();
+                  if (preferenceSave.error) void preferenceSave.flush();
+                }}
+              >
+                Retry
+              </button>
+            </>
+          ) : (
+            <span className="helper">
+              {dirty
+                ? "Saving changes…"
+                : identity.status === "saved" ||
+                    preferenceSave.status === "saved"
+                  ? "All changes saved"
+                  : "Changes save automatically"}
+            </span>
+          )}
         </div>
       </div>
 

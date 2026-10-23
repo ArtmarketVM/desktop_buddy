@@ -206,14 +206,13 @@ it("keeps saved preference edits until canonical shared snapshots finish refresh
       }),
   );
   fireEvent.click(reminder);
-  fireEvent.click(screen.getByRole("button", { name: "Save preferences" }));
   await waitFor(() => expect(coreApi.preferences).toHaveBeenCalled());
   expect(api.saveTrackingSettings).not.toHaveBeenCalled();
   expect(reminder.checked).toBe(next.preferences.movement_reminders);
-  expect(screen.queryByText("Saved")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Save preferences" })).toBeNull();
   await waitFor(() => expect(finish).toBeTypeOf("function"));
   finish(next);
-  await screen.findByText("Saved");
+  await screen.findByText("All changes saved");
   expect(reminder.checked).toBe(next.preferences.movement_reminders);
 });
 
@@ -233,4 +232,60 @@ it("removes the retired working hours and working weekdays controls", async () =
     screen.queryByRole("group", { name: "Working days", hidden: true }),
   ).toBeNull();
   expect(api.trackingSettings).not.toHaveBeenCalled();
+});
+
+it("autosaves sign-in and vision changes without saving an unrelated avatar snapshot", async () => {
+  const named = {
+    ...data,
+    user_settings: {
+      ...defaultUserSettings,
+      profile: { ...defaultUserSettings.profile, name: "Test user" },
+    },
+  };
+  render(
+    <CoreSettings
+      data={named}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  const signIn = screen.getByRole("checkbox", { name: "Start when I sign in" });
+  await waitFor(() =>
+    expect((signIn as HTMLInputElement).disabled).toBe(false),
+  );
+  fireEvent.click(signIn);
+  await waitFor(() =>
+    expect(coreApi.identity).toHaveBeenCalledWith(
+      "Test user",
+      !defaultUserSettings.autostart,
+      null,
+      defaultUserSettings.profile.email,
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Save preferences" })).toBeNull();
+});
+it("a failed automatic save is visible and Retry persists the same choice", async () => {
+  vi.mocked(coreApi.preferences)
+    .mockRejectedValueOnce(new Error("Disk unavailable"))
+    .mockResolvedValue(undefined);
+  render(
+    <CoreSettings
+      data={data}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  const reminder = screen.getByRole("checkbox", {
+    name: "Remind me to stretch",
+  });
+  await waitFor(() =>
+    expect((reminder as HTMLInputElement).disabled).toBe(false),
+  );
+  fireEvent.click(reminder);
+  await screen.findByText("Disk unavailable");
+  fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+  await screen.findByText("All changes saved");
+  expect(coreApi.preferences).toHaveBeenCalledTimes(2);
 });

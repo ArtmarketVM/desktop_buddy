@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, type RefObject } from "react";
-import { emit, listen } from "@tauri-apps/api/event";
+import { listen } from "@tauri-apps/api/event";
 import { api, desktop } from "../api/tauri";
 import type { AvatarState, BuddyView } from "../types";
+import { CHAT_POSE_EVENT, type ChatPoseMessage } from "./useChatPose";
 export type BuddySurface = "combined" | "mascot" | "panel";
 
 /** Prepare styles and fonts before showing; occluded WKWebViews may suspend animation frames. */
@@ -39,8 +40,7 @@ export function useBuddySurface(
   root: RefObject<HTMLElement | null>,
   surface: BuddySurface,
   view: BuddyView,
-  pose: AvatarState,
-  setPose: (state: AvatarState) => void,
+  setPose: (state: AvatarState | null) => void,
 ) {
   const generation = surface === "panel" ? view.panel?.generation : undefined;
   const chat = view.panel?.mode === 3;
@@ -94,26 +94,21 @@ export function useBuddySurface(
     return () => observer.disconnect();
   }, [surface, chat, view.companion?.intervention?.id, root]);
   useEffect(() => {
-    if (!desktop || surface !== "panel") return;
-    void emit("buddy://chat-pose", pose).catch(() => {});
-  }, [surface, pose]);
-  useEffect(() => {
     if (!desktop || surface !== "mascot") return;
     let stopped = false;
     let off: (() => void) | undefined;
-    void listen<AvatarState>("buddy://chat-pose", ({ payload }) => {
-      if (
-        [
-          "idle",
-          "working",
-          "thinking",
-          "listening",
-          "success",
-          "sleeping",
-          "attention",
-        ].includes(payload)
-      )
-        setPose(payload);
+    const poses = new Map<string, AvatarState>();
+    void listen<ChatPoseMessage>(CHAT_POSE_EVENT, ({ payload }) => {
+      if (!payload || !["workspace", "panel"].includes(payload.source)) return;
+      if (["listening", "thinking", "success"].includes(payload.state))
+        poses.set(payload.source, payload.state);
+      else if (payload.state === "idle") poses.delete(payload.source);
+      else return;
+      setPose(
+        (["listening", "thinking", "success"].find((state) =>
+          [...poses.values()].includes(state as AvatarState),
+        ) as AvatarState | undefined) ?? null,
+      );
     })
       .then((unlisten) => {
         if (stopped) unlisten();

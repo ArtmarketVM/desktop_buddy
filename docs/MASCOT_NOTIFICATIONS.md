@@ -49,6 +49,13 @@ Plan today opens the previous-goals picker even if Today already contains due go
 
 Follow [sumi tone of voice](SUMI_TONE_OF_VOICE.md). Describe the user's action in the active voice, name the actual activity and avoid technical bookkeeping formulas. Duration is factual; it does not prove completion or sending. The shared coaching guide includes the same rule.
 
+## Action animation signals (0.42.1)
+
+- Committed goal and step completions advance a durable `mascot_completion_revision` in the same SQLite transaction as the event. Manual and AI completion paths share this signal. Repeated completion, rollback, startup and restoring deleted history do not replay celebrations.
+- Each chat surface emits `buddy://chat-pose` with its source (`workspace` or `panel`). Listening, thinking and success reach the floating mascot; an idle event from one surface does not clear another surface's active work. Background agent inference exposes a separate thinking flag.
+- Quiet mode retains its resting override and consumes suppressed completion signals. Stretching still requires the movement switch and an eligible reminder; both historical movement preference records now save atomically.
+- Profile/model text saves after 350 ms or on blur. Other applicable preferences save when committed, without a global Save preferences button. Failed writes keep the draft and expose Retry.
+
 ## Validation and remaining gaps
 
 Validation commands/results are recorded in `SESSION_HANDOFF.md`. Local checks cover scheduling, preferences, deadline responses and staleness, restarts/deduplication, privacy boundaries, button behavior, poses and picker selection. Native Windows/macOS installer validation and canonical Windows visual comparisons remain separate from local tests. No installer, app restart or publication is implied by these source changes.

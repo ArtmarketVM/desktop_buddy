@@ -74,6 +74,9 @@ impl AppState {
         let tracking = crate::tracking::requested(&storage)?;
         let companion = crate::companion::Runtime::load(&storage)?;
         buddy.view.companion = companion.view.clone();
+        buddy.view.completion_revision = storage
+            .read_setting("mascot_completion_revision")?
+            .unwrap_or(0);
         Ok(Self {
             screen_context_read: tokio::sync::Mutex::new(()),
             companion_request: tokio::sync::Mutex::new(()),

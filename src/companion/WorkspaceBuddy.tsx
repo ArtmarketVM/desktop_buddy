@@ -1,10 +1,10 @@
+import { useChatPose } from "./useChatPose";
 import { api } from "../api/tauri";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import {
   defaultUserSettings,
-  type AvatarState,
   type Dashboard,
   type Goal,
   type GoalPlan,
@@ -27,7 +27,7 @@ export function WorkspaceBuddy({
 }) {
   const [mode, setMode] = useState<"idle" | "text" | "voice">("idle");
   const actions = useBuddyActions(mode !== "idle");
-  const [state, setState] = useState<AvatarState>("idle");
+  const [state, setState] = useChatPose("workspace", mode !== "idle");
   const [context, setContext] = useState<{ goal: Goal; plan: GoalPlan } | null>(
     null,
   );
@@ -63,7 +63,7 @@ export function WorkspaceBuddy({
       document.removeEventListener("pointerdown", close);
       document.removeEventListener("keydown", escape);
     };
-  }, [quietMode]);
+  }, [quietMode, setState]);
   const appearance =
     dashboard.buddy.avatar ??
     dashboard.user_settings?.profile.avatar ??
@@ -73,7 +73,7 @@ export function WorkspaceBuddy({
       setMode("idle");
       setState("idle");
     }
-  }, [quietMode]);
+  }, [quietMode, setState]);
   if (!showLauncher && mode === "idle") return null;
   return (
     <div className="workspace-buddy" ref={root}>

@@ -131,6 +131,8 @@ export interface BuddyView {
   activity_event?:
     "working" | "paused" | "drifting" | "resumed" | "goal_completed";
   activity_revision?: number;
+  completion_revision?: number;
+  background_thinking?: boolean;
   preferences: BuddyPreferences;
   suggestion: { id: number; title: string; url: string; reason: string } | null;
   decision: Decision | null;

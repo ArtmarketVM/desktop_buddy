@@ -569,3 +569,108 @@ fn today_drag_order_survives_database_reopen_without_changing_today_membership()
     }
     std::fs::remove_file(path).unwrap();
 }
+
+fn celebration(storage: &Storage) -> u64 {
+    storage
+        .read_setting("mascot_completion_revision")
+        .unwrap()
+        .unwrap_or(0)
+}
+#[test]
+fn manual_step_and_goal_completions_publish_a_durable_non_replaying_signal() {
+    let mut s = store();
+    let mut goal = draft("Animation test", "Work");
+    goal.steps.push("Send result".into());
+    s.core_add_goals(vec![goal], "animation").unwrap();
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    assert_eq!(celebration(&s), 0);
+    let mut plan = s.goal_plan(id).unwrap();
+    plan.steps[0].done = true;
+    s.core_save_goal_details("Animation test", "Work", plan, None)
+        .unwrap();
+    assert_eq!(celebration(&s), 1);
+    s.core_transition(id, "complete").unwrap();
+    let completed = celebration(&s);
+    assert!(completed > 1);
+    s.core_transition(id, "complete").unwrap();
+    assert_eq!(celebration(&s), completed);
+    s.core_transition(id, "resume").unwrap();
+    assert_eq!(celebration(&s), completed);
+    s.core_transition(id, "complete").unwrap();
+    assert!(celebration(&s) > completed);
+}
+#[test]
+fn restoring_completed_history_does_not_publish_a_new_achievement() {
+    let mut s = store();
+    s.core_add_goals(
+        vec![draft("Historical result", "Work")],
+        "animation-restore",
+    )
+    .unwrap();
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    s.core_transition(id, "complete").unwrap();
+    let completed = celebration(&s);
+    let backup = crate::skills::delete(&mut s, id).unwrap();
+    assert_eq!(celebration(&s), completed);
+    crate::skills::restore(&mut s, backup).unwrap();
+    assert_eq!(celebration(&s), completed);
+}
+#[test]
+fn a_rolled_back_completion_does_not_celebrate() {
+    let mut s = store();
+    s.core_add_goals(vec![draft("Rollback", "Work")], "animation-rollback")
+        .unwrap();
+    let id = s.core_snapshot(None).unwrap().goals[0].id;
+    s.connection
+        .execute_batch("SAVEPOINT completion_test")
+        .unwrap();
+    s.core_transition(id, "complete").unwrap();
+    assert!(celebration(&s) > 0);
+    s.connection
+        .execute_batch("ROLLBACK TO completion_test; RELEASE completion_test")
+        .unwrap();
+    assert_eq!(celebration(&s), 0);
+}
+#[test]
+fn autosaved_stretch_preferences_update_both_gates_without_changing_quiet_consent() {
+    let mut s = store();
+    let companion = crate::companion::engine::Preferences {
+        quiet_hours_enabled: true,
+        use_screenshots: false,
+        ..Default::default()
+    };
+    s.write_setting("companion_preferences", &companion)
+        .unwrap();
+    let mut core = CorePreferences {
+        movement_reminders: false,
+        ..Default::default()
+    };
+    let result = persist_preferences(&mut s, &core).unwrap();
+    assert!(!result.movement_reminder);
+    assert!(result.quiet_hours_enabled);
+    assert!(!result.use_screenshots);
+    core.movement_reminders = true;
+    core.movement_interval_minutes = 15;
+    assert!(
+        persist_preferences(&mut s, &core)
+            .unwrap()
+            .movement_reminder
+    );
+    let saved: CorePreferences = s.read_setting("core_preferences").unwrap().unwrap();
+    assert!(saved.movement_reminders);
+    assert_eq!(saved.movement_interval_minutes, 15);
+}
+#[test]
+fn failed_second_stretch_write_rolls_back_the_first() {
+    let mut s = store();
+    let core = CorePreferences::default();
+    persist_preferences(&mut s, &core).unwrap();
+    s.connection.execute_batch("CREATE TRIGGER reject_companion_update BEFORE UPDATE ON preferences WHEN NEW.name='companion_preferences' BEGIN SELECT RAISE(ABORT,'test storage failure'); END;").unwrap();
+    let next = CorePreferences {
+        movement_reminders: !core.movement_reminders,
+        ..core.clone()
+    };
+    assert!(persist_preferences(&mut s, &next).is_err());
+    let saved: CorePreferences = s.read_setting("core_preferences").unwrap().unwrap();
+    assert_eq!(saved.movement_reminders, core.movement_reminders);
+}
