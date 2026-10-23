@@ -125,6 +125,9 @@ impl AgentRuntime {
             diagnostics: Default::default(),
         })
     }
+    pub fn is_thinking(&self) -> bool {
+        self.flight.is_some()
+    }
     pub fn cancel(&mut self) {
         self.generation = self.generation.wrapping_add(1);
         if let Some(flight) = self.flight.take() {
@@ -501,10 +504,15 @@ impl VerifiedOffer {
 async fn process_pending_with_service(
     state: &AppState,
     service: &Service<'_>,
+    app: Option<&AppHandle>,
 ) -> Result<Option<VerifiedOffer>, String> {
     let Some(mut job) = ({
         let mut inner = state.inner.lock().map_err(|_| "Agent state unavailable")?;
-        prepare(&mut inner, Utc::now().timestamp())?
+        let job = prepare(&mut inner, Utc::now().timestamp())?;
+        if let Some(app) = app {
+            crate::buddy::sync(app, &mut inner)?;
+        }
+        job
     }) else {
         return Ok(None);
     };
@@ -545,6 +553,9 @@ async fn process_pending_with_service(
     {
         inner.agent.flight = None;
     }
+    if let Some(app) = app {
+        crate::buddy::sync(app, &mut inner)?;
+    }
     let Some(text) = applied? else {
         return Ok(None);
     };
@@ -564,7 +575,7 @@ async fn run_pending_with_service(
     let Ok(_guard) = state.companion_request.try_lock() else {
         return Ok(None);
     };
-    process_pending_with_service(state, service).await
+    process_pending_with_service(state, service, None).await
 }
 async fn run_pending(app: &AppHandle) {
     let state = app.state::<AppState>();
@@ -606,7 +617,7 @@ async fn run_pending(app: &AppHandle) {
             }
         }
     };
-    match process_pending_with_service(&state, &service).await {
+    match process_pending_with_service(&state, &service, Some(app)).await {
         Ok(Some(offer)) => {
             if let Ok(mut inner) = state.inner.lock() {
                 // Re-check presentation gates too; a response is never a permission to interrupt.

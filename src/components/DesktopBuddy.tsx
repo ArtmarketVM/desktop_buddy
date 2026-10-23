@@ -17,6 +17,7 @@ import {
   type BuddySurface,
 } from "../companion/useBuddySurface";
 import { useBuddyActions } from "../companion/useBuddyActions";
+import { useChatPose } from "../companion/useChatPose";
 
 export function DesktopBuddy({
   view,
@@ -35,24 +36,31 @@ export function DesktopBuddy({
 }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [chatState, setChatState] = useState<AvatarState>("idle");
+  const [chatState, setChatState] = useChatPose(
+    "panel",
+    surface === "panel" &&
+      !!view.companion?.chat_open &&
+      !view.companion?.quiet_mode,
+  );
+  const [remotePose, setRemotePose] = useState<AvatarState | null>(null);
   const [mode, setMode] = useState<"text" | "voice">("text");
   const [responseState, setResponseState] = useState<AvatarState | null>(null);
   const responseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastActivity = useRef("");
+  const completionSeen = useRef<number | null>(null);
   useEffect(() => {
-    const activity = `${view.activity_revision}:${view.activity_event}`;
-    const changed = activity !== lastActivity.current;
-    lastActivity.current = activity;
+    const revision = view.completion_revision;
+    if (revision == null) return;
+    const previous = completionSeen.current;
+    completionSeen.current = revision;
     if (view.companion?.quiet_mode) {
       if (responseTimer.current) clearTimeout(responseTimer.current);
       setResponseState(null);
-    } else if (changed && view.activity_event === "goal_completed") {
+    } else if (previous !== null && revision > previous) {
       setResponseState("success");
       if (responseTimer.current) clearTimeout(responseTimer.current);
       responseTimer.current = setTimeout(() => setResponseState(null), 1600);
     }
-  }, [view.activity_revision, view.activity_event, view.companion?.quiet_mode]);
+  }, [view.completion_revision, view.companion?.quiet_mode]);
   useEffect(
     () => () => {
       if (responseTimer.current) clearTimeout(responseTimer.current);
@@ -100,7 +108,7 @@ export function DesktopBuddy({
   const card = !quietMode && (view.suggestion || view.decision);
   const appearance = view.avatar ?? defaultUserSettings.profile.avatar;
   const root = useRef<HTMLElement>(null);
-  useBuddySurface(root, surface, view, chatState, setChatState);
+  useBuddySurface(root, surface, view, setRemotePose);
   useBuddyPointer(
     root,
     (surface !== "panel" && appearance.visible) ||
@@ -142,9 +150,12 @@ export function DesktopBuddy({
     : (responseState ??
       (companion.intervention
         ? interventionState(companion.intervention)
-        : companion.chat_open
-          ? chatState
-          : companion.state));
+        : (remotePose ??
+          (companion.chat_open
+            ? chatState
+            : view.background_thinking
+              ? "thinking"
+              : companion.state))));
   return (
     <main
       ref={root}

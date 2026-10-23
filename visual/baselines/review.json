@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "applicationBase": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
-  "captureCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756255405",
-  "approvedOn": "2026-10-22",
+  "applicationBase": "efe7b17f0def9f301cbbca5657496edbf179f474",
+  "captureCommit": "efe7b17f0def9f301cbbca5657496edbf179f474",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39906547268",
+  "approvedOn": "2026-10-23",
   "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
-  "approval": "Approved all 34 screenshots and requested publication.",
+  "approval": "The owner confirmed approval of all 34 screenshots.",
   "knownExistingIssues": [
     "The previous narrow Privacy working-hours overflow is superseded by the intentional removal of those controls, included in this approval. Native WebView rendering and physical-device interactions are not established by browser screenshots."
   ],
   "environment": {
-    "commit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
+    "commit": "efe7b17f0def9f301cbbca5657496edbf179f474",
     "runner": "Windows",
     "image": "20261012.333.1",
     "node": "v24.21.0",
@@ -38,17 +38,17 @@
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "cc1d84372a490e05214b9053edc2e187794ad4bc9f65a5aaf4b1efad4f0a58de",
+      "sha256": "8072b1d5c980a2186cfe8b675783b2aaf7b0076c0c8b5b6a2a79b10954c5698b",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-general.png": {
-      "sha256": "44177b9cd5cd8deec35e1c740fa46432574dbdd9a50a0e6263362a5ea181f846",
+      "sha256": "736201428ad9d14534fe2cc9e29cba41896d741cebff67c77d2cbf5bc2357973",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-privacy.png": {
-      "sha256": "8fe5033e284e6318f3515ec694d5475240910aee9722fa045c83d9fb5dafc09d",
+      "sha256": "68650db3463adb048d62e8b86b9593c5ea7b9ef4c25a2c3d12f95dd6fc4e9d0f",
       "width": 720,
       "height": 873
     },
@@ -78,17 +78,17 @@
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "5e591ded9a441e6d04c63e19bed696af34892f1833b15012aff3cdea0012d059",
+      "sha256": "be750bb58e159e951db8cf2823dc50bd0c6a3f7705cc8d1138c4df65452014cd",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-general.png": {
-      "sha256": "c5642eeabc00dcb24110a45523b69a6e83026fc1c73b5e0296e3d31fdfeefb32",
+      "sha256": "5aae79070d7f999acbc814561fa8e5c06b16160ee6979c2db9ec4824cc4c471d",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-privacy.png": {
-      "sha256": "92e13bd4a1b0eb985018667eed4295d777db514566ea47e1ec69fe8a9bc88f37",
+      "sha256": "7e71ccf3e81d3343a33487077c8f763a0f1d3e451894d0e22ef57624234a0af5",
       "width": 720,
       "height": 873
     },
@@ -123,17 +123,17 @@
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "b02bccb2cae03b5b12dafc8c667899533d103f5aae408681c79ef92d7f1fa7f6",
+      "sha256": "0c2dc20b134b67c54848e655555f887898b31f61d3756d7d7c3eaff222ce8d8e",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-general.png": {
-      "sha256": "a648e0c1544668710baf1754337484fa0622c841d97d311692265953a87c9b07",
+      "sha256": "5e5bbc4225d31e807dcba364b4c97a51a43e0d3b2cc479fedd19473483f2890b",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-privacy.png": {
-      "sha256": "01514e116b65fdd9341e6679200e0a559467cdb9bbba03e5c2e6173aef625a03",
+      "sha256": "5decdc0609f8e4d7cbd8d1e485baf9ddddde28d0b73b5f1112feecdac17f1ac0",
       "width": 1280,
       "height": 873
     },
@@ -163,22 +163,22 @@
       "height": 873
     },
     "wide-light/progress.png": {
-      "sha256": "358e167d23042ffe788c6b8b5bca1b927a0fc82a2721b37f34183dd0c317d90a",
+      "sha256": "5e07728c688f7bcc0c5bbd84f8602e9f430880c610c08fc975113efdc417f6a6",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-ai.png": {
-      "sha256": "12011d57094cf2d3bff213534af0c7624f91e3b8835ebe440f017d50a66e8458",
+      "sha256": "abc51003f9582096526a02d2589f38397620b53361e2526a5ba2d3950820af4c",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-general.png": {
-      "sha256": "c764f265ebbc7159a311ecb37af09add842556d07e7e95faf58faed77c19d90e",
+      "sha256": "e14e81d371a9b131d4a5eb30452a830d6aead5fa4b1f0fa4d438b43166bd9972",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-privacy.png": {
-      "sha256": "56df1261258e9d9d3a47d2f9549b888cc3f73a7da2e0c1a963e45b36e3c6349a",
+      "sha256": "409e308f91927a2d7dc7cf9b5cce8ade7cec37db879adf79067826a819074501",
       "width": 1280,
       "height": 873
     },
@@ -231,8 +231,8 @@
       }
     }
   ],
-  "previousReviewCommit": "8fca926",
-  "changeReason": "Permanent HH:MM fields in General and the integrated encrypted daily-review evidence explanation in Privacy. Other differences are edge rasterization only.",
+  "previousReviewCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
+  "changeReason": "Replace Save preferences with automatic-saving status in Settings, including Privacy. The wide-light progress chart differs by 12 edge antialiasing pixels; no Progress source was changed.",
   "history": [
     {
       "date": "2026-10-22",
@@ -243,6 +243,17 @@
         "approvedOn": "2026-10-21",
         "approvedBy": "Repository owner, explicit chat confirmation after annotated review of all 34 candidates",
         "approval": "all good - publish"
+      }
+    },
+    {
+      "date": "2026-10-23",
+      "reason": "Owner explicitly approved all 34 canonical Windows captures for 0.42.1 after reviewing the automatic-save footer changes.",
+      "previousReview": {
+        "captureCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
+        "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39756255405",
+        "approvedOn": "2026-10-22",
+        "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
+        "approval": "Approved all 34 screenshots and requested publication."
       }
     }
   ]

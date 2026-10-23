@@ -1219,6 +1219,36 @@ pub(crate) fn delete(storage: &mut Storage, id: i64) -> Result<i64, String> {
     Ok(backup_id)
 }
 pub(crate) fn restore(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
+    // Restoring historical completed steps is not a newly achieved result.
+    let revision: u64 = storage
+        .read_setting("mascot_completion_revision")?
+        .unwrap_or(0);
+    storage
+        .connection
+        .execute_batch("SAVEPOINT mascot_restore")
+        .map_err(|e| e.to_string())?;
+    let result = restore_inner(storage, backup_id).and_then(|id| {
+        storage.write_setting("mascot_completion_revision", &revision)?;
+        Ok(id)
+    });
+    match result {
+        Ok(id) => {
+            storage
+                .connection
+                .execute_batch("RELEASE mascot_restore")
+                .map_err(|e| e.to_string())?;
+            Ok(id)
+        }
+        Err(error) => {
+            storage
+                .connection
+                .execute_batch("ROLLBACK TO mascot_restore; RELEASE mascot_restore")
+                .map_err(|e| e.to_string())?;
+            Err(error)
+        }
+    }
+}
+fn restore_inner(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
     let payload: String = storage
         .connection
         .query_row(

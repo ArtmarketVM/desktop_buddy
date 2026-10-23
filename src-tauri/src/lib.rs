@@ -596,6 +596,23 @@ pub fn run() {
             commands::dismiss_buddy,
             commands::capture_screenshot_on_demand
         ])
-        .run(tauri::generate_context!())
-        .expect("sumi could not start");
+        .build(tauri::generate_context!())
+        .expect("sumi could not start")
+        .run(|app, event| {
+            #[cfg(target_os = "macos")]
+            if matches!(event, tauri::RunEvent::Reopen { .. }) {
+                // The floating mascot can remain visible after the workspace closes.
+                // Every Dock reopen must restore the workspace, regardless of that window.
+                let app = app.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Err(error) = buddy::open_workspace(app.clone()) {
+                        if let Ok(mut inner) = app.state::<commands::AppState>().inner.lock() {
+                            inner.last_error = Some(error);
+                        }
+                    }
+                });
+            }
+            #[cfg(not(target_os = "macos"))]
+            let _ = (app, event);
+        });
 }

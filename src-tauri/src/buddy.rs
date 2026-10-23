@@ -34,6 +34,8 @@ impl Runtime {
                 activity_state: Default::default(),
                 activity_event: Default::default(),
                 activity_revision: 0,
+                completion_revision: 0,
+                background_thinking: false,
                 preferences,
                 suggestion: None,
                 decision: None,
@@ -156,6 +158,11 @@ fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<()
     inner.buddy.view.activity_state = inner.activity_state.state;
     inner.buddy.view.activity_event = inner.activity_state.event;
     inner.buddy.view.activity_revision = inner.activity_state.revision;
+    inner.buddy.view.completion_revision = inner
+        .storage
+        .read_setting("mascot_completion_revision")?
+        .unwrap_or(0);
+    inner.buddy.view.background_thinking = inner.agent.is_thinking();
     inner.buddy.fullscreen = !inner.status.demo && crate::collector::foreground_fullscreen();
     inner.buddy.view.quiet_reason = crate::companion::delivery_reason(inner);
     if inner

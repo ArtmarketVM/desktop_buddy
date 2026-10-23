@@ -139,6 +139,8 @@ pub struct BuddyView {
     pub activity_state: crate::tracking::ActivityState,
     pub activity_event: crate::tracking::ActivityEvent,
     pub activity_revision: u64,
+    pub completion_revision: u64,
+    pub background_thinking: bool,
     pub preferences: BuddyPreferences,
     pub suggestion: Option<Suggestion>,
     pub decision: Option<Decision>,

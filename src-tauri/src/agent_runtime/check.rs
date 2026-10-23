@@ -36,7 +36,7 @@ pub(crate) async fn hero_stuck(
             Utc::now().timestamp() - 10,
         ));
     }
-    let offer = process_pending_with_service(state, service).await?;
+    let offer = process_pending_with_service(state, service, None).await?;
     let inner = state.inner.lock().map_err(|_| "Check state unavailable")?;
     Ok(
         json!({"decision":inner.agent.diagnostics.last_decision,"offer_returned":offer.is_some(),"verified":inner.agent.diagnostics.verified,"failure":inner.agent.diagnostics.last_failure}),
@@ -100,7 +100,7 @@ pub async fn run() -> Result<Value, String> {
             inner.agent.diagnostics.verified
         };
         let started = std::time::Instant::now();
-        let result = process_pending_with_service(&state, &service).await;
+        let result = process_pending_with_service(&state, &service, None).await;
         let inner = state.inner.lock().map_err(|_| "Check state unavailable")?;
         checks.push(json!({"event":kind,"passed":result.is_ok() && inner.agent.diagnostics.verified == verified_before + 1,
             "decision":inner.agent.diagnostics.last_decision,"offer_returned":result.is_ok_and(|o|o.is_some()),

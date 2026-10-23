@@ -22,6 +22,8 @@ const calls: string[] = [];
 const unexpected: string[] = [];
 const mutations: Array<{ command: string; args: unknown }> = [];
 let calendarData: CoreSnapshot | null = null;
+let settingsData: Dashboard | null = null;
+let settingsWorkspace: CoreSnapshot | null = null;
 const state = { calls, unexpected, mutations, ready: false };
 Object.assign(window, { __visual: state });
 mockIPC(
@@ -41,6 +43,50 @@ mockIPC(
         ].includes(command)
       )
         return null;
+      if (query.has("settings-audit")) {
+        settingsData ??= structuredClone(
+          fixtureReply("get_dashboard", theme, false),
+        ) as Dashboard;
+        settingsWorkspace ??= structuredClone(
+          fixtureReply("get_core_snapshot", theme, false),
+        ) as CoreSnapshot;
+        if (command === "get_dashboard") return structuredClone(settingsData);
+        if (command === "get_core_snapshot")
+          return structuredClone(settingsWorkspace);
+        if (command === "set_core_preferences") {
+          const input = args as { preferences: CoreSnapshot["preferences"] };
+          settingsWorkspace.preferences = structuredClone(input.preferences);
+          settingsData.buddy.companion!.preferences.movement_reminder =
+            input.preferences.movement_reminders;
+          mutations.push({ command, args: structuredClone(args) });
+          return null;
+        }
+        if (command === "set_companion_preferences") {
+          settingsData.buddy.companion!.preferences = structuredClone(
+            (
+              args as {
+                preferences: NonNullable<
+                  Dashboard["buddy"]["companion"]
+                >["preferences"];
+              }
+            ).preferences,
+          );
+          mutations.push({ command, args: structuredClone(args) });
+          return null;
+        }
+        if (command === "save_core_identity") {
+          const input = args as {
+            name: string;
+            email: string;
+            autostart: boolean;
+          };
+          settingsData.user_settings!.profile.name = input.name;
+          settingsData.user_settings!.profile.email = input.email;
+          settingsData.user_settings!.autostart = input.autostart;
+          mutations.push({ command, args: structuredClone(args) });
+          return null;
+        }
+      }
       if (query.has("many-goals")) {
         if (command === "get_core_snapshot") {
           if (!calendarData) {
