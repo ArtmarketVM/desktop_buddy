@@ -13,6 +13,14 @@ Read this short file first in a new task. Verify Git and release state before re
 - Windows x64 and Apple Silicon macOS 14.5+ are the supported distributions. Never build Intel/universal Mac installers.
 - CI/release optimization (shared validation, input-bound proof reuse, separate Cargo bundle caches, one monitor process) is described with measurements in `docs/RELEASE_PROCESS.md`.
 
+## Pending 0.42.1 desktop/settings fixes (2026-10-23)
+
+- Branch `codex/desktop-settings-emotions`, based on `2f5c53a`; origin/main matched before implementation and at the latest fetch. Preserve the unrelated `src-tauri/src/observation_check.rs` edit and `.DS_Store`; exclude both from this change.
+- Implemented macOS application reopen (including a visible floating mascot), serialized settings autosave, atomic stretch preference synchronization, durable goal/step celebration signals and source-aware workspace/mini-chat plus background thinking poses. Five version manifests are synchronized to 0.42.1; no installer is published yet.
+- Local checks cover the final product source: 294 frontend tests; 677 Rust tests passed and two intentionally ignored; TypeScript/Vite, formatting, ESLint, Knip, all-target debug Clippy and 18 release-rule checks passed. Twenty functional browser checks passed across wide/narrow light/dark layouts, including clock/calendar, stable floating surfaces and settings autosave. Detailed logs are in `/private/tmp/buddy-fixes-*.log`; mocks use synthetic data and no external requests.
+- Native Apple Silicon rehearsal used a separately identified, internally signed debug app with isolated disposable data and mocked providers. Closing the main window left the mascot visible; reopening the already-running app through Finder/LaunchServices restored Today. This exercises the macOS Reopen handler; direct Dock accessibility automation timed out, so a physical Dock click is not claimed. The test app was quit afterward; the installed app and user settings were untouched.
+- Pending: Windows/macOS CI, release-profile Clippy and canonical Windows candidates for the settings footer change. Updated screenshot baselines require explicit owner approval. Do not infer native Windows interaction or live microphone success from mocked animation tests.
+
 ## Decisions to preserve
 
 - sumi copy uses active, user-centred language about concrete activity; avoid passive "time recorded" formulas and inferred completions. See `docs/SUMI_TONE_OF_VOICE.md`; the current source applies the rule to coaching and mascot templates.
