@@ -70,23 +70,6 @@ fn hide(window: &WebviewWindow) -> Result<(), String> {
         .is_visible()
         .map_err(|_| "Could not read sumi visibility")?
     {
-        #[cfg(windows)]
-        {
-            let handle = window
-                .hwnd()
-                .map_err(|_| "Could not read sumi native window")?
-                .0 as usize;
-            window
-                .run_on_main_thread(move || unsafe {
-                    use ::windows::Win32::{
-                        Foundation::HWND,
-                        UI::WindowsAndMessaging::{ShowWindow, SW_HIDE},
-                    };
-                    let _ = ShowWindow(HWND(handle as *mut _), SW_HIDE);
-                })
-                .map_err(|_| "Could not hide sumi")?;
-        }
-        #[cfg(not(windows))]
         window.hide().map_err(|_| "Could not hide sumi")?;
     }
     Ok(())
@@ -98,45 +81,14 @@ fn show(window: &WebviewWindow) -> Result<(), String> {
     {
         #[cfg(target_os = "macos")]
         crate::macos::show_without_focus(window)?;
-        #[cfg(windows)]
-        {
-            let handle = window
-                .hwnd()
-                .map_err(|_| "Could not read sumi native window")?
-                .0 as usize;
-            window
-                .run_on_main_thread(move || unsafe {
-                    use ::windows::Win32::{
-                        Foundation::HWND,
-                        UI::WindowsAndMessaging::{ShowWindow, SW_SHOWNOACTIVATE},
-                    };
-                    let _ = ShowWindow(HWND(handle as *mut _), SW_SHOWNOACTIVATE);
-                })
-                .map_err(|_| "Could not show sumi without activation")?;
-        }
-        #[cfg(not(any(target_os = "macos", windows)))]
+        // On Windows, focus:false selects Tao's non-activating presentation. Keep its
+        // visibility flag synchronized: direct ShowWindow is undone by click-through updates.
+        #[cfg(not(target_os = "macos"))]
         window.show().map_err(|_| "Could not show sumi")?;
     }
     Ok(())
 }
 fn focus(window: &WebviewWindow) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        let handle = window
-            .hwnd()
-            .map_err(|_| "Could not read sumi native window")?
-            .0 as usize;
-        // Native non-activating presentation deliberately bypasses Tao's visible flag.
-        window
-            .run_on_main_thread(move || unsafe {
-                use ::windows::Win32::{
-                    Foundation::HWND, UI::WindowsAndMessaging::SetForegroundWindow,
-                };
-                let _ = SetForegroundWindow(HWND(handle as *mut _));
-            })
-            .map_err(|_| "Could not focus sumi chat".to_owned())
-    }
-    #[cfg(not(windows))]
     window
         .set_focus()
         .map_err(|_| "Could not focus sumi chat".into())

@@ -19,6 +19,56 @@ fn fixture() -> (AppState, ActivitySnapshot) {
     }
     (state, activity)
 }
+
+#[tokio::test]
+async fn browser_metadata_gap_discards_cached_text_and_rejects_an_inflight_read_after_return() {
+    for in_flight in [false, true] {
+        let (state, mut activity) = fixture();
+        activity.process_name = "chrome.exe".into();
+        activity.browser = crate::browser::context(
+            &activity.process_name,
+            &activity.window_title,
+            Some("example.com".into()),
+        );
+        let mut unknown = activity.clone();
+        unknown.browser =
+            crate::browser::context(&activity.process_name, &activity.window_title, None);
+        {
+            let mut inner = state.inner.lock().unwrap();
+            crate::goal_matching::observe_inner(&mut inner, &activity, true).unwrap();
+            inner.buddy.foreground = Some(activity.clone());
+        }
+        let change = || {
+            let mut inner = state.inner.lock().unwrap();
+            crate::goal_matching::observe_inner(&mut inner, &unknown, true).unwrap();
+            inner.buddy.foreground = Some(unknown.clone());
+            assert!(inner.companion.screen_context.is_none());
+            crate::goal_matching::observe_inner(&mut inner, &activity, true).unwrap();
+            inner.buddy.foreground = Some(activity.clone());
+        };
+        let old = read_at(&state, &activity, Instant::now(), |_| async {
+            if in_flight {
+                change();
+            }
+            Ok("Old synthetic page evidence".into())
+        })
+        .await
+        .unwrap();
+        if in_flight {
+            assert!(old.is_none());
+        } else {
+            assert!(old.is_some());
+            change();
+        }
+        let fresh = read_at(&state, &activity, Instant::now(), |_| async {
+            Ok("Fresh synthetic page evidence".into())
+        })
+        .await
+        .unwrap();
+        assert_eq!(fresh.as_deref(), Some("Fresh synthetic page evidence"));
+    }
+}
+
 #[tokio::test]
 async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_change() {
     let (state, activity) = fixture();

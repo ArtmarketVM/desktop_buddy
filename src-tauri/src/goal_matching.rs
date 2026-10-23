@@ -7,7 +7,11 @@ pub(crate) mod check;
 
 #[cfg(test)]
 mod cascade_tests;
+#[cfg(test)]
+mod metadata_tests;
 mod resolution;
+mod stability;
+use stability::metadata_unavailable;
 pub(crate) mod suggestions;
 pub const AUTO_ASSIGN_CONFIDENCE: f64 = 0.8;
 pub const SUGGESTION_CONFIDENCE: f64 = 0.6;
@@ -44,6 +48,7 @@ pub struct Runtime {
     sample: Option<ActivitySnapshot>,
     lane_sample: Option<(i64, ActivitySnapshot)>,
     stable_since: Option<Instant>,
+    metadata_gap: Option<stability::MetadataGap>,
     last_seen: Option<Instant>,
     last_attempt: Option<Instant>,
     in_flight: bool,
@@ -68,6 +73,7 @@ impl Runtime {
         self.proposal = MatchView::default();
         self.sample = None;
         self.stable_since = None;
+        self.metadata_gap = None;
         self.last_seen = None;
         self.signature = None;
         self.text_fingerprint = None;
@@ -76,32 +82,6 @@ impl Runtime {
     #[cfg(test)]
     pub fn observe(&mut self, sample: &ActivitySnapshot, allowed: bool) {
         self.observe_at(sample, allowed, Instant::now());
-    }
-    fn observe_at(&mut self, sample: &ActivitySnapshot, allowed: bool, now: Instant) {
-        if !allowed {
-            self.clear();
-            self.view.enabled = true;
-            return;
-        }
-        let changed = self
-            .sample
-            .as_ref()
-            .is_none_or(|old| fingerprint(old) != fingerprint(sample))
-            || self
-                .last_seen
-                .is_some_and(|at| now.saturating_duration_since(at) > Duration::from_secs(15));
-        if changed {
-            self.context_revision = self.context_revision.wrapping_add(1);
-            self.view = MatchView {
-                enabled: true,
-                ..Default::default()
-            };
-            self.stable_since = Some(now);
-            self.text_fingerprint = None;
-        }
-        self.view.enabled = true;
-        self.sample = Some(sample.clone());
-        self.last_seen = Some(now);
     }
     fn cached(
         &mut self,
@@ -121,6 +101,7 @@ fn fingerprint(sample: &ActivitySnapshot) -> String {
     crate::companion::engine::fingerprint(
         &serde_json::json!([
             sample.process_name.to_lowercase(),
+            sample.window_id,
             sample.window_title,
             sample.browser
         ])
@@ -132,10 +113,11 @@ fn fingerprint(sample: &ActivitySnapshot) -> String {
 pub(crate) fn observe_text(inner: &mut crate::commands::Inner, a: &ActivitySnapshot, text: &str) {
     let current = fingerprint(a);
     let runtime = &mut inner.goal_matching;
-    if !runtime
-        .sample
-        .as_ref()
-        .is_some_and(|sample| fingerprint(sample) == current)
+    if metadata_unavailable(a)
+        || !runtime
+            .sample
+            .as_ref()
+            .is_some_and(|sample| fingerprint(sample) == current)
     {
         return;
     }
@@ -165,7 +147,8 @@ pub(crate) fn accept_context_match(
     id: i64,
     confidence: f64,
 ) -> Result<(), String> {
-    if confidence < AUTO_ASSIGN_CONFIDENCE
+    if metadata_unavailable(a)
+        || confidence < AUTO_ASSIGN_CONFIDENCE
         || !inner.storage.ai_preferences()?.automatic_goal_matching
         || !inner
             .goal_matching
@@ -224,8 +207,19 @@ fn observe_inner_at(
     if inner.goal_matching.signature.as_ref() != Some(&resolved.signature) {
         inner.goal_matching.clear();
     }
-    inner.goal_matching.observe_at(sample, true, now);
+    if inner.goal_matching.observe_at(sample, true, now) {
+        inner.companion.invalidate_screen_context();
+    }
     inner.goal_matching.signature = Some(resolved.signature.clone());
+    if metadata_unavailable(sample) {
+        inner.goal_matching.proposal = MatchView::default();
+        inner.goal_matching.view = MatchView {
+            enabled: true,
+            source: Some("unknown".into()),
+            ..Default::default()
+        };
+        return Ok(());
+    }
     inner.goal_matching.proposal = resolved.view.clone();
     let stable = inner
         .goal_matching
@@ -352,6 +346,13 @@ pub fn attribution(
     inner: &crate::commands::Inner,
     sample: &ActivitySnapshot,
 ) -> Result<crate::relevance::ActivityMatch, String> {
+    if metadata_unavailable(sample) {
+        return Ok(crate::relevance::ActivityMatch {
+            goal_id: None,
+            confidence: 0.,
+            reason: "No verified relevance".into(),
+        });
+    }
     let view = &inner.goal_matching.view;
     let mut confidence = view.confidence.unwrap_or(0.);
     if matches!(
@@ -412,7 +413,10 @@ fn due_inner(inner: &crate::commands::Inner, now: Instant) -> bool {
     cloud_allowed(inner)
         && (inner.status.nebius_configured || inner.status.mock_ai)
         && !matching.in_flight
-        && matching.sample.is_some()
+        && matching
+            .sample
+            .as_ref()
+            .is_some_and(|s| !metadata_unavailable(s))
         && matching.view.goal_id.is_none()
         && matches!(
             matching.proposal.source.as_deref(),
@@ -730,7 +734,8 @@ fn context_current(
     goals: &Value,
     sample: &ActivitySnapshot,
 ) -> bool {
-    cloud_allowed(inner)
+    !metadata_unavailable(sample)
+        && cloud_allowed(inner)
         && inner.storage.explicit_focus().ok().flatten().is_none()
         && inner
             .goal_matching

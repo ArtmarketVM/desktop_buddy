@@ -167,6 +167,36 @@ async fn run_inner(app: &AppHandle) -> Result<serde_json::Value, String> {
                 );
             }
             wait_painted(app, mode).await?;
+            // Hover/click-through changes must preserve both native visibility and Tao's state.
+            // A direct ShowWindow call can look correct until the next style update hides it.
+            for ignored in [true, false] {
+                mascot
+                    .set_ignore_cursor_events(ignored)
+                    .map_err(|_| "Could not toggle mascot click-through")?;
+                card.set_ignore_cursor_events(ignored)
+                    .map_err(|_| "Could not toggle card click-through")?;
+                pause(40).await;
+                if !mascot
+                    .is_visible()
+                    .map_err(|_| "Mascot visibility unavailable")?
+                {
+                    return Err("Hover/click-through hid the mascot".into());
+                }
+                if card
+                    .is_visible()
+                    .map_err(|_| "Card visibility unavailable")?
+                    != (mode > 1)
+                {
+                    return Err("Hover/click-through changed card visibility".into());
+                }
+            }
+            if mode == 3 {
+                windows::focus_chat(app)?;
+                pause(40).await;
+                if !card.is_focused().map_err(|_| "Chat focus unavailable")? {
+                    return Err("An explicitly opened chat did not receive keyboard focus".into());
+                }
+            }
             if cycle == 12 && mode == 2 {
                 let inspect = std::env::var("BUDDY_LAYOUT_INSPECT_MS")
                     .ok()
@@ -193,7 +223,12 @@ async fn run_inner(app: &AppHandle) -> Result<serde_json::Value, String> {
                 {
                     return Err("A prepared card was not displayed".into());
                 }
-                if mode == 2 && card.is_focused().map_err(|_| "Card focus unavailable")? {
+                if mode == 2
+                    && (card.is_focused().map_err(|_| "Card focus unavailable")?
+                        || mascot
+                            .is_focused()
+                            .map_err(|_| "Mascot focus unavailable")?)
+                {
                     return Err("A background reminder acquired keyboard focus".into());
                 }
                 samples += 1;
@@ -201,6 +236,6 @@ async fn run_inner(app: &AppHandle) -> Result<serde_json::Value, String> {
         }
     }
     Ok(
-        json!({"all_passed":true,"fixture":"synthetic_native_layout","cloud_requests":0,"cycles":30,"native_geometry_samples":samples,"directions":directions,"scope":"Actual native window bounds and paint acknowledgements. Does not establish absence of every compositor-frame flash or physical Windows coverage."}),
+        json!({"all_passed":true,"fixture":"synthetic_native_layout","cloud_requests":0,"cycles":30,"native_geometry_samples":samples,"click_through_transitions":240,"explicit_chat_focus_checks":30,"directions":directions,"scope":"Actual native window bounds, paint acknowledgements, visibility during click-through transitions and explicit chat focus. Does not establish absence of every compositor-frame flash or physical mouse coverage."}),
     )
 }
