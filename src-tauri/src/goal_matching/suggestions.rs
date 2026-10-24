@@ -243,6 +243,7 @@ mod tests {
         let sample = inner.goal_matching.sample.clone().unwrap();
         let job = Job {
             goals: candidates(inner, &sample).unwrap(),
+            recent: Value::Null,
             sample,
             revision: inner.privacy_revision,
             context_revision: inner.goal_matching.context_revision,

@@ -89,6 +89,7 @@ async fn one(case: &Case, service: Option<&Service<'_>>) -> Row {
                 &sample,
                 true,
                 case.activity.visible_text.as_deref(),
+                &json!({"trail":[],"last_matched_goal_id":null,"last_matched_minutes_ago":null}),
             ),
         )
         .await

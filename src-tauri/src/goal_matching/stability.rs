@@ -66,7 +66,16 @@ impl Runtime {
                     .is_some_and(|old| old.browser.is_some()));
         let frame = foreground(sample);
         let mut gap = self.metadata_gap.take();
+        if !missing {
+            self.unverified_since = None;
+            self.unverified_asked = None;
+        }
         if missing {
+            // The title-only window keeps its own clock and its own AI answer, nothing else.
+            if changed {
+                self.unverified_since = Some(now);
+                self.unverified_asked = None;
+            }
             if !stale {
                 if let (Some(old), Some(last), Some(since), Some(frame)) =
                     (&self.sample, self.last_seen, self.stable_since, &frame)
@@ -91,10 +100,12 @@ impl Runtime {
             self.cache.clear();
             self.pending_suggestion = None;
             self.text_fingerprint = None;
-            self.view = MatchView {
-                enabled: true,
-                ..Default::default()
-            };
+            if changed || self.view.source.as_deref() != Some("nebius_unverified") {
+                self.view = MatchView {
+                    enabled: true,
+                    ..Default::default()
+                };
+            }
         } else if changed {
             // Only timing can resume after fresh, exact metadata confirmation. Matches,
             // page text and request revisions always belong to the new observation.

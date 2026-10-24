@@ -226,6 +226,7 @@ async fn ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_ref
         &job.sample,
         false,
         None,
+        &job.recent,
     )
     .await;
     let mut i = state.inner.lock().unwrap();
@@ -559,6 +560,7 @@ async fn synthetic_switching_benchmark() {
                 &job.sample,
                 false,
                 None,
+                &job.recent,
             )
             .await;
             finish(
@@ -855,4 +857,56 @@ fn long_parked_lanes_leave_the_candidates_unless_their_own_words_match() {
         .unwrap();
     assert_eq!(parked["lane"]["active"], json!(false));
     assert!(parked["lane"]["last_worked_days_ago"].as_i64().unwrap() >= 20);
+}
+
+#[test]
+fn the_matcher_receives_a_bounded_trail_of_recent_windows_and_their_goals() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    feed(&mut i, &sample("Vega budget workbook"), base, 0, 60);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    let generic = sample("Research notes");
+    feed(&mut i, &generic, base, 63, 123);
+    let now = chrono::Utc::now().timestamp();
+    let recent = i.goal_matching.recent_context(now);
+    let trail = recent["trail"].as_array().unwrap();
+    assert_eq!(
+        trail.len(),
+        1,
+        "the current window is not part of the trail"
+    );
+    assert_eq!(trail[0]["app"], "Editor");
+    assert_eq!(trail[0]["title"], "Vega budget workbook");
+    assert_eq!(trail[0]["matched_goal_id"], json!(ids[1]));
+    assert_eq!(recent["last_matched_goal_id"], json!(ids[1]));
+    let job = claim(&mut i, base + Duration::from_secs(123))
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.recent["last_matched_goal_id"], json!(ids[1]));
+    assert!(job.recent.to_string().contains("Vega budget workbook"));
+    // Excluded or private windows never enter the trail; history deletion empties it.
+    let mut private = sample("password manager vault");
+    private.window_title = "Vault - 1Password".into();
+    observe_inner_at(&mut i, &private, false, base + Duration::from_secs(126)).unwrap();
+    let recent = i.goal_matching.recent_context(now);
+    assert_eq!(recent["trail"].as_array().unwrap().len(), 2);
+    assert!(!recent.to_string().contains("1Password"));
+    for n in 0..20 {
+        feed(
+            &mut i,
+            &sample(&format!("Window {n}")),
+            base,
+            200 + n * 6,
+            203 + n * 6,
+        );
+    }
+    assert!(i.goal_matching.trail.len() <= TRAIL_LIMIT);
+    i.privacy_revision += 1;
+    observe_inner_at(&mut i, &generic, true, base + Duration::from_secs(400)).unwrap();
+    assert_eq!(
+        i.goal_matching.trail.len(),
+        1,
+        "only the current window remains"
+    );
 }
