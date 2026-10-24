@@ -85,7 +85,18 @@ pub fn run() {
         if http::enabled("BUDDY_SEMANTIC_NATIVE_CHECK") {
             // A signed audit bundle can be launched normally without inheriting a CLI's TCC identity.
             // This fixed debug report contains status only, never images or installed user state.
-            let report = result.as_ref().cloned().unwrap_or_else(|error| serde_json::json!({"all_passed":false,"failure":engine_observability::error_category(error)}));
+            let report = result.as_ref().cloned().unwrap_or_else(|error| {
+                let failure = if error.contains("Accessibility") {
+                    "accessibility_unavailable"
+                } else if error.contains("Screen Recording") {
+                    "screen_recording_unavailable"
+                } else if error.contains("inactive or locked") {
+                    "session_inactive"
+                } else {
+                    engine_observability::error_category(error)
+                };
+                serde_json::json!({"all_passed":false,"failure":failure})
+            });
             let _ = std::fs::write(
                 "/private/tmp/buddy-semantic-native-launchservices.json",
                 report.to_string(),

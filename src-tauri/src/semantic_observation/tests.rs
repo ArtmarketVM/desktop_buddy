@@ -302,6 +302,69 @@ fn changed_goal_foreground_consent_and_sharing_reject_an_inflight_observation() 
     assert!(!context_current(&inner, &activity, consent, &goals));
 }
 #[test]
+fn captured_results_survive_safe_switches_but_never_privacy_boundaries_or_edits() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.tracking = true;
+    inner.status.demo = false;
+    inner.status.mock_ai = false;
+    inner.status.nebius_configured = true;
+    inner.companion.view.preferences.paused = false;
+    inner.companion.view.preferences.screen_task_detection = true;
+    let captured = ActivitySnapshot {
+        process_name: "Public checkout".into(),
+        window_title: "Confirmed order".into(),
+        window_id: Some(42),
+        ..Default::default()
+    };
+    inner.buddy.foreground = Some(captured.clone());
+    let candidates = goals(&inner).unwrap();
+    let lease = EvidenceLease {
+        consent: inner.last_consent_change,
+        epoch: inner.companion.semantic.evidence_epoch,
+        captured: Instant::now(),
+    };
+    assert!(current(&inner, &captured, lease.consent, &candidates));
+    inner.buddy.foreground = Some(ActivitySnapshot {
+        process_name: "Public notes".into(),
+        window_title: "Next task".into(),
+        window_id: Some(99),
+        ..Default::default()
+    });
+    // Matching/capture still cannot use the old window; only its sealed result can finish.
+    assert!(!current(&inner, &captured, lease.consent, &candidates));
+    assert!(lease.valid_in_session(&inner, &candidates, true));
+    assert!(!lease.valid_in_session(&inner, &candidates, false));
+    inner.last_consent_change += 1;
+    assert!(!lease.valid_in_session(&inner, &candidates, true));
+    inner.last_consent_change = lease.consent;
+    let foreground = inner.buddy.foreground.take();
+    assert!(!lease.valid_in_session(&inner, &candidates, true));
+    inner.buddy.foreground = foreground;
+    inner.companion.semantic.invalidate_evidence();
+    // Returning from a private/excluded window cannot resurrect the packet.
+    assert!(!lease.valid_in_session(&inner, &candidates, true));
+    let lease = EvidenceLease {
+        epoch: inner.companion.semantic.evidence_epoch,
+        ..lease
+    };
+    assert!(lease.valid_in_session(&inner, &candidates, true));
+    let expired = EvidenceLease {
+        captured: Instant::now() - Duration::from_secs(121),
+        ..lease
+    };
+    assert!(!expired.valid_in_session(&inner, &candidates, true));
+    inner
+        .storage
+        .core_create_goal(
+            "Edited goal",
+            "edited-goal",
+            &chrono::Local::now().date_naive().to_string(),
+        )
+        .unwrap();
+    assert!(!lease.valid_in_session(&inner, &candidates, true));
+}
+#[test]
 fn terminal_observation_grace_is_bounded_to_the_same_foreground_app() {
     let activity = ActivitySnapshot {
         process_name: "Foreground player".into(),

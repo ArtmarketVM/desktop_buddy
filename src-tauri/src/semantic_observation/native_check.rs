@@ -2,7 +2,24 @@
 use super::*;
 const TITLE: &str = "Buddy Semantic Fixture";
 const MARKER: &str = "SYNTHETIC_ONLY_BUDDY_SEMANTIC";
+fn phase(name: &str) {
+    #[cfg(all(target_os = "macos", debug_assertions))]
+    let _ = std::fs::write("/private/tmp/buddy-semantic-native-phase", name);
+    eprintln!("Native semantic check: {name}");
+}
 fn collect() -> Result<ActivitySnapshot, String> {
+    // Unlike the installed Tauri app, this isolated CLI has no AppKit event loop.
+    // Drain native workspace notifications before checking the current foreground.
+    #[cfg(target_os = "macos")]
+    unsafe {
+        use std::ffi::c_void;
+        #[link(name = "CoreFoundation", kind = "framework")]
+        extern "C" {
+            static kCFRunLoopDefaultMode: *const c_void;
+            fn CFRunLoopRunInMode(mode: *const c_void, seconds: f64, once: bool) -> i32;
+        }
+        CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0.01, false);
+    }
     let mut collector = crate::collector::create(false);
     collector.configure(
         &crate::tracking::TrackingSettings {
@@ -46,6 +63,7 @@ async fn sample(id: u64) -> Result<(Sample, (u64, String)), String> {
     ))
 }
 pub(super) async fn run() -> Result<Value, String> {
+    phase("waiting_for_fixture");
     if crate::http::enabled("AI_MOCK") {
         return Err("Native semantic fixture needs real providers".into());
     }
@@ -59,6 +77,7 @@ pub(super) async fn run() -> Result<Value, String> {
         }
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
+    phase("capturing_pending_state");
     let (before, before_image) = match sample(1).await {
         Ok(s) => s,
         Err(error) => {
@@ -70,11 +89,7 @@ pub(super) async fn run() -> Result<Value, String> {
     if !before.interface_text.contains("Payment pending") {
         return Err("Restart the public fixture in its pending state".into());
     }
-    #[cfg(all(target_os = "macos", debug_assertions))]
-    let _ = std::fs::write(
-        "/private/tmp/buddy-semantic-native-phase",
-        "awaiting_synthetic_order",
-    );
+    phase("awaiting_synthetic_order");
     eprintln!("Native fixture sampled; awaiting Confirm synthetic order (60 seconds)");
     let mut after = None;
     for _ in 0..30 {
@@ -88,6 +103,7 @@ pub(super) async fn run() -> Result<Value, String> {
             return Err("Public fixture marker missing".into());
         }
         if text.contains("Order #4231 confirmed just now") {
+            phase("capturing_confirmed_state");
             after = Some(sample(2).await?);
             break;
         }
@@ -118,6 +134,7 @@ pub(super) async fn run() -> Result<Value, String> {
             Err("Public fixture foreground changed".into())
         }
     };
+    phase("loading_provider");
     let service = Service::configured(&state.client)?;
     let model = {
         let i = state
@@ -126,7 +143,9 @@ pub(super) async fn run() -> Result<Value, String> {
             .map_err(|_| "Fixture state unavailable")?;
         crate::vision::configured_model(&i)
     };
+    phase("interpreting_native_evidence");
     let response=infer(&service,&model,Pass::Observation,json!({"open_goals":candidates,"observations":samples,"image_sample_ids":[1,2],"current_time":Utc::now().to_rfc3339(),"relevant_personal_context":null}),&images,&preflight).await?;
+    phase("validating_interpretation");
     let answer = parse(&response, &candidates, &samples)?;
     let signal = answer
         .signals
@@ -140,6 +159,7 @@ pub(super) async fn run() -> Result<Value, String> {
             .map_err(|_| "Fixture state unavailable")?;
         outcome_target(&i, signal)?
     };
+    phase("verifying_native_evidence");
     let response=infer(&service,crate::http::DEFAULT_RESPONSE_MODEL,Pass::Verification,json!({"target":target,"observations":samples,"image_sample_ids":[1,2],"current_time":Utc::now().to_rfc3339()}),&images,&preflight).await?;
     preflight()?;
     let verdict: Verdict = serde_json::from_str(response_text(&response)?)
@@ -148,6 +168,7 @@ pub(super) async fn run() -> Result<Value, String> {
         .inner
         .lock()
         .map_err(|_| "Fixture state unavailable")?;
+    phase("applying_and_undoing_result");
     let proof = verified_outcome(&i, signal, &verdict, &samples)?
         .ok_or("Native outcome was not independently established")?;
     let event = i.storage.automatically_complete_outcome(

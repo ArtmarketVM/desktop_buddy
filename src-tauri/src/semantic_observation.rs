@@ -50,12 +50,17 @@ pub(crate) struct Runtime {
     last_goal: Option<i64>,
     last_at: Option<i64>,
     last_passive: Option<(String, Instant)>,
+    evidence_epoch: u64,
 }
 impl Runtime {
     pub(crate) fn clear(&mut self) {
-        *self = Self::default();
+        *self = Self {
+            evidence_epoch: self.evidence_epoch.wrapping_add(1),
+            ..Self::default()
+        };
     }
     pub(crate) fn invalidate_evidence(&mut self) {
+        self.evidence_epoch = self.evidence_epoch.wrapping_add(1);
         self.samples.clear();
         self.image = None;
         self.last_signature.clear();
@@ -274,6 +279,31 @@ fn context_current(
 fn current(inner: &Inner, activity: &ActivitySnapshot, consent: u64, expected: &Value) -> bool {
     context_current(inner, activity, consent, expected)
         && companion::screen_context::allowed(inner, activity)
+}
+/// Captured evidence is immutable: an ordinary app switch does not erase an observed result.
+/// A privacy boundary, goal edit, consent change or expiry still cancels the entire packet.
+struct EvidenceLease {
+    consent: u64,
+    epoch: u64,
+    captured: Instant,
+}
+impl EvidenceLease {
+    fn valid(&self, inner: &Inner, expected: &Value) -> bool {
+        self.valid_in_session(inner, expected, crate::collector::session_active())
+    }
+    fn valid_in_session(&self, inner: &Inner, expected: &Value, session: bool) -> bool {
+        session
+            && enabled(inner)
+            && self.captured.elapsed() <= Duration::from_secs(120)
+            && inner.last_consent_change == self.consent
+            && inner.companion.semantic.evidence_epoch == self.epoch
+            && inner
+                .buddy
+                .foreground
+                .as_ref()
+                .is_some_and(|live| companion::screen_context::allowed(inner, live))
+            && goals(inner).is_ok_and(|g| g == *expected)
+    }
 }
 fn parse(value: &Value, candidates: &Value, samples: &[Sample]) -> Result<Answer, String> {
     let mut answer: Answer = serde_json::from_str(response_text(value)?)
@@ -510,7 +540,7 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
         }
     };
     let image = crate::vision::capture_frame(state, &activity, &text).await?;
-    let (samples, images, signature, personal) = {
+    let (samples, images, signature, personal, lease) = {
         let mut inner = state
             .inner
             .lock()
@@ -580,19 +610,24 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
         images.retain(|(id, _)| samples.iter().any(|s| s.id == *id));
         r.status = "reasoning";
         crate::buddy::sync(app, &mut inner)?;
-        (samples, images, signature, personal)
+        let lease = EvidenceLease {
+            consent,
+            epoch: inner.companion.semantic.evidence_epoch,
+            captured: Instant::now(),
+        };
+        (samples, images, signature, personal, lease)
     };
     let check = || -> Result<(), String> {
         let inner = state
             .inner
             .lock()
             .map_err(|_| "Observation state unavailable")?;
-        if current(&inner, &activity, consent, &candidates)
+        if lease.valid(&inner, &candidates)
             && (images.is_empty() || inner.companion.view.preferences.use_screenshots)
         {
             Ok(())
         } else {
-            Err("Observation goals, foreground or consent changed".into())
+            Err("Observation evidence expired or goals, privacy or consent changed".into())
         }
     };
     let context = json!({"open_goals":candidates,"observations":samples,"image_sample_ids":images.iter().map(|(id,_)|id).collect::<Vec<_>>(),
@@ -618,7 +653,7 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
             .inner
             .lock()
             .map_err(|_| "Observation state unavailable")?;
-        if !current(&inner, &activity, consent, &candidates) {
+        if !lease.valid(&inner, &candidates) {
             return Ok(());
         }
         inner.companion.semantic.last_at = Some(Utc::now().timestamp());
@@ -725,16 +760,16 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
                 .inner
                 .lock()
                 .map_err(|_| "Observation state unavailable")?;
-            if !current(&inner, &activity, consent, &candidates) {
+            if !lease.valid(&inner, &candidates) {
                 return Ok(());
             }
-            apply_result(app, &mut inner, &activity, &signal, verified)?;
+            apply_result(app, &mut inner, &activity, &signal, &images, verified)?;
         } else {
             let mut inner = state
                 .inner
                 .lock()
                 .map_err(|_| "Observation state unavailable")?;
-            if !current(&inner, &activity, consent, &candidates) {
+            if !lease.valid(&inner, &candidates) {
                 return Ok(());
             }
             propose(app, &mut inner, &signal)?;
@@ -744,11 +779,11 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
         .inner
         .lock()
         .map_err(|_| "Observation state unavailable")?;
-    if !current(&inner, &activity, consent, &candidates) {
+    if !lease.valid(&inner, &candidates) {
         return crate::buddy::sync(app, &mut inner);
     }
     inner.companion.semantic.last_signature = signature;
-    if match_without_signals {
+    if match_without_signals && current(&inner, &activity, consent, &candidates) {
         if let Some(id) = observed_match {
             crate::goal_matching::accept_context_match(
                 &mut inner,
@@ -839,6 +874,7 @@ fn apply_result(
     inner: &mut Inner,
     activity: &ActivitySnapshot,
     signal: &Signal,
+    images: &[(u64, String)],
     verified: Option<VerifiedOutcome>,
 ) -> Result<(), String> {
     let p = prompt(inner, signal)?;
@@ -856,12 +892,9 @@ fn apply_result(
             .iter()
             .filter(|e| e.image)
             .filter_map(|e| {
-                inner
-                    .companion
-                    .semantic
-                    .image
-                    .as_ref()
-                    .filter(|(id, _)| *id == e.sample_id)
+                images
+                    .iter()
+                    .find(|(id, _)| *id == e.sample_id)
                     .map(|(_, image)| fingerprint(image))
             })
             .collect::<Vec<_>>();

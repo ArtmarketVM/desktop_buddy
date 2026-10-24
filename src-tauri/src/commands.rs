@@ -405,6 +405,7 @@ pub fn collect(state: &AppState) -> Result<(), String> {
                 inner.usage = Default::default();
                 inner.window_history.clear();
                 inner.unplanned_work.reset_sample();
+                inner.companion.semantic.invalidate_evidence();
                 if error == collector::CONTEXT_CHANGED {
                     return Ok(());
                 }

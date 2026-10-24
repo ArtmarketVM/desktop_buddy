@@ -1,6 +1,6 @@
 # General goal observation: audit and implementation
 
-Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.0 is prepared, not yet published. Native foreground acceptance and both-platform CI remain separate gates.
+Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.0 is published from `c3bdeb9`. Both-platform CI, signed packaging and public asset verification passed; native foreground acceptance remains under investigation after the owner reported a context-change failure.
 
 ## Confirmed gaps
 
@@ -18,7 +18,7 @@ Status: implementation and local checks complete on `codex/semantic-goal-observa
 - Interpret goals and completion criteria semantically in the user's language. Consider open goals beyond the focused one, using bounded descriptions and steps.
 - Combine permitted interface text, exact foreground metadata, recent bounded observations and optional direct image input. Labels and scene captions are evidence of context, not proof of an outcome.
 - Distinguish in progress, observable result, uncertain result and an outcome that cannot be observed on the computer. Deadlines and time spent do not prove accomplishment.
-- Existing goals/steps can complete automatically only with the existing opt-in, two agreeing evidence checks, current goal/consent/foreground guards and durable Undo. Never create evidence from the model's own claims or trust instructions embedded in a screen.
+- Existing goals/steps can complete automatically only with the existing opt-in, two agreeing evidence checks, current goal/consent/privacy guards and a fresh immutable evidence packet and durable Undo. Never create evidence from the model's own claims or trust instructions embedded in a screen.
 - New goals and steps are proposals. The owner reaffirmed that adding them requires their consent. Duplicate proposals and repeated old receipts must not create duplicate tasks.
 - Quiet mode suppresses presentation without disabling permitted observation. Lock, exclusions, revoked consent and private contexts continue to prohibit observation and disclosure.
 - Keep shared resource limits, bounded image size and capture cadence; consolidate the main observation pass and reserve verification capacity instead of multiplying background agents.
@@ -56,12 +56,14 @@ Nebius's public catalog was checked on 24 October 2026 at `https://tokenfactory.
 | Real shared chat path | Passed and manually inspected; workspace unchanged | Corrected the seeded old denial, used actual synthetic settings/status and explained missing evidence instead of claiming absent screen access |
 | Frontend | 294 tests / 52 files, production build, ESLint and Knip passed | Final frontend input; existing reviewed screenshots were not changed |
 | Rust | 700 tests passed, 2 intentionally ignored; Clippy with `-D warnings` passed | Includes target validation, consent/foreground/goal staleness, bounded history, actual nonfocus mutation, proposal consent, durable Undo and shared budget |
+| Required GitHub gates | Passed on exact source `c3bdeb9`: Windows x64, Apple Silicon, both lint profiles and strict unchanged visual checks | [Run 40102714724](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40102714724) |
 | Signed Apple Silicon audit app | Built; reviewed signing identity and immutable credential helper verified | Saved credentials worked without export or new Keychain prompts |
-| Native foreground chain | Blocked at Accessibility; zero cloud requests | direct CLI launch was denied, while normal app launch passed Accessibility; manual active-window rehearsal remains pending; no TCC reset or bypass performed |
+| Native foreground chain | Not passed: `stale_context` after initial native text/image capture | Normal app launch passed Accessibility; owner ran the rehearsal. Stage-only diagnostics are being used to distinguish capture/inference context changes. No installed goal was changed and no TCC reset or bypass performed |
+| Public release 0.43.0 | 13 assets, 12 SHA-256 checksums, both updater signatures and four latest channels verified | [Signed release run40105073289](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40105073289); `.tools/releases/public-verification-0430.json` |
 
 The final synthetic series reported 43,550 prompt tokens and 2,737 output tokens in total. Six successful completion cases exercised both model decisions and the transactional result/Undo path. These small fixtures are acceptance tests, not proof that arbitrary human intent or unobserved work can be inferred.
 
-Local evidence is retained under ignored `.tools/semantic-validation/`. Full logs: `/private/tmp/buddy-semantic-rust-full.log`, `buddy-semantic-clippy.log`, `buddy-semantic-frontend-final.log`, `buddy-semantic-build-final.log`. CI and publication evidence will be recorded separately.
+Local evidence is retained under ignored `.tools/semantic-validation/`. Full logs: `/private/tmp/buddy-semantic-rust-full.log`, `buddy-semantic-clippy.log`, `buddy-semantic-frontend-final.log`, `buddy-semantic-build-final.log`. Both-platform CI passed in run40102714724. Signed publication and public verification passed for that same source. The later diagnostic-only harness changes are not contained in 0.43.0.
 
 ## Reproducing opt-in live checks
 
@@ -81,5 +83,9 @@ The native fixture source is `scripts/fixtures/semantic-observation.m`. Compile 
 - Observation sees permitted foreground content, not hidden tabs, arbitrary files, offline reading, thought or actual attention. A terminal progress indicator is observable evidence, not proof of understanding a book/video.
 - At most 40 open goals enter a pass, prioritizing Today; descriptions/steps are bounded. Full target criteria are re-read before independent verification.
 - Up to eight samples/20 minutes and two bounded actual images; 60-second inference checks, 120-second capture attempts, 60 total disclosures/hour with three slots reserved from primary sampling for verification. Privacy controls and encrypted review retention remain intact. Battery use and long-session memory have not been benchmarked.
-- Revoked consent, lock, exclusions, private context, a changed foreground or goal revision reject stale work. Quiet mode silences bubbles while permitted observation continues. New goals and steps always need acceptance.
+- Revoked consent, lock, exclusions, private context, a changed goal revision reject stale work. Capture still requires the exact foreground; after capture, an ordinary switch to another permitted app may finish the sealed packet for at most two minutes. Privacy boundaries irreversibly invalidate its epoch. Quiet mode silences bubbles while permitted observation continues. New goals and steps always need acceptance.
 - Provider outages produce a visible failed state and no mutation. A configured key/model or an enabled toggle is not proof of a successful capture.
+
+## 0.43.1 follow-up
+
+The owner-reported native failure exposed insufficient stage diagnostics. The isolated rehearsal now reports capture, provider and mutation stages and can confirm its own synthetic order automatically. Separately, code inspection confirmed that the production request cancelled already captured results on every ordinary foreground switch. The follow-up separates strict capture/current matching from a two-minute immutable result lease. Consent, lock, exclusions/private context, collection errors, changed goal criteria and evidence invalidation still cancel it. Image provenance comes from the same immutable packet sent to both model passes. New goal/step acceptance and Undo are unchanged.

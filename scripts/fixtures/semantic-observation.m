@@ -17,6 +17,8 @@
 }
 - (void)startAudit:(id)sender {
 #ifdef AUDIT_APP_PATH
+    [NSApp activateIgnoringOtherApps:YES];
+    self.status.stringValue = @"Cart: chocolate birthday cake. Tuesday pickup.\nPayment pending. No order has been placed.\nSYNTHETIC_ONLY_BUDDY_SEMANTIC";
     self.start.enabled = NO;
     self.confirm.enabled = NO;
     self.result.stringValue = @"Sampling this window. Keep it active; wait for the order button.";
@@ -39,7 +41,8 @@
         NSDictionary *report = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
         self.result.stringValue = [report[@"all_passed"] boolValue]
             ? @"Verified: native text + images, two AI checks, completion and Undo."
-            : @"Check did not pass. No installed goal was changed. See the audit report.";
+            : [NSString stringWithFormat:@"Check stopped: %@ (%@). No installed goal was changed.", report[@"failure"] ?: report[@"status"] ?: @"unknown", [NSString stringWithContentsOfFile:@"/private/tmp/buddy-semantic-native-phase" encoding:NSUTF8StringEncoding error:nil] ?: @"unknown stage"];
+        self.start.enabled = YES;
         [timer invalidate];
         return;
     }
@@ -47,6 +50,13 @@
     if ([phase isEqualToString:@"awaiting_synthetic_order"] && [self.status.stringValue containsString:@"Payment pending"]) {
         self.confirm.enabled = YES;
         self.result.stringValue = @"First observation captured. Now confirm the synthetic order.";
+#ifdef AUTOMATIC_SYNTHETIC_ORDER
+        [self confirmOrder:nil];
+#else
+        if ([NSProcessInfo.processInfo.arguments containsObject:@"--automatic-synthetic-order"]) [self confirmOrder:nil];
+#endif
+    } else if (![phase isEqualToString:@"awaiting_synthetic_order"] && phase.length) {
+        self.result.stringValue = [NSString stringWithFormat:@"Checking: %@. Keep this synthetic window active.", phase];
     }
 }
 @end
