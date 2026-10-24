@@ -1,6 +1,6 @@
 # General goal observation: audit and implementation
 
-Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.0 is published from `c3bdeb9`. Both-platform CI, signed packaging and public asset verification passed; a native Apple Silicon rehearsal subsequently passed with the 0.43.1 follow-up. The patch still needs exact-source CI and signed publication.
+Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.1 is published from `7401f7c`, following 0.43.0 (`c3bdeb9`). Both-platform CI, signed packaging and public asset verification passed. A native Apple Silicon rehearsal passed the actual collection/provider/completion/Undo chain. Installation on the owner’s Mac is pending confirmed save/restart; the last verified installed version is 0.42.2.
 
 ## Confirmed gaps
 
@@ -91,3 +91,10 @@ The native fixture source is `scripts/fixtures/semantic-observation.m`. Compile 
 The owner-reported native failure exposed insufficient stage diagnostics. The isolated rehearsal now reports capture, provider and mutation stages and can confirm its own synthetic order automatically. Separately, code inspection confirmed that the production request cancelled already captured results on every ordinary foreground switch. The follow-up separates strict capture/current matching from a two-minute immutable result lease. Consent, lock, exclusions/private context, collection errors, changed goal criteria and evidence invalidation still cancel it. Image provenance comes from the same immutable packet sent to both model passes. New goal/step acceptance and Undo are unchanged.
 
 Native follow-up findings: the headless Mac rehearsal needed workspace-event processing (the installed app already has its native event loop). A later run reached both real providers; the independent verifier returned all three outcome flags true, but its citation failed source grounding. Literal matching now tolerates layout-only whitespace while preserving case, punctuation, word order and source IDs; paraphrases/changed words remain rejected. The original failed quote was not retained, so its exact textual mismatch is not established. The next native run passed the complete collection/provider/mutation/Undo chain; the UI displayed **Verified**. This is a bounded synthetic native acceptance case, not proof of unattended timing, Windows physical observation, or arbitrary task accuracy.
+
+## Final 0.43.1 delivery
+
+- [Required CI40108808323](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40108808323): passed on `7401f7c`, macOS Apple Silicon and Windows x64, including both lint profiles. Final local Rust: 702 passed, two intentionally ignored; strict Clippy passed.
+- [Signed release40109396427](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40109396427): passed both packaging jobs and the unchanged visual gate; [0.43.1 release](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.43.1) is public.
+- Actual public verification passed: 13 assets, 12 checksums, macOS/Windows updater signatures, four latest compatibility channels. Ignored `.tools/releases/public-verification-0431.json`. No trusted key/signing identity was changed.
+- The installed app remained 0.42.2 when checked. Normal Quit/relaunch was rejected by automatic safety review because of the updater’s unsaved-edit warning; the owner has been asked to save drafts and confirm restart. No workaround or forced replacement was attempted. Saved observation, screenshots, automatic completion and goal-sharing settings were already enabled.
