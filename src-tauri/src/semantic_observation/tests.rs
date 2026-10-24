@@ -25,7 +25,11 @@ fn literal_grounding_accepts_layout_whitespace_but_rejects_paraphrases_and_missi
         quote: Some("Order #4231 confirmed just now. Chocolate birthday cake.".into()),
         image: false,
     };
-    assert!(evidence_present(std::slice::from_ref(&proof), &observations, true));
+    assert!(evidence_present(
+        std::slice::from_ref(&proof),
+        &observations,
+        true
+    ));
     assert!(!evidence_present(
         &[Evidence {
             sample_id: 1,
