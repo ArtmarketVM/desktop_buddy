@@ -7,7 +7,6 @@ import {
 } from "../src/types";
 import { defaultCompanionView } from "../src/companion/types";
 import { defaultMemoryControls } from "../src/api/memory";
-import type { ActivityReviewData } from "../src/core/activityReviewTypes";
 
 export const NOW = "2026-10-20T10:00:00.000Z";
 const date = "2026-10-20";
@@ -207,6 +206,8 @@ export function fixtureReply(
     case "get_ai_service_status":
       return {
         configured_model: null,
+        configured_vision_model: "moonshotai/Kimi-K3",
+        configured_image_description_model: "nvidia/Nemotron-3.5-Super-VL",
         services: ["nebius", "nvidia", "tavily"].map((id) => ({
           id,
           status: "not_configured",
@@ -320,7 +321,7 @@ const reviewBlock = {
   evidence_ids: [],
   finalized: false,
 };
-const activityReviewFixture: ActivityReviewData = {
+const activityReviewFixture = {
   pending_seconds: 720,
   pending_summary_count: 1,
   blocks: [reviewBlock],

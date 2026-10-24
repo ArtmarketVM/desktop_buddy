@@ -131,6 +131,7 @@ export function CoreSettings({
   const [preview, setPreview] = useState("");
   const [panel, setPanel] = useState<"log" | "memory" | "raw" | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [visionDraft, setVisionDraft] = useState<string | null>(null);
   const logLast = new Date().toISOString().slice(0, 10);
   const logFirst = new Date(Date.now() - 6 * 86_400_000)
     .toISOString()
@@ -625,18 +626,32 @@ export function CoreSettings({
                 Connection tests verify key access. AI generation and web search
                 can still fail or time out separately.
               </p>
-              <label className="setting-row">
+              <label className="setting-row vision-model-row">
                 <span className="svc">
                   <b>Vision model</b>
-                  <small>optional</small>
+                  <small>Screenshot understanding</small>
                 </span>
                 <input
+                  aria-label="Vision model"
                   maxLength={160}
-                  value={preferences.vision_model}
-                  onBlur={() => void preferenceSave.flush()}
-                  placeholder="Model ID"
+                  value={
+                    visionDraft ??
+                    (preferences.vision_model ||
+                      services?.configured_vision_model ||
+                      "")
+                  }
+                  onBlur={() => {
+                    void preferenceSave.flush();
+                    setVisionDraft(null);
+                  }}
+                  placeholder={
+                    serviceStateQuery.loading
+                      ? "Loading model…"
+                      : "Model unavailable"
+                  }
                   disabled={blocked}
                   onChange={(e) => {
+                    setVisionDraft(e.target.value);
                     preferenceSave.update(
                       { ...preferences, vision_model: e.target.value },
                       350,
@@ -644,6 +659,13 @@ export function CoreSettings({
                   }}
                 />
               </label>
+              <p className="helper">
+                {services?.configured_vision_model
+                  ? `Configured for screen understanding: ${services.configured_vision_model}. Clear the field to use the default.`
+                  : "The configured screen model is unavailable. Reopen AI settings to check again."}
+                {services?.configured_image_description_model &&
+                  ` Image descriptions: ${services.configured_image_description_model}.`}
+              </p>
             </section>
             <section className="settings-card" aria-label="AI">
               <p className="eyebrow settings-card-title">AI</p>

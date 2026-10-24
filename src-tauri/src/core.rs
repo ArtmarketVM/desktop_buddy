@@ -1557,6 +1557,7 @@ pub fn set_core_preferences(
         &[
             crate::frontend_events::Resource::Workspace,
             crate::frontend_events::Resource::Dashboard,
+            crate::frontend_events::Resource::Services,
         ],
         false,
     );

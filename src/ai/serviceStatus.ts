@@ -12,6 +12,8 @@ export type ServiceState =
 export type ServiceSnapshot = {
   configured_model: string | null;
   configured_response_model?: string | null;
+  configured_vision_model?: string | null;
+  configured_image_description_model?: string | null;
   services: {
     id: ServiceId;
     status: ServiceState;

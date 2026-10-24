@@ -1027,7 +1027,7 @@ textarea:focus {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  height: 120px;
+  height: 128px;
   margin: 4px 0 20px;
 }
 .stack-bar {
@@ -1038,8 +1038,8 @@ textarea:focus {
   min-height: 2px;
   background: transparent;
 }
-.stack-bar:not(:has(i)) {
-  height: 2px !important;
+.stack-bar:empty {
+  min-height: 0;
 }
 .progress-list {
   list-style: none;
@@ -1786,15 +1786,14 @@ details.today-summary > .today-summary-head {
   flex: none;
 }
 
-/* Progress: hover split per goal, open steps, Details link, toasts. */
+/* Progress: a shared baseline and details for each goal segment. */
 .stack-col {
   flex: 1;
   min-width: 0;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: stretch;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 18px;
+  align-items: end;
   position: relative;
 }
 .stack-tip {
@@ -1812,7 +1811,19 @@ details.today-summary > .today-summary-head {
   line-height: 1.6;
   text-align: left;
   pointer-events: none;
-  white-space: nowrap;
+  width: max-content;
+  max-width: min(260px, 65vw);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.stack-col:first-child .stack-tip {
+  left: 0;
+  transform: none;
+}
+.stack-col:last-child .stack-tip {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 .stack-tip strong {
   display: block;
@@ -1987,9 +1998,24 @@ p.error .text-button {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.stack-bar > i {
+.stack-segment {
+  display: block;
+  flex: none;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
   background: var(--bar-color, var(--accent));
   border-radius: 3px;
+  cursor: pointer;
+}
+.stack-segment:hover {
+  filter: brightness(1.08);
+}
+.stack-segment:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
 }
 
 /* Warning callout hugs the block below it; the headline then breathes before the period row. */
@@ -2274,6 +2300,21 @@ p.error .text-button {
   .setting-row
   > input:not([type="checkbox"]):not([type="time"]) {
   width: 200px;
+}
+.settings-card .setting-row.vision-model-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+.settings-card .vision-model-row .svc {
+  flex-wrap: wrap;
+}
+.core-workspace
+  .settings-card
+  .vision-model-row
+  > input:not([type="checkbox"]):not([type="time"]) {
+  width: 100%;
+  min-width: 0;
 }
 .settings-card .toggle-row.sub {
   padding-left: 18px;

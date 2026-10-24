@@ -10,19 +10,6 @@ import {
 import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { coachingApi, type CoachingView } from "../coaching/api";
 import { invoke } from "./ipc";
-import type { ActivityReviewData } from "../core/activityReviewTypes";
-export const activityReviewQuery = queryClient.query(
-  "activity-review",
-  ["activity", "workspace"],
-  {
-    pending_seconds: 0,
-    pending_summary_count: 0,
-    blocks: [],
-    summaries: [],
-  } as ActivityReviewData,
-  () => invoke<ActivityReviewData>("get_activity_review"),
-  15_000,
-);
 export const workspaceQuery = (anchor: string | null, period: ProgressPeriod) =>
   queryClient.query(
     `workspace:${JSON.stringify([anchor, period])}`,

@@ -31,7 +31,9 @@ vi.mock("../api/tauri", () => ({
   },
 }));
 vi.mock("../ai/serviceStatus", () => ({ serviceStatusApi: { read: vi.fn() } }));
-vi.mock("./api", () => ({ coreApi: { snapshot: vi.fn() } }));
+vi.mock("./api", () => ({
+  coreApi: { snapshot: vi.fn(), preferences: vi.fn() },
+}));
 vi.mock("../components/MacPermissions", () => ({ MacPermissions: () => null }));
 vi.mock("../components/MemorySettings", () => ({ MemorySettings: () => null }));
 vi.mock("../companion/CompanionSettings", () => ({
@@ -53,6 +55,8 @@ beforeEach(() => {
   queryClient.invalidate(undefined, true);
   snapshot = {
     configured_model: "test-model",
+    configured_vision_model: "fixture-screen-model",
+    configured_image_description_model: "fixture-image-model",
     services: ["nebius", "tavily"].map((id) => ({
       id: id as "nebius" | "tavily",
       status: "not_checked",
@@ -60,6 +64,7 @@ beforeEach(() => {
     })),
   };
   vi.mocked(coreApi.snapshot).mockResolvedValue(emptyCore());
+  vi.mocked(coreApi.preferences).mockResolvedValue(undefined);
   vi.mocked(api.trackingSettings).mockResolvedValue(defaultTrackingSettings);
   vi.mocked(serviceStatusApi.read).mockImplementation(async () =>
     structuredClone(snapshot),
@@ -154,7 +159,9 @@ it("polls local status without probing providers and distinguishes expiry from f
   await act(async () => {
     fireEvent(window, new Event("focus"));
   });
-  await waitFor(() => expect(services.getAllByRole("status")[0].textContent).toBe("Check again"));
+  await waitFor(() =>
+    expect(services.getAllByRole("status")[0].textContent).toBe("Check again"),
+  );
   expect(api.testConnection).not.toHaveBeenCalled();
   vi.mocked(serviceStatusApi.read).mockRejectedValue(
     new Error("Local status unavailable"),
@@ -162,5 +169,43 @@ it("polls local status without probing providers and distinguishes expiry from f
   await act(async () => {
     fireEvent(window, new Event("focus"));
   });
-  await waitFor(() => expect(services.getAllByRole("status")[0].textContent).toBe("Key saved, not checked yet"));
+  await waitFor(() =>
+    expect(services.getAllByRole("status")[0].textContent).toBe(
+      "Key saved, not checked yet",
+    ),
+  );
+});
+
+it("displays resolved screenshot models without saving an override on mount", async () => {
+  const services = await openSettings();
+  await waitFor(() =>
+    expect(
+      (
+        services.getByRole("textbox", {
+          name: "Vision model",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("fixture-screen-model"),
+  );
+  expect(
+    services.getByText(/Image descriptions: fixture-image-model/),
+  ).toBeTruthy();
+  expect(coreApi.preferences).not.toHaveBeenCalled();
+  const field = services.getByRole("textbox", { name: "Vision model" });
+  fireEvent.change(field, { target: { value: "custom/vision" } });
+  fireEvent.blur(field);
+  await waitFor(() =>
+    expect(coreApi.preferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({ vision_model: "custom/vision" }),
+    ),
+  );
+  fireEvent.change(field, { target: { value: "" } });
+  expect((field as HTMLInputElement).value).toBe("");
+  fireEvent.blur(field);
+  await waitFor(() =>
+    expect(coreApi.preferences).toHaveBeenLastCalledWith(
+      expect.objectContaining({ vision_model: "" }),
+    ),
+  );
+  expect((field as HTMLInputElement).value).toBe("fixture-screen-model");
 });
