@@ -71,7 +71,8 @@ pub(super) fn offer(
     result: &MatchResult,
     now: Instant,
 ) -> Result<Option<Suggestion>, String> {
-    if !cloud_allowed(inner) {
+    // Attribution runs in quiet mode; a card asking about it does not.
+    if !cloud_allowed(inner) || crate::companion::quiet_mode(inner) {
         return Ok(None);
     }
     let Some(id) = result.goal_id else {
@@ -161,6 +162,7 @@ pub(crate) fn respond(
         .as_ref()
         .filter(|p| p.suggestion.goal_id == goal_id && current(inner, p, now))
         .ok_or("This goal suggestion has expired. Continue with your current focus.")?;
+    let sample = pending.sample.clone();
     match action {
         Response::Yes => {
             // The shared explicit-focus path requires Today membership. Acceptance is
@@ -168,6 +170,15 @@ pub(crate) fn respond(
             let date = inner.storage.core_snapshot(None)?.date;
             inner.storage.core_today(goal_id, true, &date)?;
             crate::automatic_goals::focus_goal_inner(inner, goal_id)?;
+            // The confirmed context counts from when it became stable.
+            super::attribute_context(
+                inner,
+                &sample,
+                goal_id,
+                1.,
+                "User confirmed the suggested goal",
+                now,
+            );
             inner.goal_matching.clear();
         }
         Response::No => {

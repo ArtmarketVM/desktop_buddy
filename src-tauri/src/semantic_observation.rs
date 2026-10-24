@@ -688,12 +688,16 @@ pub(crate) async fn run(app: &AppHandle, state: &AppState) -> Result<(), String>
         inner.companion.semantic.last_goal = answer.matched_goal_id;
         inner.storage.classify_review_context(
             &activity,
-            answer.matched_goal_id.filter(|_| answer.confidence >= 0.9),
+            answer
+                .matched_goal_id
+                .filter(|_| answer.confidence >= crate::goal_matching::AUTO_ASSIGN_CONFIDENCE),
             None,
             &bounded(&answer.activity, 500),
         )?;
     }
-    let observed_match = answer.matched_goal_id.filter(|_| answer.confidence >= 0.9);
+    let observed_match = answer
+        .matched_goal_id
+        .filter(|_| answer.confidence >= crate::goal_matching::AUTO_ASSIGN_CONFIDENCE);
     let match_without_signals = answer.status == "in_progress" && answer.signals.is_empty();
     for signal in answer.signals.into_iter().filter(|s| {
         s.confidence

@@ -123,11 +123,18 @@ static BOOL audioPlaying(NSRunningApplication *application) {
     return NO;
 }
 // Browser metadata reads browser chrome only. Never traverse web document nodes.
+// Safari and Chromium browsers publish the front page address on the window itself.
+// Reading it costs one attribute, so wide tab bars cannot exhaust the traversal budget.
+static NSString *documentAddress(AXUIElementRef window) {
+    NSString *document = text(attribute(window, kAXDocumentAttribute), 4096);
+    return ([document hasPrefix:@"http://"] || [document hasPrefix:@"https://"]) ? document : nil;
+}
 static NSString *addressBar(AXUIElementRef root, NSUInteger depth, NSUInteger *visited, NSTimeInterval deadline) {
-    if (!root || depth > 7 || ++*visited > 80 || NSDate.timeIntervalSinceReferenceDate > deadline) return nil;
+    if (!root || depth > 7 || ++*visited > 120 || NSDate.timeIntervalSinceReferenceDate > deadline) return nil;
     NSString *role = attribute(root, kAXRoleAttribute);
     NSString *subrole = attribute(root, kAXSubroleAttribute);
-    if ([role isEqualToString:@"AXWebArea"] || [subrole isEqualToString:@"AXSecureTextField"]) return nil;
+    // Tab strips hold no address control and can be long; skipping them keeps the budget for the toolbar.
+    if ([role isEqualToString:@"AXWebArea"] || [role isEqualToString:@"AXTabGroup"] || [subrole isEqualToString:@"AXSecureTextField"]) return nil;
     if ([role isEqualToString:@"AXTextField"] || [role isEqualToString:@"AXComboBox"]) {
         NSString *description = [text(attribute(root, kAXDescriptionAttribute), 200) lowercaseString];
         NSString *identifier = [text(attribute(root, kAXIdentifierAttribute), 200) lowercaseString];
@@ -157,8 +164,11 @@ char *buddy_foreground(bool metadata) {
         NSString *process = processName(application);
         NSString *address = nil;
         if (metadata && [@[@"google chrome", @"microsoft edge", @"firefox", @"safari", @"brave browser", @"arc"] containsObject:process.lowercaseString]) {
-            NSUInteger visited = 0;
-            address = addressBar(window, 0, &visited, NSDate.timeIntervalSinceReferenceDate + 0.20);
+            address = documentAddress(window);
+            if (!address) {
+                NSUInteger visited = 0;
+                address = addressBar(window, 0, &visited, NSDate.timeIntervalSinceReferenceDate + 0.20);
+            }
         }
         BOOL fullscreen = [attribute(window, CFSTR("AXFullScreen")) boolValue];
         uint64_t identity = windowID(pid, window);

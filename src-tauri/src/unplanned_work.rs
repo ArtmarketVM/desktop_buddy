@@ -15,7 +15,8 @@ use serde_json::{json, Value};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, State, WebviewWindow};
 
-const MIN_ACTIVE_MS: i64 = 120_000;
+/// A few minutes of engaged work that no goal claims before sumi offers to add it.
+const MIN_ACTIVE_MS: i64 = 180_000;
 const STABLE: Duration = Duration::from_secs(60);
 const REQUEST_COOLDOWN: Duration = Duration::from_secs(300);
 const DISMISS_COOLDOWN: Duration = Duration::from_secs(600);
@@ -188,6 +189,8 @@ fn goals(inner: &Inner) -> Result<Value, String> {
 }
 fn due_inner(inner: &Inner, now: Instant) -> bool {
     opted_in(inner)
+        // Only work that goal matching left unassigned is offered as new work.
+        && inner.goal_matching.view.goal_id.is_none()
         && inner.status.nebius_configured
         && !crate::companion::quiet_mode(inner)
         && inner.unplanned_work.pending.is_none()
@@ -524,7 +527,7 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
             app: sample.process_name.clone(),
             completed,
         };
-        if view.seconds < 120 {
+        if view.seconds < (MIN_ACTIVE_MS / 1000) as u64 {
             return Ok(());
         }
         inner.storage.record_work_event(

@@ -119,6 +119,7 @@ impl Storage {
                             "assigned",
                             false,
                             "Daily review matched retained evidence",
+                            item.confidence,
                         )?;
                     }
                 }

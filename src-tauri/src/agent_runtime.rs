@@ -710,12 +710,9 @@ pub async fn tick(app: &AppHandle) {
             }
         });
     }
-    if state
-        .inner
-        .lock()
-        .is_ok_and(|i| !crate::semantic_observation::owns_observation(&i))
-        && crate::unplanned_work::due(&state)
-    {
+    // Work outside the goal list is offered after a few unmatched minutes, alongside the
+    // unified observation pass; both share the provider lock and the hourly budget.
+    if crate::unplanned_work::due(&state) {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
             let _ = crate::unplanned_work::identify(&handle, &handle.state::<AppState>()).await;
@@ -727,17 +724,14 @@ pub async fn tick(app: &AppHandle) {
         tauri::async_runtime::spawn(async move {
             crate::automatic_goals::run_pending(&handle).await;
         });
-        if state
-            .inner
-            .lock()
-            .is_ok_and(|i| !crate::semantic_observation::owns_observation(&i))
-            && crate::goal_matching::due(&state)
-        {
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                crate::goal_matching::identify(&handle, &handle.state::<AppState>()).await;
-            });
-        }
+    }
+    // Goal attribution is background accounting, not a prompt: it is the primary way
+    // measured time reaches a goal and continues through quiet hours.
+    if crate::goal_matching::due(&state) {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            crate::goal_matching::identify(&handle, &handle.state::<AppState>()).await;
+        });
     }
     if allowed {
         let handle = app.clone();
