@@ -233,19 +233,36 @@ impl Storage {
     /// still-pending interval of the same app, window and page since the context began
     /// moves to that goal with the actual match confidence. Manual review decisions,
     /// saved summaries and other contexts are untouched. Returns the moved interval count.
-    pub(crate) fn assign_context_since(
+    /// `until` bounds an earlier stage of the same task; `correct_automatic` also moves
+    /// intervals an automatic match had assigned to another goal. Manual decisions never move.
+    #[allow(
+        clippy::too_many_arguments,
+        reason = "One atomic move carries the context, the target, both time bounds and the evidence policy"
+    )]
+    pub(crate) fn assign_context_between(
         &self,
         a: &ActivitySnapshot,
         goal: i64,
         since: DateTime<Utc>,
+        until: Option<DateTime<Utc>>,
         confidence: f64,
         reason: &str,
+        correct_automatic: bool,
     ) -> Result<usize, String> {
         self.validate_review_goal(goal)?;
         let prefix = format!("{}:", context_key(a));
-        let mut q=self.connection.prepare("SELECT i.id FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE substr(i.context_key,1,length(?1))=?1 AND i.status='pending' AND i.manual=0 AND julianday(i.started_at)>=julianday(?2) AND p.summary IS NULL ORDER BY i.id").map_err(db)?;
+        let mut q=self.connection.prepare("SELECT i.id FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE substr(i.context_key,1,length(?1))=?1 AND i.manual=0 AND (i.status='pending' OR (?5 AND i.status='assigned' AND (i.goal_id IS NULL OR i.goal_id!=?4))) AND julianday(i.started_at)>=julianday(?2) AND (?3 IS NULL OR julianday(i.started_at)<=julianday(?3)) AND p.summary IS NULL ORDER BY i.id").map_err(db)?;
         let ids = q
-            .query_map(params![prefix, since.to_rfc3339()], |r| r.get::<_, i64>(0))
+            .query_map(
+                params![
+                    prefix,
+                    since.to_rfc3339(),
+                    until.map(|t| t.to_rfc3339()),
+                    goal,
+                    correct_automatic
+                ],
+                |r| r.get::<_, i64>(0),
+            )
             .map_err(db)?
             .collect::<Result<Vec<_>, _>>()
             .map_err(db)?;

@@ -101,6 +101,7 @@ async fn one(case: &Case, service: Option<&Service<'_>>) -> Row {
                 json!({"goal_id":null,"confidence":0.0,"reason":"AI_MOCK canned unassigned prediction"}),
             ),
             &goals,
+            0,
         )
     };
     match result {
@@ -233,7 +234,8 @@ mod tests {
         assert!(metrics(&[])["accuracy_percent"].is_null());
         assert!(parse(
             &output::envelope(json!({"goal_id":99999,"confidence":0.9,"reason":"Unknown ID"})),
-            &json!([])
+            &json!([]),
+            0
         )
         .is_err());
         assert_eq!(output::cell("case\n|id"), "case \\|id");

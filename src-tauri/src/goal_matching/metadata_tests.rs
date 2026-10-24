@@ -183,6 +183,7 @@ fn a_metadata_gap_invalidates_ai_results_suggestions_and_page_evidence_epochs() 
                     goal_id: Some(ids[1]),
                     confidence,
                     reason: "Old page match".into(),
+                    same_task_trail: vec![],
                 })
             };
             if cache_result {
@@ -259,6 +260,7 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
             goal_id: Some(ids[1]),
             confidence: 0.9,
             reason: "The page text is the budget sheet".into(),
+            same_task_trail: vec![],
         }),
         base + AI_STABLE,
     )
@@ -300,6 +302,7 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
             goal_id: None,
             confidence: 0.1,
             reason: "Unrelated".into(),
+            same_task_trail: vec![],
         }),
         base + Duration::from_secs(183),
     )

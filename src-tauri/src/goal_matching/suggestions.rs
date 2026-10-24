@@ -178,6 +178,7 @@ pub(crate) fn respond(
                 1.,
                 "User confirmed the suggested goal",
                 now,
+                false,
             );
             inner.goal_matching.clear();
         }
@@ -244,6 +245,7 @@ mod tests {
         let job = Job {
             goals: candidates(inner, &sample).unwrap(),
             recent: Value::Null,
+            trail: vec![],
             sample,
             revision: inner.privacy_revision,
             context_revision: inner.goal_matching.context_revision,
@@ -256,6 +258,7 @@ mod tests {
                 goal_id: Some(id),
                 confidence: 0.7,
                 reason: "Related work".into(),
+                same_task_trail: vec![],
             }),
             now,
         )
@@ -304,6 +307,7 @@ mod tests {
                     json!({"goal_id":ids[1],"confidence":confidence,"reason":"Related work"}),
                 ),
                 &job.goals,
+                0,
             )
             .unwrap();
             let suggestion = finish(&mut inner, &job, Ok(result), base + AI_STABLE).unwrap();
