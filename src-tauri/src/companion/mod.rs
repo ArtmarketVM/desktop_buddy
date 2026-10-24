@@ -129,9 +129,13 @@ impl Runtime {
         self.screen_context_epoch = self.screen_context_epoch.wrapping_add(1);
     }
     pub fn invalidate(&mut self) {
+        self.invalidate_for_focus();
+        self.semantic.invalidate_evidence();
+    }
+    pub(crate) fn invalidate_for_focus(&mut self) {
         self.progress_error = None;
         self.view.intervention = None;
-        self.semantic.clear();
+        self.semantic.reset_context();
     }
 }
 pub fn emit(app: &AppHandle, kind: &str, payload: impl Serialize) {
@@ -296,7 +300,7 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
                     | Kind::UnplannedCompleted
             )
         });
-        inner.companion.invalidate();
+        inner.companion.invalidate_for_focus();
         inner.companion.view.intervention = independent;
         inner.companion.previous_goal = goal_id;
         emit(app, "goal.active", &goal);

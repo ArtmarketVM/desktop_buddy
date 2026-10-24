@@ -334,7 +334,7 @@ fn select_goal(inner: &mut crate::commands::Inner, id: i64) -> Result<(), String
         }
         inner.usage = Default::default();
         inner.activity_state.stop(false);
-        inner.companion.invalidate();
+        inner.companion.invalidate_for_focus();
         inner.buddy.clear();
         inner.last_analysis = None;
     }

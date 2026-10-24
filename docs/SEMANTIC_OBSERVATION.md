@@ -1,6 +1,6 @@
 # General goal observation: audit and implementation
 
-Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.0 is published from `c3bdeb9`. Both-platform CI, signed packaging and public asset verification passed; native foreground acceptance remains under investigation after the owner reported a context-change failure.
+Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.0 is published from `c3bdeb9`. Both-platform CI, signed packaging and public asset verification passed; a native Apple Silicon rehearsal subsequently passed with the 0.43.1 follow-up. The patch still needs exact-source CI and signed publication.
 
 ## Confirmed gaps
 
@@ -58,7 +58,7 @@ Nebius's public catalog was checked on 24 October 2026 at `https://tokenfactory.
 | Rust | 700 tests passed, 2 intentionally ignored; Clippy with `-D warnings` passed | Includes target validation, consent/foreground/goal staleness, bounded history, actual nonfocus mutation, proposal consent, durable Undo and shared budget |
 | Required GitHub gates | Passed on exact source `c3bdeb9`: Windows x64, Apple Silicon, both lint profiles and strict unchanged visual checks | [Run 40102714724](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40102714724) |
 | Signed Apple Silicon audit app | Built; reviewed signing identity and immutable credential helper verified | Saved credentials worked without export or new Keychain prompts |
-| Native foreground chain | Not passed: `stale_context` after initial native text/image capture | Normal app launch passed Accessibility; owner ran the rehearsal. Stage-only diagnostics are being used to distinguish capture/inference context changes. No installed goal was changed and no TCC reset or bypass performed |
+| Native Apple Silicon chain | Passed with the 0.43.1 follow-up: actual text, two window images, two real Nebius calls, completion and Undo | `.tools/semantic-validation/native-passed-0431.json`; only the synthetic foreground window and an in-memory goal were used; installed goals were unchanged |
 | Public release 0.43.0 | 13 assets, 12 SHA-256 checksums, both updater signatures and four latest channels verified | [Signed release run40105073289](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40105073289); `.tools/releases/public-verification-0430.json` |
 
 The final synthetic series reported 43,550 prompt tokens and 2,737 output tokens in total. Six successful completion cases exercised both model decisions and the transactional result/Undo path. These small fixtures are acceptance tests, not proof that arbitrary human intent or unobserved work can be inferred.
@@ -89,3 +89,5 @@ The native fixture source is `scripts/fixtures/semantic-observation.m`. Compile 
 ## 0.43.1 follow-up
 
 The owner-reported native failure exposed insufficient stage diagnostics. The isolated rehearsal now reports capture, provider and mutation stages and can confirm its own synthetic order automatically. Separately, code inspection confirmed that the production request cancelled already captured results on every ordinary foreground switch. The follow-up separates strict capture/current matching from a two-minute immutable result lease. Consent, lock, exclusions/private context, collection errors, changed goal criteria and evidence invalidation still cancel it. Image provenance comes from the same immutable packet sent to both model passes. New goal/step acceptance and Undo are unchanged.
+
+Native follow-up findings: the headless Mac rehearsal needed workspace-event processing (the installed app already has its native event loop). A later run reached both real providers; the independent verifier returned all three outcome flags true, but its citation failed source grounding. Literal matching now tolerates layout-only whitespace while preserving case, punctuation, word order and source IDs; paraphrases/changed words remain rejected. The original failed quote was not retained, so its exact textual mismatch is not established. The next native run passed the complete collection/provider/mutation/Undo chain; the UI displayed **Verified**. This is a bounded synthetic native acceptance case, not proof of unattended timing, Windows physical observation, or arbitrary task accuracy.

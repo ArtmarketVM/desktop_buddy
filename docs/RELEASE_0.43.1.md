@@ -2,6 +2,8 @@
 
 - Finish independently verifying recently captured results after an ordinary switch to another permitted app. Capture still requires the exact foreground window, and activity matching remains tied to the current window.
 - Cancel captured evidence on a privacy boundary, locked session, consent or goal changes, tracking errors, or a two-minute expiry. Returning from an excluded window cannot revive an old request.
+- Preserve sealed results when automatic parking changes the focused goal.
+- Accept literal evidence quotes across layout-only whitespace differences while rejecting paraphrases, changed words and invented sources.
 - Keep image provenance tied to the immutable evidence used by both model checks.
 - Improve the isolated native rehearsal with stage-specific status, retry and optional automatic synthetic confirmation.
 

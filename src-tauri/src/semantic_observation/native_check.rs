@@ -36,13 +36,28 @@ async fn sample(id: u64) -> Result<(Sample, (u64, String)), String> {
         return Err("Activate only the public Buddy Semantic Fixture window".into());
     }
     let window = a.window_id.ok_or("Fixture window missing")?;
+    phase(if id == 1 {
+        "pending_text"
+    } else {
+        "confirmed_text"
+    });
     let text = companion::sample(window as usize).await?;
     if !text.contains(MARKER) || !crate::collector::matches_foreground(&a) {
         return Err("Public fixture marker or foreground changed".into());
     }
+    phase(if id == 1 {
+        "pending_pixels"
+    } else {
+        "confirmed_pixels"
+    });
     let image = tauri::async_runtime::spawn_blocking(move || crate::vision::capture(window))
         .await
         .map_err(|_| "Native fixture capture unavailable")??;
+    phase(if id == 1 {
+        "pending_capture_validation"
+    } else {
+        "confirmed_capture_validation"
+    });
     if !crate::collector::matches_foreground(&a) {
         return Err("Public fixture foreground changed".into());
     }
@@ -164,13 +179,32 @@ pub(super) async fn run() -> Result<Value, String> {
     preflight()?;
     let verdict: Verdict = serde_json::from_str(response_text(&response)?)
         .map_err(|_| "Native verifier contract failed")?;
+    let layout_wrapped_quote = verdict.evidence.iter().any(|e| {
+        !e.image
+            && e.quote.as_ref().is_some_and(|q| {
+                samples.iter().any(|s| {
+                    s.id == e.sample_id
+                        && !s.interface_text.contains(q)
+                        && literal_quote_in(&s.interface_text, q)
+                })
+            })
+    });
     let mut i = state
         .inner
         .lock()
         .map_err(|_| "Fixture state unavailable")?;
+    phase("validating_independent_verdict");
+    let Some(proof) = verified_outcome(&i, signal, &verdict, &samples)? else {
+        return Ok(
+            json!({"all_passed":false,"failure":"independent_verification_rejected","provider_calls":2,
+            "current_result":verdict.current_result,"criterion_met":verdict.criterion_met,"established":verdict.established,
+            "proposal_grounded":evidence_present(&signal.evidence,&samples,true),
+            "verdict_grounded":evidence_present(&verdict.evidence,&samples,true),
+            "verdict_evidence":verdict.evidence,
+            "missing_evidence":bounded(&verdict.missing_evidence,600)}),
+        );
+    };
     phase("applying_and_undoing_result");
-    let proof = verified_outcome(&i, signal, &verdict, &samples)?
-        .ok_or("Native outcome was not independently established")?;
     let event = i.storage.automatically_complete_outcome(
         &proof,
         "Public native fixture",
@@ -180,6 +214,6 @@ pub(super) async fn run() -> Result<Value, String> {
     i.storage.undo_work_event(event)?;
     let undone = i.storage.core_work_snapshot()?.goals[0].status == "open";
     Ok(
-        json!({"all_passed":completed&&undone,"source":"native_public_fixture_real_nebius","native_collector":true,"native_interface_text":true,"native_images":2,"provider_calls":2,"completed":completed,"undo_verified":undone,"scope":"Only the isolated synthetic window and in-memory goal were used. No installed user state was modified. This verifies the native evidence/provider/mutation chain, not unattended scheduler timing or every third-party app."}),
+        json!({"all_passed":completed&&undone,"source":"native_public_fixture_real_nebius","native_collector":true,"native_interface_text":true,"native_images":2,"provider_calls":2,"completed":completed,"undo_verified":undone,"layout_wrapped_quote":layout_wrapped_quote,"scope":"Only the isolated synthetic window and in-memory goal were used. No installed user state was modified. This verifies the native evidence/provider/mutation chain, not unattended scheduler timing or every third-party app."}),
     )
 }

@@ -92,6 +92,12 @@ pub fn run() {
                     "screen_recording_unavailable"
                 } else if error.contains("inactive or locked") {
                     "session_inactive"
+                } else if error == "Screen context changed" {
+                    "native_capture_context_changed"
+                } else if error == "Public fixture marker or foreground changed" {
+                    "fixture_text_context_changed"
+                } else if error == "Public fixture foreground changed" {
+                    "fixture_capture_context_changed"
                 } else {
                     engine_observability::error_category(error)
                 };

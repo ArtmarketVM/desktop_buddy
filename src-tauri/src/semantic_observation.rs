@@ -53,6 +53,12 @@ pub(crate) struct Runtime {
     evidence_epoch: u64,
 }
 impl Runtime {
+    pub(crate) fn reset_context(&mut self) {
+        *self = Self {
+            evidence_epoch: self.evidence_epoch,
+            ..Self::default()
+        };
+    }
     pub(crate) fn clear(&mut self) {
         *self = Self {
             evidence_epoch: self.evidence_epoch.wrapping_add(1),
@@ -123,6 +129,15 @@ impl VerifiedOutcome {
         &self.prompt
     }
 }
+fn literal_quote_in(source: &str, quote: &str) -> bool {
+    if source.contains(quote) {
+        return true;
+    }
+    // Accessibility and model output may wrap the same literal words differently.
+    // Preserve case, punctuation and every non-whitespace character; never fuzzy-match meaning.
+    let normalize = |text: &str| text.split_whitespace().collect::<Vec<_>>().join(" ");
+    normalize(source).contains(&normalize(quote))
+}
 fn evidence_present(evidence: &[Evidence], samples: &[Sample], current: bool) -> bool {
     !evidence.is_empty()
         && evidence.len() <= 4
@@ -138,7 +153,8 @@ fn evidence_present(evidence: &[Evidence], samples: &[Sample], current: bool) ->
                     let quote = e.quote.as_ref().is_some_and(|q| {
                         !q.trim().is_empty()
                             && q.chars().count() <= 500
-                            && (s.interface_text.contains(q) || s.window_title.contains(q))
+                            && (literal_quote_in(&s.interface_text, q)
+                                || literal_quote_in(&s.window_title, q))
                     });
                     if e.image {
                         s.has_image && e.quote.as_ref().is_none_or(|q| q.chars().count() <= 500)

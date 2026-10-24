@@ -1,4 +1,40 @@
 use super::*;
+
+#[test]
+fn literal_grounding_accepts_layout_whitespace_but_rejects_paraphrases_and_missing_words() {
+    let visible = "Order #4231 confirmed just now.\nChocolate birthday cake.\tTuesday pickup.";
+    assert!(literal_quote_in(
+        visible,
+        "Order #4231 confirmed just now. Chocolate birthday cake."
+    ));
+    assert!(!literal_quote_in(
+        visible,
+        "Order #4231 confirmed yesterday."
+    ));
+    assert!(!literal_quote_in(
+        visible,
+        "Order #4231 confirmed. Chocolate birthday cake."
+    ));
+    assert!(!literal_quote_in(
+        visible,
+        "Chocolate birthday cake. Wednesday pickup."
+    ));
+    let observations = [sample(2, visible, false)];
+    let proof = Evidence {
+        sample_id: 2,
+        quote: Some("Order #4231 confirmed just now. Chocolate birthday cake.".into()),
+        image: false,
+    };
+    assert!(evidence_present(std::slice::from_ref(&proof), &observations, true));
+    assert!(!evidence_present(
+        &[Evidence {
+            sample_id: 1,
+            ..proof
+        }],
+        &observations,
+        true
+    ));
+}
 use crate::storage::Storage;
 
 fn candidates() -> Value {
@@ -333,6 +369,9 @@ fn captured_results_survive_safe_switches_but_never_privacy_boundaries_or_edits(
     });
     // Matching/capture still cannot use the old window; only its sealed result can finish.
     assert!(!current(&inner, &captured, lease.consent, &candidates));
+    assert!(lease.valid_in_session(&inner, &candidates, true));
+    // Automatic parking/focus UI resets cannot erase a sealed nonfocused result.
+    inner.companion.invalidate_for_focus();
     assert!(lease.valid_in_session(&inner, &candidates, true));
     assert!(!lease.valid_in_session(&inner, &candidates, false));
     inner.last_consent_change += 1;
