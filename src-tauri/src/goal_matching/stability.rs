@@ -66,7 +66,16 @@ impl Runtime {
                     .is_some_and(|old| old.browser.is_some()));
         let frame = foreground(sample);
         let mut gap = self.metadata_gap.take();
+        if !missing {
+            self.unverified_since = None;
+            self.unverified_asked = None;
+        }
         if missing {
+            // The title-only window keeps its own clock and its own AI answer, nothing else.
+            if changed {
+                self.unverified_since = Some(now);
+                self.unverified_asked = None;
+            }
             if !stale {
                 if let (Some(old), Some(last), Some(since), Some(frame)) =
                     (&self.sample, self.last_seen, self.stable_since, &frame)
@@ -91,10 +100,12 @@ impl Runtime {
             self.cache.clear();
             self.pending_suggestion = None;
             self.text_fingerprint = None;
-            self.view = MatchView {
-                enabled: true,
-                ..Default::default()
-            };
+            if changed || self.view.source.as_deref() != Some("nebius_unverified") {
+                self.view = MatchView {
+                    enabled: true,
+                    ..Default::default()
+                };
+            }
         } else if changed {
             // Only timing can resume after fresh, exact metadata confirmation. Matches,
             // page text and request revisions always belong to the new observation.
@@ -108,12 +119,43 @@ impl Runtime {
                 .unwrap_or(now),
             );
         }
+        // A new title in the same window keeps counting toward the AI-identified goal while a
+        // refresh confirms or replaces it. A browser window may hold unrelated tabs, so it also
+        // needs an unchanged domain. Gaps, missing metadata and other windows never carry.
+        let carried = (changed
+            && !stale
+            && !missing
+            && self.view.goal_id.is_some()
+            && matches!(self.view.source.as_deref(), Some("nebius" | "nebius_carry")))
+        .then_some(self.sample.as_ref())
+        .flatten()
+        .filter(|old| {
+            let domain = |a: &ActivitySnapshot| {
+                a.browser
+                    .as_ref()
+                    .and_then(|b| b.domain.as_deref())
+                    .map(str::to_string)
+            };
+            old.process_name.eq_ignore_ascii_case(&sample.process_name)
+                && old.window_id.is_some_and(|id| id != 0)
+                && old.window_id == sample.window_id
+                && !metadata_unavailable(old)
+                && ((old.browser.is_none() && sample.browser.is_none())
+                    || (domain(old).is_some() && domain(old) == domain(sample)))
+        })
+        .map(|_| MatchView {
+            goal_id: self.view.goal_id,
+            confidence: self.view.confidence,
+            reason: Some("AI match carried over within the same window; confirming".into()),
+            source: Some("nebius_carry".into()),
+            enabled: true,
+        });
         if changed {
             self.context_revision = self.context_revision.wrapping_add(1);
-            self.view = MatchView {
+            self.view = carried.unwrap_or(MatchView {
                 enabled: true,
                 ..Default::default()
-            };
+            });
             self.pending_suggestion = None;
             self.text_fingerprint = None;
         }

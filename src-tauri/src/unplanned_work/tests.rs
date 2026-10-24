@@ -32,7 +32,7 @@ fn interval(index: i64) -> UsageInterval {
     }
 }
 fn fixtures(storage: &Storage, goal: Option<i64>) {
-    for i in 0..40 {
+    for i in 0..60 {
         storage
             .observe_unplanned_interval(&interval(i), goal, &context_key(&sample()))
             .unwrap();
@@ -63,7 +63,7 @@ fn offer(inner: &mut Inner) -> String {
         view: Suggestion {
             id: id.clone(),
             title: "Handle unrelated emails".into(),
-            seconds: 120,
+            seconds: 180,
             app: "chrome".into(),
             completed: true,
         },
@@ -85,7 +85,7 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
         .unwrap();
     let key = context_key(&sample());
     let day = Local::now().date_naive().to_string();
-    assert_eq!(s.unplanned_milliseconds(&key, &day).unwrap(), 120000);
+    assert_eq!(s.unplanned_milliseconds(&key, &day).unwrap(), 180000);
     assert!(s.core_snapshot(None).unwrap().goals.is_empty());
     let id = s
         .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
@@ -96,13 +96,13 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     assert!(snap.today.contains(&id));
     assert!(snap.focused_goal_id.is_none());
     assert!(snap.timer.is_none());
-    assert_eq!(snap.summary.goals[0].tracked_seconds, 120);
-    assert_eq!(snap.summary.goals[0].relevant_seconds, 120);
+    assert_eq!(snap.summary.goals[0].tracked_seconds, 180);
+    assert_eq!(snap.summary.goals[0].relevant_seconds, 180);
     assert_eq!(
         snap.summary.completed_goals,
         vec!["Handle unrelated emails"]
     );
-    assert_eq!(snap.hourly.iter().map(|h| h.seconds).sum::<u64>(), 120);
+    assert_eq!(snap.hourly.iter().map(|h| h.seconds).sum::<u64>(), 180);
     assert!(s
         .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
         .is_err());
@@ -112,7 +112,7 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
 fn accepting_noticed_work_after_summary_updates_the_same_saved_measured_time() {
     let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
     fixtures(&s, None);
-    for index in 0..40 {
+    for index in 0..60 {
         let mut i = interval(index);
         i.activity.timestamp = i.start.to_rfc3339();
         s.record_review_interval(
@@ -149,9 +149,9 @@ fn accepting_noticed_work_after_summary_updates_the_same_saved_measured_time() {
             .iter()
             .map(|b| b.seconds)
             .sum::<u64>(),
-        120
+        180
     );
-    assert_eq!(s.relevant_seconds(goal, None).unwrap(), 120);
+    assert_eq!(s.relevant_seconds(goal, None).unwrap(), 180);
 }
 #[test]
 fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
@@ -170,7 +170,7 @@ fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
         done: false,
     });
     s.save_goal_plan("Write the pitch deck", plan).unwrap();
-    for i in 0..40 {
+    for i in 0..60 {
         s.record_interval_with_match(
             old,
             &interval(i),
@@ -208,7 +208,7 @@ fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
         total
     );
     assert_eq!(s.relevant_seconds(old, Some(&day)).unwrap(), 0);
-    assert_eq!(s.relevant_seconds(new, Some(&day)).unwrap(), 120);
+    assert_eq!(s.relevant_seconds(new, Some(&day)).unwrap(), 180);
     assert_eq!(
         s.step_times(old, &day)
             .unwrap()
@@ -223,7 +223,7 @@ fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
             .query_row("SELECT COUNT(*) FROM usage_intervals", [], |r| r
                 .get::<_, i64>(0))
             .unwrap(),
-        40
+        60
     );
 }
 #[test]
@@ -414,7 +414,7 @@ async fn classifier_uses_minimized_redacted_context_once_without_credentials_or_
         &sample(),
         &text,
         &json!([]),
-        120,
+        180,
         &Value::Null,
         &|| Ok(()),
     )
@@ -426,11 +426,11 @@ async fn classifier_uses_minimized_redacted_context_once_without_credentials_or_
 #[test]
 fn returning_to_the_same_window_never_relabels_an_earlier_session() {
     let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
-    for n in 0..40 {
+    for n in 0..60 {
         s.observe_unplanned_interval(&interval(n), None, "morning-session")
             .unwrap();
     }
-    for n in 100..140 {
+    for n in 100..160 {
         s.observe_unplanned_interval(&interval(n), None, "afternoon-session")
             .unwrap();
     }
@@ -444,10 +444,10 @@ fn returning_to_the_same_window_never_relabels_an_earlier_session() {
             None,
         )
         .unwrap();
-    assert_eq!(s.relevant_seconds(id, Some(&day)).unwrap(), 120);
+    assert_eq!(s.relevant_seconds(id, Some(&day)).unwrap(), 180);
     assert_eq!(
         s.unplanned_milliseconds("morning-session", &day).unwrap(),
-        120000
+        180000
     );
     assert!(s.unplanned_decided(&context_key(&sample()), &day).unwrap());
 }
@@ -520,6 +520,10 @@ fn unlisted_work_checks_continue_after_hours_and_quiet_discards_pending_offers()
     inner.unplanned_work.stable_since = Some(now - STABLE);
     inner.unplanned_work.last_seen = Some(now);
     assert!(due_inner(&inner, now));
+    // Work that goal matching already assigned is never offered as new work.
+    inner.goal_matching.view.goal_id = Some(1);
+    assert!(!due_inner(&inner, now));
+    inner.goal_matching.view.goal_id = None;
     fixtures(&inner.storage, None);
     offer(&mut inner);
     assert!(pending(&mut inner).unwrap().is_some());
@@ -537,6 +541,6 @@ fn unlisted_work_checks_continue_after_hours_and_quiet_discards_pending_offers()
                 &Local::now().date_naive().to_string()
             )
             .unwrap(),
-        120_000
+        180_000
     );
 }

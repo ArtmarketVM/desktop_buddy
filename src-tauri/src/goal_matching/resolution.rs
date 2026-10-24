@@ -46,6 +46,21 @@ impl Storage {
         }
     }
 }
+/// The words a goal matches on: its title, description and open steps.
+pub(super) fn goal_text(goal: &crate::core::CoreGoal) -> String {
+    format!(
+        "{} {} {}",
+        goal.title,
+        goal.description,
+        goal.plan
+            .steps
+            .iter()
+            .filter(|s| !s.done)
+            .map(|s| s.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    )
+}
 pub(super) struct Resolution {
     pub view: MatchView,
     pub signature: String,
@@ -103,22 +118,7 @@ pub(super) fn resolve(inner: &Inner, sample: &ActivitySnapshot) -> Result<Resolu
         if user_work {
             rules.push(goal.id)
         }
-        local.push((
-            goal.id,
-            format!(
-                "{} {} {}",
-                goal.title,
-                goal.description,
-                goal.plan
-                    .steps
-                    .iter()
-                    .filter(|s| !s.done)
-                    .map(|s| s.text.as_str())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            ),
-            false,
-        ));
+        local.push((goal.id, goal_text(goal), false));
         if let Some(c) = context {
             if usable_context(&c, sample) {
                 contexts.push((
@@ -182,6 +182,24 @@ pub(super) fn resolve(inner: &Inner, sample: &ActivitySnapshot) -> Result<Resolu
                     remembered.confidence,
                     "work_context",
                     "A recent resumed checkpoint supports this app/context",
+                )
+            } else if let Some(id) = super::lanes::recent_tie_break(
+                &inner.storage,
+                &snapshot.today,
+                if plausible.len() > 1 {
+                    &plausible
+                } else {
+                    &rules
+                },
+                chrono::Utc::now(),
+            )? {
+                // Parking is automatic: among equally plausible lanes, the only one
+                // worked on recently is the one being continued.
+                view(
+                    Some(id),
+                    0.75,
+                    "local_recent",
+                    "Goal terms match several lanes; the recently active one continues",
                 )
             } else if plausible.len() > 1 || rules.len() > 1 || contexts.len() > 1 {
                 view(

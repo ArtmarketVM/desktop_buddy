@@ -95,6 +95,7 @@ impl Storage {
                     "assigned",
                     false,
                     &attribution.reason,
+                    attribution.confidence,
                 )?;
             }
             Ok(())
@@ -220,12 +221,43 @@ impl Storage {
                         "assigned",
                         false,
                         "AI identified the current work context",
+                        1.0,
                     )?;
                 }
                 Ok(())
             })?;
         }
         Ok(())
+    }
+    /// Once the goal behind a stable context is known, the whole context counts: every
+    /// still-pending interval of the same app, window and page since the context began
+    /// moves to that goal with the actual match confidence. Manual review decisions,
+    /// saved summaries and other contexts are untouched. Returns the moved interval count.
+    pub(crate) fn assign_context_since(
+        &self,
+        a: &ActivitySnapshot,
+        goal: i64,
+        since: DateTime<Utc>,
+        confidence: f64,
+        reason: &str,
+    ) -> Result<usize, String> {
+        self.validate_review_goal(goal)?;
+        let prefix = format!("{}:", context_key(a));
+        let mut q=self.connection.prepare("SELECT i.id FROM review_intervals i JOIN review_periods p ON p.id=i.period_id WHERE substr(i.context_key,1,length(?1))=?1 AND i.status='pending' AND i.manual=0 AND julianday(i.started_at)>=julianday(?2) AND p.summary IS NULL ORDER BY i.id").map_err(db)?;
+        let ids = q
+            .query_map(params![prefix, since.to_rfc3339()], |r| r.get::<_, i64>(0))
+            .map_err(db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db)?;
+        drop(q);
+        let moved = ids.len();
+        crate::memory::atomic(&self.connection, || {
+            for id in ids {
+                self.assign_review_interval(id, Some(goal), "assigned", false, reason, confidence)?;
+            }
+            Ok(())
+        })?;
+        Ok(moved)
     }
     pub(super) fn validate_review_goal(&self, id: i64) -> Result<(), String> {
         let valid:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM goals g JOIN core_goals c ON c.goal_id=g.id WHERE g.id=?1 AND c.state='open' AND g.status!='completed')",[id],|r|r.get(0)).map_err(db)?;
@@ -284,6 +316,7 @@ impl Storage {
                     status,
                     true,
                     "User reviewed this activity",
+                    1.0,
                 )?;
             }
             self.refresh_review_summary(period)?;
@@ -392,7 +425,13 @@ impl Storage {
         status: &str,
         manual: bool,
         reason: &str,
+        confidence: f64,
     ) -> Result<(), String> {
+        let confidence = if confidence.is_finite() {
+            confidence.clamp(crate::relevance::THRESHOLD, 1.0)
+        } else {
+            1.0
+        };
         let row=self.connection.query_row("SELECT started_at,ended_at,milliseconds,app,title,domain,source_id,source_step,goal_id,status,manual FROM review_intervals WHERE id=?1",[id],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,i64>(2)?,r.get::<_,String>(3)?,r.get::<_,String>(4)?,r.get::<_,Option<String>>(5)?,r.get::<_,Option<i64>>(6)?,r.get::<_,String>(7)?,r.get::<_,Option<i64>>(8)?,r.get::<_,String>(9)?,r.get::<_,bool>(10)?))).map_err(db)?;
         if !manual && row.10 {
             return Ok(());
@@ -446,10 +485,10 @@ impl Storage {
         }
         let source = if let Some(goal) = target {
             if let Some(source) = row.6 {
-                self.connection.execute("UPDATE usage_intervals SET goal_id=?1,state='\"focused\"',category='\"work\"',match_confidence=1,match_reason=?2 WHERE id=?3",params![goal,reason,source]).map_err(db)?;
+                self.connection.execute("UPDATE usage_intervals SET goal_id=?1,state='\"focused\"',category='\"work\"',match_confidence=?4,match_reason=?2 WHERE id=?3",params![goal,reason,source,confidence]).map_err(db)?;
                 source
             } else {
-                self.connection.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,window_title,domain,state,category,match_confidence,match_reason) VALUES(?1,?2,?3,?4,?5,?6,?7,'\"focused\"','\"work\"',1,?8)",params![goal,row.0,row.1,row.2,row.3,row.4,row.5,reason]).map_err(db)?;
+                self.connection.execute("INSERT INTO usage_intervals(goal_id,started_at,ended_at,milliseconds,process_name,window_title,domain,state,category,match_confidence,match_reason) VALUES(?1,?2,?3,?4,?5,?6,?7,'\"focused\"','\"work\"',?9,?8)",params![goal,row.0,row.1,row.2,row.3,row.4,row.5,reason,confidence]).map_err(db)?;
                 self.connection.last_insert_rowid()
             }
         } else {

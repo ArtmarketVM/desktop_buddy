@@ -226,6 +226,7 @@ async fn ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_ref
         &job.sample,
         false,
         None,
+        &job.recent,
     )
     .await;
     let mut i = state.inner.lock().unwrap();
@@ -559,6 +560,7 @@ async fn synthetic_switching_benchmark() {
                 &job.sample,
                 false,
                 None,
+                &job.recent,
             )
             .await;
             finish(
@@ -617,4 +619,294 @@ fn returning_to_a_resolved_lane_reuses_the_scoped_ai_result_after_debounce() {
     assert_eq!(i.goal_matching.view.source.as_deref(), Some("nebius"));
     assert_eq!(i.goal_matching.metrics.nemotron_calls, 1);
     assert!(!due_inner(&i, base + Duration::from_secs(200)));
+}
+#[test]
+fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let wall = chrono::Utc::now();
+    let mut a = sample("Research notes");
+    a.window_id = Some(7);
+    feed(&mut i, &a, base, 0, 60);
+    // Collection recorded the context under the current goal without verified relevance.
+    let unmatched = crate::relevance::ActivityMatch {
+        goal_id: None,
+        confidence: 0.,
+        reason: "No verified relevance".into(),
+    };
+    for n in 0..19 {
+        let interval = crate::history::UsageInterval {
+            start: wall - chrono::Duration::seconds(60 - n * 3),
+            end: wall - chrono::Duration::seconds(57 - n * 3),
+            activity: a.clone(),
+            state: crate::tracking::ActivityState::Focused,
+        };
+        i.storage
+            .record_interval_with_match(ids[0], &interval, Some(unmatched.clone()))
+            .unwrap();
+        i.storage
+            .record_review_interval(&interval, &unmatched)
+            .unwrap();
+    }
+    assert_eq!(i.storage.relevant_seconds(ids[1], None).unwrap(), 0);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[1]),
+            confidence: 0.86,
+            reason: "The notes draft the beta plan".into(),
+        }),
+        base + AI_STABLE,
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(i.storage.goal().unwrap().unwrap().id, ids[1]);
+    // The minutes before the answer moved to the matched goal with the real confidence.
+    assert_eq!(i.storage.relevant_seconds(ids[1], None).unwrap(), 57);
+    assert_eq!(i.storage.relevant_seconds(ids[0], None).unwrap(), 0);
+    let (count, confidence): (i64, f64) = i
+        .storage
+        .connection
+        .query_row(
+            "SELECT COUNT(*),MIN(match_confidence) FROM usage_intervals WHERE goal_id=?1",
+            [ids[1]],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(count, 19);
+    assert!((confidence - 0.86).abs() < 1e-9);
+    let left: i64 = i
+        .storage
+        .connection
+        .query_row(
+            "SELECT COALESCE(SUM(milliseconds),0) FROM usage_daily WHERE goal_id=?1",
+            [ids[0]],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(left, 0, "time is moved, never duplicated");
+    // A new title in the same window keeps counting while a refresh is requested.
+    let mut b = sample("Research notes - beta timeline");
+    b.window_id = Some(7);
+    feed(&mut i, &b, base, 63, 120);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
+    assert!(attribution(&i, &b).unwrap().confidence >= crate::relevance::THRESHOLD);
+    assert!(!due_inner(&i, base + Duration::from_secs(120)));
+    feed(&mut i, &b, base, 123, 150);
+    assert!(due_inner(&i, base + Duration::from_secs(150)));
+    let job = claim(&mut i, base + Duration::from_secs(150))
+        .unwrap()
+        .unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: None,
+            confidence: 0.2,
+            reason: "Unrelated notes".into(),
+        }),
+        base + Duration::from_secs(150),
+    )
+    .unwrap();
+    assert!(i.goal_matching.view.goal_id.is_none());
+    let unassigned = attribution(&i, &b).unwrap();
+    assert!(unassigned.goal_id.is_none() && unassigned.confidence < crate::relevance::THRESHOLD);
+}
+#[test]
+fn another_window_or_a_gap_never_inherits_an_ai_match() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let mut a = sample("Research notes");
+    a.window_id = Some(7);
+    feed(&mut i, &a, base, 0, 60);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[1]),
+            confidence: 0.9,
+            reason: "Beta notes".into(),
+        }),
+        base + AI_STABLE,
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    let mut other = sample("Other document");
+    other.window_id = Some(9);
+    observe_inner_at(&mut i, &other, true, base + Duration::from_secs(63)).unwrap();
+    assert!(i.goal_matching.view.goal_id.is_none());
+    assert_ne!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
+    // Returning to the resolved window reuses its answer after the debounce.
+    feed(&mut i, &a, base, 66, 100);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    // A gap longer than a missed sample starts the window over instead of carrying.
+    observe_inner_at(&mut i, &a, true, base + Duration::from_secs(120)).unwrap();
+    assert!(i.goal_matching.view.goal_id.is_none(), "a gap starts over");
+    assert_ne!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
+}
+#[test]
+fn a_browser_match_carries_only_within_the_same_domain() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let page = |title: &str, domain: &str| {
+        let mut a = sample(title);
+        a.process_name = "Google Chrome".into();
+        a.window_id = Some(11);
+        a.browser = crate::browser::context(&a.process_name, title, Some(domain.into()));
+        a
+    };
+    let first = page("Plan - Notion", "notion.so");
+    feed(&mut i, &first, base, 0, 60);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[1]),
+            confidence: 0.9,
+            reason: "Beta plan page".into(),
+        }),
+        base + AI_STABLE,
+    )
+    .unwrap();
+    feed(
+        &mut i,
+        &page("Timeline - Notion", "notion.so"),
+        base,
+        63,
+        69,
+    );
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
+    feed(
+        &mut i,
+        &page("Trending - YouTube", "youtube.com"),
+        base,
+        72,
+        78,
+    );
+    assert!(i.goal_matching.view.goal_id.is_none());
+}
+#[test]
+fn a_recently_worked_lane_wins_a_keyword_tie_but_fresh_lanes_stay_ambiguous() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let a = sample("Atlas launch");
+    // Two lanes created today are equally current: nothing is guessed.
+    feed(&mut i, &a, base, 0, 60);
+    assert!(i.goal_matching.view.goal_id.is_none());
+    assert!(due_inner(&i, base + AI_STABLE));
+    // Once the second lane has sat untouched for days, the active lane continues.
+    let old = (chrono::Utc::now() - chrono::Duration::days(3)).to_rfc3339();
+    i.storage
+        .connection
+        .execute(
+            "UPDATE goals SET created_at=?1 WHERE id=?2",
+            rusqlite::params![old, ids[1]],
+        )
+        .unwrap();
+    i.goal_matching.clear();
+    feed(&mut i, &a, base, 63, 123);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[0]));
+    assert_eq!(i.goal_matching.view.source.as_deref(), Some("local_recent"));
+    assert!(attribution(&i, &a).unwrap().confidence >= crate::relevance::THRESHOLD);
+    assert!(!due_inner(&i, base + Duration::from_secs(123)));
+}
+#[test]
+fn long_parked_lanes_leave_the_candidates_unless_their_own_words_match() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let date = i.storage.core_snapshot(None).unwrap().date;
+    i.storage.core_today(ids[1], false, &date).unwrap();
+    let old = (chrono::Utc::now() - chrono::Duration::days(20)).to_rfc3339();
+    i.storage
+        .connection
+        .execute(
+            "UPDATE goals SET created_at=?1 WHERE id=?2",
+            rusqlite::params![old, ids[1]],
+        )
+        .unwrap();
+    let listed = |goals: &Value| {
+        goals
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|g| g["id"].as_i64().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let generic = candidates(&i, &sample("Research notes")).unwrap();
+    assert_eq!(listed(&generic), vec![ids[0]]);
+    assert_eq!(generic[0]["lane"]["active"], json!(true));
+    assert_eq!(generic[0]["lane"]["in_today"], json!(true));
+    assert_eq!(generic[0]["lane"]["last_worked_days_ago"], json!(0));
+    let own = candidates(&i, &sample("Vega budget workbook")).unwrap();
+    assert!(listed(&own).contains(&ids[1]));
+    let parked = own
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["id"] == ids[1])
+        .unwrap();
+    assert_eq!(parked["lane"]["active"], json!(false));
+    assert!(parked["lane"]["last_worked_days_ago"].as_i64().unwrap() >= 20);
+}
+
+#[test]
+fn the_matcher_receives_a_bounded_trail_of_recent_windows_and_their_goals() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    feed(&mut i, &sample("Vega budget workbook"), base, 0, 60);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    let generic = sample("Research notes");
+    feed(&mut i, &generic, base, 63, 123);
+    let now = chrono::Utc::now().timestamp();
+    let recent = i.goal_matching.recent_context(now);
+    let trail = recent["trail"].as_array().unwrap();
+    assert_eq!(
+        trail.len(),
+        1,
+        "the current window is not part of the trail"
+    );
+    assert_eq!(trail[0]["app"], "Editor");
+    assert_eq!(trail[0]["title"], "Vega budget workbook");
+    assert_eq!(trail[0]["matched_goal_id"], json!(ids[1]));
+    assert_eq!(recent["last_matched_goal_id"], json!(ids[1]));
+    let job = claim(&mut i, base + Duration::from_secs(123))
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.recent["last_matched_goal_id"], json!(ids[1]));
+    assert!(job.recent.to_string().contains("Vega budget workbook"));
+    // Excluded or private windows never enter the trail; history deletion empties it.
+    let mut private = sample("password manager vault");
+    private.window_title = "Vault - 1Password".into();
+    observe_inner_at(&mut i, &private, false, base + Duration::from_secs(126)).unwrap();
+    let recent = i.goal_matching.recent_context(now);
+    assert_eq!(recent["trail"].as_array().unwrap().len(), 2);
+    assert!(!recent.to_string().contains("1Password"));
+    for n in 0..20 {
+        feed(
+            &mut i,
+            &sample(&format!("Window {n}")),
+            base,
+            200 + n * 6,
+            203 + n * 6,
+        );
+    }
+    assert!(i.goal_matching.trail.len() <= TRAIL_LIMIT);
+    i.privacy_revision += 1;
+    observe_inner_at(&mut i, &generic, true, base + Duration::from_secs(400)).unwrap();
+    assert_eq!(
+        i.goal_matching.trail.len(),
+        1,
+        "only the current window remains"
+    );
 }

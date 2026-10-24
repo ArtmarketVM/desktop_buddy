@@ -143,7 +143,12 @@ fn prolonged_missing_metadata_stays_uncertain_even_with_explicit_focus() {
         assert!(inner.goal_matching.view.goal_id.is_none());
         assert!(inner.goal_matching.stable_since.is_none());
         assert!(inner.goal_matching.metadata_gap.is_none());
-        assert!(!due_inner(&inner, base + Duration::from_secs(123)));
+        // Nothing local, cached or focused applies to a title-only window; only the AI
+        // may be asked about it, and not while an explicit focus stands.
+        assert_eq!(
+            due_inner(&inner, base + Duration::from_secs(123)),
+            !explicit
+        );
         assert!(attribution(&inner, &unknown).unwrap().goal_id.is_none());
         observe_text(
             &mut inner,
@@ -231,4 +236,76 @@ fn disallowed_observation_discards_any_paused_recognition_time() {
         inner.goal_matching.stable_since,
         Some(base + Duration::from_secs(33))
     );
+}
+
+#[test]
+fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() {
+    let (state, ids) = setup(&["Orion launch", "Vega budget"]);
+    let mut inner = state.inner.lock().unwrap();
+    let base = Instant::now();
+    // The title names the first goal, but keywords never apply without a domain.
+    let unknown = browser(None);
+    feed(&mut inner, &unknown, base, 0, 57);
+    assert!(inner.goal_matching.view.goal_id.is_none());
+    assert!(!due_inner(&inner, base + Duration::from_secs(57)));
+    observe_inner_at(&mut inner, &unknown, true, base + AI_STABLE).unwrap();
+    assert!(due_inner(&inner, base + AI_STABLE));
+    let job = claim(&mut inner, base + AI_STABLE).unwrap().unwrap();
+    assert!(job.recent["trail"].as_array().unwrap().is_empty());
+    finish(
+        &mut inner,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[1]),
+            confidence: 0.9,
+            reason: "The page text is the budget sheet".into(),
+        }),
+        base + AI_STABLE,
+    )
+    .unwrap();
+    assert_eq!(inner.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(
+        inner.goal_matching.view.source.as_deref(),
+        Some("nebius_unverified")
+    );
+    assert!(inner.goal_matching.cache.is_empty());
+    assert_eq!(inner.storage.goal().unwrap().unwrap().id, ids[1]);
+    feed(&mut inner, &unknown, base, 63, 120);
+    assert_eq!(inner.goal_matching.view.goal_id, Some(ids[1]));
+    let matched = attribution(&inner, &unknown).unwrap();
+    assert_eq!(
+        matched.goal_id.as_deref(),
+        Some(ids[1].to_string().as_str())
+    );
+    assert!(matched.confidence >= crate::relevance::THRESHOLD);
+    assert!(!due_inner(&inner, base + Duration::from_secs(200)));
+    // Another title in the same window inherits nothing and waits its own minute.
+    let mut other = unknown.clone();
+    other.window_title = "Another tab - Browser".into();
+    other.browser = crate::browser::context(&other.process_name, &other.window_title, None);
+    feed(&mut inner, &other, base, 123, 180);
+    assert!(inner.goal_matching.view.goal_id.is_none());
+    assert_eq!(attribution(&inner, &other).unwrap().confidence, 0.);
+    assert!(!due_inner(&inner, base + Duration::from_secs(180)));
+    observe_inner_at(&mut inner, &other, true, base + Duration::from_secs(183)).unwrap();
+    assert!(due_inner(&inner, base + Duration::from_secs(183)));
+    // A null answer is not asked again for the same visit.
+    let job = claim(&mut inner, base + Duration::from_secs(183))
+        .unwrap()
+        .unwrap();
+    finish(
+        &mut inner,
+        &job,
+        Ok(MatchResult {
+            goal_id: None,
+            confidence: 0.1,
+            reason: "Unrelated".into(),
+        }),
+        base + Duration::from_secs(183),
+    )
+    .unwrap();
+    feed(&mut inner, &other, base, 186, 400);
+    assert!(inner.goal_matching.view.goal_id.is_none());
+    assert!(!due_inner(&inner, base + Duration::from_secs(400)));
+    assert_eq!(inner.goal_matching.metrics.nemotron_calls, 2);
 }
