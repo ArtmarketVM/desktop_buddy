@@ -240,9 +240,10 @@ mod tests {
     use crate::goal_matching::cascade_tests::{feed, sample, setup};
 
     fn offer_at(inner: &mut Inner, id: i64, now: Instant) -> Option<Suggestion> {
+        let sample = inner.goal_matching.sample.clone().unwrap();
         let job = Job {
-            sample: inner.goal_matching.sample.clone().unwrap(),
-            goals: candidates(inner).unwrap(),
+            goals: candidates(inner, &sample).unwrap(),
+            sample,
             revision: inner.privacy_revision,
             context_revision: inner.goal_matching.context_revision,
             mock: false,

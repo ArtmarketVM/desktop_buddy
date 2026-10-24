@@ -792,3 +792,67 @@ fn a_browser_match_carries_only_within_the_same_domain() {
     );
     assert!(i.goal_matching.view.goal_id.is_none());
 }
+#[test]
+fn a_recently_worked_lane_wins_a_keyword_tie_but_fresh_lanes_stay_ambiguous() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let a = sample("Atlas launch");
+    // Two lanes created today are equally current: nothing is guessed.
+    feed(&mut i, &a, base, 0, 60);
+    assert!(i.goal_matching.view.goal_id.is_none());
+    assert!(due_inner(&i, base + AI_STABLE));
+    // Once the second lane has sat untouched for days, the active lane continues.
+    let old = (chrono::Utc::now() - chrono::Duration::days(3)).to_rfc3339();
+    i.storage
+        .connection
+        .execute(
+            "UPDATE goals SET created_at=?1 WHERE id=?2",
+            rusqlite::params![old, ids[1]],
+        )
+        .unwrap();
+    i.goal_matching.clear();
+    feed(&mut i, &a, base, 63, 123);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[0]));
+    assert_eq!(i.goal_matching.view.source.as_deref(), Some("local_recent"));
+    assert!(attribution(&i, &a).unwrap().confidence >= crate::relevance::THRESHOLD);
+    assert!(!due_inner(&i, base + Duration::from_secs(123)));
+}
+#[test]
+fn long_parked_lanes_leave_the_candidates_unless_their_own_words_match() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let date = i.storage.core_snapshot(None).unwrap().date;
+    i.storage.core_today(ids[1], false, &date).unwrap();
+    let old = (chrono::Utc::now() - chrono::Duration::days(20)).to_rfc3339();
+    i.storage
+        .connection
+        .execute(
+            "UPDATE goals SET created_at=?1 WHERE id=?2",
+            rusqlite::params![old, ids[1]],
+        )
+        .unwrap();
+    let listed = |goals: &Value| {
+        goals
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|g| g["id"].as_i64().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let generic = candidates(&i, &sample("Research notes")).unwrap();
+    assert_eq!(listed(&generic), vec![ids[0]]);
+    assert_eq!(generic[0]["lane"]["active"], json!(true));
+    assert_eq!(generic[0]["lane"]["in_today"], json!(true));
+    assert_eq!(generic[0]["lane"]["last_worked_days_ago"], json!(0));
+    let own = candidates(&i, &sample("Vega budget workbook")).unwrap();
+    assert!(listed(&own).contains(&ids[1]));
+    let parked = own
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["id"] == ids[1])
+        .unwrap();
+    assert_eq!(parked["lane"]["active"], json!(false));
+    assert!(parked["lane"]["last_worked_days_ago"].as_i64().unwrap() >= 20);
+}
