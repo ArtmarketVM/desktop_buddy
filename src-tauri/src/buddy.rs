@@ -162,7 +162,8 @@ fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<()
         .storage
         .read_setting("mascot_completion_revision")?
         .unwrap_or(0);
-    inner.buddy.view.background_thinking = inner.agent.is_thinking();
+    inner.buddy.view.background_thinking = inner.agent.is_thinking()
+        || matches!(inner.companion.semantic.status, "reasoning" | "verifying");
     inner.buddy.fullscreen = !inner.status.demo && crate::collector::foreground_fullscreen();
     inner.buddy.view.quiet_reason = crate::companion::delivery_reason(inner);
     if inner

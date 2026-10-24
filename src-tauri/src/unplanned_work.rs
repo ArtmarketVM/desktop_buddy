@@ -109,7 +109,7 @@ fn metadata_allowed(a: &ActivitySnapshot) -> bool {
 fn active(inner: &Inner, a: &ActivitySnapshot, allowed: bool) -> bool {
     allowed
         && opted_in(inner)
-        && a.idle_seconds < inner.tracking_settings.idle_seconds
+        && a.engaged(inner.tracking_settings.idle_seconds)
         && !crate::attention::meeting(a)
         && !crate::companion::sensitive_window(a)
         && metadata_allowed(a)

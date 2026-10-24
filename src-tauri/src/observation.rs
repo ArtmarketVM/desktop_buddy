@@ -1,13 +1,21 @@
 //! Shared budget and capability diagnostics for foreground-only observation.
 use crate::commands::Inner;
 use std::time::{Duration, Instant};
+pub(crate) const HOURLY_LIMIT: usize = 60;
 pub(crate) fn reserve(inner: &mut Inner) -> bool {
+    reserve_with_headroom(inner, 0)
+}
+/// Leave capacity for independent outcome verification instead of spending it on routine sampling.
+pub(crate) fn reserve_primary(inner: &mut Inner) -> bool {
+    reserve_with_headroom(inner, 3)
+}
+fn reserve_with_headroom(inner: &mut Inner, headroom: usize) -> bool {
     let now = Instant::now();
     inner
         .companion
         .observation_calls
         .retain(|at| now.saturating_duration_since(*at) < Duration::from_secs(3600));
-    if inner.companion.observation_calls.len() >= 24 {
+    if inner.companion.observation_calls.len() >= HOURLY_LIMIT.saturating_sub(headroom) {
         crate::engine_observability::record(
             inner,
             "suppress",
@@ -50,6 +58,30 @@ pub(crate) fn personal_context(
         .unwrap_or(serde_json::Value::Null)
 }
 
+/// Operational facts, not screen contents or private history, ground capability explanations in chat.
+pub(crate) fn capabilities(inner: &Inner) -> serde_json::Value {
+    let p = &inner.companion.view.preferences;
+    let ai = inner.storage.ai_preferences().unwrap_or_default();
+    serde_json::json!({
+        "tracking_enabled": inner.status.tracking,
+        "tracking_has_error": inner.status.tracking_error.is_some(),
+        "ai_enabled": ai.enabled,
+        "provider_key_configured": inner.status.nebius_configured,
+        "observation_enabled": crate::semantic_observation::owns_observation(inner),
+        "goal_sharing_enabled": ai.share_goal_context,
+        "interface_observation_enabled": p.screen_task_detection,
+        "interface_text_status": crate::companion::screen_context::capability(inner),
+        "screenshots_enabled": p.use_screenshots,
+        "screenshot_status": if inner.vision.status.is_empty() {"not_sampled"} else {inner.vision.status},
+        "automatic_completion_enabled": p.automatic_completion,
+        "observation_paused": p.paused,
+        "quiet_mode": crate::companion::quiet_mode(inner),
+        "last_check_failed": inner.companion.progress_error.is_some(),
+        "latest_observation": if ai.share_goal_context {inner.companion.semantic.diagnostics()} else {serde_json::Value::Null},
+        "rule": "Settings express consent, not proof of a successful capture. Screen observation is supported for permitted foreground apps; hidden/offline actions are not visible. Automatic completion is conditional on its opt-in and sufficient independently checked outcome evidence. Do not say all completion needs manual confirmation or that screen access is absent when these facts do not establish that. Quiet mode silences presentation; it is separate from tracking consent. New goals and steps require user acceptance. Time spent or a deadline alone never establishes completion."
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,16 +92,52 @@ mod tests {
         )
         .unwrap();
         let mut i = state.inner.lock().unwrap();
-        for _ in 0..24 {
+        for _ in 0..HOURLY_LIMIT {
             assert!(reserve(&mut i));
         }
         assert!(!reserve(&mut i));
-        assert_eq!(i.companion.observation_calls.len(), 24);
+        assert_eq!(i.companion.observation_calls.len(), HOURLY_LIMIT);
         i.companion.observation_calls.clear();
         i.companion
             .observation_calls
             .push_back(Instant::now() - Duration::from_secs(3601));
         assert!(reserve(&mut i));
         assert_eq!(i.companion.observation_calls.len(), 1);
+    }
+    #[test]
+    fn primary_sampling_preserves_three_verification_slots_and_hides_goal_diagnostics_without_sharing(
+    ) {
+        let state = crate::commands::AppState::new(
+            crate::storage::Storage::open(std::path::Path::new(":memory:")).unwrap(),
+        )
+        .unwrap();
+        let mut i = state.inner.lock().unwrap();
+        for _ in 0..HOURLY_LIMIT - 3 {
+            assert!(reserve_primary(&mut i));
+        }
+        assert!(!reserve_primary(&mut i));
+        for _ in 0..3 {
+            assert!(reserve(&mut i));
+        }
+        assert!(!reserve(&mut i));
+        i.companion.semantic.status = "completed";
+        let mut ai = i.storage.ai_preferences().unwrap();
+        ai.enabled = true;
+        ai.share_goal_context = true;
+        i.storage
+            .write_setting("ai_assistance_preferences", &ai)
+            .unwrap();
+        i.companion.view.preferences.use_screenshots = true;
+        i.companion.view.preferences.automatic_completion = true;
+        let status = capabilities(&i);
+        assert_eq!(status["screenshots_enabled"], true);
+        assert_eq!(status["automatic_completion_enabled"], true);
+        assert_eq!(status["latest_observation"]["status"], "completed");
+        ai.share_goal_context = false;
+        i.storage
+            .write_setting("ai_assistance_preferences", &ai)
+            .unwrap();
+        assert!(capabilities(&i)["latest_observation"].is_null());
+        assert_eq!(capabilities(&i)["observation_enabled"], false);
     }
 }

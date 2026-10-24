@@ -80,15 +80,14 @@ impl Default for View {
 pub struct Runtime {
     pub(crate) screen_context: Option<screen_context::CachedText>,
     pub(crate) screen_context_epoch: u64,
+    pub(crate) semantic: crate::semantic_observation::Runtime,
     pub progress_error: Option<String>,
     pub view: View,
     pub memory: Memory,
-    next_detection: i64,
     previous_app: String,
     previous_goal: Option<i64>,
     pub(crate) planning_date: String,
     last_schedule_tick: Option<i64>,
-    sampled_context: String,
     pub(crate) observation_calls: std::collections::VecDeque<std::time::Instant>,
     work_clock: engine::ActiveWorkClock,
     queue: queue::Queue,
@@ -110,17 +109,16 @@ impl Runtime {
         Ok(Self {
             screen_context: None,
             screen_context_epoch: 0,
+            semantic: Default::default(),
             progress_error: None,
             view,
             memory: storage
                 .read_setting("companion_memory")?
                 .unwrap_or_default(),
-            next_detection: 0,
             previous_app: String::new(),
             previous_goal: None,
             planning_date: chrono::Local::now().date_naive().to_string(),
             last_schedule_tick: None,
-            sampled_context: String::new(),
             observation_calls: Default::default(),
             work_clock: Default::default(),
             queue: Default::default(),
@@ -133,8 +131,7 @@ impl Runtime {
     pub fn invalidate(&mut self) {
         self.progress_error = None;
         self.view.intervention = None;
-        self.sampled_context.clear();
-        self.next_detection = 0;
+        self.semantic.clear();
     }
 }
 pub fn emit(app: &AppHandle, kind: &str, payload: impl Serialize) {
@@ -418,54 +415,33 @@ pub fn stuck_due(storage: &Storage, goal_id: i64, now: i64) -> Result<bool, Stri
                 .as_bool()
                 .unwrap_or(false)))
 }
-fn progress_suppressed(inner: &Inner) -> bool {
-    quiet_mode(inner)
-        || inner.companion.view.preferences.paused
-        || inner.buddy.foreground.as_ref().is_some_and(|a| {
-            crate::attention::meeting(a) || a.idle_seconds >= inner.tracking_settings.idle_seconds
-        })
-}
 fn progress_status(inner: &Inner, _minute: u32) -> String {
-    let preferences = &inner.companion.view.preferences;
-    if !preferences.screen_task_detection {
-        "Automatic progress checks are off. Enable Track goals and suggest completed work in Settings → Activity & Privacy."
-            .into()
+    let p = &inner.companion.view.preferences;
+    if !p.screen_task_detection {
+        "Automatic progress checks are off.".into()
     } else if !inner.status.tracking || inner.status.tracking_error.is_some() {
-        "Automatic progress checks are waiting for activity tracking.".into()
-    } else if !inner.storage.ai_preferences().is_ok_and(|p| p.enabled) {
-        "Enable AI assistance in Settings to check progress.".into()
+        "Observation is waiting for activity tracking.".into()
+    } else if !inner
+        .storage
+        .ai_preferences()
+        .is_ok_and(|p| p.enabled && p.share_goal_context)
+    {
+        "Enable AI assistance and goal sharing to understand progress.".into()
     } else if !inner.status.nebius_configured {
-        "Connect Nebius in Settings to check progress.".into()
-    } else if inner.storage.goal().is_ok_and(|goal| goal.is_none()) {
-        "Choose an open goal in Today to check progress.".into()
-    } else if inner.buddy.foreground.is_none() {
-        "Waiting for activity in your work app to check progress.".into()
-    } else if progress_suppressed(inner) {
-        "Automatic progress checks are paused by Quiet mode or your companion settings.".into()
+        "Connect Nebius to understand progress.".into()
+    } else if p.paused {
+        "Observation is paused in your settings.".into()
     } else if let Some(error) = &inner.companion.progress_error {
-        format!("Last progress check failed: {error}. sumi will retry when activity is available.")
+        format!("Last observation failed: {error}. A future permitted check will retry.")
+    } else if quiet_mode(inner) {
+        "Observation is on. Quiet mode hides suggestions; verified completions follow your settings.".into()
     } else {
-        "Automatic progress checks are on. Review completion proposals in sumi chat; sumi can suggest progress whenever you are working, unless Quiet mode or your quiet schedule is active.".into()
+        "Observation is on. sumi checks your open goals and proposes new work for your review."
+            .into()
     }
 }
 pub fn detection_due(inner: &Inner) -> bool {
-    inner.status.tracking
-        && inner.companion.view.preferences.screen_task_detection
-        && inner
-            .storage
-            .ai_preferences()
-            .is_ok_and(|p| p.enabled && p.share_goal_context)
-        && inner.status.nebius_configured
-        && !inner.status.demo
-        && !inner.status.mock_ai
-        && !inner.companion.view.preferences.paused
-        && inner
-            .buddy
-            .foreground
-            .as_ref()
-            .is_some_and(|a| !sensitive_window(a))
-        && inner.storage.goal().is_ok_and(|goal| goal.is_some())
-        && chrono::Utc::now().timestamp() >= inner.companion.next_detection
+    crate::semantic_observation::due(inner)
 }
 pub(crate) fn sensitive_window(activity: &ActivitySnapshot) -> bool {
     let title = activity.window_title.to_ascii_lowercase();
@@ -628,270 +604,7 @@ pub(crate) async fn classify_visible_text(
 }
 
 pub async fn detect(app: &AppHandle, state: &AppState) -> Result<(), String> {
-    let _guard = state
-        .companion_request
-        .try_lock()
-        .map_err(|_| "sumi is busy")?;
-    let (goal, plan, activity, privacy_revision) = {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if !detection_due(&inner) {
-            return Ok(());
-        }
-        inner.companion.next_detection = chrono::Utc::now().timestamp() + 60;
-        inner.companion.progress_error = None;
-        let goal = inner.storage.goal()?.ok_or("Set a goal first")?;
-        let plan = inner.storage.goal_plan(goal.id)?;
-        let activity = inner
-            .buddy
-            .foreground
-            .clone()
-            .ok_or("No foreground context")?;
-        (goal, plan, activity, inner.privacy_revision)
-    };
-    let text = match screen_context::read(state, &activity).await {
-        Ok(Some(text)) => text,
-        Ok(None) => return Ok(()),
-        Err(error) => {
-            if state
-                .inner
-                .lock()
-                .is_ok_and(|i| i.companion.view.preferences.use_screenshots)
-            {
-                String::new()
-            } else {
-                return Err(error);
-            }
-        }
-    };
-    let sampled = fingerprint(&text);
-    {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        if !detection_valid(&inner, goal.id, plan.revision, privacy_revision, &activity) {
-            return Ok(());
-        }
-        if (!text.is_empty() && sampled == inner.companion.sampled_context)
-            || !crate::observation::reserve(&mut inner)
-        {
-            return Ok(());
-        }
-    }
-    let text = crate::vision::enrich(state, &activity, text).await?;
-    let service = crate::goal_analysis::Service::configured(&state.client)?;
-    if text.trim().is_empty() {
-        return Ok(());
-    }
-    let detection = classify_visible_text(
-        state,
-        &service,
-        &goal.text,
-        &plan,
-        &activity.process_name,
-        &text,
-    )
-    .await?;
-    let should_verify = {
-        let mut i = state
-            .inner
-            .lock()
-            .map_err(|_| "Application state unavailable")?;
-        detection_valid(&i, goal.id, plan.revision, privacy_revision, &activity)
-            && i.companion.view.preferences.automatic_completion
-            && matches!(detection.kind.as_str(), "completion" | "goal_completion")
-            && detection.confidence >= crate::work_journal::MIN_VERIFIED_CONFIDENCE
-            && crate::observation::reserve(&mut i)
-    };
-    let automatic_verified = if should_verify {
-        let criterion = plan
-            .steps
-            .iter()
-            .find(|s| Some(&s.id) == detection.step_id.as_ref())
-            .map(|s| s.text.clone())
-            .unwrap_or_else(|| format!("{}; {}", goal.text, plan.done_when));
-        crate::work_journal::verify_receipt(
-            &service,
-            &criterion,
-            &text,
-            detection.evidence.as_deref().unwrap_or_default(),
-            &|| {
-                let i = state
-                    .inner
-                    .lock()
-                    .map_err(|_| "Application state unavailable")?;
-                if detection_valid(&i, goal.id, plan.revision, privacy_revision, &activity)
-                    && i.companion.view.preferences.automatic_completion
-                {
-                    Ok(())
-                } else {
-                    Err("Completion context changed".into())
-                }
-            },
-        )
-        .await?
-    } else {
-        false
-    };
-    let mut inner = state
-        .inner
-        .lock()
-        .map_err(|_| "Application state unavailable")?;
-    if !detection_valid(&inner, goal.id, plan.revision, privacy_revision, &activity) {
-        return Ok(());
-    }
-    // Cache only successful checks; a failed provider request must remain retryable.
-    inner.companion.sampled_context = sampled;
-    if detection.confidence < 0.9 || detection.kind == "none" {
-        return Ok(());
-    }
-    let (kind, text, id) = if detection.kind == "new_task" {
-        let text = detection.text.unwrap().trim().to_string();
-        if plan
-            .steps
-            .iter()
-            .any(|s| fingerprint(&s.text) == fingerprint(&text))
-        {
-            return Ok(());
-        }
-        (
-            Kind::NewTask,
-            text.clone(),
-            fingerprint(&format!("{}:new:{text}", goal.id)),
-        )
-    } else if detection.kind == "goal_completion" {
-        (
-            Kind::GoalCompletion,
-            format!(
-                "{}\nEvidence: {}",
-                goal.text,
-                detection.evidence.as_deref().unwrap_or_default()
-            ),
-            fingerprint(&format!("{}:goal-complete:{}", goal.id, plan.revision)),
-        )
-    } else {
-        let step = plan
-            .steps
-            .iter()
-            .find(|s| Some(&s.id) == detection.step_id.as_ref())
-            .ok_or("Task changed")?;
-        (
-            Kind::Completion,
-            format!(
-                "{}\nEvidence: {}",
-                step.text,
-                detection.evidence.as_deref().unwrap_or_default()
-            ),
-            fingerprint(&format!("{}:complete:{}", goal.id, step.id)),
-        )
-    };
-    let prompt = Intervention {
-        id: id.clone(),
-        kind,
-        text: text.lines().next().unwrap_or(&text).to_string(),
-        confidence: detection.confidence,
-        goal_id: Some(goal.id),
-        plan_revision: Some(plan.revision),
-        step_id: detection.step_id.clone(),
-        expires_at: chrono::Utc::now().timestamp() + 86400,
-    };
-    if automatic_verified && inner.companion.view.preferences.automatic_completion {
-        {
-            let event = match inner.storage.automatically_complete(
-                &prompt,
-                &activity.process_name,
-                detection.evidence.as_deref().unwrap_or_default(),
-            ) {
-                Ok(event) => event,
-                Err(error) if error == "This receipt was already reviewed" => return Ok(()),
-                Err(error) => return Err(error),
-            };
-            inner.companion.sampled_context.clear();
-            inner.companion.memory.last_progress = chrono::Utc::now().timestamp();
-            crate::engine_observability::record(
-                &mut inner,
-                "verify",
-                "automatic_completion",
-                "completed",
-                None,
-                Some(goal.id),
-            );
-            inner.privacy_revision += 1;
-            if kind == Kind::GoalCompletion {
-                inner.usage = Default::default();
-                inner.activity_state.stop(true);
-                inner.buddy.foreground = None;
-                inner.goal_matching.clear();
-            }
-            let _ = app.emit("buddy://goal-completed", event);
-            offer(
-                app,
-                &mut inner,
-                Intervention {
-                    id: format!("work-event-{event}"),
-                    kind: Kind::AutomaticCompletion,
-                    text: format!("You completed “{}”.", prompt.text),
-                    confidence: 1.0,
-                    goal_id: Some(goal.id),
-                    plan_revision: None,
-                    step_id: None,
-                    expires_at: chrono::Utc::now().timestamp() + 86400,
-                },
-                chrono::Utc::now().timestamp(),
-            )?;
-            return crate::buddy::sync(app, &mut inner);
-        }
-    }
-    let now = chrono::Utc::now().timestamp();
-    offer(
-        app,
-        &mut inner,
-        Intervention {
-            id,
-            kind,
-            text,
-            confidence: detection.confidence,
-            goal_id: Some(goal.id),
-            plan_revision: Some(plan.revision),
-            step_id: detection.step_id,
-            expires_at: now
-                + if matches!(kind, Kind::Completion | Kind::GoalCompletion) {
-                    86400
-                } else {
-                    120
-                },
-        },
-        now,
-    )?;
-    crate::buddy::sync(app, &mut inner)
-}
-fn detection_valid(
-    inner: &Inner,
-    goal: i64,
-    revision: u64,
-    privacy: u64,
-    activity: &ActivitySnapshot,
-) -> bool {
-    inner.status.tracking
-        && inner.storage.ai_preferences().is_ok_and(|p| p.enabled)
-        && inner.companion.view.preferences.screen_task_detection
-        && screen_context::allowed(inner, activity)
-        && inner.privacy_revision == privacy
-        && !sensitive_window(activity)
-        && inner
-            .storage
-            .goal()
-            .is_ok_and(|g| g.map(|g| g.id) == Some(goal))
-        && inner
-            .storage
-            .goal_plan(goal)
-            .is_ok_and(|p| p.revision == revision)
-        && inner.buddy.foreground.as_ref().is_some_and(|a| {
-            a.window_id == activity.window_id && a.window_title == activity.window_title
-        })
+    crate::semantic_observation::run(app, state).await
 }
 
 #[tauri::command(async)]
@@ -1031,7 +744,7 @@ pub fn companion_voice_input(window: tauri::WebviewWindow) -> Result<(), String>
     }
 }
 
-fn append_task(
+pub(crate) fn append_task(
     storage: &mut Storage,
     goal_id: Option<i64>,
     revision: Option<u64>,
@@ -1039,10 +752,12 @@ fn append_task(
 ) -> Result<String, String> {
     let text = crate::goals::text(text, true)?;
     if let Some(id) = goal_id {
-        let goal = storage
-            .goal()?
-            .filter(|g| g.id == id)
-            .ok_or("The active goal changed. Reload sumi before adding the task.")?;
+        storage
+            .core_work_snapshot()?
+            .goals
+            .into_iter()
+            .find(|g| g.id == id && g.status == "open")
+            .ok_or("The observed goal changed. Reload sumi before adding the task.")?;
         let mut plan = storage.goal_plan(id)?;
         if Some(plan.revision) != revision {
             return Err("The plan changed. Reload sumi before adding the task.".into());
@@ -1060,7 +775,7 @@ fn append_task(
             text,
             done: false,
         });
-        storage.save_goal_plan(&goal.text, plan)?;
+        storage.core_save_observed_plan(plan)?;
         Ok(step_id)
     } else {
         if storage.goal()?.is_some() {
@@ -1092,6 +807,30 @@ pub struct Reply {
     pub message: String,
     pub resources: Vec<SearchResult>,
 }
+/// A screen-derived task enters the workspace only through an explicit acceptance.
+pub(crate) fn confirm_new_goal(storage: &mut Storage, prompt: &Intervention) -> Result<(), String> {
+    if prompt.kind != Kind::NewGoal
+        || prompt.goal_id.is_some()
+        || prompt.plan_revision.is_some()
+        || prompt.step_id.is_some()
+    {
+        return Err("Invalid new-goal proposal".into());
+    }
+    if storage
+        .core_work_snapshot()?
+        .goals
+        .iter()
+        .any(|g| g.status == "open" && fingerprint(&g.title) == fingerprint(&prompt.text))
+    {
+        return Err("This goal is already in your open goals.".into());
+    }
+    storage.core_create_goal(
+        &prompt.text,
+        &format!("observed-{}", fingerprint(&prompt.id)),
+        &chrono::Local::now().date_naive().to_string(),
+    )
+}
+
 pub(crate) fn confirm_completion(
     storage: &mut Storage,
     prompt: &Intervention,
@@ -1130,9 +869,11 @@ pub(crate) fn apply_confirmed_completion(
     prompt: &Intervention,
 ) -> Result<(), String> {
     let goal = storage
-        .goal()?
-        .filter(|g| Some(g.id) == prompt.goal_id)
-        .ok_or("The active goal changed")?;
+        .core_work_snapshot()?
+        .goals
+        .into_iter()
+        .find(|g| Some(g.id) == prompt.goal_id && g.status == "open")
+        .ok_or("The observed goal changed")?;
     let mut plan = storage.goal_plan(goal.id)?;
     if Some(plan.revision) != prompt.plan_revision {
         return Err("The plan changed. Confirm progress from the updated plan.".into());
@@ -1152,7 +893,7 @@ pub(crate) fn apply_confirmed_completion(
     if plan.current_step == prompt.step_id {
         plan.current_step = None;
     }
-    storage.save_goal_plan(&goal.text, plan)
+    storage.core_save_observed_plan(plan)
 }
 #[tauri::command(async)]
 pub async fn companion_submit(
@@ -1323,6 +1064,23 @@ pub fn respond_companion_intervention(
         }
     } else if action == "accept" {
         match prompt.kind {
+            Kind::NewGoal => {
+                if !inner.companion.view.preferences.screen_task_detection
+                    || !inner.storage.ai_preferences()?.share_goal_context
+                {
+                    return Err("Observation consent changed. Review this task in chat.".into());
+                }
+                confirm_new_goal(&mut inner.storage, &prompt)?;
+                emit(&app, "goal.created", &prompt);
+                crate::frontend_events::changed(
+                    &app,
+                    &[
+                        crate::frontend_events::Resource::Workspace,
+                        crate::frontend_events::Resource::Dashboard,
+                    ],
+                    false,
+                );
+            }
             Kind::NewTask => {
                 append_task(
                     &mut inner.storage,
@@ -1589,8 +1347,11 @@ mod tests {
         assert!(append_task(&mut storage, Some(goal.id), Some(0), "Review deck").is_err());
         assert!(append_task(&mut storage, Some(goal.id), Some(1), "SEND  deck").is_err());
         assert_eq!(storage.goal_plan(goal.id).unwrap().steps.len(), 1);
-        storage.set_goal("Another goal").unwrap();
-        assert!(append_task(&mut storage, Some(goal.id), Some(1), "Review deck").is_err());
+        let other = storage.set_goal("Another goal").unwrap();
+        append_task(&mut storage, Some(goal.id), Some(1), "Review deck").unwrap();
+        assert_eq!(storage.goal().unwrap().unwrap().id, other.id);
+        assert_eq!(storage.goal_plan(goal.id).unwrap().steps.len(), 2);
+        assert!(append_task(&mut storage, Some(goal.id), Some(1), "Stale update").is_err());
     }
     #[test]
     fn no_goal_tasks_use_local_inbox_without_creating_or_switching_goals() {

@@ -204,7 +204,7 @@ impl StateTracker {
             })
             .map(|(_, _, since, _)| *since)
             .unwrap_or(now);
-        let state = if a.idle_seconds >= settings.idle_seconds {
+        let state = if !a.engaged(settings.idle_seconds) {
             ActivityState::Paused
         } else if !a.media_playing
             && a.idle_seconds >= settings.drifting_no_input_seconds

@@ -510,3 +510,26 @@ fn goal_monitoring_choice_survives_database_reopen_and_restart() {
     }
     std::fs::remove_file(path).unwrap();
 }
+
+#[test]
+fn passive_foreground_playback_is_not_idle_but_disabled_tracking_still_wins() {
+    let mut state = StateTracker::default();
+    let mut activity = snapshot("Future media application", "An arbitrary task");
+    activity.idle_seconds = 1800;
+    activity.media_playing = true;
+    let settings = TrackingSettings::default();
+    assert_eq!(
+        state.sample(1, &activity, true, &settings),
+        ActivityState::Focused
+    );
+    activity.media_playing = false;
+    assert_eq!(
+        state.sample(1, &activity, true, &settings),
+        ActivityState::Paused
+    );
+    activity.media_playing = true;
+    assert_eq!(
+        state.sample(1, &activity, false, &settings),
+        ActivityState::Paused
+    );
+}

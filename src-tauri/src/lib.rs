@@ -49,6 +49,7 @@ mod recommendations;
 mod relevance;
 mod research;
 mod research_evidence;
+mod semantic_observation;
 mod signing_trust;
 mod skills;
 mod startup;
@@ -74,6 +75,37 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if std::env::args().any(|arg| arg == "--check-semantic-observation")
+        || (cfg!(debug_assertions) && http::enabled("BUDDY_SEMANTIC_NATIVE_CHECK"))
+    {
+        let result = tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(semantic_observation::check::run());
+        #[cfg(all(target_os = "macos", debug_assertions))]
+        if http::enabled("BUDDY_SEMANTIC_NATIVE_CHECK") {
+            // A signed audit bundle can be launched normally without inheriting a CLI's TCC identity.
+            // This fixed debug report contains status only, never images or installed user state.
+            let report = result.as_ref().cloned().unwrap_or_else(|error| serde_json::json!({"all_passed":false,"failure":engine_observability::error_category(error)}));
+            let _ = std::fs::write(
+                "/private/tmp/buddy-semantic-native-launchservices.json",
+                report.to_string(),
+            );
+        }
+        match result {
+            Ok(report) => {
+                println!("{report}");
+                std::process::exit(if report["all_passed"] == true { 0 } else { 1 });
+            }
+            Err(error) => {
+                eprintln!(
+                    "Semantic observation check unavailable ({}). No installed data was changed.",
+                    engine_observability::error_category(&error)
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+
     if let Some(flag) = std::env::args().find(|arg| {
         matches!(
             arg.as_str(),

@@ -42,7 +42,8 @@ fn allowed_in_session(inner: &Inner, activity: &ActivitySnapshot, session_active
         && inner.companion.view.preferences.screen_task_detection
         && inner.storage.ai_preferences().is_ok_and(|p| p.enabled)
         && !inner.companion.view.preferences.paused
-        && activity.idle_seconds < inner.tracking_settings.idle_seconds
+        && (activity.engaged(inner.tracking_settings.idle_seconds)
+            || inner.companion.semantic.terminal_grace(activity))
         && !sensitive_window(activity)
         && !crate::attention::excluded(&inner.buddy.view.preferences, &activity.process_name)
         && inner

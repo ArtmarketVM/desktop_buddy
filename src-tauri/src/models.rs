@@ -14,6 +14,13 @@ pub struct ActivitySnapshot {
     #[serde(default)]
     pub media_playing: bool,
 }
+impl ActivitySnapshot {
+    /// Passive foreground playback remains observable without keyboard or mouse input.
+    /// Native adapters scope media activity to the foreground process; this is not completion evidence.
+    pub(crate) fn engaged(&self, idle_threshold: u64) -> bool {
+        self.idle_seconds < idle_threshold || self.media_playing
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Goal {
     pub id: i64,

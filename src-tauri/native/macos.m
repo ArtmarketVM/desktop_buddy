@@ -6,6 +6,7 @@
 #import <CoreAudio/CoreAudio.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #include <sys/stat.h>
+#include <libproc.h>
 
 // Every exported string is owned by Rust after the call and freed with buddy_free.
 static char *json(id value) {
@@ -87,14 +88,39 @@ bool buddy_accessibility(bool prompt) {
 double buddy_idle(void) {
     return CGEventSourceSecondsSinceLastEventType(kCGEventSourceStateCombinedSessionState, kCGAnyInputEventType);
 }
-static BOOL audioPlaying(void) {
-    AudioDeviceID device = kAudioObjectUnknown;
-    UInt32 size = sizeof(device);
-    AudioObjectPropertyAddress address = {kAudioHardwarePropertyDefaultOutputDevice, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
-    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, 0, NULL, &size, &device) != noErr) return NO;
-    UInt32 running = 0; size = sizeof(running);
-    address.mSelector = kAudioDevicePropertyDeviceIsRunningSomewhere;
-    return AudioObjectGetPropertyData(device, &address, 0, NULL, &size, &running) == noErr && running != 0;
+// Output IO from the foreground app or a helper inside its own bundle only.
+// Global device activity includes unrelated music; IO never proves attention or completion.
+static BOOL processOutput(AudioObjectID object) {
+    UInt32 running = 0, size = sizeof(running);
+    AudioObjectPropertyAddress address = {kAudioProcessPropertyIsRunningOutput, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+    return AudioObjectGetPropertyData(object, &address, 0, NULL, &size, &running) == noErr && running != 0;
+}
+static BOOL audioPlaying(NSRunningApplication *application) {
+    pid_t pid = application.processIdentifier;
+    AudioObjectID object = kAudioObjectUnknown;
+    UInt32 size = sizeof(object);
+    AudioObjectPropertyAddress address = {kAudioHardwarePropertyTranslatePIDToProcessObject, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, sizeof(pid), &pid, &size, &object) == noErr && object != kAudioObjectUnknown && processOutput(object)) return YES;
+    // Chromium and other apps put audio in a child process. Require the actual bundle path,
+    // not a matching name or a bundle-ID prefix belonging to an unrelated application.
+    NSString *bundle = application.bundleURL.URLByResolvingSymlinksInPath.path;
+    if (![bundle.pathExtension isEqualToString:@"app"]) return NO;
+    NSString *prefix = [bundle stringByAppendingString:@"/"];
+    address.mSelector = kAudioHardwarePropertyProcessObjectList;
+    if (AudioObjectGetPropertyDataSize(kAudioObjectSystemObject, &address, 0, NULL, &size) != noErr || size > 512 * sizeof(AudioObjectID)) return NO;
+    AudioObjectID processes[512];
+    if (AudioObjectGetPropertyData(kAudioObjectSystemObject, &address, 0, NULL, &size, processes) != noErr) return NO;
+    for (UInt32 i = 0; i < size / sizeof(AudioObjectID); i++) {
+        if (!processOutput(processes[i])) continue;
+        pid_t child = 0; UInt32 bytes = sizeof(child);
+        AudioObjectPropertyAddress property = {kAudioProcessPropertyPID, kAudioObjectPropertyScopeGlobal, kAudioObjectPropertyElementMain};
+        if (AudioObjectGetPropertyData(processes[i], &property, 0, NULL, &bytes, &child) != noErr) continue;
+        char executable[PROC_PIDPATHINFO_MAXSIZE] = {0};
+        if (proc_pidpath(child, executable, sizeof(executable)) <= 0) continue;
+        NSString *path = [[NSString stringWithUTF8String:executable] stringByResolvingSymlinksInPath];
+        if ([path hasPrefix:prefix]) return YES;
+    }
+    return NO;
 }
 // Browser metadata reads browser chrome only. Never traverse web document nodes.
 static NSString *addressBar(AXUIElementRef root, NSUInteger depth, NSUInteger *visited, NSTimeInterval deadline) {
@@ -141,7 +167,7 @@ char *buddy_foreground(bool metadata) {
         if (window) CFRelease(window);
         if (latest) CFRelease(latest);
         if (changed) return failure(@"Foreground context changed during collection");
-        return json(@{@"process": process, @"title": title ?: @"", @"window": @(identity), @"idle": @(buddy_idle()), @"fullscreen": @(fullscreen), @"media": @(audioPlaying()), @"address": address ?: NSNull.null});
+        return json(@{@"process": process, @"title": title ?: @"", @"window": @(identity), @"idle": @(buddy_idle()), @"fullscreen": @(fullscreen), @"media": @(audioPlaying(application)), @"address": address ?: NSNull.null});
     }
 }
 // Keep the mascot on every Space and above full-screen apps so it never gets left behind.

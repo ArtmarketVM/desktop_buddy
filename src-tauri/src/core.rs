@@ -409,6 +409,14 @@ impl Storage {
     ) -> Result<(), String> {
         self.core_save_goal_details_with(title, area, plan, None, true)
     }
+    /// Update an observed open goal without changing focus or completing its wider outcome.
+    pub(crate) fn core_save_observed_plan(&mut self, plan: GoalPlan) -> Result<(), String> {
+        let (title, area): (String, String) = self.connection.query_row(
+            "SELECT g.text,a.title FROM goals g JOIN core_goals c ON c.goal_id=g.id JOIN core_areas a ON a.id=c.area_id WHERE g.id=?1 AND c.state='open'",
+            [plan.goal_id], |r| Ok((r.get(0)?, r.get(1)?)),
+        ).map_err(|_| "The observed goal is no longer open")?;
+        self.core_restore_goal_details(&title, &area, plan)
+    }
     fn core_save_goal_details_with(
         &mut self,
         title: &str,

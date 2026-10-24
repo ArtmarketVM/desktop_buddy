@@ -31,7 +31,7 @@ pub(super) fn priority(p: &Intervention) -> u8 {
         | Kind::UnplannedCompleted => 1,
         Kind::EndOfDay => 2,
         Kind::Deadline => 3,
-        Kind::NewTask | Kind::UnplannedWork | Kind::GoalMatch => 4,
+        Kind::NewTask | Kind::NewGoal | Kind::UnplannedWork | Kind::GoalMatch => 4,
         Kind::Movement => 5,
         _ => 6,
     }
@@ -44,7 +44,7 @@ fn same_question(a: &Intervention, b: &Intervention) -> bool {
                 Kind::Deadline => a.goal_id == b.goal_id,
                 Kind::Completion => a.goal_id == b.goal_id && a.step_id == b.step_id,
                 Kind::GoalCompletion => a.goal_id == b.goal_id,
-                Kind::NewTask => {
+                Kind::NewTask | Kind::NewGoal => {
                     a.goal_id == b.goal_id
                         && super::fingerprint(&a.text) == super::fingerprint(&b.text)
                 }
@@ -110,6 +110,7 @@ fn observed_question(kind: Kind) -> bool {
     matches!(
         kind,
         Kind::NewTask
+            | Kind::NewGoal
             | Kind::Completion
             | Kind::GoalCompletion
             | Kind::UnplannedWork
@@ -134,9 +135,13 @@ fn valid(inner: &Inner, p: &Intervention, now: i64) -> bool {
         Kind::AutomaticCompletion => p.id.strip_prefix("work-event-").and_then(|s| s.parse::<i64>().ok()).is_some_and(|id| {
             inner.storage.connection.query_row("SELECT EXISTS(SELECT 1 FROM work_events WHERE id=?1 AND status='completed')", [id], |r| r.get::<_,bool>(0)).unwrap_or(false)
         }),
+        Kind::NewGoal => inner.companion.view.preferences.screen_task_detection
+            && inner.storage.ai_preferences().is_ok_and(|p| p.enabled && p.share_goal_context)
+            && p.goal_id.is_none() && p.plan_revision.is_none()
+            && inner.storage.core_work_snapshot().is_ok_and(|s| !s.goals.iter().any(|g| g.status=="open" && super::fingerprint(&g.title)==super::fingerprint(&p.text))),
         Kind::NewTask | Kind::Completion | Kind::GoalCompletion => inner.companion.view.preferences.screen_task_detection
             && inner.storage.ai_preferences().is_ok_and(|p| p.enabled && p.share_goal_context)
-            && inner.storage.goal().is_ok_and(|g| g.map(|g|g.id) == p.goal_id)
+            && p.goal_id.is_some_and(|id| inner.storage.core_work_snapshot().is_ok_and(|s|s.goals.iter().any(|g|g.id==id&&g.status=="open")))
             && p.goal_id.is_some_and(|id| inner.storage.goal_plan(id).is_ok_and(|plan| Some(plan.revision) == p.plan_revision)),
         _ => false,
     }
@@ -145,7 +150,11 @@ fn ready(inner: &Inner, pending: &Pending, now: i64) -> bool {
     // Activity questions get a bounded courtesy delay. Typing can never starve delivery.
     !matches!(
         pending.prompt.kind,
-        Kind::NewTask | Kind::UnplannedWork | Kind::UnplannedCompleted | Kind::GoalMatch
+        Kind::NewTask
+            | Kind::NewGoal
+            | Kind::UnplannedWork
+            | Kind::UnplannedCompleted
+            | Kind::GoalMatch
     ) || pending.delivered
         || now.saturating_sub(pending.queued_at) >= 10
         || inner

@@ -125,7 +125,7 @@ pub(super) fn observe(inner: &mut Inner, now: i64) -> Result<(), String> {
         .as_ref()
         .filter(|a| {
             inner.status.tracking
-                && a.idle_seconds < inner.tracking_settings.idle_seconds
+                && a.engaged(inner.tracking_settings.idle_seconds)
                 && !crate::companion::sensitive_window(a)
                 && !crate::attention::excluded(&inner.buddy.view.preferences, &a.process_name)
         })

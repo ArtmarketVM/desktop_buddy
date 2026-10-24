@@ -35,6 +35,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
     goal_match: "Is this your current goal?",
     goal_completion: "Mark this goal complete?",
     new_task: "Add this step to your plan?",
+    new_goal: "Add this goal to Today?",
     completion: "Mark this step complete?",
     no_goals: "What’s on for today?",
     movement: "A stretch break",
@@ -50,6 +51,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
     goal_match: "Yes",
     goal_completion: "Yes, complete goal",
     new_task: "Add step",
+    new_goal: "Add to Today",
     completion: "Yes, mark complete",
     no_goals: "Plan today",
     movement: "I’ll stretch",
@@ -121,7 +123,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
             {prompt.kind === "no_goals" && (
               <small>Choose Not now for a reminder in 30 minutes.</small>
             )}
-            {["new_task", "completion", "goal_completion"].includes(
+            {["new_task", "new_goal", "completion", "goal_completion"].includes(
               prompt.kind,
             ) && <small>Nothing changes until you confirm.</small>}
             <div className="companion-prompt-actions">
@@ -173,7 +175,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
                     {["completion", "goal_completion"].includes(prompt.kind)
                       ? "Not yet"
                       : [
-                            "new_task",
+                            "new_task", "new_goal",
                             "unplanned_work",
                             "unplanned_completed",
                           ].includes(prompt.kind)

@@ -710,7 +710,12 @@ pub async fn tick(app: &AppHandle) {
             }
         });
     }
-    if crate::unplanned_work::due(&state) {
+    if state
+        .inner
+        .lock()
+        .is_ok_and(|i| !crate::semantic_observation::owns_observation(&i))
+        && crate::unplanned_work::due(&state)
+    {
         let handle = app.clone();
         tauri::async_runtime::spawn(async move {
             let _ = crate::unplanned_work::identify(&handle, &handle.state::<AppState>()).await;
@@ -722,7 +727,12 @@ pub async fn tick(app: &AppHandle) {
         tauri::async_runtime::spawn(async move {
             crate::automatic_goals::run_pending(&handle).await;
         });
-        if crate::goal_matching::due(&state) {
+        if state
+            .inner
+            .lock()
+            .is_ok_and(|i| !crate::semantic_observation::owns_observation(&i))
+            && crate::goal_matching::due(&state)
+        {
             let handle = app.clone();
             tauri::async_runtime::spawn(async move {
                 crate::goal_matching::identify(&handle, &handle.state::<AppState>()).await;
@@ -767,20 +777,24 @@ pub async fn tick(app: &AppHandle) {
                 }
             }
         }
-        if state
-            .inner
-            .lock()
-            .is_ok_and(|i| crate::companion::detection_due(&i))
-        {
-            let handle = app.clone();
-            tauri::async_runtime::spawn(async move {
-                let state = handle.state::<AppState>();
-                if let Err(error) = crate::companion::detect(&handle, &state).await {
-                    if let Ok(mut inner) = state.inner.lock() {
-                        inner.companion.progress_error = Some(error);
-                    }
+    }
+    // Observation is independent of media playback and Quiet-mode presentation policy.
+    if state
+        .inner
+        .lock()
+        .is_ok_and(|i| crate::companion::detection_due(&i))
+    {
+        let handle = app.clone();
+        tauri::async_runtime::spawn(async move {
+            let state = handle.state::<AppState>();
+            if let Err(error) = crate::companion::detect(&handle, &state).await {
+                if let Ok(mut inner) = state.inner.lock() {
+                    inner.companion.semantic.status = "failed";
+                    inner.companion.semantic.reason = "provider_or_validation_failure";
+                    inner.companion.progress_error = Some(error);
+                    let _ = crate::buddy::sync(&handle, &mut inner);
                 }
-            });
-        }
+            }
+        });
     }
 }

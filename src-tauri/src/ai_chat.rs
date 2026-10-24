@@ -1664,7 +1664,14 @@ async fn send_message_with_coaching(
         .iter()
         .map(|m| json!({"id":m.id,"role":m.role,"text":m.text}))
         .collect();
-    let request = json!({"latest_request":text,"event_type":if voice_message {"voice_message"} else {"user_message"},"selected_goal_id":selected_goal_id,"attachment_text":attachment,"goal_context":context,"conversation":history,"personal_memory":memory_context,"avoidResourceUrls":viewed,"natural_reply":true});
+    let mut request = json!({"latest_request":text,"event_type":if voice_message {"voice_message"} else {"user_message"},"selected_goal_id":selected_goal_id,"attachment_text":attachment,"goal_context":context,"conversation":history,"personal_memory":memory_context,"avoidResourceUrls":viewed,"natural_reply":true});
+    request["observation_status"] = {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Observation status unavailable")?;
+        crate::observation::capabilities(&inner)
+    };
     let (mut reply, committed_actions) = if mock {
         (ChatReply {message:"Mock AI response: try one small next step. AI_MOCK is enabled; no provider request was sent.".into(),..Default::default()},false)
     } else {

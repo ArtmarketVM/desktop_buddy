@@ -21,27 +21,46 @@ pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot, text: &str) ->
             .last_capture
             .is_none_or(|at| at.elapsed() >= Duration::from_secs(120))
 }
-/// Vision augments understanding, but is never accepted as a verbatim Accessibility receipt.
-pub(crate) async fn enrich(
+pub(crate) fn configured_model(inner: &Inner) -> String {
+    std::env::var("NEBIUS_VISION_MODEL_ID")
+        .ok()
+        .filter(|s| !s.trim().is_empty())
+        .or_else(|| {
+            inner
+                .storage
+                .read_setting::<crate::core::CorePreferences>("core_preferences")
+                .ok()
+                .flatten()
+                .map(|p| p.vision_model)
+                .filter(|s| !s.trim().is_empty())
+        })
+        .unwrap_or_else(|| crate::http::DEFAULT_RESPONSE_MODEL.into())
+}
+
+/// A fresh frame is retained only through the existing encrypted review lifecycle.
+/// Capturing it does not itself contact a provider; callers reserve each actual disclosure.
+pub(crate) async fn capture_frame(
     state: &AppState,
     activity: &ActivitySnapshot,
-    text: String,
-) -> Result<String, String> {
+    text: &str,
+) -> Result<Option<String>, String> {
     let privacy = {
-        let mut i = state
+        let mut inner = state
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
-        if !allowed(&i, activity, &text) || !crate::observation::reserve(&mut i) {
-            return Ok(text);
+        if !allowed(&inner, activity, text) {
+            return Ok(None);
         }
-        i.vision.last_capture = Some(Instant::now());
-        i.vision.status = "capturing";
-        i.last_consent_change
+        inner.vision.last_capture = Some(Instant::now());
+        inner.vision.status = "capturing";
+        inner.last_consent_change
     };
-    let window = activity.window_id.ok_or("No foreground window")?;
+    let Some(window) = activity.window_id else {
+        return Ok(None);
+    };
     let expected = activity.clone();
-    let image = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+    let result = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
         if !crate::collector::matches_foreground(&expected) {
             return Err("Capture foreground changed".into());
         }
@@ -53,73 +72,100 @@ pub(crate) async fn enrich(
     })
     .await
     .map_err(|_| "Window capture unavailable")?;
-    let Ok(image) = image else {
-        if let Ok(mut i) = state.inner.lock() {
-            i.vision.status = "capture_unavailable";
-        }
-        return Ok(text);
-    };
-    if image.len() > 400_000 {
-        return Ok(text);
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    if inner.last_consent_change != privacy
+        || !inner.companion.view.preferences.use_screenshots
+        || !crate::companion::screen_context::allowed(&inner, activity)
+    {
+        return Err("Vision consent or foreground changed".into());
     }
-    let current = || -> Result<(), String> {
-        let i = state
+    match result {
+        Ok(image) if !image.is_empty() && image.len() <= 400_000 => {
+            if let Err(error) = inner
+                .storage
+                .retain_review_evidence(activity, "image", &image)
+            {
+                inner.vision.status = "evidence_storage_unavailable";
+                inner.last_error = Some(error);
+                return Ok(None);
+            }
+            inner.vision.status = "captured";
+            Ok(Some(image))
+        }
+        _ => {
+            inner.vision.status = "capture_unavailable";
+            Ok(None)
+        }
+    }
+}
+
+/// Captioning remains available for retrospective activity review, not automatic mutations.
+pub(crate) async fn enrich(
+    state: &AppState,
+    activity: &ActivitySnapshot,
+    text: String,
+) -> Result<String, String> {
+    let privacy = {
+        let mut inner = state
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
-        if i.last_consent_change == privacy
-            && i.companion.view.preferences.use_screenshots
-            && crate::companion::screen_context::allowed(&i, activity)
+        if !allowed(&inner, activity, &text) || !crate::observation::reserve(&mut inner) {
+            return Ok(text);
+        }
+        inner.last_consent_change
+    };
+    let Some(image) = capture_frame(state, activity, &text).await? else {
+        return Ok(text);
+    };
+    let current = || -> Result<(), String> {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        if inner.last_consent_change == privacy
+            && inner.companion.view.preferences.use_screenshots
+            && crate::companion::screen_context::allowed(&inner, activity)
         {
             Ok(())
         } else {
             Err("Vision consent or foreground changed".into())
         }
     };
-    current()?;
     let service = crate::goal_analysis::Service::configured(&state.client)?;
-    {
-        let mut inner = state
-            .inner
-            .lock()
-            .map_err(|_| "Activity review unavailable")?;
-        if let Err(error) = inner
-            .storage
-            .retain_review_evidence(activity, "image", &image)
-        {
-            inner.vision.status = "evidence_storage_unavailable";
-            inner.last_error = Some(error);
-            return Ok(text);
-        }
-    }
     let response = crate::engine_observability::observe_specialist(
         state,
         "foreground_vision",
         request_image(&service, &image, &current),
     )
     .await;
-    // The retained copy is encrypted and deleted with the durable daily summary.
     current()?;
-    let mut i = state
+    let mut inner = state
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
     match response {
-        Ok(v) => {
-            let description = crate::goal_analysis::response_text(&v).ok().map(|s| {
+        Ok(value) => {
+            let description = crate::goal_analysis::response_text(&value).ok().map(|s| {
                 crate::companion::redact_sample(s)
                     .chars()
                     .take(1000)
                     .collect::<String>()
             });
-            i.vision.status = if description.is_some() {
+            inner.vision.status = if description.is_some() {
                 "available"
             } else {
                 "invalid_response"
             };
             if let Some(description) = &description {
-                if let Err(error) = i.storage.retain_visual_description(activity, description) {
-                    i.last_error = Some(error);
+                if let Err(error) = inner
+                    .storage
+                    .retain_visual_description(activity, description)
+                {
+                    inner.last_error = Some(error);
                 }
             }
             Ok(description
@@ -127,11 +173,55 @@ pub(crate) async fn enrich(
                 .unwrap_or(text))
         }
         Err(_) => {
-            i.vision.status = "provider_unavailable_text_fallback";
+            inner.vision.status = "provider_unavailable_text_fallback";
             Ok(text)
         }
     }
 }
+
+/// Goal-aware image reasoning preserves pixels and structured evidence instead of a generic caption.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "The bounded multimodal request carries explicit model, evidence and cancellation policy"
+)]
+pub(crate) async fn request_observation(
+    service: &crate::goal_analysis::Service<'_>,
+    model: &str,
+    system: &str,
+    context: serde_json::Value,
+    images: &[&str],
+    name: &str,
+    schema: serde_json::Value,
+    check: crate::http::Preflight<'_>,
+) -> Result<serde_json::Value, String> {
+    if images.len() > 2
+        || images
+            .iter()
+            .any(|image| image.is_empty() || image.len() > 400_000)
+        || context.to_string().len() > 48 * 1024
+    {
+        return Err("Observation exceeds the evidence budget".into());
+    }
+    let mut content = vec![json!({"type":"text","text":context.to_string()})];
+    for image in images {
+        content.push(json!({"type":"image_url","image_url":{"url":format!("data:image/jpeg;base64,{image}")}}));
+    }
+    let mut payload = json!({"model":model,"temperature":0.1,"max_tokens":8192,
+        "messages":[{"role":"system","content":format!("{system} Required JSON Schema: {schema}")},{"role":"user","content":content}],
+        "response_format":{"type":"json_schema","json_schema":{"name":name,"strict":true,"schema":schema}}});
+    if model.to_ascii_lowercase().contains("nemotron") {
+        payload["chat_template_kwargs"] = json!({"enable_thinking":false});
+    }
+    crate::http::post_guarded_json(
+        service.client,
+        &service.endpoint,
+        &service.key,
+        &payload,
+        check,
+    )
+    .await
+}
+
 pub(crate) async fn request_image(
     service: &crate::goal_analysis::Service<'_>,
     image: &str,

@@ -436,6 +436,11 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             snapshot.browser =
                 crate::browser::context(&snapshot.process_name, &snapshot.window_title, None);
         }
+        if allowed && !in_sumi {
+            crate::semantic_observation::record_metadata(&mut inner, &snapshot);
+        } else {
+            inner.companion.semantic.invalidate_evidence();
+        }
         crate::goal_matching::observe_inner(&mut inner, &snapshot, allowed && !in_sumi)?;
         inner.buddy.foreground = (allowed && !in_sumi).then(|| snapshot.clone());
         crate::companion::observe(&mut inner, &snapshot, allowed && !in_sumi);

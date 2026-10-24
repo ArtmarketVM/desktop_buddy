@@ -331,3 +331,20 @@ fn locked_or_secure_session_rejects_even_a_matching_cached_foreground() {
     assert!(allowed_in_session(&inner, &activity, true));
     assert!(!allowed_in_session(&inner, &activity, false));
 }
+
+#[test]
+fn passive_media_keeps_text_available_but_never_bypasses_lock_exclusion_or_pause() {
+    let (state, mut activity) = fixture();
+    activity.idle_seconds = 1800;
+    activity.media_playing = true;
+    let mut inner = state.inner.lock().unwrap();
+    inner.buddy.foreground = Some(activity.clone());
+    assert!(allowed_in_session(&inner, &activity, true));
+    assert!(!allowed_in_session(&inner, &activity, false));
+    inner.companion.view.preferences.paused = true;
+    assert!(!allowed_in_session(&inner, &activity, true));
+    inner.companion.view.preferences.paused = false;
+    activity.window_title = "Passwords".into();
+    inner.buddy.foreground = Some(activity.clone());
+    assert!(!allowed_in_session(&inner, &activity, true));
+}

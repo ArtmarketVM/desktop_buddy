@@ -40,6 +40,7 @@ export interface Intervention {
     | "unplanned_work"
     | "unplanned_completed"
     | "new_task"
+    | "new_goal"
     | "completion"
     | "goal_match"
     | "goal_completion"

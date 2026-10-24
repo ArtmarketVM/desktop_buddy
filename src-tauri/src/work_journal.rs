@@ -103,14 +103,43 @@ impl Storage {
         receipt: &str,
     ) -> Result<i64, String> {
         if !matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion)
+            || !prompt.confidence.is_finite()
             || prompt.confidence < MIN_VERIFIED_CONFIDENCE
         {
             return Err("Automatic completion needs verified evidence".into());
+        }
+        self.apply_automatic_completion(prompt, app, receipt)
+    }
+    pub(crate) fn automatically_complete_outcome(
+        &mut self,
+        outcome: &crate::semantic_observation::VerifiedOutcome,
+        app: &str,
+        provenance: &str,
+    ) -> Result<i64, String> {
+        self.apply_automatic_completion(outcome.prompt(), app, provenance)
+    }
+    fn apply_automatic_completion(
+        &mut self,
+        prompt: &Intervention,
+        app: &str,
+        receipt: &str,
+    ) -> Result<i64, String> {
+        if !matches!(prompt.kind, Kind::Completion | Kind::GoalCompletion)
+            || prompt.expires_at <= Utc::now().timestamp()
+        {
+            return Err("Completion outcome expired or invalid".into());
         }
         let goal = prompt.goal_id.ok_or("Completion needs a goal")?;
         let before = self.goal_plan(goal)?;
         if Some(before.revision) != prompt.plan_revision {
             return Err("Completion plan changed".into());
+        }
+        let undone: bool = self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM work_events WHERE goal_id=?1 AND step_id IS ?2 AND status='undone' AND after_revision=?3)",
+            params![goal, prompt.step_id, before.revision], |r| r.get(0),
+        ).map_err(db)?;
+        if undone {
+            return Err("Automatic completion was undone for this plan".into());
         }
         let key = fingerprint(&format!("receipt:{goal}:{:?}:{receipt}", prompt.step_id));
         let exists: bool = self
@@ -186,8 +215,8 @@ impl Storage {
             self.core_restore_goal_details(&title, &area, plan)?;
             self.connection
                 .execute(
-                    "UPDATE work_events SET status='undone',undo_plan=NULL WHERE id=?1",
-                    [id],
+                    "UPDATE work_events SET status='undone',undo_plan=NULL,after_revision=?2 WHERE id=?1",
+                    params![id, self.goal_plan(goal)?.revision],
                 )
                 .map_err(db)?;
             Ok(())

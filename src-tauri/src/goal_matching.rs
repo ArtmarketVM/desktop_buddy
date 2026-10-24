@@ -196,7 +196,7 @@ fn observe_inner_at(
 ) -> Result<(), String> {
     let allowed = allowed
         && inner.status.tracking
-        && sample.idle_seconds < inner.tracking_settings.idle_seconds
+        && sample.engaged(inner.tracking_settings.idle_seconds)
         && !crate::attention::excluded(&inner.buddy.view.preferences, &sample.process_name)
         && !crate::companion::sensitive_window(sample);
     if !allowed {

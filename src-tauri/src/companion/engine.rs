@@ -84,6 +84,7 @@ pub enum Kind {
     UnplannedWork,
     UnplannedCompleted,
     NewTask,
+    NewGoal,
     Completion,
     GoalCompletion,
     GoalMatch,
