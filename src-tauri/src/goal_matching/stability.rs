@@ -152,6 +152,7 @@ impl Runtime {
         });
         if changed {
             self.context_revision = self.context_revision.wrapping_add(1);
+            self.corrected_key = None;
             self.view = carried.unwrap_or(MatchView {
                 enabled: true,
                 ..Default::default()

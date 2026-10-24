@@ -368,6 +368,7 @@ fn cloud_null_or_failure_is_cached_and_new_privacy_invalidates_it() {
                 goal_id: None,
                 confidence: 0.,
                 reason: "Still ambiguous".into(),
+                same_task_trail: vec![],
             })
         };
         finish(&mut i, &job, result, base + AI_STABLE).unwrap();
@@ -395,6 +396,7 @@ fn a_new_explicit_focus_invalidates_an_old_cloud_response() {
             goal_id: Some(ids[1]),
             confidence: 0.95,
             reason: "Stale".into(),
+            same_task_trail: vec![],
         }),
         base + Duration::from_secs(61),
     )
@@ -608,6 +610,7 @@ fn returning_to_a_resolved_lane_reuses_the_scoped_ai_result_after_debounce() {
             goal_id: Some(ids[1]),
             confidence: 0.95,
             reason: "Beta deliverable".into(),
+            same_task_trail: vec![],
         }),
         base + AI_STABLE,
     )
@@ -658,6 +661,7 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
             goal_id: Some(ids[1]),
             confidence: 0.86,
             reason: "The notes draft the beta plan".into(),
+            same_task_trail: vec![],
         }),
         base + AI_STABLE,
     )
@@ -708,6 +712,7 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
             goal_id: None,
             confidence: 0.2,
             reason: "Unrelated notes".into(),
+            same_task_trail: vec![],
         }),
         base + Duration::from_secs(150),
     )
@@ -732,6 +737,7 @@ fn another_window_or_a_gap_never_inherits_an_ai_match() {
             goal_id: Some(ids[1]),
             confidence: 0.9,
             reason: "Beta notes".into(),
+            same_task_trail: vec![],
         }),
         base + AI_STABLE,
     )
@@ -772,6 +778,7 @@ fn a_browser_match_carries_only_within_the_same_domain() {
             goal_id: Some(ids[1]),
             confidence: 0.9,
             reason: "Beta plan page".into(),
+            same_task_trail: vec![],
         }),
         base + AI_STABLE,
     )
@@ -909,4 +916,282 @@ fn the_matcher_receives_a_bounded_trail_of_recent_windows_and_their_goals() {
         1,
         "only the current window remains"
     );
+}
+#[test]
+fn one_shared_word_or_a_domain_is_a_hint_that_neither_assigns_nor_blocks_the_matcher() {
+    let (state, ids) = setup(&["Interview at Google", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let mut maps = sample("Google Maps");
+    maps.process_name = "Google Chrome".into();
+    maps.window_id = Some(5);
+    maps.browser = crate::browser::context(
+        &maps.process_name,
+        &maps.window_title,
+        Some("google.com".into()),
+    );
+    feed(&mut i, &maps, base, 0, 60);
+    assert!(
+        i.goal_matching.view.goal_id.is_none(),
+        "a company name alone assigns nothing"
+    );
+    assert_eq!(attribution(&i, &maps).unwrap().confidence, 0.);
+    assert!(due_inner(&i, base + AI_STABLE), "the matcher still runs");
+    let goals = candidates(&i, &maps).unwrap();
+    let interview = goals
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["id"] == ids[0])
+        .unwrap();
+    assert_eq!(interview["local_hint"], json!(true));
+    let budget = goals
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|g| g["id"] == ids[1])
+        .unwrap();
+    assert!(budget["local_hint"].is_null());
+    // A domain-only overlap is not even a hint, and two shared words still assign locally.
+    let mut docs = sample("Quarterly report");
+    docs.process_name = "Google Chrome".into();
+    docs.browser = crate::browser::context(
+        &docs.process_name,
+        &docs.window_title,
+        Some("docs.google.com".into()),
+    );
+    assert!(
+        crate::relevance::hints(&[(ids[0], "Interview at Google".into(), false)], &docs).is_empty()
+    );
+    feed(&mut i, &sample("Vega budget workbook"), base, 63, 123);
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+}
+#[test]
+fn goals_outside_today_need_stronger_evidence_than_planned_ones() {
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let date = i.storage.core_snapshot(None).unwrap().date;
+    i.storage.core_today(ids[1], false, &date).unwrap();
+    let base = Instant::now();
+    let a = sample("Research notes");
+    feed(&mut i, &a, base, 0, 60);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    let answer = |id: i64, confidence: f64| MatchResult {
+        goal_id: Some(id),
+        confidence,
+        reason: "Notes".into(),
+        same_task_trail: vec![],
+    };
+    finish(&mut i, &job, Ok(answer(ids[1], 0.82)), base + AI_STABLE).unwrap();
+    assert!(
+        i.goal_matching.view.goal_id.is_none(),
+        "0.82 is not enough outside Today"
+    );
+    assert!(
+        i.goal_matching.pending_suggestion.is_some(),
+        "it is offered instead"
+    );
+    i.goal_matching.clear();
+    i.goal_matching.cache.clear();
+    feed(&mut i, &a, base, 63, 123);
+    let job = claim(&mut i, base + Duration::from_secs(150))
+        .unwrap()
+        .unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(answer(ids[1], 0.86)),
+        base + Duration::from_secs(150),
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    // The same 0.82 is enough for a goal planned for today.
+    let (state, ids) = setup(&["Atlas launch alpha", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    feed(&mut i, &a, base, 0, 60);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    finish(&mut i, &job, Ok(answer(ids[1], 0.82)), base + AI_STABLE).unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+}
+fn record_pending(i: &mut Inner, goal: i64, a: &ActivitySnapshot, from: i64, to: i64) {
+    let wall = chrono::Utc::now();
+    let unmatched = crate::relevance::ActivityMatch {
+        goal_id: None,
+        confidence: 0.,
+        reason: "No verified relevance".into(),
+    };
+    let mut t = from;
+    while t + 3 <= to {
+        let interval = crate::history::UsageInterval {
+            start: wall - chrono::Duration::seconds(t + 3),
+            end: wall - chrono::Duration::seconds(t),
+            activity: a.clone(),
+            state: crate::tracking::ActivityState::Focused,
+        };
+        i.storage
+            .record_interval_with_match(goal, &interval, Some(unmatched.clone()))
+            .unwrap();
+        i.storage
+            .record_review_interval(&interval, &unmatched)
+            .unwrap();
+        t += 3;
+    }
+}
+#[test]
+fn a_confirmed_purchase_counts_its_earlier_stages_from_the_trail() {
+    let (state, ids) = setup(&["Buy Dune tickets", "Vega budget"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let page = |title: &str, domain: &str| {
+        let mut a = sample(title);
+        a.process_name = "Google Chrome".into();
+        a.window_id = Some(11);
+        a.browser = crate::browser::context(&a.process_name, title, Some(domain.into()));
+        a
+    };
+    let search = page("Showtimes - Cinema", "cinema.example");
+    let seats = page("Choose seats - Cinema", "cinema.example");
+    let pay = page("Checkout - Pay", "pay.example");
+    // Searching, then seats, then payment; each stage was recorded without a goal.
+    feed(&mut i, &search, base, 0, 60);
+    record_pending(&mut i, ids[0], &search, 120, 180);
+    feed(&mut i, &seats, base, 63, 120);
+    record_pending(&mut i, ids[0], &seats, 60, 120);
+    feed(&mut i, &pay, base, 123, 183);
+    record_pending(&mut i, ids[0], &pay, 0, 60);
+    assert_eq!(i.storage.relevant_seconds(ids[0], None).unwrap(), 0);
+    // The trail keeps wall-clock bounds; the test fed samples instantly, so set them.
+    let now = chrono::Utc::now().timestamp();
+    i.goal_matching.trail[0].at = now - 180;
+    i.goal_matching.trail[0].until = now - 120;
+    i.goal_matching.trail[1].at = now - 120;
+    i.goal_matching.trail[1].until = now - 60;
+    let job = claim(&mut i, base + Duration::from_secs(183))
+        .unwrap()
+        .unwrap();
+    assert_eq!(job.trail.len(), 2);
+    assert_eq!(job.recent["trail"][1]["title"], "Choose seats - Cinema");
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[0]),
+            confidence: 0.9,
+            reason: "Paying for the Dune tickets".into(),
+            same_task_trail: vec![1],
+        }),
+        base + Duration::from_secs(183),
+    )
+    .unwrap();
+    // Payment and seats count; the earlier search was not named and stays pending.
+    assert_eq!(i.storage.relevant_seconds(ids[0], None).unwrap(), 120);
+    let pending: i64 = i
+        .storage
+        .connection
+        .query_row(
+            "SELECT COUNT(*) FROM review_intervals WHERE status='pending'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(pending, 20);
+    // An index outside the trail is rejected before anything is applied.
+    assert!(parse(
+        &json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"goal_id":ids[0],"confidence":0.9,"reason":"x","same_task_trail":[7]}).to_string()}}]}),
+        &job.goals,
+        job.trail.len()
+    )
+    .is_err());
+}
+#[test]
+fn a_confident_refresh_corrects_an_automatic_assignment_once_without_double_counting() {
+    let (state, ids) = setup(&["Vega budget review", "Vega forecast model"]);
+    let mut i = state.inner.lock().unwrap();
+    let base = Instant::now();
+    let mut a = sample("Research notes");
+    a.window_id = Some(7);
+    // The AI assigns the first goal and the following minute is recorded under it.
+    feed(&mut i, &a, base, 0, 60);
+    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[0]),
+            confidence: 0.85,
+            reason: "Budget notes".into(),
+            same_task_trail: vec![],
+        }),
+        base + AI_STABLE,
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[0]));
+    let wall = chrono::Utc::now();
+    let local = attribution(&i, &a).unwrap();
+    assert!(local.confidence >= crate::relevance::THRESHOLD);
+    for n in 0..20 {
+        let interval = crate::history::UsageInterval {
+            start: wall - chrono::Duration::seconds(60 - n * 3),
+            end: wall - chrono::Duration::seconds(57 - n * 3),
+            activity: a.clone(),
+            state: crate::tracking::ActivityState::Focused,
+        };
+        i.storage
+            .record_interval_with_match(ids[0], &interval, Some(local.clone()))
+            .unwrap();
+        i.storage.record_review_interval(&interval, &local).unwrap();
+    }
+    assert_eq!(i.storage.relevant_seconds(ids[0], None).unwrap(), 60);
+    // Visible text changes, the match is carried and a refresh is requested.
+    observe_text(&mut i, &a, "Budget sheet");
+    observe_text(&mut i, &a, "Forecast model assumptions and scenarios");
+    assert_eq!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
+    feed(&mut i, &a, base, 63, 93);
+    let job = claim(&mut i, base + Duration::from_secs(93))
+        .unwrap()
+        .unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[1]),
+            confidence: 0.92,
+            reason: "The sheet is the forecast model".into(),
+            same_task_trail: vec![],
+        }),
+        base + Duration::from_secs(93),
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(i.storage.relevant_seconds(ids[1], None).unwrap(), 60);
+    assert_eq!(i.storage.relevant_seconds(ids[0], None).unwrap(), 0);
+    let total: i64 = i
+        .storage
+        .connection
+        .query_row("SELECT SUM(milliseconds) FROM usage_daily", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    assert_eq!(total, 60_000, "moved, not duplicated");
+    // A later answer naming the first goal again does not flip the visit back.
+    i.goal_matching.last_attempt = None;
+    i.goal_matching.cache.clear();
+    i.goal_matching.view.source = Some("nebius_carry".into());
+    let job = claim(&mut i, base + Duration::from_secs(200))
+        .unwrap()
+        .unwrap();
+    finish(
+        &mut i,
+        &job,
+        Ok(MatchResult {
+            goal_id: Some(ids[0]),
+            confidence: 0.95,
+            reason: "Flip".into(),
+            same_task_trail: vec![],
+        }),
+        base + Duration::from_secs(200),
+    )
+    .unwrap();
+    assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
+    assert_eq!(i.storage.relevant_seconds(ids[1], None).unwrap(), 60);
 }

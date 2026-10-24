@@ -60,29 +60,38 @@ fn tokens(text: &str) -> HashSet<String> {
         .collect()
 }
 /// Conservative local evidence; neither app presets nor elapsed time prove relevance.
-pub fn classify(candidates: &[(i64, String, bool)], activity: &ActivitySnapshot) -> ActivityMatch {
-    let context = format!(
+/// Words of the window and page titles only. A domain names a service, not a task:
+/// every Google property would otherwise look like an interview at Google.
+fn observed_tokens(activity: &ActivitySnapshot) -> HashSet<String> {
+    tokens(&format!(
         "{} {}",
         activity.window_title,
         activity
             .browser
             .as_ref()
-            .map(|b| format!(
-                "{} {}",
-                b.page_title,
-                b.domain.as_deref().unwrap_or_default()
-            ))
+            .map(|b| b.page_title.as_str())
             .unwrap_or_default()
-    );
-    let observed = tokens(&context);
+    ))
+}
+/// Goals sharing a single word with the window. A hint for the AI matcher, never an
+/// assignment: one word such as a company name does not establish the activity.
+pub fn hints(candidates: &[(i64, String, bool)], activity: &ActivitySnapshot) -> Vec<i64> {
+    let observed = observed_tokens(activity);
+    candidates
+        .iter()
+        .filter(|(_, title, _)| tokens(title).intersection(&observed).next().is_some())
+        .map(|(id, _, _)| *id)
+        .collect()
+}
+pub fn classify(candidates: &[(i64, String, bool)], activity: &ActivitySnapshot) -> ActivityMatch {
+    let observed = observed_tokens(activity);
     let mut scores: Vec<_> = candidates
         .iter()
         .filter_map(|(id, title, explicit_work)| {
             let overlap: Vec<_> = tokens(title).intersection(&observed).cloned().collect();
+            // Two shared words or an explicit user rule assign locally; one word is only a hint.
             let score = if overlap.len() >= 2 {
                 0.9
-            } else if overlap.iter().any(|t| t.chars().count() >= 6) {
-                0.75
             } else if *explicit_work {
                 0.72
             } else {
