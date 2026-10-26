@@ -152,12 +152,14 @@ mockIPC(
         data.buddy.companion!.intervention = notification
           ? {
               id: "visual-layout",
-              kind: "movement",
-              text: longNotice
-                ? "A longer reminder with enough detail to exercise internal scrolling. ".repeat(
-                    40,
-                  )
-                : "You have been working for a while. Would a short stretch help?",
+              kind: query.has("planning") ? "no_goals" : "movement",
+              text: query.has("planning")
+                ? "Want to plan today and choose from your previous goals?"
+                : longNotice
+                  ? "A longer reminder with enough detail to exercise internal scrolling. ".repeat(
+                      40,
+                    )
+                  : "You have been working for a while. Would a short stretch help?",
               confidence: 1,
               goal_id: null,
               step_id: null,

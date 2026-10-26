@@ -23,6 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { listen } from "@tauri-apps/api/event";
 import { api, desktop, safeUrl } from "../api/tauri";
 import { aiApi, type ChatMessage } from "../ai/api";
 import { readAttachment, recordVoice } from "../core/media";
@@ -38,9 +39,21 @@ function chatError(error: unknown) {
     "The transcript is too long. Record a shorter message.",
     "Local speech recognition is unavailable. Install an on-device speech language or type your message.",
     "This attachment needs vision. Use Import to review an image or scanned PDF.",
+    "The speech model could not download. Check your connection and try again.",
+    "The speech model download is unavailable. Try again later.",
+    "The speech model download stopped. Try again.",
+    "The speech model failed its integrity check. Try again.",
+    "Could not save the speech model. Check free disk space.",
+    "Could not load the local speech model. Close other large apps and try again.",
+    "Local speech recognition failed. Try again or type your message.",
+    "Download the on-device speech model before recording.",
+    "Another recording is being transcribed. Try again shortly.",
   ];
   return (
-    local.find((message) => String(error) === `Error: ${message}`) ?? generic
+    local.find(
+      (message) =>
+        (error instanceof Error ? error.message : String(error)) === message,
+    ) ?? generic
   );
 }
 
@@ -101,6 +114,12 @@ export function Conversation({
   const [error, setError] = useState("");
   const [muted, setMuted] = useState(false);
   const [recording, setRecording] = useState(false);
+  const [voicePreparation, setVoicePreparation] = useState("");
+  const [voiceProcessing, setVoiceProcessing] = useState("");
+  const [voiceOriginal, setVoiceOriginal] = useState<string | null>(null);
+  const [voiceCleanupUnavailable, setVoiceCleanupUnavailable] = useState(false);
+  const preparingVoice = useRef<number | null>(null);
+  const voicePreparationStops = useRef(new Set<() => void>());
   const recorder = useRef<Awaited<ReturnType<typeof recordVoice>> | null>(null);
   const voiceGeneration = useRef(0);
   const voiceDraft = useRef(false);
@@ -127,8 +146,17 @@ export function Conversation({
   }, []);
   const followLatest = useRef(true);
   // Voice callbacks outlive a render, so they read the latest values from here.
-  const latest = useRef({ text, mode, compact });
-  latest.current = { text, mode, compact };
+  const latest = useRef({ text });
+  latest.current = { text };
+  function cleanupEnabled() {
+    const policy = preferencesQuery.getSnapshot();
+    return (
+      policy.ready &&
+      !policy.error &&
+      policy.data.enabled &&
+      !!policy.data.voice_text_cleanup
+    );
+  }
   const cancelRecording = () => {
     voiceGeneration.current += 1;
     recorder.current?.cancel();
@@ -136,30 +164,68 @@ export function Conversation({
     if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
     setRecording(false);
     setMuted(false);
+    setVoicePreparation("");
+    setVoiceProcessing("");
+    voicePreparationStops.current.forEach((stop) => stop());
+    voicePreparationStops.current.clear();
     onState("idle");
   };
   async function finishRecording() {
+    const active = recorder.current;
+    if (!active) return;
     const generation = ++voiceGeneration.current;
     if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
-    const active = recorder.current;
     recorder.current = null;
     setRecording(false);
     setMuted(false);
-    if (!active) return;
     onState("thinking");
     let transcript = "";
+    let original = "";
+    let tidied = false;
+    setVoiceOriginal(null);
+    setVoiceCleanupUnavailable(false);
+    setVoiceProcessing("Transcribing on this device…");
     const recognized = await run(async () => {
       transcript = (await coreApi.transcribe(await active.stop())).trim();
       if (!transcript)
         throw new Error(
           "No speech was recognized. Try again or type your message.",
         );
-      if (transcript.length + latest.current.text.length > 4000)
+      if (
+        [latest.current.text, transcript].filter(Boolean).join(" ").length >
+        4000
+      )
         throw new Error(
           "The transcript is too long. Record a shorter message.",
         );
+      original = transcript;
+      if (generation !== voiceGeneration.current) return;
+      if (cleanupEnabled()) {
+        setVoiceProcessing("Tidying your words…");
+        try {
+          const draft = await coreApi.correctVoiceDraft(transcript);
+          if (generation !== voiceGeneration.current) return;
+          if (
+            cleanupEnabled() &&
+            draft.text.trim() &&
+            [latest.current.text, draft.text].filter(Boolean).join(" ")
+              .length <= 4000
+          ) {
+            transcript = draft.text;
+            tidied = draft.corrected && transcript !== original;
+            setVoiceCleanupUnavailable(draft.unavailable);
+          } else if (cleanupEnabled()) {
+            setVoiceCleanupUnavailable(true);
+          }
+        } catch (error) {
+          queryClient.recordError("Voice text cleanup", error);
+          if (generation === voiceGeneration.current)
+            setVoiceCleanupUnavailable(true);
+        }
+      }
     });
     if (generation !== voiceGeneration.current) return;
+    setVoiceProcessing("");
     if (!recognized || !transcript) {
       onState("idle");
       return;
@@ -169,29 +235,62 @@ export function Conversation({
       .filter(Boolean)
       .join(" ")
       .slice(0, 4000);
-    onMode?.("text");
-    if (latest.current.compact && latest.current.mode === "voice") {
-      // A spoken message in the mascot chat is sent as soon as the person stops talking.
-      setText("");
-      await submit("", combined);
-      return;
-    }
     setText(combined);
+    if (tidied)
+      setVoiceOriginal(
+        [latest.current.text, original].filter(Boolean).join(" "),
+      );
+    onMode?.("text");
     input.current?.focus();
     onState("idle");
   }
   async function startRecording() {
-    if (!desktop || recorder.current || busy) return;
+    if (
+      !desktop ||
+      recorder.current ||
+      busy ||
+      preparingVoice.current === voiceGeneration.current
+    )
+      return;
     const generation = ++voiceGeneration.current;
+    preparingVoice.current = generation;
+    setVoiceOriginal(null);
+    setVoiceCleanupUnavailable(false);
+    setVoicePreparation("Preparing on-device speech…");
     setError("");
     try {
+      if (!preferencesQuery.getSnapshot().ready) {
+        await preferencesQuery.refresh().catch(() => undefined);
+      }
+      if (generation !== voiceGeneration.current) return;
       const languages = await coreApi.voiceLanguages();
       if (generation !== voiceGeneration.current) return;
       if (!languages.length)
         throw new Error(
           "Local speech recognition is unavailable. Install an on-device speech language or type your message.",
         );
-      const active = await recordVoice(() => void finishRecording());
+      const stopProgress = await listen<{ downloaded: number; total: number }>(
+        "buddy://voice-model-progress",
+        ({ payload }) => {
+          if (generation === voiceGeneration.current && payload.total > 0)
+            setVoicePreparation(
+              `Downloading on-device speech model… ${Math.min(100, Math.round((payload.downloaded / payload.total) * 100))}%`,
+            );
+        },
+      );
+      if (generation !== voiceGeneration.current) {
+        stopProgress();
+        return;
+      }
+      voicePreparationStops.current.add(stopProgress);
+      try {
+        await coreApi.prepareVoice();
+      } finally {
+        stopProgress();
+        voicePreparationStops.current.delete(stopProgress);
+      }
+      if (generation !== voiceGeneration.current) return;
+      const active = await recordVoice();
       if (generation !== voiceGeneration.current) {
         active.cancel();
         return;
@@ -210,9 +309,13 @@ export function Conversation({
         );
         onState("idle");
       }
+    } finally {
+      if (preparingVoice.current === generation) preparingVoice.current = null;
+      if (generation === voiceGeneration.current) setVoicePreparation("");
     }
   }
   useEffect(() => {
+    const preparationStops = voicePreparationStops.current;
     if (compact && mode === "voice") void startRecording();
     return () => {
       voiceGeneration.current += 1;
@@ -221,6 +324,10 @@ export function Conversation({
       if (voiceTimeout.current) clearTimeout(voiceTimeout.current);
       setRecording(false);
       setMuted(false);
+      setVoicePreparation("");
+      setVoiceProcessing("");
+      preparationStops.forEach((stop) => stop());
+      preparationStops.clear();
       onState("idle");
     };
     // Recording starts and stops only when the compact voice mode is entered or left;
@@ -240,6 +347,8 @@ export function Conversation({
   useEffect(() => {
     if (embedded) return;
     setText(view.seed.slice(0, 4000));
+    setVoiceOriginal(null);
+    setVoiceCleanupUnavailable(false);
     setError("");
   }, [view.seed, view.intent, embedded]);
   useEffect(() => {
@@ -281,6 +390,8 @@ export function Conversation({
     const outgoing = prefix + body;
     const voiceMessage = voiceDraft.current;
     voiceDraft.current = false;
+    setVoiceOriginal(null);
+    setVoiceCleanupUnavailable(false);
     const shared = attachment?.text ?? null;
     const pending: PendingMessage = {
       text: outgoing,
@@ -622,6 +733,8 @@ export function Conversation({
           }
           onChange={(e) => {
             setText(e.target.value);
+            setVoiceOriginal(null);
+            setVoiceCleanupUnavailable(false);
             if (!e.target.value.trim()) voiceDraft.current = false;
           }}
           onKeyDown={(e) => {
@@ -747,13 +860,53 @@ export function Conversation({
         )}
         {!compact && recording && (
           <p className="helper" role="status">
-            Recording for up to 60 seconds. Stop to transcribe locally, then
-            review before sending.
+            Pauses are fine. Stop when you finish, then review before sending.
+            Each recording can be up to 60 seconds.
+          </p>
+        )}
+        {voicePreparation && (
+          <p className="helper" role="status">
+            {voicePreparation} Recordings stay on this device.
+          </p>
+        )}
+        {compact && recording && (
+          <p className="helper" role="status">
+            Listening. Pauses are fine; press Stop when you finish.
+          </p>
+        )}
+        {voiceProcessing && (
+          <p className="helper" role="status">
+            {voiceProcessing}
+          </p>
+        )}
+        {voiceOriginal !== null && (
+          <p className="helper" role="status">
+            Voice text tidied.{" "}
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setText(voiceOriginal);
+                setVoiceOriginal(null);
+              }}
+            >
+              Use original
+            </button>
+          </p>
+        )}
+        {voiceCleanupUnavailable && (
+          <p className="helper" role="status">
+            Couldn’t tidy the wording. Your original transcript is ready to
+            edit.
           </p>
         )}
       </form>
       {compact && mode === "voice" && (
-        <div className="compact-voice-bar" aria-label="Voice controls">
+        <div
+          className="compact-voice-bar"
+          aria-label="Voice controls"
+          title="Pauses are fine. Stop when you finish, then review before sending. Each recording can be up to 60 seconds."
+        >
           <button
             type="button"
             aria-label="Switch to text"
@@ -766,7 +919,7 @@ export function Conversation({
           </button>
           <button
             type="button"
-            disabled={!desktop || busy}
+            disabled={!desktop || busy || !!voicePreparation}
             aria-label={
               recording
                 ? muted

@@ -111,6 +111,7 @@ export type InterventionResponse =
   | "chat"
   | "accept"
   | "ignore"
+  | "skip_today"
   | "tomorrow"
   | "summary"
   | "today"

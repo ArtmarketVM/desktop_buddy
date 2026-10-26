@@ -174,6 +174,22 @@ fn sync_window(app: &AppHandle, inner: &mut crate::commands::Inner) -> Result<()
         inner.buddy.clear();
     }
     crate::companion::tick(app, inner)?;
+    if inner.companion.view.chat_open
+        && !inner.buddy.view.companion.chat_open
+        && inner
+            .storage
+            .resume_companion_conversation(chrono::Utc::now())?
+    {
+        crate::frontend_events::changed(
+            app,
+            &[
+                crate::frontend_events::Resource::CurrentChat,
+                crate::frontend_events::Resource::Chats,
+                crate::frontend_events::Resource::Coaching,
+            ],
+            true,
+        );
+    }
     inner.buddy.view.companion = inner.companion.view.clone();
     if !inner.companion.view.chat_open && inner.companion.view.intervention.is_none() {
         crate::insights::local_nudge(inner)?;

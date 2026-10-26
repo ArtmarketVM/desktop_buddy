@@ -149,17 +149,22 @@ export function resampleVoice(
   return output;
 }
 
-/** Quiet time after speech that counts as "the person finished talking". */
-const VOICE_PAUSE_MS = 1500;
 /** Extra recording after Stop so the last word is not clipped. */
 const VOICE_TAIL_MS = 350;
 
-export async function recordVoice(onPause?: () => void): Promise<{
+export async function recordVoice(): Promise<{
   stop: () => Promise<Uint8Array>;
   cancel: () => void;
   setMuted: (muted: boolean) => void;
 }> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      channelCount: { ideal: 1 },
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  });
   let context: AudioContext;
   try {
     context = new AudioContext({ sampleRate: 16000 });
@@ -172,13 +177,6 @@ export async function recordVoice(onPause?: () => void): Promise<{
       throw error;
     }
   }
-  try {
-    await context.resume();
-  } catch (error) {
-    stream.getTracks().forEach((track) => track.stop());
-    void context.close();
-    throw error;
-  }
   const source = context.createMediaStreamSource(stream);
   const processor = context.createScriptProcessor(4096, 1, 1);
   const mute = context.createGain();
@@ -187,37 +185,13 @@ export async function recordVoice(onPause?: () => void): Promise<{
   let size = 0;
   let closed = false;
   let muted = false;
-  // Pause detection: learn the room noise from the first chunks, then call onPause once the
-  // person has spoken and has been quiet for VOICE_PAUSE_MS.
-  let noise = 0;
-  let calibration = 0;
-  let spoke = false;
-  let lastVoice = 0;
-  let paused = false;
+  // Keep every chunk, including the start and pauses. Only Stop or the duration
+  // limit ends dictation; silence cannot tell us whether a list is finished.
   processor.onaudioprocess = (event) => {
-    if (!muted && size < context.sampleRate * 60) {
+    if (!closed && !muted && size < context.sampleRate * 60) {
       const chunk = new Float32Array(event.inputBuffer.getChannelData(0));
       chunks.push(chunk);
       size += chunk.length;
-      let sum = 0;
-      for (const value of chunk) sum += value * value;
-      const level = Math.sqrt(sum / chunk.length);
-      const now = performance.now();
-      if (calibration < 4) {
-        noise = Math.max(noise, level);
-        calibration += 1;
-      } else if (level > Math.max(0.02, noise * 2.5)) {
-        spoke = true;
-        lastVoice = now;
-      } else if (
-        spoke &&
-        !paused &&
-        onPause &&
-        now - lastVoice >= VOICE_PAUSE_MS
-      ) {
-        paused = true;
-        onPause();
-      }
     }
   };
   source.connect(processor);
@@ -232,6 +206,14 @@ export async function recordVoice(onPause?: () => void): Promise<{
     stream.getTracks().forEach((track) => track.stop());
     void context.close();
   };
+  // Attach the capture graph before resuming so the first available audio is
+  // retained. The UI reports Listening only after this promise resolves.
+  try {
+    await context.resume();
+  } catch (error) {
+    close();
+    throw error;
+  }
   return {
     setMuted: (value) => {
       muted = value;
@@ -241,8 +223,7 @@ export async function recordVoice(onPause?: () => void): Promise<{
     },
     cancel: close,
     stop: async () => {
-      if (!paused)
-        await new Promise((resolve) => setTimeout(resolve, VOICE_TAIL_MS));
+      await new Promise((resolve) => setTimeout(resolve, VOICE_TAIL_MS));
       close();
       const samples = new Float32Array(Math.min(size, context.sampleRate * 60));
       let offset = 0;

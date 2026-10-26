@@ -10,6 +10,11 @@ const PLANNING_REMINDER_SECONDS: i64 = 30 * 60;
 pub(super) fn respond_planning(memory: &mut super::engine::Memory, action: &str, now: i64) {
     memory.planning_reminder_at =
         (action == "ignore").then(|| now.saturating_add(PLANNING_REMINDER_SECONDS));
+    if action == "skip_today" {
+        if let Some(date) = DateTime::from_timestamp(now, 0) {
+            memory.planning_day = date.with_timezone(&Local).date_naive().to_string();
+        }
+    }
 }
 
 pub(super) fn preferences(storage: &Storage) -> Result<CorePreferences, String> {
@@ -466,67 +471,109 @@ mod tests {
         assert!(inner.companion.memory.planning_reminder_at.is_none());
     }
     #[test]
+    fn skip_today_cancels_planning_reminders_across_restart_but_not_the_next_day_or_summary() {
+        for skip_repeat in [false, true] {
+            let state = reminder_state();
+            let mut inner = state.inner.lock().unwrap();
+            let now = reminder_time(9, 0, 0);
+            let first = next(&mut inner, now).unwrap().unwrap();
+            inner.companion.memory.reserve(&first, now);
+            if skip_repeat {
+                respond_planning(&mut inner.companion.memory, "ignore", now);
+                let repeat = next(&mut inner, now + 1800).unwrap().unwrap();
+                inner.companion.memory.reserve(&repeat, now + 1800);
+                // Clear even an already-pending reminder when the user chooses Skip today.
+                respond_planning(&mut inner.companion.memory, "ignore", now + 1800);
+            }
+            respond_planning(&mut inner.companion.memory, "skip_today", now + 1800);
+            assert!(inner.companion.memory.planning_reminder_at.is_none());
+            inner
+                .storage
+                .write_setting("companion_memory", &inner.companion.memory)
+                .unwrap();
+            inner.companion = super::super::Runtime::load(&inner.storage).unwrap();
+            for seconds in [1801, 3600, 7200] {
+                assert!(next(&mut inner, now + seconds).unwrap().is_none());
+            }
+            assert!(!inner.status.dnd);
+            assert!(!inner.companion.view.preferences.paused);
+            assert_eq!(
+                next(&mut inner, reminder_time(18, 0, 0))
+                    .unwrap()
+                    .unwrap()
+                    .kind,
+                Kind::EndOfDay
+            );
+            inner.companion = super::super::Runtime::load(&inner.storage).unwrap();
+            let tomorrow = next(&mut inner, now + 86400).unwrap().unwrap();
+            assert_eq!(tomorrow.kind, Kind::NoGoals);
+            assert!(tomorrow.id.starts_with("schedule:2026-10-22:planning"));
+        }
+    }
+    #[test]
     fn waiting_for_planning_does_not_pause_stretches_deadlines_or_activity_messages() {
         use std::time::{Duration, SystemTime};
-        let state = reminder_state();
-        let mut inner = state.inner.lock().unwrap();
-        let now = reminder_time(9, 0, 0);
-        let first = next(&mut inner, now).unwrap().unwrap();
-        inner.companion.memory.reserve(&first, now);
-        respond_planning(&mut inner.companion.memory, "ignore", now);
-        let prefs = CorePreferences {
-            movement_interval_minutes: 15,
-            ..Default::default()
-        };
-        inner
-            .storage
-            .write_setting("core_preferences", &prefs)
-            .unwrap();
-        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
-        for n in 0..=300 {
+        for action in ["ignore", "skip_today"] {
+            let state = reminder_state();
+            let mut inner = state.inner.lock().unwrap();
+            let now = reminder_time(9, 0, 0);
+            let first = next(&mut inner, now).unwrap().unwrap();
+            inner.companion.memory.reserve(&first, now);
+            respond_planning(&mut inner.companion.memory, action, now);
+            let prefs = CorePreferences {
+                movement_interval_minutes: 15,
+                ..Default::default()
+            };
             inner
-                .companion
-                .work_clock
-                .observe_at(start + Duration::from_secs(n * 3), true);
-        }
-        let stretch = next(&mut inner, now + 900).unwrap().unwrap();
-        assert_eq!(stretch.kind, Kind::Movement);
-        let goal = inner.storage.set_goal("Pitch deck").unwrap();
-        inner.storage.adopt_core_goals().unwrap();
-        inner
-            .storage
-            .connection
-            .execute(
-                "INSERT OR REPLACE INTO core_goal_details(goal_id,due_at) VALUES(?1,?2)",
-                rusqlite::params![
-                    goal.id,
-                    DateTime::from_timestamp(now + 900, 0).unwrap().to_rfc3339()
-                ],
+                .storage
+                .write_setting("core_preferences", &prefs)
+                .unwrap();
+            let start = SystemTime::UNIX_EPOCH + Duration::from_secs(100);
+            for n in 0..=300 {
+                inner
+                    .companion
+                    .work_clock
+                    .observe_at(start + Duration::from_secs(n * 3), true);
+            }
+            let stretch = next(&mut inner, now + 900).unwrap().unwrap();
+            assert_eq!(stretch.kind, Kind::Movement);
+            let goal = inner.storage.set_goal("Pitch deck").unwrap();
+            inner.storage.adopt_core_goals().unwrap();
+            inner
+                .storage
+                .connection
+                .execute(
+                    "INSERT OR REPLACE INTO core_goal_details(goal_id,due_at) VALUES(?1,?2)",
+                    rusqlite::params![
+                        goal.id,
+                        DateTime::from_timestamp(now + 900, 0).unwrap().to_rfc3339()
+                    ],
+                )
+                .unwrap();
+            let deadline = super::super::deadlines::next(
+                &inner.storage,
+                &inner.companion.memory,
+                Some(goal.id),
+                "2026-10-21",
+                now + 900,
             )
+            .unwrap()
             .unwrap();
-        let deadline = super::super::deadlines::next(
-            &inner.storage,
-            &inner.companion.memory,
-            Some(goal.id),
-            "2026-10-21",
-            now + 900,
-        )
-        .unwrap()
-        .unwrap();
-        assert_eq!(deadline.kind, Kind::Deadline);
-        assert!(!super::super::suppressed(&inner));
-        let completion = Intervention {
-            id: "new-completion".into(),
-            kind: Kind::AutomaticCompletion,
-            ..stretch
-        };
-        assert!(inner.companion.memory.reserve_progress(&completion));
-        assert_eq!(
-            inner.companion.memory.planning_reminder_at,
-            Some(now + 1800)
-        );
-        assert!(!inner.status.dnd);
-        assert!(!inner.companion.view.preferences.paused);
+            assert_eq!(deadline.kind, Kind::Deadline);
+            assert!(!super::super::suppressed(&inner));
+            let completion = Intervention {
+                id: "new-completion".into(),
+                kind: Kind::AutomaticCompletion,
+                ..stretch
+            };
+            assert!(inner.companion.memory.reserve_progress(&completion));
+            assert_eq!(
+                inner.companion.memory.planning_reminder_at,
+                (action == "ignore").then_some(now + 1800)
+            );
+            assert!(!inner.status.dnd);
+            assert!(!inner.companion.view.preferences.paused);
+        }
     }
     #[test]
     fn planning_reminder_respects_quiet_and_gives_the_daily_summary_priority() {

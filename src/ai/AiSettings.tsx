@@ -11,7 +11,7 @@ export function AiSettings({
   active = true,
 }: {
   onChanged: () => Promise<void>;
-  /** Two plain switches with hints, no small print. */
+  /** Plain switches with hints, no small print. */
   compact?: boolean;
   active?: boolean;
 }) {
@@ -33,6 +33,35 @@ export function AiSettings({
       setBusy(false);
     }
   }
+  const voiceCleanup = (
+    <label className="toggle-row">
+      <span className={compact ? "lbl" : undefined}>
+        Correct dictated text before editing
+        {compact ? (
+          <Hint text="Before the draft appears, send the recognized text to Nebius to fix likely misheard words. Includes up to 12 open goal titles only when goal sharing is on. Audio stays on your device. Nothing is sent as a chat message or changes your goals until Send. Off by default." />
+        ) : (
+          <small>
+            Before the draft appears, send recognized text to Nebius to fix
+            likely misheard words. Includes up to 12 open goal titles only when
+            goal sharing is on. Audio stays on your device. You review the
+            result before Send.
+          </small>
+        )}
+      </span>
+      <input
+        type="checkbox"
+        checked={!!preferences.voice_text_cleanup}
+        disabled={
+          !desktop ||
+          busy ||
+          !preferenceState.ready ||
+          !!preferenceState.error ||
+          !preferences.enabled
+        }
+        onChange={(e) => void save({ voice_text_cleanup: e.target.checked })}
+      />
+    </label>
+  );
   if (compact)
     return (
       <section aria-label="sumi AI sharing">
@@ -72,6 +101,7 @@ export function AiSettings({
             }
           />
         </label>
+        {voiceCleanup}
         {(error || preferenceState.error) && (
           <p role="alert" className="error">
             {error || preferenceState.error}
@@ -174,6 +204,7 @@ export function AiSettings({
           }
         />
       </label>
+      {voiceCleanup}
       <p className="helper">
         AI assistance is {preferences.enabled ? "on" : "off"}. Activity tracking
         and automatic screen sampling have separate controls.

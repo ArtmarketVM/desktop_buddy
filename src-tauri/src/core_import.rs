@@ -159,6 +159,7 @@ pub fn transcribe_core_voice(
     window: tauri::WebviewWindow,
     audio: Vec<u8>,
     language: Option<String>,
+    state: State<AppState>,
 ) -> Result<String, String> {
     if !["main", "buddy"].contains(&window.label()) || !valid_voice_audio(&audio) {
         return Err("Record up to 60 seconds of WAV audio".into());
@@ -167,32 +168,33 @@ pub fn transcribe_core_voice(
     if !["auto", "ru", "en"].contains(&language) {
         return Err("Choose Russian, English or automatic local recognition".into());
     }
-    transcribe(&audio, language)
+    use tauri::Manager;
+    let directory = window
+        .app_handle()
+        .path()
+        .app_data_dir()
+        .map_err(|_| "Local speech storage is unavailable")?
+        .join("speech");
+    let vocabulary = {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Application state unavailable")?;
+        crate::local_voice::vocabulary(&inner.storage)?
+    };
+    crate::local_voice::transcribe(
+        &directory.join(crate::local_voice::MODEL_FILE),
+        &audio,
+        language,
+        &vocabulary,
+    )
 }
 #[tauri::command(async)]
 pub fn get_local_voice_languages() -> Result<Vec<String>, String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        let output = std::process::Command::new("powershell.exe")
-            .args(["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; Add-Type -AssemblyName System.Speech; [Console]::OutputEncoding=[Text.Encoding]::UTF8; [Console]::Write((ConvertTo-Json -InputObject @([System.Speech.Recognition.SpeechRecognitionEngine]::InstalledRecognizers() | ForEach-Object {$_.Culture.Name}) -Compress))"])
-            .creation_flags(0x08000000).output().map_err(|_| "Local speech recognition is unavailable")?;
-        if !output.status.success() {
-            return Err("Local speech recognition is unavailable".into());
-        }
-        serde_json::from_slice(&output.stdout)
-            .map_err(|_| "Could not read installed Windows speech languages".into())
-    }
-    #[cfg(target_os = "macos")]
-    {
-        crate::macos_speech::languages()
-    }
-    #[cfg(not(any(windows, target_os = "macos")))]
-    {
-        Ok(vec![])
-    }
+    Ok(vec!["en".into(), "ru".into()])
 }
-fn valid_voice_audio(audio: &[u8]) -> bool {
+
+pub(crate) fn valid_voice_audio(audio: &[u8]) -> bool {
     if audio.len() < 46 || audio.len() > 1_920_044 {
         return false;
     }
@@ -219,41 +221,7 @@ fn valid_voice_audio(audio: &[u8]) -> bool {
         && size(40) as usize == audio.len() - 44
         && (audio.len() - 44).is_multiple_of(2)
 }
-#[cfg(windows)]
-fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
-    use std::os::windows::process::CommandExt;
-    let directory = std::env::temp_dir().join("DesktopBuddyVoice");
-    std::fs::create_dir_all(&directory)
-        .map_err(|_| "Could not prepare local speech recognition")?;
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_err(|_| "Invalid system time")?
-        .as_nanos();
-    let file = directory.join(format!("{}-{stamp}.wav", std::process::id()));
-    std::fs::write(&file, audio).map_err(|_| "Could not prepare the voice recording")?;
-    let path = file.to_string_lossy().replace('\'', "''");
-    let script = include_str!("../../scripts/local-transcribe.ps1")
-        .replace("__AUDIO_PATH__", &path)
-        .replace("__LANGUAGE__", language);
-    let utf16: Vec<u8> = script.encode_utf16().flat_map(u16::to_le_bytes).collect();
-    let result = std::process::Command::new("powershell.exe")
-        .args([
-            "-NoProfile",
-            "-NonInteractive",
-            "-EncodedCommand",
-            &STANDARD.encode(utf16),
-        ])
-        .creation_flags(0x08000000)
-        .output();
-    let _ = std::fs::remove_file(file);
-    let output = result.map_err(|_| "Windows speech recognition could not start")?;
-    if !output.status.success() {
-        return Err("Local Windows dictation is unavailable. Install a Windows speech language or paste a transcript instead.".into());
-    }
-    let text = String::from_utf8(output.stdout)
-        .map_err(|_| "Windows returned an unreadable transcript")?;
-    select_transcript(&text)
-}
+#[cfg(test)]
 #[derive(Clone, serde::Deserialize)]
 struct SpeechCandidate {
     text: String,
@@ -261,6 +229,8 @@ struct SpeechCandidate {
     start: f64,
     end: f64,
 }
+// Legacy transcript fixtures for chat-contract tests; live audio uses local_voice.
+#[cfg(test)]
 pub(crate) fn select_transcript(json: &str) -> Result<String, String> {
     let mut candidates: Vec<SpeechCandidate> = serde_json::from_str(json)
         .map_err(|_| "Local recognition returned an unreadable transcript")?;
@@ -320,39 +290,9 @@ pub(crate) fn select_transcript(json: &str) -> Result<String, String> {
     }
     Ok(text)
 }
-#[cfg(target_os = "macos")]
-fn transcribe(audio: &[u8], language: &str) -> Result<String, String> {
-    crate::macos_speech::transcribe(audio, language)
-}
-
-#[cfg(not(any(windows, target_os = "macos")))]
-fn transcribe(_audio: &[u8], _language: &str) -> Result<String, String> {
-    Err(
-        "Local voice recognition is available on Windows and macOS. Type or paste a transcript on this platform."
-            .into(),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn speech_combines_clear_language_segments_without_duplicates_or_guessing_noise() {
-        let text = select_transcript(
-            r#"[
-            {"text":"Prepare the report","confidence":0.9,"start":0.0,"end":2.0},
-            {"text":"wrong language","confidence":0.7,"start":0.0,"end":2.0},
-            {"text":"Продолжить завтра","confidence":0.85,"start":2.1,"end":4.0},
-            {"text":"noise","confidence":0.2,"start":4.1,"end":5.0}
-        ]"#,
-        )
-        .unwrap();
-        assert_eq!(text, "Prepare the report Продолжить завтра");
-        assert!(select_transcript("[]").is_err());
-        assert!(
-            select_transcript(r#"[{"text":"noise","confidence":0.2,"start":0,"end":1}]"#).is_err()
-        );
-    }
     #[tokio::test]
     async fn import_uses_real_http_with_only_explicit_content() {
         use wiremock::{

@@ -681,16 +681,7 @@ pub(crate) fn respond(
         )?),
         "chat" => {
             inner.companion.view.chat_open = true;
-            inner.companion.view.seed = format!(
-                "Help me with this work: {}. Observed in {}. Completion is {}.",
-                view.title,
-                view.app,
-                if view.completed {
-                    "supported by a result receipt"
-                } else {
-                    "not verified"
-                }
-            );
+            inner.companion.view.seed = crate::companion::topic_chat_draft(&view.title);
             None
         }
         "dismiss" => {

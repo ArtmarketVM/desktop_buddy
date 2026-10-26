@@ -1,0 +1,51 @@
+[
+  {
+    "id": "voice-draft-add-interview",
+    "kind": "voice_add_intent",
+    "request": "I had the goal to prepare for the example.com interview with Morgan Vale for me",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-add-email",
+    "kind": "voice_add_intent",
+    "request": "Please I had a goal to write the VAT email for me",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-past-interview",
+    "kind": "voice_past_report",
+    "request": "I had the goal to prepare for the example.com interview with Morgan Vale yesterday.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-past-with-for-me",
+    "kind": "voice_past_report",
+    "request": "I had the goal to prepare for the example.com interview with Morgan Vale for me, but that interview was last month.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-ambiguous-past",
+    "kind": "voice_ambiguous_report",
+    "request": "I had the goal to prepare for an interview.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-negative-add",
+    "kind": "voice_add_negative",
+    "request": "Please do not add the goal to prepare for the example.com interview with Morgan Vale for me.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-draft-quoted-past",
+    "kind": "voice_quoted_report",
+    "request": "Write down exactly: \"I had the goal to prepare for the example.com interview with Morgan Vale for me\".",
+    "language": "en",
+    "history": []
+  }
+]

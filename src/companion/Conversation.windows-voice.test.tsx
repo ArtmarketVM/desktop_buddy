@@ -25,7 +25,12 @@ vi.mock("../ai/api", async (original) => ({
   aiApi: { history: vi.fn(), preferences: vi.fn(), send: vi.fn() },
 }));
 vi.mock("../core/api", () => ({
-  coreApi: { transcribe: vi.fn(), voiceLanguages: vi.fn() },
+  coreApi: {
+    transcribe: vi.fn(),
+    correctVoiceDraft: vi.fn(),
+    voiceLanguages: vi.fn(),
+    prepareVoice: vi.fn(async () => {}),
+  },
 }));
 vi.mock("../core/media", () => ({
   recordVoice: vi.fn(),

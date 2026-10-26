@@ -54,6 +54,29 @@ pub struct Conversation {
     pub active: bool,
 }
 impl Storage {
+    /// Desktop chat resumes for ten minutes after its last message. Saved chats remain
+    /// available in the workspace; opening an old one there never expires its history.
+    pub fn resume_companion_conversation(
+        &self,
+        now: chrono::DateTime<chrono::Utc>,
+    ) -> Result<bool, String> {
+        let conversation = self.current_conversation()?;
+        let updated: String = self
+            .connection
+            .query_row(
+                "SELECT updated_at FROM buddy_conversations WHERE id=?1",
+                [conversation],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        let expired = chrono::DateTime::parse_from_rfc3339(&updated)
+            .map(|at| now.signed_duration_since(at) >= chrono::Duration::minutes(10))
+            .unwrap_or(true);
+        if expired {
+            return self.start_fresh_conversation();
+        }
+        Ok(false)
+    }
     pub fn current_conversation(&self) -> Result<i64, String> {
         let saved: Option<i64> = self.read_setting("active_buddy_conversation")?;
         if let Some(id) = saved {

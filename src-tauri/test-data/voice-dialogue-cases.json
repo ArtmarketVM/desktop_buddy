@@ -1,0 +1,44 @@
+[
+  {
+    "id": "voice-soundalike-rename-en",
+    "kind": "voice_rename",
+    "request": "Change the color and go to fix safety eye keys disconnecting to fix the microphone issue in Sumiap",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-soundalike-ambiguous-en",
+    "kind": "voice_ambiguous",
+    "request": "Rename the safety eye keys goal to fix the microphone issue in sumi app",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-soundalike-negative-en",
+    "kind": "voice_negative",
+    "request": "Do not rename fix safety eye keys disconnecting. I was only describing the microphone issue in Sumiap.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-soundalike-new-title-en",
+    "kind": "voice_literal",
+    "request": "Add a new goal called \"Safety Eye Keys\". That is its exact name; do not change the existing saved AI keys goal.",
+    "language": "en",
+    "history": []
+  },
+  {
+    "id": "voice-soundalike-paraphrase-en",
+    "language": "en",
+    "kind": "voice_rename_alt",
+    "request": "Please change the current gold fix saved eye keys disconnecting to investigate microphone capture in sumi app",
+    "history": []
+  },
+  {
+    "id": "voice-soundalike-theme-en",
+    "language": "en",
+    "kind": "voice_theme",
+    "request": "Change the colour to violet. I mean the app appearance, not a goal title.",
+    "history": []
+  }
+]
