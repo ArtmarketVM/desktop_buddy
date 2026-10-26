@@ -99,12 +99,11 @@ export function TodaySummary({
     </section>
   );
 }
-// Goal identity, rather than the current period's ranking, determines colour.
-// The golden angle spreads neighbouring IDs; both theme variants contrast with the canvas.
-function colorOf(id: number) {
-  const hue = (Math.abs(id) * 137.508 + 250) % 360;
-  const light = hue >= 40 && hue < 190 ? 33 : 46;
-  return `light-dark(hsl(${hue.toFixed(3)} 65% ${light}%), hsl(${hue.toFixed(3)} 72% 70%))`;
+// Shades describe time rank in the displayed period, rather than goal identity.
+// Keep the brand violet at the top and stop short of white so small segments stay visible.
+function violetShade(rank: number, count: number) {
+  const violet = count > 1 ? 100 - (rank / (count - 1)) * 55 : 100;
+  return `color-mix(in srgb, #6c5fff ${violet.toFixed(3)}%, #ffffff)`;
 }
 
 type Bucket = {
@@ -200,8 +199,22 @@ export function Progress({
       }
     return [...totals.values()]
       .filter((goal) => goal.seconds > 0)
-      .sort((a, b) => b.seconds - a.seconds);
+      .sort((a, b) => b.seconds - a.seconds || a.id - b.id);
   }, [days]);
+  const timeRanks = new Map(
+    [...new Set(goals.map((goal) => goal.seconds))].map((seconds, rank) => [
+      seconds,
+      rank,
+    ]),
+  );
+  const goalRanks = new Map(goals.map((goal, rank) => [goal.id, rank]));
+  const goalColors = new Map(
+    goals.map((goal) => [
+      goal.id,
+      violetShade(timeRanks.get(goal.seconds) ?? 0, timeRanks.size),
+    ]),
+  );
+  const colorOf = (id: number) => goalColors.get(id) ?? violetShade(0, 1);
   const focus =
     selected === null
       ? null
@@ -235,7 +248,11 @@ export function Progress({
   const entries = (bucket: Bucket) =>
     [...bucket.goals.entries()]
       .filter(([, seconds]) => seconds > 0)
-      .sort(([a], [b]) => a - b);
+      .sort(
+        ([a], [b]) =>
+          (goalRanks.get(a) ?? goals.length) -
+            (goalRanks.get(b) ?? goals.length) || a - b,
+      );
   const maxHeight = Math.max(
     110,
     ...buckets.map((bucket) => {
@@ -347,6 +364,23 @@ export function Progress({
         </p>
       </div>
       <div className="progress-bar">
+        <div className="segmented-control" role="tablist" aria-label="Period">
+          {periodOptions.map((item) => (
+            <button
+              key={item.value}
+              role="tab"
+              aria-selected={period === item.value}
+              className={period === item.value ? "selected" : ""}
+              disabled={busy}
+              onClick={() => {
+                onWeek(null);
+                onPeriod(item.value);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div className="progress-nav" role="group" aria-label="Choose period">
           <button
             className="text-button"
@@ -372,23 +406,6 @@ export function Progress({
           >
             <ChevronRight size={16} />
           </button>
-        </div>
-        <div className="segmented-control" role="tablist" aria-label="Period">
-          {periodOptions.map((item) => (
-            <button
-              key={item.value}
-              role="tab"
-              aria-selected={period === item.value}
-              className={period === item.value ? "selected" : ""}
-              disabled={busy}
-              onClick={() => {
-                onWeek(null);
-                onPeriod(item.value);
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
         </div>
       </div>
       <div className="stack-chart" aria-label="Focused time">
@@ -474,7 +491,7 @@ export function Progress({
               className={`progress-row static ${item.done ? "" : "open"}`}
             >
               <span
-                className={`done-box ${item.done ? "" : "empty"}`}
+                className={`done-box ${item.done ? "" : "is-open"}`}
                 aria-hidden="true"
               >
                 {item.done && <Check size={10} />}

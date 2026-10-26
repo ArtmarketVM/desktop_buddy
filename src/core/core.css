@@ -1219,8 +1219,9 @@ p.notice::before {
 }
 .progress-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
   margin-bottom: 14px;
 }
@@ -1849,7 +1850,7 @@ details.today-summary > .today-summary-head {
 .progress-row.open > span:nth-child(2) {
   color: var(--muted);
 }
-.done-box.empty {
+.done-box.is-open {
   background: transparent;
   border: 1.5px solid var(--muted);
 }
@@ -2302,18 +2303,18 @@ p.error .text-button {
   width: 200px;
 }
 .settings-card .setting-row.vision-model-row {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 6px;
-}
-.settings-card .vision-model-row .svc {
   flex-wrap: wrap;
 }
-.core-workspace
-  .settings-card
-  .vision-model-row
-  > input:not([type="checkbox"]):not([type="time"]) {
-  width: 100%;
+.settings-card .vision-model-row .svc {
+  min-width: 0;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.settings-card .vision-model-row .acts {
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+.core-workspace .settings-card .vision-model-editor > input {
   min-width: 0;
 }
 .settings-card .toggle-row.sub {

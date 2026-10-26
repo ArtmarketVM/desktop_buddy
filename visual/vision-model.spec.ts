@@ -12,31 +12,34 @@ test("AI settings display the resolved screenshot models without saving an overr
     .getByRole("button", { name: "AI", exact: true })
     .click();
   const services = page.getByRole("region", { name: "Services", exact: true });
-  await expect(
-    services.getByRole("textbox", { name: "Vision model", exact: true }),
-  ).toHaveValue("moonshotai/Kimi-K3");
-  await expect(
-    services.getByText(/Image descriptions: nvidia\/Nemotron-3.5-Super-VL/),
-  ).toBeVisible();
-  const bounds = await services.evaluate((card) => {
-    const field = card.querySelector<HTMLInputElement>(
-      "input[aria-label='Vision model']",
-    )!;
-    const rect = field.getBoundingClientRect();
-    const area = card.getBoundingClientRect();
-    return {
-      left: rect.left,
-      right: rect.right,
-      width: rect.width,
-      cardLeft: area.left,
-      cardRight: area.right,
-    };
+  const row = services.getByRole("group", {
+    name: "Vision model",
+    exact: true,
   });
-  expect(bounds.left).toBeGreaterThanOrEqual(bounds.cardLeft);
-  expect(bounds.right).toBeLessThanOrEqual(
-    Math.min(bounds.cardRight, page.viewportSize()!.width),
-  );
-  expect(bounds.width).toBeGreaterThan(180);
+  await expect(
+    row.getByText("screenshots · moonshotai/Kimi-K3", { exact: true }),
+  ).toBeVisible();
+  await expect(row.getByText("Uses Nebius", { exact: true })).toBeVisible();
+  await expect(
+    row.getByRole("button", { name: "Change model", exact: true }),
+  ).toBeVisible();
+  await expect(
+    services.getByRole("textbox", { name: "Vision model ID", exact: true }),
+  ).toHaveCount(0);
+  const bounds = await row.evaluate((item) => ({
+    left: item.getBoundingClientRect().left,
+    right: item.getBoundingClientRect().right,
+  }));
+  expect(bounds.right).toBeLessThanOrEqual(page.viewportSize()!.width);
+  await row.getByRole("button", { name: "Change model", exact: true }).click();
+  const field = services.getByRole("textbox", {
+    name: "Vision model ID",
+    exact: true,
+  });
+  await expect(field).toHaveValue("moonshotai/Kimi-K3");
+  await field.fill("cancelled-model");
+  await row.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(field).toHaveCount(0);
   const calls = await page.evaluate(
     () =>
       (window as unknown as { __visual: { calls: string[] } }).__visual.calls,

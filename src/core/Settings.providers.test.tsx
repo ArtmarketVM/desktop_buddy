@@ -176,36 +176,41 @@ it("polls local status without probing providers and distinguishes expiry from f
   );
 });
 
-it("displays resolved screenshot models without saving an override on mount", async () => {
+it("shows Vision as a compact service row and saves only explicit model edits", async () => {
   const services = await openSettings();
   await waitFor(() =>
     expect(
-      (
-        services.getByRole("textbox", {
-          name: "Vision model",
-        }) as HTMLInputElement
-      ).value,
-    ).toBe("fixture-screen-model"),
+      services.getByText("screenshots · fixture-screen-model"),
+    ).toBeTruthy(),
   );
+  const row = within(services.getByRole("group", { name: "Vision model" }));
+  expect(row.getByText("Uses Nebius")).toBeTruthy();
   expect(
-    services.getByText(/Image descriptions: fixture-image-model/),
+    row.getByRole("img", { name: /Image descriptions: fixture-image-model/ }),
   ).toBeTruthy();
+  expect(
+    services.queryByRole("textbox", { name: "Vision model ID" }),
+  ).toBeNull();
   expect(coreApi.preferences).not.toHaveBeenCalled();
-  const field = services.getByRole("textbox", { name: "Vision model" });
-  fireEvent.change(field, { target: { value: "custom/vision" } });
-  fireEvent.blur(field);
+  fireEvent.click(row.getByRole("button", { name: "Change model" }));
+  let field = services.getByRole("textbox", { name: "Vision model ID" });
+  expect((field as HTMLInputElement).value).toBe("fixture-screen-model");
+  fireEvent.change(field, { target: { value: "cancelled-model" } });
+  fireEvent.click(row.getByRole("button", { name: "Cancel" }));
+  expect(coreApi.preferences).not.toHaveBeenCalled();
+  fireEvent.click(row.getByRole("button", { name: "Change model" }));
+  field = services.getByRole("textbox", { name: "Vision model ID" });
+  fireEvent.change(field, { target: { value: " custom/vision " } });
+  fireEvent.click(services.getByRole("button", { name: "Save model" }));
   await waitFor(() =>
     expect(coreApi.preferences).toHaveBeenLastCalledWith(
       expect.objectContaining({ vision_model: "custom/vision" }),
     ),
   );
-  fireEvent.change(field, { target: { value: "" } });
-  expect((field as HTMLInputElement).value).toBe("");
-  fireEvent.blur(field);
+  fireEvent.click(row.getByRole("button", { name: "Use default" }));
   await waitFor(() =>
     expect(coreApi.preferences).toHaveBeenLastCalledWith(
       expect.objectContaining({ vision_model: "" }),
     ),
   );
-  expect((field as HTMLInputElement).value).toBe("fixture-screen-model");
 });

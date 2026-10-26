@@ -73,7 +73,7 @@ function segments() {
 
 it("shows details for one segment and opens that goal, including by keyboard focus", () => {
   render(view(fixture()));
-  const [emails, pitch] = segments();
+  const [pitch, emails] = segments();
   expect(emails.getAttribute("aria-label")).toBe(
     "Reply to customers · Sat · 1m",
   );
@@ -100,30 +100,92 @@ it("shows details for one segment and opens that goal, including by keyboard foc
   expect(segments()).toHaveLength(2);
 });
 
-it("keeps colours and stack order tied to goal IDs across dates, ranks and periods", () => {
+it("ranks the list and every date stack by period total, and keeps shades during drilldown", () => {
+  const snapshot = fixture();
+  snapshot.week = [
+    snapshot.summary,
+    {
+      day: "2026-10-23",
+      completed: [],
+      goals: [
+        {
+          goal_id: 3,
+          title: "Reply to customers",
+          area: "",
+          seconds: 50,
+          relevant_seconds: 50,
+        },
+        {
+          goal_id: 7,
+          title: "Write the pitch",
+          area: "",
+          seconds: 30,
+          relevant_seconds: 30,
+        },
+      ],
+    },
+  ];
+  const { container } = render(view(snapshot));
+  const buttons = segments();
+  expect(
+    buttons.map((button) => button.getAttribute("aria-label")!.split(" · ")[0]),
+  ).toEqual([
+    "Write the pitch",
+    "Reply to customers",
+    "Write the pitch",
+    "Reply to customers",
+  ]);
+  const shades = buttons.map((button) =>
+    button.style.getPropertyValue("--bar-color"),
+  );
+  expect(shades[0]).toBe(shades[2]);
+  expect(shades[1]).toBe(shades[3]);
+  expect(shades[0]).not.toBe(shades[1]);
+  expect(shades[0]).toContain("#6c5fff 100.000%");
+  expect(
+    within(container.querySelector(".progress-list")!)
+      .getAllByRole("button")
+      .map((button) => button.textContent),
+  ).toEqual([
+    expect.stringContaining("Write the pitch"),
+    expect.stringContaining("Reply to customers"),
+  ]);
+  fireEvent.click(buttons[1]);
+  expect(
+    segments().every(
+      (button) => button.style.getPropertyValue("--bar-color") === shades[1],
+    ),
+  ).toBe(true);
+});
+
+it("recalculates violet ranks when the selected period's time totals change", () => {
   const snapshot = fixture();
   const { rerender } = render(view(snapshot));
-  const before = segments().map((segment) =>
-    segment.style.getPropertyValue("--bar-color"),
-  );
-  expect(new Set(before).size).toBe(2);
-  expect(before.every((color) => color.startsWith("light-dark("))).toBe(true);
+  const darkest = segments()[0].style.getPropertyValue("--bar-color");
+  expect(segments()[0].getAttribute("aria-label")).toContain("Write the pitch");
   const next = structuredClone(snapshot);
-  next.summary.goals.reverse();
-  next.summary.goals[0].relevant_seconds = 900;
+  next.summary.goals[1].relevant_seconds = 900;
   next.week = [next.summary];
   rerender(view(next));
-  expect(
-    segments().map((segment) => segment.style.getPropertyValue("--bar-color")),
-  ).toEqual(before);
   expect(segments()[0].getAttribute("aria-label")).toContain(
     "Reply to customers",
   );
-  rerender(view(next, "day"));
-  expect(
-    segments().map((segment) => segment.style.getPropertyValue("--bar-color")),
-  ).toEqual(before);
-  expect(segments()[0].getAttribute("aria-label")).toContain("09:00");
+  expect(segments()[0].style.getPropertyValue("--bar-color")).toBe(darkest);
+});
+
+it("gives equal time equal shades and breaks sorting ties by goal ID", () => {
+  const snapshot = fixture();
+  snapshot.summary.goals.forEach((goal) => {
+    goal.relevant_seconds = 60;
+  });
+  snapshot.week = [snapshot.summary];
+  render(view(snapshot));
+  expect(segments()[0].getAttribute("aria-label")).toContain(
+    "Reply to customers",
+  );
+  expect(segments()[0].style.getPropertyValue("--bar-color")).toBe(
+    segments()[1].style.getPropertyValue("--bar-color"),
+  );
 });
 
 it("opens historical goals even when they are absent from today's goal list", () => {
@@ -131,9 +193,7 @@ it("opens historical goals even when they are absent from today's goal list", ()
   snapshot.goals = [];
   render(view(snapshot));
   fireEvent.click(segments()[0]);
-  expect(
-    screen.getByRole("heading", { name: "Reply to customers" }),
-  ).toBeTruthy();
+  expect(screen.getByRole("heading", { name: "Write the pitch" })).toBeTruthy();
   expect(screen.getByText("Other work on this goal")).toBeTruthy();
 });
 
@@ -150,8 +210,8 @@ it("keeps more than six goals distinguishable and a crowded stack inside the plo
     goal_id: index + 1,
     title: `Goal ${index + 1}`,
     area: "",
-    seconds: 1,
-    relevant_seconds: 1,
+    seconds: index + 1,
+    relevant_seconds: index + 1,
   }));
   snapshot.week = [snapshot.summary];
   render(view(snapshot));

@@ -622,49 +622,97 @@ export function CoreSettings({
                 checked={serviceState("tavily")}
                 onChanged={providerChanged}
               />
+              <div
+                className="setting-row provider-row vision-model-row"
+                role="group"
+                aria-label="Vision model"
+              >
+                <span className="svc">
+                  <b>Vision model</b>
+                  <small>
+                    screenshots ·{" "}
+                    {services?.configured_vision_model ||
+                      (serviceStateQuery.loading
+                        ? "Loading…"
+                        : "Model unavailable")}
+                  </small>
+                  <Hint
+                    text={`Shares the Nebius key above. Screen understanding: ${services?.configured_vision_model || "unavailable"}. Image descriptions: ${services?.configured_image_description_model || "unavailable"}.`}
+                  />
+                </span>
+                <span className="acts">
+                  <span className="tracking-state paused">
+                    <i aria-hidden="true" />
+                    Uses Nebius
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button row-link"
+                    disabled={blocked}
+                    onClick={() =>
+                      setVisionDraft(
+                        visionDraft === null
+                          ? preferences.vision_model ||
+                              services?.configured_vision_model ||
+                              ""
+                          : null,
+                      )
+                    }
+                  >
+                    {visionDraft === null ? "Change model" : "Cancel"}
+                  </button>
+                  {preferences.vision_model && visionDraft === null && (
+                    <button
+                      type="button"
+                      className="text-button row-link muted"
+                      disabled={blocked}
+                      onClick={() =>
+                        preferenceSave.update({
+                          ...preferences,
+                          vision_model: "",
+                        })
+                      }
+                    >
+                      Use default
+                    </button>
+                  )}
+                </span>
+              </div>
+              {visionDraft !== null && (
+                <form
+                  className="setting-row provider-key-row vision-model-editor"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    preferenceSave.update({
+                      ...preferences,
+                      vision_model: visionDraft.trim(),
+                    });
+                    setVisionDraft(null);
+                  }}
+                >
+                  <input
+                    type="text"
+                    aria-label="Vision model ID"
+                    maxLength={160}
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={visionDraft}
+                    disabled={blocked}
+                    placeholder="Model ID (empty uses default)"
+                    onChange={(event) => setVisionDraft(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="small-button"
+                    disabled={blocked}
+                  >
+                    Save model
+                  </button>
+                </form>
+              )}
               <p className="helper">
                 Connection tests verify key access. AI generation and web search
                 can still fail or time out separately.
-              </p>
-              <label className="setting-row vision-model-row">
-                <span className="svc">
-                  <b>Vision model</b>
-                  <small>Screenshot understanding</small>
-                </span>
-                <input
-                  aria-label="Vision model"
-                  maxLength={160}
-                  value={
-                    visionDraft ??
-                    (preferences.vision_model ||
-                      services?.configured_vision_model ||
-                      "")
-                  }
-                  onBlur={() => {
-                    void preferenceSave.flush();
-                    setVisionDraft(null);
-                  }}
-                  placeholder={
-                    serviceStateQuery.loading
-                      ? "Loading model…"
-                      : "Model unavailable"
-                  }
-                  disabled={blocked}
-                  onChange={(e) => {
-                    setVisionDraft(e.target.value);
-                    preferenceSave.update(
-                      { ...preferences, vision_model: e.target.value },
-                      350,
-                    );
-                  }}
-                />
-              </label>
-              <p className="helper">
-                {services?.configured_vision_model
-                  ? `Configured for screen understanding: ${services.configured_vision_model}. Clear the field to use the default.`
-                  : "The configured screen model is unavailable. Reopen AI settings to check again."}
-                {services?.configured_image_description_model &&
-                  ` Image descriptions: ${services.configured_image_description_model}.`}
               </p>
             </section>
             <section className="settings-card" aria-label="AI">
