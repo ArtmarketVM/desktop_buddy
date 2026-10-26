@@ -13,7 +13,7 @@
 
 - Progress uses violet shades ranked by time spent, with darker shades for goals with more time. Each chart segment opens its goal, and stacks share a baseline.
 - Period and date controls sit together at the left. Goal details use compact step indicators.
-- Vision model settings use the same compact service-row design and show the resolved model.
+- Vision model settings use the same compact service-row design and show the resolved model, with a readable layout in narrow windows.
 - **Skip today** dismisses planning reminders for the rest of the local day, including after restart. **Not now** retains its 30-minute reminder. Other mascot messages and tracking continue.
 - Removed redundant review/journal panels from Today and Progress.
 

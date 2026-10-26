@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
-  "applicationBase": "efe7b17f0def9f301cbbca5657496edbf179f474",
-  "captureCommit": "efe7b17f0def9f301cbbca5657496edbf179f474",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39906547268",
-  "approvedOn": "2026-10-23",
-  "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
-  "approval": "The owner confirmed approval of all 34 screenshots.",
+  "applicationBase": "f31969edc5775243d7de0800f9b73cadceedcb78",
+  "captureCommit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40316975339",
+  "approvedOn": "2026-10-26",
+  "approvedBy": "Repository owner, explicit chat approval of the current screenshots/design",
+  "approval": "Owner said: approve the current screenshots, i like htem. The eight changed expectations reproduce that design; unchanged expectations are preserved.",
   "knownExistingIssues": [
     "The previous narrow Privacy working-hours overflow is superseded by the intentional removal of those controls, included in this approval. Native WebView rendering and physical-device interactions are not established by browser screenshots."
   ],
   "environment": {
-    "commit": "efe7b17f0def9f301cbbca5657496edbf179f474",
+    "commit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
     "runner": "Windows",
-    "image": "20261012.333.1",
-    "node": "v24.21.0",
+    "image": "20261022.344.1",
+    "node": "v24.22.1",
     "reused": ""
   },
   "screenshots": {
@@ -33,12 +33,12 @@
       "height": 873
     },
     "narrow-dark/progress.png": {
-      "sha256": "d88cc2eeb3d304b1d0170b6c362703c8b0c6a4d39f0ebef73f50043ed20a1aee",
+      "sha256": "f10eb51b731bafaea059e0e699c7e95561b368da5931f873b33b8fb3e8b790ee",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "8072b1d5c980a2186cfe8b675783b2aaf7b0076c0c8b5b6a2a79b10954c5698b",
+      "sha256": "ffcf57cd584648fde87c474e9fac53701904601608673c220765c7e3f47e00b5",
       "width": 720,
       "height": 873
     },
@@ -73,12 +73,12 @@
       "height": 873
     },
     "narrow-light/progress.png": {
-      "sha256": "5a66664179fdab2a2fc83c06126e0fa3e800a2d985c280f2c2b642f2271608a8",
+      "sha256": "f922be4fa6f5cc7a7cc00d97d0f8afa22477973b4c41d1b7dd7dfe9d31308997",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "be750bb58e159e951db8cf2823dc50bd0c6a3f7705cc8d1138c4df65452014cd",
+      "sha256": "f032bc1d5413e4bd49d1e4106aa45401a7b8f4aa113c30afeb909c24517ee76b",
       "width": 720,
       "height": 873
     },
@@ -118,12 +118,12 @@
       "height": 873
     },
     "wide-dark/progress.png": {
-      "sha256": "7e4d9f543c20ceeb33137f494431977e1d927c7709967d5ba9b8b2a4d84ee188",
+      "sha256": "e182e6a3cc9a179684774e55583fb486fa4f8e0a62ac828d1411bc125c373c1b",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "0c2dc20b134b67c54848e655555f887898b31f61d3756d7d7c3eaff222ce8d8e",
+      "sha256": "4b7abb98f7984ff3408393937ef8f49e59608411ba62f517303a726905f6ea1d",
       "width": 1280,
       "height": 873
     },
@@ -163,12 +163,12 @@
       "height": 873
     },
     "wide-light/progress.png": {
-      "sha256": "5e07728c688f7bcc0c5bbd84f8602e9f430880c610c08fc975113efdc417f6a6",
+      "sha256": "f8dec911d3f8ecc86b00b58459751e895c81532fd6ff1c9ad15345dafd27f773",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-ai.png": {
-      "sha256": "abc51003f9582096526a02d2589f38397620b53361e2526a5ba2d3950820af4c",
+      "sha256": "167751f535b6685dcd07bc2eacd5810982e90aae06cf0c41eaf2a3ff8a40292e",
       "width": 1280,
       "height": 873
     },
@@ -232,7 +232,7 @@
     }
   ],
   "previousReviewCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
-  "changeReason": "Replace Save preferences with automatic-saving status in Settings, including Privacy. The wide-light progress chart differs by 12 edge antialiasing pixels; no Progress source was changed.",
+  "changeReason": "Time-ranked violet Progress stacks with left-aligned period/date controls; compact Vision service row with readable narrow layout and the separate optional transcript-correction toggle.",
   "history": [
     {
       "date": "2026-10-22",
@@ -255,6 +255,53 @@
         "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
         "approval": "Approved all 34 screenshots and requested publication."
       }
+    },
+    {
+      "date": "2026-10-26",
+      "reason": "Preserve the preceding review before recording the owner-approved 0.46.0 design.",
+      "previousReview": {
+        "captureCommit": "efe7b17f0def9f301cbbca5657496edbf179f474",
+        "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39906547268",
+        "approvedOn": "2026-10-23",
+        "approvedBy": "Repository owner, explicit chat confirmation after gallery review",
+        "approval": "The owner confirmed approval of all 34 screenshots.",
+        "environment": {
+          "commit": "efe7b17f0def9f301cbbca5657496edbf179f474",
+          "runner": "Windows",
+          "image": "20261012.333.1",
+          "node": "v24.21.0",
+          "reused": ""
+        }
+      }
+    }
+  ],
+  "updatedScreenshots": [
+    "wide-light/progress.png",
+    "wide-light/settings-ai.png",
+    "wide-dark/progress.png",
+    "wide-dark/settings-ai.png",
+    "narrow-light/progress.png",
+    "narrow-light/settings-ai.png",
+    "narrow-dark/progress.png",
+    "narrow-dark/settings-ai.png"
+  ],
+  "retainedScreenshots": 26,
+  "repeatability": "Both canonical Windows passes: 70 passed, 2 intentionally skipped. No masks or tolerance changes.",
+  "retainedMinorRasterDifferences": [
+    {
+      "name": "narrow-dark/settings-general.png",
+      "changedPixels": 10,
+      "strictPlaywrightPass": true
+    },
+    {
+      "name": "narrow-dark/settings-privacy.png",
+      "changedPixels": 5,
+      "strictPlaywrightPass": true
+    },
+    {
+      "name": "narrow-light/settings-general.png",
+      "changedPixels": 12,
+      "strictPlaywrightPass": true
     }
   ]
 }
