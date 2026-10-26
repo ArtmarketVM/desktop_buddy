@@ -25,6 +25,30 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 
+pub(crate) fn topic_chat_draft(topic: &str) -> String {
+    let topic = topic.split_whitespace().collect::<Vec<_>>().join(" ");
+    format!("I want to talk about “{topic}”.")
+}
+
+fn intervention_chat_draft(storage: &Storage, prompt: &Intervention) -> Result<String, String> {
+    if let Some(goal) = prompt.goal_id {
+        let title: String = storage
+            .connection
+            .query_row("SELECT text FROM goals WHERE id=?1", [goal], |row| {
+                row.get(0)
+            })
+            .map_err(|_| "This goal changed. Open it from Today to chat about it.")?;
+        return Ok(topic_chat_draft(&title));
+    }
+    Ok(match prompt.kind {
+        Kind::NoGoals => "I want to talk about today's plan.".into(),
+        Kind::EndOfDay => "I want to talk about today's progress.".into(),
+        Kind::Movement => "I want to talk about taking a break.".into(),
+        Kind::NewGoal | Kind::NewTask => topic_chat_draft(&prompt.text),
+        _ => "I want to talk about what I've been working on.".into(),
+    })
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct InboxTask {
     pub id: String,
@@ -676,8 +700,8 @@ pub fn open_companion_chat(
             let _ = app.emit("buddy://navigate", "chats");
             return crate::buddy::open_workspace(app);
         }
-        // Closing a window does not end the conversation. Only the explicit New chat action
-        // starts another one; the mascot and main window resume the same selected chat.
+        // Window synchronization starts a fresh desktop chat after ten minutes
+        // without messages; shorter interruptions resume the selected conversation.
         inner.storage.current_conversation()?;
         inner.companion.view.chat_open = true;
         inner.companion.view.intent = intent;
@@ -1025,9 +1049,13 @@ pub fn respond_companion_intervention(
                 now,
             )?;
         }
+        if matches!(prompt.kind, Kind::UnplannedWork | Kind::UnplannedCompleted) {
+            crate::unplanned_work::respond(&mut inner, &prompt.id, "chat", None)?;
+        } else {
+            inner.companion.view.seed = intervention_chat_draft(&inner.storage, &prompt)?;
+        }
         inner.companion.view.chat_open = true;
         inner.companion.view.intent = "ask".into();
-        inner.companion.view.seed = format!("Can we talk about this? {}", prompt.text);
     } else if prompt.kind == Kind::Deadline {
         let goal_id = deadlines::respond(
             &mut inner.storage,
@@ -1051,7 +1079,7 @@ pub fn respond_companion_intervention(
             let _ = app.emit("buddy://goal-completed", id);
         } else if action == "chat" {
             inner.companion.view.chat_open = true;
-            inner.companion.view.seed = format!("Explain this recorded result: {}", prompt.text);
+            inner.companion.view.seed = intervention_chat_draft(&inner.storage, &prompt)?;
         } else if action != "ignore" {
             return Err("Unknown completion response".into());
         }
@@ -1124,7 +1152,7 @@ pub fn respond_companion_intervention(
         let _ = app.emit("buddy://navigate", "plan-tomorrow");
     } else if action == "summary" && prompt.kind == Kind::EndOfDay {
         let _ = app.emit("buddy://navigate", "activity");
-    } else if action != "ignore" {
+    } else if action != "ignore" && !(action == "skip_today" && prompt.kind == Kind::NoGoals) {
         return Err("Unknown confirmation action".into());
     }
     if prompt.kind == Kind::NoGoals {
@@ -1137,7 +1165,7 @@ pub fn respond_companion_intervention(
     let rejected = if prompt.kind == Kind::AutomaticCompletion {
         action == "accept"
     } else {
-        action == "ignore"
+        action == "ignore" || action == "skip_today"
     };
     // Declining a research offer is already recorded by respond_offer.
     if prompt.kind != Kind::Research || action != "ignore" {
@@ -1223,6 +1251,46 @@ pub fn update_companion_inbox(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn bubble_chat_is_a_short_editable_topic_without_the_reminder_or_timestamp() {
+        let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
+        let goal = storage
+            .set_goal("Create a list of companies I want to get to")
+            .unwrap();
+        let mut prompt = Intervention {
+            id: "deadline".into(),
+            kind: Kind::Deadline,
+            text:
+                "Was due at 13:01 and is still open. Are you on it, or do you need to reschedule?"
+                    .into(),
+            confidence: 1.,
+            goal_id: Some(goal.id),
+            plan_revision: None,
+            step_id: None,
+            expires_at: i64::MAX,
+        };
+        assert_eq!(
+            intervention_chat_draft(&storage, &prompt).unwrap(),
+            "I want to talk about “Create a list of companies I want to get to”."
+        );
+        assert!(storage.chat_history().unwrap().is_empty());
+        prompt.goal_id = None;
+        for (kind, expected) in [
+            (Kind::NoGoals, "I want to talk about today's plan."),
+            (Kind::EndOfDay, "I want to talk about today's progress."),
+            (Kind::Movement, "I want to talk about taking a break."),
+        ] {
+            prompt.kind = kind;
+            assert_eq!(
+                intervention_chat_draft(&storage, &prompt).unwrap(),
+                expected
+            );
+        }
+        assert_eq!(
+            topic_chat_draft("Customer\n emails"),
+            "I want to talk about “Customer emails”."
+        );
+    }
     #[test]
     fn saved_quiet_weekdays_are_resting_from_the_first_dashboard_without_manual_dnd() {
         use chrono::Datelike;

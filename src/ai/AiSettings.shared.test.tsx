@@ -64,3 +64,19 @@ it("keeps consent controls disabled after a failed initial read and shows a safe
       .some((row) => row.detail.includes("private-provider-canary")),
   ).toBe(true);
 });
+
+it("requires a separate opt-in for pre-send transcript correction", async () => {
+  render(<AiSettings compact onChanged={async () => {}} />);
+  const checkbox = screen.getByRole("checkbox", {
+    name: /Correct dictated text before editing/,
+  }) as HTMLInputElement;
+  await waitFor(() => expect(checkbox.disabled).toBe(false));
+  expect(checkbox.checked).toBe(false);
+  fireEvent.click(checkbox);
+  await waitFor(() =>
+    expect(aiApi.savePreferences).toHaveBeenCalledWith({
+      ...defaultAiPreferences,
+      voice_text_cleanup: true,
+    }),
+  );
+});

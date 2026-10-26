@@ -1,4 +1,35 @@
 import { test, expect } from "@playwright/test";
+
+test("planning fits its four choices inside the compact bubble", async ({
+  page,
+}, info) => {
+  await page.setViewportSize({ width: 328, height: 240 });
+  await page.goto(
+    `/visual/surfaces.html?buddy=panel&notification&planning&theme=${info.project.name.endsWith("dark") ? "dark" : "light"}`,
+  );
+  const card = page.locator(".companion-prompt");
+  await expect(card).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const label of ["Plan today", "Not now", "Skip today", "Chat"]) {
+    const button = page.getByRole("button", { name: label, exact: true });
+    await expect(button).toBeVisible();
+    const bounds = (await button.boundingBox())!;
+    expect(bounds.x).toBeGreaterThanOrEqual(0);
+    expect(bounds.y).toBeGreaterThanOrEqual(0);
+    expect(bounds.x + bounds.width).toBeLessThanOrEqual(328);
+    expect(bounds.y + bounds.height).toBeLessThanOrEqual(240);
+  }
+  expect(
+    await card.evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
+  ).toBe(true);
+  expect(
+    await card.evaluate((el) => el.scrollWidth <= el.clientWidth + 1),
+  ).toBe(true);
+  await expect(
+    page.getByRole("button", { name: "Chat", exact: true }),
+  ).toHaveClass("text-button");
+});
+
 async function update(
   page: import("@playwright/test").Page,
   notice: boolean,

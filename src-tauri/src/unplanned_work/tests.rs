@@ -337,6 +337,30 @@ fn offers_survive_switching_to_sumi_but_consent_changes_and_history_deletion_inv
     assert!(respond(&mut i, &id, "add", None).is_err());
 }
 #[test]
+fn chat_opens_an_editable_topic_without_technical_observation_details_or_new_goals() {
+    let state = ready();
+    let mut inner = state.inner.lock().unwrap();
+    fixtures(&inner.storage, None);
+    let id = offer(&mut inner);
+    let title = inner
+        .unplanned_work
+        .pending
+        .as_ref()
+        .unwrap()
+        .view
+        .title
+        .clone();
+    assert!(respond(&mut inner, &id, "chat", None).unwrap().is_none());
+    assert!(inner.companion.view.chat_open);
+    assert_eq!(
+        inner.companion.view.seed,
+        crate::companion::topic_chat_draft(&title)
+    );
+    assert!(inner.storage.chat_history().unwrap().is_empty());
+    assert!(inner.storage.core_snapshot(None).unwrap().goals.is_empty());
+}
+
+#[test]
 fn dismiss_and_snooze_never_create_goals_and_rejections_follow_history_retention() {
     let state = ready();
     let mut i = state.inner.lock().unwrap();

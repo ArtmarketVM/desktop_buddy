@@ -1,0 +1,4 @@
+[env]
+# Keep the embedded speech backend portable across users' CPUs. Metal remains
+# enabled on macOS; Windows uses the baseline x64 CPU backend.
+CMAKE_TOOLCHAIN_FILE = { value = "src-tauri/cmake/portable.cmake", relative = true }

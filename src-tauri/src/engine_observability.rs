@@ -321,7 +321,14 @@ fn service_status_view(inner: &Inner) -> Value {
         json!({"id":id,"status":status,"checked_at":check.map(|c|c.checked_at.as_str())})
     })
     .collect();
-    json!({"configured_model":configured_model,"configured_response_model":http::secret("NEBIUS_MODEL_ID").ok().map(|m|http::response_model(&m)).as_deref().and_then(model_label),"services":services})
+    json!({
+        "configured_model": configured_model,
+        "configured_response_model": http::secret("NEBIUS_MODEL_ID")
+            .ok().map(|m| http::response_model(&m)).as_deref().and_then(model_label),
+        "configured_vision_model": model_label(&crate::vision::configured_model(inner)),
+        "configured_image_description_model": model_label(&crate::vision::image_model()),
+        "services": services,
+    })
 }
 #[tauri::command(async)]
 pub fn get_ai_service_status(

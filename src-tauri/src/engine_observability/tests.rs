@@ -310,15 +310,30 @@ fn sidebar_status_is_content_free_and_configuration_does_not_claim_connectivity(
     assert_eq!(status["services"][0]["status"], "not_checked");
     assert_eq!(status["services"][1]["status"], "not_checked");
     assert_eq!(status["services"][2]["status"], "not_checked");
-    let keys: Vec<_> = status
+    let mut keys: Vec<_> = status
         .as_object()
         .unwrap()
         .keys()
         .map(String::as_str)
         .collect();
+    keys.sort_unstable();
     assert_eq!(
         keys,
-        ["configured_model", "configured_response_model", "services"]
+        [
+            "configured_image_description_model",
+            "configured_model",
+            "configured_response_model",
+            "configured_vision_model",
+            "services"
+        ]
+    );
+    assert_eq!(
+        status["configured_vision_model"],
+        serde_json::json!(model_label(&crate::vision::configured_model(&inner)))
+    );
+    assert_eq!(
+        status["configured_image_description_model"],
+        serde_json::json!(model_label(&crate::vision::image_model()))
     );
     let serialized = status.to_string();
     for private in [

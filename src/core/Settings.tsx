@@ -131,6 +131,7 @@ export function CoreSettings({
   const [preview, setPreview] = useState("");
   const [panel, setPanel] = useState<"log" | "memory" | "raw" | null>(null);
   const [showDiagnostics, setShowDiagnostics] = useState(false);
+  const [visionDraft, setVisionDraft] = useState<string | null>(null);
   const logLast = new Date().toISOString().slice(0, 10);
   const logFirst = new Date(Date.now() - 6 * 86_400_000)
     .toISOString()
@@ -621,29 +622,98 @@ export function CoreSettings({
                 checked={serviceState("tavily")}
                 onChanged={providerChanged}
               />
+              <div
+                className="setting-row provider-row vision-model-row"
+                role="group"
+                aria-label="Vision model"
+              >
+                <span className="svc">
+                  <b>Vision model</b>
+                  <small>
+                    screenshots ·{" "}
+                    {services?.configured_vision_model ||
+                      (serviceStateQuery.loading
+                        ? "Loading…"
+                        : "Model unavailable")}
+                  </small>
+                  <Hint
+                    text={`Shares the Nebius key above. Screen understanding: ${services?.configured_vision_model || "unavailable"}. Image descriptions: ${services?.configured_image_description_model || "unavailable"}.`}
+                  />
+                </span>
+                <span className="acts">
+                  <span className="tracking-state paused">
+                    <i aria-hidden="true" />
+                    Uses Nebius
+                  </span>
+                  <button
+                    type="button"
+                    className="text-button row-link"
+                    disabled={blocked}
+                    onClick={() =>
+                      setVisionDraft(
+                        visionDraft === null
+                          ? preferences.vision_model ||
+                              services?.configured_vision_model ||
+                              ""
+                          : null,
+                      )
+                    }
+                  >
+                    {visionDraft === null ? "Change model" : "Cancel"}
+                  </button>
+                  {preferences.vision_model && visionDraft === null && (
+                    <button
+                      type="button"
+                      className="text-button row-link muted"
+                      disabled={blocked}
+                      onClick={() =>
+                        preferenceSave.update({
+                          ...preferences,
+                          vision_model: "",
+                        })
+                      }
+                    >
+                      Use default
+                    </button>
+                  )}
+                </span>
+              </div>
+              {visionDraft !== null && (
+                <form
+                  className="setting-row provider-key-row vision-model-editor"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    preferenceSave.update({
+                      ...preferences,
+                      vision_model: visionDraft.trim(),
+                    });
+                    setVisionDraft(null);
+                  }}
+                >
+                  <input
+                    type="text"
+                    aria-label="Vision model ID"
+                    maxLength={160}
+                    autoComplete="off"
+                    spellCheck={false}
+                    value={visionDraft}
+                    disabled={blocked}
+                    placeholder="Model ID (empty uses default)"
+                    onChange={(event) => setVisionDraft(event.target.value)}
+                  />
+                  <button
+                    type="submit"
+                    className="small-button"
+                    disabled={blocked}
+                  >
+                    Save model
+                  </button>
+                </form>
+              )}
               <p className="helper">
                 Connection tests verify key access. AI generation and web search
                 can still fail or time out separately.
               </p>
-              <label className="setting-row">
-                <span className="svc">
-                  <b>Vision model</b>
-                  <small>optional</small>
-                </span>
-                <input
-                  maxLength={160}
-                  value={preferences.vision_model}
-                  onBlur={() => void preferenceSave.flush()}
-                  placeholder="Model ID"
-                  disabled={blocked}
-                  onChange={(e) => {
-                    preferenceSave.update(
-                      { ...preferences, vision_model: e.target.value },
-                      350,
-                    );
-                  }}
-                />
-              </label>
             </section>
             <section className="settings-card" aria-label="AI">
               <p className="eyebrow settings-card-title">AI</p>

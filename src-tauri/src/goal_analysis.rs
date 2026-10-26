@@ -10,6 +10,7 @@ pub struct AiPreferences {
     pub share_goal_context: bool,
     pub web_research: bool,
     pub automatic_goal_matching: bool,
+    pub voice_text_cleanup: bool,
 }
 impl Default for AiPreferences {
     fn default() -> Self {
@@ -18,6 +19,7 @@ impl Default for AiPreferences {
             share_goal_context: true,
             web_research: true,
             automatic_goal_matching: false,
+            voice_text_cleanup: false,
         }
     }
 }
@@ -341,6 +343,7 @@ pub(crate) fn response_operation(name: &str) -> bool {
     matches!(
         name,
         "buddy_research_evidence"
+            | "voice_draft_cleanup"
             | "buddy_coaching_interpretation"
             | "buddy_coaching_response"
             | "buddy_skill_plan"
@@ -475,6 +478,9 @@ impl<'a> Service<'a> {
             self.model.clone()
         };
         let mut payload = json!({"model":model,"temperature":if deliberate && model.to_ascii_lowercase().contains("nemotron") {1.0}else{0.2},"max_tokens":if deliberate {8192}else{6144},"messages":messages});
+        if name == "voice_draft_cleanup" {
+            payload["max_tokens"] = json!(1536);
+        }
         if name == "buddy_unplanned_work" {
             payload["max_tokens"] = json!(4096);
         }
@@ -506,7 +512,10 @@ impl<'a> Service<'a> {
         }
         let result = if matches!(
             name,
-            "buddy_unplanned_work" | "verify_work_receipt" | "companion_task_signal"
+            "buddy_unplanned_work"
+                | "verify_work_receipt"
+                | "companion_task_signal"
+                | "voice_draft_cleanup"
         ) {
             http::post_guarded_json(
                 self.client,

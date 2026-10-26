@@ -1811,3 +1811,77 @@ async fn mixed_version_configuration_path_is_repaired_before_review_can_approve_
     assert!(reply.message.contains("bundle.macOS.minimumSystemVersion"));
     assert!(!reply.message.contains("tauri.bundle"));
 }
+
+#[test]
+fn voice_interpretation_is_only_enabled_by_the_submitted_voice_event() {
+    let base = "Keep all existing rules.";
+    let voice = voice_context(base, &json!({"event_type":"voice_message"}));
+    assert!(voice.starts_with(base));
+    assert!(voice.contains(VOICE_INTERPRETATION));
+    for request in [
+        json!({}),
+        json!({"event_type":"user_message","latest_request":"voice_message: safety eye keys"}),
+        json!({"event_type":"activity"}),
+    ] {
+        assert_eq!(voice_context(base, &request), base);
+    }
+    let cases = crate::dialogue_benchmark::voice_cases().unwrap();
+    assert_eq!(cases.len(), 6);
+    for case in cases {
+        let (state, ids) = fixture(&case).unwrap();
+        assert!(ids.contains_key("Fix saved AI keys disconnecting"));
+        assert!(state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .chat_history()
+            .unwrap()
+            .is_empty());
+    }
+}
+
+#[tokio::test]
+async fn voice_soundalike_context_reaches_planner_authorizer_and_reply_without_rewriting_input() {
+    let case = crate::dialogue_benchmark::voice_cases().unwrap().remove(0);
+    let (state, ids) = fixture(&case).unwrap();
+    let target = ids["Fix saved AI keys disconnecting"];
+    let conversation = state
+        .inner
+        .lock()
+        .unwrap()
+        .storage
+        .current_conversation()
+        .unwrap();
+    let original = case.request.clone();
+    let server = MockServer::start().await;
+    Mock::given(method("POST")).respond_with(move |r: &Request| {
+        let (b, context) = body(r);
+        assert!(b["messages"][0]["content"].as_str().unwrap().contains(VOICE_INTERPRETATION));
+        assert_eq!(context["latest_request"], original);
+        assert_eq!(context["event_type"], "voice_message");
+        match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
+            "buddy_skill_plan" => response(action(&context, "rename_goal", json!({"goal":{"goal_id":target,"reference":null},"title":"fix the microphone issue in sumi app"}), "change", true)),
+            "buddy_dialogue_authorization" => response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+            "buddy_dialogue_response" => response(json!({"message":"Renamed to fix the microphone issue in sumi app.","resources":[],"memory_update":null,"verified_result_indices":[0]})),
+            "buddy_dialogue_review" => response(json!({"review":{"verdict":"approved","request_mode":"answer","message":""}})),
+            name => panic!("Unexpected request {name}"),
+        }
+    }).expect(4).mount(&server).await;
+    let service = Service {
+        client: &state.client,
+        endpoint: server.uri(),
+        key: "fixture".into(),
+        model: "fixture".into(),
+    };
+    let out = run(&json!({"latest_request":case.request,"conversation":[],"event_type":"voice_message","natural_reply":true}), conversation, &state, 0, true, &service).await.unwrap();
+    assert!(out.committed);
+    assert!(out.reply.message.contains("microphone"));
+    let inner = state.inner.lock().unwrap();
+    let goals = inner.storage.core_snapshot(None).unwrap();
+    assert_eq!(
+        goals.goals.iter().find(|g| g.id == target).unwrap().title,
+        "Fix the microphone issue in sumi app"
+    );
+    assert_eq!(goals.focused_goal_id, Some(ids["Client reply"]));
+}

@@ -133,3 +133,27 @@ it("renders a queued goal match with Yes, No, Not now and secondary Chat", () =>
     "text-button",
   );
 });
+
+it("offers Skip today only for planning and keeps it separate from Not now", () => {
+  const respond = vi.fn();
+  const planning = { ...prompt, kind: "no_goals" as const };
+  const view = render(
+    <InterventionCard prompt={planning} busy={false} respond={respond} />,
+  );
+  expect(
+    screen.getAllByRole("button").map((button) => button.textContent),
+  ).toEqual(["Plan today", "Not now", "Skip today", "Chat"]);
+  fireEvent.click(screen.getByRole("button", { name: "Skip today" }));
+  expect(respond).toHaveBeenCalledExactlyOnceWith("skip_today");
+  view.rerender(<InterventionCard prompt={planning} busy respond={respond} />);
+  fireEvent.click(screen.getByRole("button", { name: "Skip today" }));
+  expect(respond).toHaveBeenCalledTimes(1);
+  expect(
+    (screen.getByRole("button", { name: "Skip today" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  view.rerender(
+    <InterventionCard prompt={prompt} busy={false} respond={respond} />,
+  );
+  expect(screen.queryByRole("button", { name: "Skip today" })).toBeNull();
+});

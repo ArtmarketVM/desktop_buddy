@@ -1,4 +1,3 @@
-import { WorkJournal } from "./WorkJournal";
 import { useMemo, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { PeriodPicker, endOfMonth } from "./PeriodPicker";
@@ -100,15 +99,12 @@ export function TodaySummary({
     </section>
   );
 }
-// Direction A: violet, lime and ink first, then their lighter steps.
-const goalColors = [
-  "#6c5fff",
-  "#e4fa8e",
-  "#1f1f1f",
-  "#b3acff",
-  "#c8d87a",
-  "#8c8c86",
-];
+// Shades describe time rank in the displayed period, rather than goal identity.
+// Keep the brand violet at the top and stop short of white so small segments stay visible.
+function violetShade(rank: number, count: number) {
+  const violet = count > 1 ? 100 - (rank / (count - 1)) * 55 : 100;
+  return `color-mix(in srgb, #6c5fff ${violet.toFixed(3)}%, #ffffff)`;
+}
 
 type Bucket = {
   key: string;
@@ -176,7 +172,9 @@ export function Progress({
   busy: boolean;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [hover, setHover] = useState<string | null>(null);
+  const [hover, setHover] = useState<{ bucket: string; goal: number } | null>(
+    null,
+  );
   const days = useMemo(
     () =>
       snapshot.week.length ? [...snapshot.week].reverse() : [snapshot.summary],
@@ -201,17 +199,35 @@ export function Progress({
       }
     return [...totals.values()]
       .filter((goal) => goal.seconds > 0)
-      .sort((a, b) => b.seconds - a.seconds);
+      .sort((a, b) => b.seconds - a.seconds || a.id - b.id);
   }, [days]);
-  const colorOf = (id: number) =>
-    goalColors[
-      Math.max(
-        0,
-        goals.findIndex((goal) => goal.id === id),
-      ) % goalColors.length
-    ];
+  const timeRanks = new Map(
+    [...new Set(goals.map((goal) => goal.seconds))].map((seconds, rank) => [
+      seconds,
+      rank,
+    ]),
+  );
+  const goalRanks = new Map(goals.map((goal, rank) => [goal.id, rank]));
+  const goalColors = new Map(
+    goals.map((goal) => [
+      goal.id,
+      violetShade(timeRanks.get(goal.seconds) ?? 0, timeRanks.size),
+    ]),
+  );
+  const colorOf = (id: number) => goalColors.get(id) ?? violetShade(0, 1);
   const focus =
-    selected === null ? null : snapshot.goals.find((g) => g.id === selected);
+    selected === null
+      ? null
+      : (snapshot.goals.find((g) => g.id === selected) ??
+        (goals.find((g) => g.id === selected)
+          ? { ...goals.find((g) => g.id === selected)!, plan: { steps: [] } }
+          : null));
+  const titleOf = (id: number) =>
+    sentenceCase(
+      snapshot.goals.find((g) => g.id === id)?.title ??
+        goals.find((g) => g.id === id)?.title ??
+        "Goal",
+    );
   const buckets = (
     period === "day"
       ? hourBuckets(snapshot.hourly ?? [])
@@ -226,9 +242,28 @@ export function Progress({
   const bucketTotal = (bucket: Bucket) =>
     [...bucket.goals.values()].reduce((sum, value) => sum + value, 0);
   const maxBucket = Math.max(1, ...buckets.map(bucketTotal));
-  // The tallest day fills the chart; every goal with any time keeps at least one visible block.
-  const blockHeight = (seconds: number) =>
-    Math.max(6, Math.round((seconds / maxBucket) * 110));
+  // Keep tiny segments visible, then scale every stack equally to fit the plot.
+  const rawHeight = (seconds: number) =>
+    Math.max(6, (seconds / maxBucket) * 110);
+  const entries = (bucket: Bucket) =>
+    [...bucket.goals.entries()]
+      .filter(([, seconds]) => seconds > 0)
+      .sort(
+        ([a], [b]) =>
+          (goalRanks.get(a) ?? goals.length) -
+            (goalRanks.get(b) ?? goals.length) || a - b,
+      );
+  const maxHeight = Math.max(
+    110,
+    ...buckets.map((bucket) => {
+      const rows = entries(bucket);
+      return (
+        rows.reduce((sum, [, seconds]) => sum + rawHeight(seconds), 0) +
+        Math.max(0, rows.length - 1) * 2
+      );
+    }),
+  );
+  const scale = 110 / maxHeight;
   const total = buckets.reduce((sum, bucket) => sum + bucketTotal(bucket), 0);
   const stepSeconds = new Map<string, number>();
   if (selected !== null)
@@ -329,6 +364,23 @@ export function Progress({
         </p>
       </div>
       <div className="progress-bar">
+        <div className="segmented-control" role="tablist" aria-label="Period">
+          {periodOptions.map((item) => (
+            <button
+              key={item.value}
+              role="tab"
+              aria-selected={period === item.value}
+              className={period === item.value ? "selected" : ""}
+              disabled={busy}
+              onClick={() => {
+                onWeek(null);
+                onPeriod(item.value);
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
         <div className="progress-nav" role="group" aria-label="Choose period">
           <button
             className="text-button"
@@ -355,67 +407,55 @@ export function Progress({
             <ChevronRight size={16} />
           </button>
         </div>
-        <div className="segmented-control" role="tablist" aria-label="Period">
-          {periodOptions.map((item) => (
-            <button
-              key={item.value}
-              role="tab"
-              aria-selected={period === item.value}
-              className={period === item.value ? "selected" : ""}
-              disabled={busy}
-              onClick={() => {
-                onWeek(null);
-                onPeriod(item.value);
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
       </div>
       <div className="stack-chart" aria-label="Focused time">
         {buckets.map((bucket) => (
-          <div
-            key={bucket.key}
-            className="stack-col"
-            onMouseEnter={() => setHover(bucket.key)}
-            onMouseLeave={() => setHover(null)}
-          >
-            {hover === bucket.key && bucketTotal(bucket) > 0 && (
-              <div className="stack-tip" role="tooltip">
-                <strong>
-                  {bucket.label} · {duration(bucketTotal(bucket))}
-                </strong>
-                {[...bucket.goals.entries()]
-                  .filter(([, seconds]) => seconds > 0)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([id, seconds]) => (
-                    <span key={id}>
-                      <i style={{ background: colorOf(id) }} />
-                      {sentenceCase(
-                        snapshot.goals.find((g) => g.id === id)?.title ??
-                          goals.find((g) => g.id === id)?.title ??
-                          "Goal",
-                      )}
-                      <em>{duration(seconds)}</em>
-                    </span>
-                  ))}
+          <div key={bucket.key} className="stack-col">
+            {hover?.bucket === bucket.key && bucket.goals.has(hover.goal) && (
+              <div
+                className="stack-tip"
+                role="tooltip"
+                id={`time-${bucket.key}-${hover.goal}`}
+              >
+                <strong>{titleOf(hover.goal)}</strong>
+                <span>
+                  {period === "day"
+                    ? `${bucket.key.padStart(2, "0")}:00`
+                    : bucket.label}{" "}
+                  · {minutes(bucket.goals.get(hover.goal)!)}
+                </span>
               </div>
             )}
-            <div className="stack-bar">
-              {[...bucket.goals.entries()]
-                .filter(([, seconds]) => seconds > 0)
-                .map(([id, seconds]) => (
-                  <i
-                    key={id}
-                    style={
-                      {
-                        height: `${blockHeight(seconds)}px`,
-                        "--bar-color": colorOf(id),
-                      } as React.CSSProperties
-                    }
-                  />
-                ))}
+            <div className="stack-bar" style={{ gap: `${2 * scale}px` }}>
+              {entries(bucket).map(([id, seconds]) => (
+                <button
+                  key={id}
+                  type="button"
+                  className="stack-segment"
+                  aria-label={`${titleOf(id)} · ${period === "day" ? `${bucket.key.padStart(2, "0")}:00` : bucket.label} · ${minutes(seconds)}`}
+                  aria-describedby={
+                    hover?.bucket === bucket.key && hover.goal === id
+                      ? `time-${bucket.key}-${id}`
+                      : undefined
+                  }
+                  onMouseEnter={() =>
+                    setHover({ bucket: bucket.key, goal: id })
+                  }
+                  onMouseLeave={() => setHover(null)}
+                  onFocus={() => setHover({ bucket: bucket.key, goal: id })}
+                  onBlur={() => setHover(null)}
+                  onClick={() => {
+                    setSelected(id);
+                    setHover(null);
+                  }}
+                  style={
+                    {
+                      height: `${rawHeight(seconds) * scale}px`,
+                      "--bar-color": colorOf(id),
+                    } as React.CSSProperties
+                  }
+                />
+              ))}
             </div>
             <small>
               {buckets.length > 14 && period !== "day" ? "" : bucket.label}
@@ -451,7 +491,7 @@ export function Progress({
               className={`progress-row static ${item.done ? "" : "open"}`}
             >
               <span
-                className={`done-box ${item.done ? "" : "empty"}`}
+                className={`done-box ${item.done ? "" : "is-open"}`}
                 aria-hidden="true"
               >
                 {item.done && <Check size={10} />}
@@ -478,7 +518,6 @@ export function Progress({
           )}
         </ul>
       )}
-      {period === "day" && <WorkJournal day={newest} />}
     </section>
   );
 }

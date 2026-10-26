@@ -175,7 +175,8 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
                     {["completion", "goal_completion"].includes(prompt.kind)
                       ? "Not yet"
                       : [
-                            "new_task", "new_goal",
+                            "new_task",
+                            "new_goal",
                             "unplanned_work",
                             "unplanned_completed",
                           ].includes(prompt.kind)
@@ -183,6 +184,15 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
                         : "Not now"}
                   </button>
                 </>
+              )}
+              {prompt.kind === "no_goals" && (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => respond("skip_today")}
+                >
+                  Skip today
+                </button>
               )}
               <button
                 className="text-button"

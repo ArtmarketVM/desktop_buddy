@@ -54,11 +54,17 @@ export const coreApi = {
   propose: (text: string, images: ImageInput[], confirmed: boolean) =>
     invoke<ImportProposal>("propose_core_import", { text, images, confirmed }),
   voiceLanguages: () => invoke<string[]>("get_local_voice_languages"),
+  prepareVoice: () => invoke<void>("prepare_local_voice"),
   transcribe: (audio: Uint8Array, language = "auto") =>
     invoke<string>("transcribe_core_voice", {
       audio: Array.from(audio),
       language,
     }),
+  correctVoiceDraft: (transcript: string) =>
+    invoke<{ text: string; corrected: boolean; unavailable: boolean }>(
+      "correct_voice_draft",
+      { transcript },
+    ),
   setup: (
     name: string,
     drafts: GoalDraft[],

@@ -22,7 +22,6 @@ import { GoalOrder } from "./GoalOrder";
 import { priorityRank } from "./Priority";
 import { Toasts } from "../components/Toasts";
 import { NoticedWork } from "./NoticedWork";
-import { ActivityReview } from "./ActivityReview";
 
 export function Experience({
   page,
@@ -195,9 +194,6 @@ export function Experience({
         </p>
       )}
       {!ready && <p role="status">Opening your goals…</p>}
-      {page === "activity" && (
-        <ActivityReview goals={snapshot.goals} onChanged={refresh} history />
-      )}
       {page === "activity" &&
         (!dashboard.status.tracking || dashboard.status.tracking_error) && (
           <p className="callout" role="status">
@@ -354,7 +350,6 @@ export function Experience({
             </section>
           </div>
           <NoticedWork onChanged={refresh} quietMode={quietMode} />
-          <ActivityReview goals={snapshot.goals} onChanged={refresh} />
           {(focusedSeconds > 0 || finishedItems.length > 0) && (
             <TodaySummary day={snapshot.summary} items={finishedItems} />
           )}

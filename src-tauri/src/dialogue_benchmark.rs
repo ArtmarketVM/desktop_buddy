@@ -21,7 +21,52 @@ pub fn cases() -> Result<Vec<Case>, String> {
     serde_json::from_str(include_str!("../test-data/dialogue-cases.json"))
         .map_err(|e| e.to_string())
 }
+pub fn voice_cases() -> Result<Vec<Case>, String> {
+    serde_json::from_str(include_str!("../test-data/voice-dialogue-cases.json"))
+        .map_err(|e| e.to_string())
+}
+fn voice_fixture(case: &Case) -> Result<(AppState, HashMap<String, i64>), String> {
+    let mut storage = Storage::open(std::path::Path::new(":memory:"))?;
+    let mut titles = vec!["Client reply", "Fix saved AI keys disconnecting"];
+    if case.kind == "voice_ambiguous" {
+        titles.push("Fix saved AI keys disconnecting on Windows");
+    }
+    storage.core_add_goals(
+        titles
+            .into_iter()
+            .map(|title| GoalDraft {
+                title: title.into(),
+                area: "General".into(),
+                steps: vec![],
+            })
+            .collect(),
+        "voice-interpretation-fixture",
+    )?;
+    let ids: HashMap<_, _> = storage
+        .core_snapshot(None)?
+        .goals
+        .into_iter()
+        .map(|g| (g.title, g.id))
+        .collect();
+    let day = chrono::Local::now().date_naive().to_string();
+    for id in ids.values() {
+        storage.core_today(*id, true, &day)?;
+    }
+    storage.transition_goal(ids["Client reply"], "resume")?;
+    storage.mark_explicit_focus(ids["Client reply"])?;
+    storage.write_setting(
+        "ai_assistance_preferences",
+        &crate::goal_analysis::AiPreferences {
+            web_research: false,
+            ..Default::default()
+        },
+    )?;
+    Ok((AppState::new(storage)?, ids))
+}
 pub fn fixture(case: &Case) -> Result<(AppState, HashMap<String, i64>), String> {
+    if case.kind.starts_with("voice_") {
+        return voice_fixture(case);
+    }
     let mut storage = Storage::open(std::path::Path::new(":memory:"))?;
     let drafts = vec![
         GoalDraft {
@@ -137,7 +182,7 @@ pub async fn one(case: &Case, service: &Service<'_>) -> Result<ResultRow, String
     };
     let start = Instant::now();
     let outcome=crate::agent_runtime::handle_dialogue(&json!({"latest_request":case.request,"conversation":case.history,
-        "natural_reply":true,"event_type":if case.id.ends_with("he"){"voice_message"}else{"user_message"}}),conversation,&state,0,true,service).await;
+        "natural_reply":true,"event_type":if case.kind.starts_with("voice_") || case.id.ends_with("he"){"voice_message"}else{"user_message"}}),conversation,&state,0,true,service).await;
     let inner = state.inner.lock().unwrap();
     let snapshot = inner.storage.core_snapshot(None)?;
     let refs = inner.storage.action_references(conversation)?;
@@ -149,7 +194,7 @@ pub async fn one(case: &Case, service: &Service<'_>) -> Result<ResultRow, String
     let psyche = snapshot
         .goals
         .iter()
-        .find(|g| g.id == ids["Psychology assignment"]);
+        .find(|g| ids.get("Psychology assignment") == Some(&g.id));
     let unchanged =
         json!(snapshot.goals) == before && snapshot.focused_goal_id == Some(ids["Client reply"]);
     let nonempty = outcome
@@ -157,6 +202,32 @@ pub async fn one(case: &Case, service: &Service<'_>) -> Result<ResultRow, String
         .is_ok_and(|o| !o.reply.message.trim().is_empty());
     let pass = nonempty
         && match case.kind.as_str() {
+            "voice_rename" | "voice_rename_alt" => {
+                let expected = if case.kind == "voice_rename" {
+                    "fix the microphone issue in sumi app"
+                } else {
+                    "investigate microphone capture in sumi app"
+                };
+                snapshot.goals.iter().any(|g| {
+                    g.id == ids["Fix saved AI keys disconnecting"]
+                        && g.title.to_lowercase() == expected
+                }) && snapshot.focused_goal_id == Some(ids["Client reply"])
+                    && last.as_deref() == Some("rename_goal")
+            }
+            "voice_literal" => {
+                snapshot.goals.iter().any(|g| g.title == "Safety Eye Keys")
+                    && snapshot.goals.iter().any(|g| {
+                        g.id == ids["Fix saved AI keys disconnecting"]
+                            && g.title == "Fix saved AI keys disconnecting"
+                    })
+            }
+            "voice_ambiguous" => {
+                unchanged
+                    && refs.last_action.is_none()
+                    && inner.agent.diagnostics.last_decision
+                        == Some(crate::agent_runtime::Decision::RequestClarification)
+            }
+            "voice_negative" | "voice_theme" => unchanged && refs.last_action.is_none(),
             "focus" | "read_then_focus" => {
                 snapshot.focused_goal_id == Some(ids["Psychology assignment"])
             }
@@ -225,6 +296,7 @@ pub async fn run() -> Result<Value, String> {
     let filter = std::env::var("BUDDY_DIALOGUE_CASE_FILTER").ok();
     for case in cases()?
         .into_iter()
+        .chain(voice_cases()?)
         .filter(|c| filter.as_ref().is_none_or(|f| c.id.contains(f)))
     {
         let row = one(&case, &service).await?;

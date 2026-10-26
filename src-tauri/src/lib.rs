@@ -32,10 +32,9 @@ mod history;
 mod http;
 mod insights;
 mod installed_apps;
+mod local_voice;
 #[cfg(target_os = "macos")]
 mod macos;
-#[cfg(any(target_os = "macos", test))]
-mod macos_speech;
 mod memory;
 mod mixed_action_check;
 mod models;
@@ -60,6 +59,7 @@ mod tray;
 mod unplanned_work;
 mod updates;
 mod vision;
+mod voice_cleanup;
 mod window_history;
 mod work_context;
 mod work_journal;
@@ -269,6 +269,25 @@ pub fn run() {
             }
             _ => {
                 eprintln!("Background checks could not finish. No personal data was changed.");
+                std::process::exit(1);
+            }
+        }
+    }
+    if std::env::args().any(|arg| arg == "--check-voice-drafts") {
+        match tokio::runtime::Runtime::new()
+            .unwrap()
+            .block_on(voice_cleanup::live_check())
+        {
+            Ok(report) => {
+                println!("{}", report);
+                std::process::exit(if report["passed"] == report["total"] {
+                    0
+                } else {
+                    1
+                });
+            }
+            Err(error) => {
+                eprintln!("Voice draft check failed: {error}");
                 std::process::exit(1);
             }
         }
@@ -570,6 +589,8 @@ pub fn run() {
             core_import::propose_core_import,
             core_import::transcribe_core_voice,
             core_import::get_local_voice_languages,
+            local_voice::prepare_local_voice,
+            voice_cleanup::correct_voice_draft,
             updates::check_app_update,
             updates::install_app_update,
             profile::save_onboarding,

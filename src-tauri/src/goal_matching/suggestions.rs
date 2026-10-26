@@ -200,8 +200,7 @@ pub(crate) fn respond(
                 .map_err(|_| "This goal changed")?;
             inner.companion.view.chat_open = true;
             inner.companion.view.intent = "ask".into();
-            inner.companion.view.seed =
-                format!("Can we work out whether I’m working on “{title}”?");
+            inner.companion.view.seed = crate::companion::topic_chat_draft(&title);
         }
     }
     inner.goal_matching.pending_suggestion = None;

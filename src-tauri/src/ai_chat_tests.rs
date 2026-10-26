@@ -1169,6 +1169,86 @@ fn chat_titles_name_the_topic_and_are_cleaned_up() {
     assert_eq!(titles, vec!["Fixing chat phrasing".to_string()]);
 }
 #[test]
+fn desktop_chat_resumes_before_ten_minutes_and_starts_empty_at_the_boundary() {
+    let mut storage = store();
+    let first = storage.current_conversation().unwrap();
+    storage
+        .save_chat_turn("Keep this topic", &ChatReply::default(), None)
+        .unwrap();
+    let at = chrono::Utc::now();
+    storage
+        .connection
+        .execute(
+            "UPDATE buddy_conversations SET updated_at=?1 WHERE id=?2",
+            params![at.to_rfc3339(), first],
+        )
+        .unwrap();
+    assert!(!storage
+        .resume_companion_conversation(at + chrono::Duration::seconds(599))
+        .unwrap());
+    assert_eq!(storage.current_conversation().unwrap(), first);
+    assert!(storage
+        .resume_companion_conversation(at + chrono::Duration::minutes(10))
+        .unwrap());
+    let second = storage.current_conversation().unwrap();
+    assert_ne!(first, second);
+    assert!(storage.chat_history().unwrap().is_empty());
+    assert_eq!(storage.chat_history_of(first).unwrap().len(), 2);
+    // Reopening an empty chat must not fill the list with empty threads.
+    assert!(!storage
+        .resume_companion_conversation(at + chrono::Duration::days(2))
+        .unwrap());
+    assert_eq!(storage.current_conversation().unwrap(), second);
+    // Explicitly opening an old chat in the workspace still shows its history.
+    storage.select_conversation(first).unwrap();
+    assert_eq!(storage.chat_history().unwrap()[0].text, "Keep this topic");
+}
+
+#[test]
+fn desktop_chat_inactivity_survives_restart_and_new_messages_restart_the_clock() {
+    let path = std::env::temp_dir().join(format!(
+        "buddy-desktop-chat-{}.sqlite",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    let first;
+    {
+        let mut storage = Storage::open(&path).unwrap();
+        first = storage.current_conversation().unwrap();
+        storage
+            .save_chat_turn("Yesterday's topic", &ChatReply::default(), None)
+            .unwrap();
+        let yesterday = chrono::Utc::now() - chrono::Duration::days(2);
+        storage
+            .connection
+            .execute(
+                "UPDATE buddy_conversations SET updated_at=?1 WHERE id=?2",
+                params![yesterday.to_rfc3339(), first],
+            )
+            .unwrap();
+    }
+    let mut storage = Storage::open(&path).unwrap();
+    assert!(storage
+        .resume_companion_conversation(chrono::Utc::now())
+        .unwrap());
+    let current = storage.current_conversation().unwrap();
+    assert_ne!(first, current);
+    storage
+        .save_question_to(current, "Another goal", None)
+        .unwrap();
+    assert!(!storage
+        .resume_companion_conversation(chrono::Utc::now() + chrono::Duration::minutes(9))
+        .unwrap());
+    storage
+        .save_answer_to(current, &ChatReply::default(), None)
+        .unwrap();
+    assert!(!storage
+        .resume_companion_conversation(chrono::Utc::now())
+        .unwrap());
+    drop(storage);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
 fn explicit_new_chat_starts_a_conversation_only_when_the_current_one_has_messages() {
     let mut storage = store();
     let first = storage.current_conversation().unwrap();
