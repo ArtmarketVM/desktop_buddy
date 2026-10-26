@@ -4,6 +4,8 @@ use serde_json::{json, Value};
 #[derive(Debug, Default)]
 pub struct RetrievalInput {
     pub user_request: String,
+    /// New-goal typing has no established scope or complete search terms yet.
+    pub discovering_goal: bool,
     pub exact_scope: Option<Scope>,
     pub active_goal_id: Option<i64>,
     pub active_step_id: Option<String>,
@@ -357,7 +359,12 @@ impl Storage {
                         ]
                         .contains(&word.as_str())
                     }));
-                if !request_match && !general_preference {
+                let personal_goal_context = input.discovering_goal
+                    && matches!(
+                        item.memory_type,
+                        MemoryType::ExplicitFact | MemoryType::ExplicitPreference
+                    );
+                if !request_match && !general_preference && !personal_goal_context {
                     continue;
                 }
             }

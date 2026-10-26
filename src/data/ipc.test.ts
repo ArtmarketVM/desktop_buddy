@@ -29,6 +29,10 @@ it("invalidates committed mutations, including partial failure, without a read-t
   await invoke("get_core_snapshot", { anchor: null, period: "week" });
   await vi.advanceTimersByTimeAsync(20);
   expect(read).toHaveBeenCalledOnce();
+  await invoke("complete_goal_title", { prefix: "L" });
+  await invoke("complete_goal_step", { goalId: 7, prefix: "D" });
+  await vi.advanceTimersByTimeAsync(20);
+  expect(read).toHaveBeenCalledOnce();
   vi.mocked(nativeInvoke).mockRejectedValueOnce("backend action failed");
   await expect(
     invoke("set_core_today", { id: 7, include: true }),

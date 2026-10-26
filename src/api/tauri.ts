@@ -63,7 +63,8 @@ export const api = {
     }),
   companionInbox: (id: string, action: "complete" | "remove") =>
     invoke<void>("update_companion_inbox", { id, action }),
-  theme: (theme: "light" | "dark") => invoke<void>("set_user_theme", { theme }),
+  theme: (theme: "system" | "light" | "dark") =>
+    invoke<void>("set_user_theme", { theme }),
   resetProfile: () => invoke<void>("reset_local_profile"),
   installedApps: () => invoke<InstalledApp[]>("get_installed_apps"),
   showBuddy: (visible: boolean) =>

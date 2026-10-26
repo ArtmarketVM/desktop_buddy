@@ -249,6 +249,7 @@ export interface UserSettings {
   onboarding: OnboardingState;
   autostart: boolean;
   theme: "light" | "dark";
+  follow_system_theme: boolean;
 }
 export const defaultUserSettings: UserSettings = {
   profile: {
@@ -270,6 +271,7 @@ export const defaultUserSettings: UserSettings = {
   },
   autostart: true,
   theme: "light",
+  follow_system_theme: true,
 };
 export interface InstalledApp {
   process_name: string;

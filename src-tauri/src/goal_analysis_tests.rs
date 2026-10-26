@@ -18,6 +18,95 @@ fn input() -> AnalysisInput {
 fn response(content: Value) -> Value {
     json!({"choices":[{"finish_reason":"stop","message":{"content":content.to_string()}}]})
 }
+
+#[test]
+fn goal_completions_keep_the_prefix_and_exclude_saved_titles() {
+    let context = json!({"goals":[{"title":"Learn piano"}]});
+    let result = parse_goal_completions(
+        &response(json!({"completions":[
+            "Learn piano", "Learn Japanese", "Learn Japanese", "Book a trip", "Le", "Learn to draw"
+        ]})),
+        "Le",
+        &context,
+    )
+    .unwrap();
+    assert_eq!(result, vec!["Learn Japanese", "Learn to draw"]);
+    assert!(
+        parse_goal_completions(&response(json!({"completions":"private"})), "Le", &context)
+            .is_err()
+    );
+}
+
+#[test]
+fn goal_completion_context_uses_permitted_personal_knowledge_without_unrelated_scopes() {
+    use crate::memory::{MemoryInput, MemoryType, Scope};
+    let mut storage = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    storage
+        .core_add_goals(
+            vec![crate::core::GoalDraft {
+                title: "Learn piano".into(),
+                area: "Personal".into(),
+                steps: vec!["Practice scales".into()],
+            }],
+            "goal-completion-test",
+        )
+        .unwrap();
+    let id = storage.core_snapshot(None).unwrap().goals[0].id;
+    for (scope, text) in [
+        (Scope::global(), "I work on a ceramics business"),
+        (Scope::goal(id), "Private goal-specific detail"),
+    ] {
+        storage
+            .create_memory(MemoryInput {
+                scope,
+                memory_type: MemoryType::ExplicitFact,
+                content: text.into(),
+            })
+            .unwrap();
+    }
+    storage
+        .create_memory(MemoryInput {
+            scope: Scope::global(),
+            memory_type: MemoryType::ExplicitPreference,
+            content: "I prefer hands-on creative activities".into(),
+        })
+        .unwrap();
+    let context = goal_completion_context(&storage, "L").unwrap().unwrap();
+    assert_eq!(context["prefix"], "L");
+    assert_eq!(context["goals"][0]["steps"][0]["text"], "Practice scales");
+    let text = context.to_string();
+    assert!(text.contains("ceramics business"));
+    assert!(text.contains("hands-on creative activities"));
+    assert!(!text.contains("Private goal-specific detail"));
+    assert!(!text.contains("email"));
+    let mut controls = storage.memory_controls().unwrap();
+    controls.enabled = false;
+    storage.set_memory_controls(&controls).unwrap();
+    assert!(!storage.memory_controls().unwrap().enabled);
+    assert!(!goal_completion_context(&storage, "L")
+        .unwrap()
+        .unwrap()
+        .to_string()
+        .contains("ceramics business"));
+    assert!(goal_completion_context(&storage, "learn PIANO")
+        .unwrap()
+        .is_none());
+    for preferences in [
+        AiPreferences {
+            enabled: false,
+            ..Default::default()
+        },
+        AiPreferences {
+            share_goal_context: false,
+            ..Default::default()
+        },
+    ] {
+        storage
+            .write_setting("ai_assistance_preferences", &preferences)
+            .unwrap();
+        assert!(goal_completion_context(&storage, "L").unwrap().is_none());
+    }
+}
 fn sources() -> Vec<SearchResult> {
     vec![SearchResult {
         title: "Official workflow".into(),

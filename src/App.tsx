@@ -19,6 +19,7 @@ import { useQuery } from "./data/useQuery";
 import { CoreOnboarding } from "./core/Onboarding";
 import { WorkspaceOverview } from "./core/WorkspaceOverview";
 import { FeedbackCard } from "./components/FeedbackCard";
+import { useTheme } from "./useTheme";
 const empty: Dashboard = {
   app_rules: [],
   today: { date: "", apps: [], nudges: 0 },
@@ -92,9 +93,7 @@ export default function App() {
     tomorrow: boolean;
   }>();
   const closeOverview = useCallback(() => setOverview(false), []);
-  const [theme, setTheme] = useState<"light" | "dark">(() =>
-    localStorage.getItem("buddy-theme") === "dark" ? "dark" : "light",
-  );
+  const { theme, setTheme } = useTheme(data.user_settings);
   const popup = new URLSearchParams(location.search).has("buddy");
   const surfaceParam = new URLSearchParams(location.search).get("buddy");
   const surface =
@@ -147,14 +146,6 @@ export default function App() {
   useEffect(() => {
     document.documentElement.classList.toggle("buddy-window", popup);
   }, [popup]);
-  const savedTheme = data.user_settings?.theme;
-  useEffect(() => {
-    if (savedTheme) setTheme(savedTheme);
-  }, [savedTheme]);
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem("buddy-theme", theme);
-  }, [theme]);
   const refresh = useCallback(async () => {
     if (desktop) await dashboardQuery.refresh();
   }, []);

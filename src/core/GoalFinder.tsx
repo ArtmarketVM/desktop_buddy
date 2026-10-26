@@ -9,6 +9,7 @@ import { Plus, Search } from "lucide-react";
 import type { CoreGoal, CoreSnapshot } from "./types";
 import { sentenceCase } from "./types";
 import { stepCount } from "./Goals";
+import { GoalSuggestionRows, useGoalSuggestions } from "./GoalSuggestions";
 
 const RECENT = 5;
 
@@ -110,33 +111,64 @@ export function GoalFinder({
     onDirty?.(!!trimmed);
   }, [trimmed, onDirty]);
   const matches = useMemo(
-    () => (trimmed ? matchGoals(snapshot, trimmed).slice(0, 6) : []),
+    () =>
+      trimmed
+        ? matchGoals(snapshot, trimmed)
+            .sort(
+              (a, b) =>
+                Number(
+                  b.title.trim().toLocaleLowerCase() ===
+                    trimmed.toLocaleLowerCase(),
+                ) -
+                Number(
+                  a.title.trim().toLocaleLowerCase() ===
+                    trimmed.toLocaleLowerCase(),
+                ),
+            )
+            .slice(0, 6)
+        : [],
     [snapshot, trimmed],
   );
   const recent = useMemo(() => recentGoals(snapshot), [snapshot]);
   const all = useMemo(() => browseGoals(snapshot), [snapshot]);
-  const exact = matches.some(
-    (goal) => goal.title.trim().toLowerCase() === trimmed.toLowerCase(),
-  );
-  // Options: matches, then "Create" when the text is not an existing title.
-  const options = trimmed ? matches.length + (exact ? 0 : 1) : 0;
+  const suggestions = useGoalSuggestions(query, snapshot, focused && !disabled);
+  const { exact } = suggestions;
+  // Saved matches, personalized ideas, then creation using the user's own text.
+  const options = trimmed
+    ? matches.length + suggestions.items.length + (exact ? 0 : 1)
+    : 0;
   useEffect(() => {
-    setIndex(0);
-  }, [trimmed]);
+    setIndex(matches.length ? 0 : -1);
+  }, [trimmed, matches.length]);
   const listOpen = focused && (trimmed ? options > 0 : all.length > 0);
   const inlineRecent = !focused && showRecent && recent.length > 0 && !trimmed;
-  const highlighted = trimmed && index < matches.length ? matches[index] : null;
+  const highlighted =
+    trimmed && index >= 0 && index < matches.length ? matches[index] : null;
 
   async function add(id: number) {
+    if (disabled) return;
     if (await addToToday(id)) setQuery("");
   }
-  async function submit() {
-    if (!trimmed) return;
-    if (highlighted) return add(highlighted.id);
-    if (await create(trimmed, batch.current)) {
+  async function createTitle(title: string) {
+    if (disabled) return;
+    if (await create(title, batch.current)) {
       setQuery("");
       batch.current = crypto.randomUUID();
     }
+  }
+  async function submit() {
+    if (!trimmed || disabled) return;
+    const saved = snapshot.goals.find(
+      (goal) =>
+        goal.title.trim().toLocaleLowerCase() === trimmed.toLocaleLowerCase(),
+    );
+    if (saved && snapshot.today.includes(saved.id)) return;
+    if (highlighted) return add(highlighted.id);
+    const idea =
+      index >= matches.length
+        ? suggestions.items[index - matches.length]
+        : undefined;
+    return createTitle(idea ?? trimmed);
   }
   function key(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown" && options) {
@@ -144,7 +176,13 @@ export function GoalFinder({
       setIndex((i) => (i + 1) % options);
     } else if (event.key === "ArrowUp" && options) {
       event.preventDefault();
-      setIndex((i) => (i - 1 + options) % options);
+      setIndex((i) => (i < 0 ? options - 1 : (i - 1 + options) % options));
+    } else if (event.key === "Tab" && suggestions.items.length) {
+      event.preventDefault();
+      setQuery(
+        suggestions.items[Math.max(0, index - matches.length)] ??
+          suggestions.items[0],
+      );
     } else if (event.key === "Escape") {
       (event.target as HTMLInputElement).blur();
     }
@@ -161,12 +199,20 @@ export function GoalFinder({
         />
       ))}
       {withCreate && (
+        <GoalSuggestionRows
+          {...suggestions}
+          selected={index}
+          offset={matches.length}
+          choose={(title) => void createTitle(title)}
+        />
+      )}
+      {withCreate && (
         <li
-          className={`finder-row create ${index === matches.length ? "selected" : ""}`}
+          className={`finder-row create ${index === matches.length + suggestions.items.length ? "selected" : ""}`}
           role="option"
-          aria-selected={index === matches.length}
+          aria-selected={index === matches.length + suggestions.items.length}
         >
-          <button type="button" onClick={() => void submit()}>
+          <button type="button" onClick={() => void createTitle(trimmed)}>
             <span className="core-goal-title">
               Create “{sentenceCase(trimmed)}”
             </span>
@@ -211,7 +257,10 @@ export function GoalFinder({
         </button>
       </form>
       {listOpen && (
-        <div className="finder-dropdown">
+        <div
+          className="finder-dropdown"
+          onMouseDown={(event) => event.preventDefault()}
+        >
           {!trimmed && (
             <p className="finder-label">Saved goals · {all.length}</p>
           )}
