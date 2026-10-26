@@ -31,6 +31,14 @@ test("AI settings display the resolved screenshot models without saving an overr
     right: item.getBoundingClientRect().right,
   }));
   expect(bounds.right).toBeLessThanOrEqual(page.viewportSize()!.width);
+  const label = await row.locator(".svc b").evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      height: element.getBoundingClientRect().height,
+      line: parseFloat(style.lineHeight),
+    };
+  });
+  expect(label.height).toBeLessThanOrEqual(label.line + 1);
   await row.getByRole("button", { name: "Change model", exact: true }).click();
   const field = services.getByRole("textbox", {
     name: "Vision model ID",
