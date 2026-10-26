@@ -28,6 +28,36 @@ fn store() -> Storage {
 }
 
 #[test]
+fn existing_and_new_profiles_follow_system_appearance_by_default() {
+    let s = store();
+    assert!(s.user_settings().unwrap().follow_system_theme);
+    for theme in ["light", "dark"] {
+        s.write_setting("user_settings", &serde_json::json!({"theme":theme}))
+            .unwrap();
+        let settings = s.user_settings().unwrap();
+        assert!(settings.follow_system_theme);
+        assert_eq!(settings.theme, theme);
+    }
+}
+
+#[test]
+fn manual_appearance_preference_survives_storage_and_profile_reset() {
+    let s = store();
+    let settings = UserSettings {
+        theme: "dark".into(),
+        follow_system_theme: false,
+        ..Default::default()
+    };
+    s.write_setting("user_settings", &settings).unwrap();
+    let saved = s.user_settings().unwrap();
+    assert!(!saved.follow_system_theme);
+    s.reset_local_profile().unwrap();
+    let reset = s.user_settings().unwrap();
+    assert!(!reset.follow_system_theme);
+    assert_eq!(reset.theme, "dark");
+}
+
+#[test]
 fn legacy_profile_migration_and_signout_preserve_goals_but_remove_local_identity_and_consent() {
     let mut s = store();
     let goal = s.set_goal("Keep my work").unwrap();

@@ -30,6 +30,7 @@ import {
   type CoreSnapshot,
 } from "./types";
 import { type GoalEnhancement } from "./analysis";
+import { GoalSuggestionRows, useGoalSuggestions } from "./GoalSuggestions";
 
 export function mergeSuggestedSteps(
   existing: CoreGoal["plan"]["steps"],
@@ -785,6 +786,20 @@ export function GoalAreas({
   enhancement?: GoalEnhancement;
 }) {
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [suggestionIndex, setSuggestionIndex] = useState(-1);
+  const suggestions = useGoalSuggestions(
+    query,
+    snapshot,
+    searchFocused && !busy,
+  );
+  const showSuggestions =
+    searchFocused &&
+    (suggestions.items.length > 0 || suggestions.loading || suggestions.failed);
+  async function createTitle(title: string) {
+    if (!title || busy || !desktop) return;
+    if (await run(() => coreApi.create(title))) setQuery("");
+  }
   const normalized = query.trim().toLocaleLowerCase();
   const matches = (goal: CoreGoal) =>
     !normalized ||
@@ -806,11 +821,7 @@ export function GoalAreas({
         className="goal-finder goal-search"
         onSubmit={(event) => {
           event.preventDefault();
-          const title = query.trim();
-          if (!title || busy || !desktop) return;
-          void run(() => coreApi.create(title)).then((ok) => {
-            if (ok) setQuery("");
-          });
+          void createTitle(suggestions.items[suggestionIndex] ?? query.trim());
         }}
       >
         <div className="quick-goal search-field">
@@ -821,10 +832,56 @@ export function GoalAreas({
             placeholder="Search your goals, or type a new one…"
             maxLength={500}
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            autoComplete="off"
+            role="combobox"
+            aria-expanded={showSuggestions}
+            aria-controls="all-goal-ideas"
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => window.setTimeout(() => setSearchFocused(false), 120)}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setSuggestionIndex(-1);
+            }}
+            onKeyDown={(event) => {
+              const count = suggestions.items.length;
+              if (event.key === "Escape") {
+                event.currentTarget.blur();
+              } else if (event.key === "Tab" && count) {
+                event.preventDefault();
+                setQuery(suggestions.items[Math.max(0, suggestionIndex)]);
+                setSuggestionIndex(-1);
+              } else if (event.key === "ArrowDown" && count) {
+                event.preventDefault();
+                setSuggestionIndex((i) => (i + 1) % count);
+              } else if (event.key === "ArrowUp" && count) {
+                event.preventDefault();
+                setSuggestionIndex((i) =>
+                  i < 0 ? count - 1 : (i - 1 + count) % count,
+                );
+              }
+            }}
           />
           <button disabled={busy || !desktop || !query.trim()}>Add goal</button>
         </div>
+        {showSuggestions && (
+          <div
+            className="finder-dropdown"
+            onMouseDown={(event) => event.preventDefault()}
+          >
+            <ul
+              id="all-goal-ideas"
+              className="finder-list"
+              role="listbox"
+              aria-label="Goal ideas"
+            >
+              <GoalSuggestionRows
+                {...suggestions}
+                selected={suggestionIndex}
+                choose={(title) => void createTitle(title)}
+              />
+            </ul>
+          </div>
+        )}
       </form>
       <div className="goal-log-part">
         <h2>Active</h2>

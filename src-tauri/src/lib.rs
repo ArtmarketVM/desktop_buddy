@@ -418,7 +418,7 @@ pub fn run() {
                     }
                 }
             }
-            profile::apply_theme(app.handle(), &settings.theme).map_err(std::io::Error::other)?;
+            profile::apply_theme(app.handle(), &settings).map_err(std::io::Error::other)?;
             if std::env::args().any(|arg| arg == "--background") {
                 if let Some(window) = app.get_webview_window("main") {
                     window.hide()?;
@@ -463,6 +463,11 @@ pub fn run() {
             });
         })
         .on_window_event(|window, event| {
+            if window.label() == "main" {
+                if let tauri::WindowEvent::ThemeChanged(theme) = event {
+                    let _ = profile::update_theme_icons(window.app_handle(), *theme);
+                }
+            }
             if window.label() == "main" {
                 if matches!(event, tauri::WindowEvent::Focused(true)) {
                     let state = window.app_handle().state::<commands::AppState>();
@@ -539,6 +544,7 @@ pub fn run() {
             goal_analysis::set_ai_preferences,
             goal_analysis::analyze_core_goal,
             goal_analysis::complete_goal_step,
+            goal_analysis::complete_goal_title,
             automatic_goals::retry_core_goal_analysis,
             automatic_goals::select_core_goal,
             goal_matching::suggestions::get_goal_match_suggestion,

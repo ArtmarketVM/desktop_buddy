@@ -26,6 +26,7 @@ vi.mock("../api/tauri", () => ({
     setAvatarColor: vi.fn(),
     saveTrackingSettings: vi.fn(),
     privacyPreview: vi.fn(),
+    theme: vi.fn().mockResolvedValue(undefined),
   },
 }));
 vi.mock("./api", () => ({
@@ -57,6 +58,42 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+});
+it("can return to system appearance and keeps the displayed theme when choosing manual mode", async () => {
+  vi.mocked(api.theme).mockResolvedValue(undefined);
+  const view = render(
+    <CoreSettings
+      data={data}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  const toggle = await screen.findByRole("checkbox", {
+    name: "Use system appearance",
+  });
+  await waitFor(() =>
+    expect((toggle as HTMLInputElement).disabled).toBe(false),
+  );
+  expect((toggle as HTMLInputElement).checked).toBe(true);
+  document.documentElement.dataset.theme = "dark";
+  fireEvent.click(toggle);
+  await waitFor(() => expect(api.theme).toHaveBeenCalledWith("dark"));
+  const manual = {
+    ...data,
+    user_settings: { ...defaultUserSettings, follow_system_theme: false },
+  };
+  view.rerender(
+    <CoreSettings
+      data={manual}
+      onChanged={async () => {}}
+      onDirty={vi.fn()}
+      onUpdates={vi.fn()}
+    />,
+  );
+  fireEvent.click(toggle);
+  await waitFor(() => expect(api.theme).toHaveBeenLastCalledWith("system"));
+  delete document.documentElement.dataset.theme;
 });
 it("saves the selected stretch interval instead of using a hard-coded cadence", async () => {
   render(

@@ -47,6 +47,7 @@ pub struct UserSettings {
     pub onboarding: OnboardingState,
     pub autostart: bool,
     pub theme: String,
+    pub follow_system_theme: bool,
 }
 impl Default for UserSettings {
     fn default() -> Self {
@@ -55,6 +56,7 @@ impl Default for UserSettings {
             onboarding: Default::default(),
             autostart: true,
             theme: "light".into(),
+            follow_system_theme: true,
         }
     }
 }
@@ -204,6 +206,7 @@ impl Storage {
             "user_settings",
             &UserSettings {
                 theme: saved.theme,
+                follow_system_theme: saved.follow_system_theme,
                 autostart: saved.autostart,
                 profile: UserProfile {
                     avatar: AvatarPreferences {
@@ -313,27 +316,39 @@ pub fn palette_color(color: &str) -> String {
     }
 }
 
-pub fn apply_theme(app: &tauri::AppHandle, theme: &str) -> Result<(), String> {
+pub fn apply_theme(app: &tauri::AppHandle, settings: &UserSettings) -> Result<(), String> {
     use tauri::Manager;
-    let native = if theme == "dark" {
-        tauri::Theme::Dark
+    let native = if settings.follow_system_theme {
+        None
+    } else if settings.theme == "dark" {
+        Some(tauri::Theme::Dark)
     } else {
-        tauri::Theme::Light
+        Some(tauri::Theme::Light)
     };
-    let bytes = if theme == "dark" {
+    for window in app.webview_windows().values() {
+        // Transparent companion surfaces keep their CSS background.
+        if !matches!(window.label(), "buddy" | "mascot") {
+            window
+                .set_theme(native)
+                .map_err(|_| "Could not update the window theme")?;
+        }
+    }
+    let resolved = app
+        .get_webview_window("main")
+        .and_then(|window| window.theme().ok())
+        .unwrap_or(native.unwrap_or(tauri::Theme::Light));
+    update_theme_icons(app, resolved)
+}
+
+pub fn update_theme_icons(app: &tauri::AppHandle, theme: tauri::Theme) -> Result<(), String> {
+    use tauri::Manager;
+    let bytes = if theme == tauri::Theme::Dark {
         include_bytes!("../icons/theme-dark.rgba")
     } else {
         include_bytes!("../icons/theme-light.rgba")
     };
     let icon = tauri::image::Image::new_owned(bytes.to_vec(), 64, 64);
     for window in app.webview_windows().values() {
-        // Frameless transparent surfaces use CSS theme tokens; native theme changes
-        // can briefly replace their backing surface with an opaque clear colour.
-        if !matches!(window.label(), "buddy" | "mascot") {
-            window
-                .set_theme(Some(native))
-                .map_err(|_| "Could not update the window theme")?;
-        }
         window
             .set_icon(icon.clone())
             .map_err(|_| "Could not update the window icon")?;
@@ -351,17 +366,30 @@ pub fn set_user_theme(
     app: tauri::AppHandle,
     state: State<AppState>,
 ) -> Result<(), String> {
-    if !["light", "dark"].contains(&theme.as_str()) {
-        return Err("Choose Light or Dark".into());
+    if !["system", "light", "dark"].contains(&theme.as_str()) {
+        return Err("Choose System, Light or Dark".into());
     }
     let inner = state
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
     let mut settings = inner.storage.user_settings()?;
-    settings.theme = theme;
-    apply_theme(&app, &settings.theme)?;
-    inner.storage.write_setting("user_settings", &settings)
+    settings.follow_system_theme = theme == "system";
+    if !settings.follow_system_theme {
+        settings.theme = theme;
+    }
+    apply_theme(&app, &settings)?;
+    inner.storage.write_setting("user_settings", &settings)?;
+    drop(inner);
+    crate::frontend_events::changed(
+        &app,
+        &[
+            crate::frontend_events::Resource::Dashboard,
+            crate::frontend_events::Resource::Preferences,
+        ],
+        false,
+    );
+    Ok(())
 }
 
 #[tauri::command(async)]

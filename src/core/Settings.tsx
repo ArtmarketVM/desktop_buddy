@@ -346,6 +346,26 @@ export function CoreSettings({
                 currentPreferences={data.buddy.companion?.preferences}
               />
               <label className="toggle-row">
+                <span>Use system appearance</span>
+                <input
+                  type="checkbox"
+                  checked={settings.follow_system_theme ?? true}
+                  disabled={blocked}
+                  onChange={(event) => {
+                    const theme = event.target.checked
+                      ? "system"
+                      : document.documentElement.dataset.theme === "dark"
+                        ? "dark"
+                        : "light";
+                    void run(() => api.theme(theme));
+                  }}
+                />
+              </label>
+              <p className="helper">
+                Automatically switch between light and dark with your computer.
+                The sidebar theme button switches to a manual choice.
+              </p>
+              <label className="toggle-row">
                 <span>Remind me to stretch</span>
                 <input
                   type="checkbox"

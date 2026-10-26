@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "applicationBase": "f31969edc5775243d7de0800f9b73cadceedcb78",
-  "captureCommit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40316975339",
+  "applicationBase": "8dfc9dfc1c458eb0c81e211cc6fc188222cb64e0",
+  "captureCommit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40381674589",
   "approvedOn": "2026-10-26",
-  "approvedBy": "Repository owner, explicit chat approval of the current screenshots/design",
-  "approval": "Owner said: approve the current screenshots, i like htem. The eight changed expectations reproduce that design; unchanged expectations are preserved.",
+  "approvedBy": "Repository owner, explicit chat approval of all seven changed canonical screenshots",
+  "approval": "Owner confirmed: Approve screenshots and continue publication. Review covered four Settings General captures adding Use system appearance and three captures with only 12\u201319 edge pixels changing by one color level.",
   "knownExistingIssues": [
     "The previous narrow Privacy working-hours overflow is superseded by the intentional removal of those controls, included in this approval. Native WebView rendering and physical-device interactions are not established by browser screenshots."
   ],
   "environment": {
-    "commit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
+    "commit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
     "runner": "Windows",
     "image": "20261022.344.1",
     "node": "v24.22.1",
@@ -43,7 +43,7 @@
       "height": 873
     },
     "narrow-dark/settings-general.png": {
-      "sha256": "736201428ad9d14534fe2cc9e29cba41896d741cebff67c77d2cbf5bc2357973",
+      "sha256": "2533ae2bfd5ede63192ebc041e7abc5994ad5485c926fdb3bbae350b0f4d5ea2",
       "width": 720,
       "height": 873
     },
@@ -63,7 +63,7 @@
       "height": 873
     },
     "narrow-light/chats.png": {
-      "sha256": "59a2e3ccb6bb7378066a24094a6d898d051382d3728e5bacbdec3cf988b9fbac",
+      "sha256": "de12c9226fc8b70559d603b93618ab166fa24fcab0a8381edaf264aa02623d78",
       "width": 720,
       "height": 873
     },
@@ -78,12 +78,12 @@
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "f032bc1d5413e4bd49d1e4106aa45401a7b8f4aa113c30afeb909c24517ee76b",
+      "sha256": "1329455154eb8ad01536d82e30e73b51392700ef8d4b9966c79464de9874bbf5",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-general.png": {
-      "sha256": "5aae79070d7f999acbc814561fa8e5c06b16160ee6979c2db9ec4824cc4c471d",
+      "sha256": "57babe70b7238cbad08ec3b015653f548dcceb67815b09cdf88a022541eea026",
       "width": 720,
       "height": 873
     },
@@ -123,12 +123,12 @@
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "4b7abb98f7984ff3408393937ef8f49e59608411ba62f517303a726905f6ea1d",
+      "sha256": "5eeaf465eb827879045412d9b47824f602f2886a072c1b4b2145ad90f2a564e5",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-general.png": {
-      "sha256": "5e5bbc4225d31e807dcba364b4c97a51a43e0d3b2cc479fedd19473483f2890b",
+      "sha256": "7998ea63c2b91728c74a2a75779111f4176910b8eae78c7871176fdaa660cacc",
       "width": 1280,
       "height": 873
     },
@@ -173,7 +173,7 @@
       "height": 873
     },
     "wide-light/settings-general.png": {
-      "sha256": "e14e81d371a9b131d4a5eb30452a830d6aead5fa4b1f0fa4d438b43166bd9972",
+      "sha256": "2ae6f4368c5eec690a4ac928cdc424cc7a5f8b6fae3c7bdb45465aa9073a4e07",
       "width": 1280,
       "height": 873
     },
@@ -231,8 +231,8 @@
       }
     }
   ],
-  "previousReviewCommit": "8fca926a1977aab1a62c5bbd5c3cdf1346ac395a",
-  "changeReason": "Time-ranked violet Progress stacks with left-aligned period/date controls; compact Vision service row with readable narrow layout and the separate optional transcript-correction toggle.",
+  "previousReviewCommit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
+  "changeReason": "Settings General adds Use system appearance, enabled by default. Three other captures have reviewed one-level antialiasing differences at 12\u201319 edge pixels; no layout change.",
   "history": [
     {
       "date": "2026-10-22",
@@ -273,35 +273,47 @@
           "reused": ""
         }
       }
+    },
+    {
+      "date": "2026-10-26",
+      "reason": "Preserve the 0.46.0 review before the explicitly approved 0.47.0 system appearance captures.",
+      "previousReview": {
+        "captureCommit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
+        "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40316975339",
+        "approvedOn": "2026-10-26",
+        "approvedBy": "Repository owner, explicit chat approval of the current screenshots/design",
+        "approval": "Owner said: approve the current screenshots, i like htem. The eight changed expectations reproduce that design; unchanged expectations are preserved.",
+        "environment": {
+          "commit": "0be2a9d1aec94dfab3c914543476e1db74221a4a",
+          "runner": "Windows",
+          "image": "20261022.344.1",
+          "node": "v24.22.1",
+          "reused": ""
+        },
+        "updatedScreenshots": [
+          "wide-light/progress.png",
+          "wide-light/settings-ai.png",
+          "wide-dark/progress.png",
+          "wide-dark/settings-ai.png",
+          "narrow-light/progress.png",
+          "narrow-light/settings-ai.png",
+          "narrow-dark/progress.png",
+          "narrow-dark/settings-ai.png"
+        ],
+        "retainedScreenshots": 26
+      }
     }
   ],
   "updatedScreenshots": [
-    "wide-light/progress.png",
-    "wide-light/settings-ai.png",
-    "wide-dark/progress.png",
+    "wide-light/settings-general.png",
     "wide-dark/settings-ai.png",
-    "narrow-light/progress.png",
+    "wide-dark/settings-general.png",
+    "narrow-light/chats.png",
     "narrow-light/settings-ai.png",
-    "narrow-dark/progress.png",
-    "narrow-dark/settings-ai.png"
+    "narrow-light/settings-general.png",
+    "narrow-dark/settings-general.png"
   ],
-  "retainedScreenshots": 26,
-  "repeatability": "Both canonical Windows passes: 70 passed, 2 intentionally skipped. No masks or tolerance changes.",
-  "retainedMinorRasterDifferences": [
-    {
-      "name": "narrow-dark/settings-general.png",
-      "changedPixels": 10,
-      "strictPlaywrightPass": true
-    },
-    {
-      "name": "narrow-dark/settings-privacy.png",
-      "changedPixels": 5,
-      "strictPlaywrightPass": true
-    },
-    {
-      "name": "narrow-light/settings-general.png",
-      "changedPixels": 12,
-      "strictPlaywrightPass": true
-    }
-  ]
+  "retainedScreenshots": 27,
+  "repeatability": "Both canonical Windows passes succeeded: 70 passed, 2 intentionally skipped in each pass. No masks or tolerance changes.",
+  "retainedMinorRasterDifferences": []
 }

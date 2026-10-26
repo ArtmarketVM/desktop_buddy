@@ -8,7 +8,7 @@ import type { DataTag } from "./queryClient";
 /** Local mutations invalidate even when an older backend lacks an event. No IPC arguments are recorded. */
 function changes(command: string): readonly DataTag[] | undefined {
   if (
-    /^(get_|search_|test_|transcribe_|analyze_core_goal|propose_core_import|refine_goal|open_workspace|open_feedback|send_contact|subscribe_contact|share_role)/.test(
+    /^(get_|search_|test_|transcribe_|complete_goal_title$|complete_goal_step$|analyze_core_goal|propose_core_import|refine_goal|open_workspace|open_feedback|send_contact|subscribe_contact|share_role)/.test(
       command,
     )
   )
