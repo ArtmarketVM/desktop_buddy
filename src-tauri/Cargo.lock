@@ -909,7 +909,7 @@ dependencies = [
 
 [[package]]
 name = "desktop-buddy"
-version = "0.47.0"
+version = "0.47.1"
 dependencies = [
  "base64 0.22.1",
  "cc",

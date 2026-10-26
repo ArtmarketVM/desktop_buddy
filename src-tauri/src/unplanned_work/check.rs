@@ -20,7 +20,17 @@ pub(crate) async fn run() -> Result<Value, String> {
             browser: crate::browser::context(app, title, Some(format!("https://{domain}"))),
             ..Default::default()
         };
-        let result = classify(&service, &a, text, &goals, 120, &Value::Null, &|| Ok(())).await;
+        let result = classify(
+            &service,
+            &a,
+            text,
+            &goals,
+            120,
+            &Value::Null,
+            &Value::Null,
+            &|| Ok(()),
+        )
+        .await;
         match result {
             Ok(d)=>{
                 let offered=d.title.is_some() && d.existing_goal_id.is_none() && d.confidence>=MIN_CONFIDENCE;

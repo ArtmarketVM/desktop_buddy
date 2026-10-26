@@ -417,7 +417,9 @@ mod tests {
                         .today
                         .contains(&ids[1]));
                 }
-                Response::No => assert!(offer_at(&mut inner, ids[1], now + AI_COOLDOWN).is_none()),
+                Response::No => {
+                    assert!(offer_at(&mut inner, ids[1], now + Duration::from_secs(90)).is_none())
+                }
                 Response::NotNow => {
                     assert!(offer_at(&mut inner, ids[1], now + Duration::from_secs(599)).is_none());
                     assert!(offer_at(&mut inner, ids[1], now + SUGGESTION_SNOOZE).is_some());

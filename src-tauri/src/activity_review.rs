@@ -141,15 +141,6 @@ impl Storage {
         let prefix = format!("{}:", context_key(a));
         self.connection.query_row("SELECT context_key FROM review_intervals WHERE period_id=?1 AND substr(context_key,1,length(?2))=?2 AND julianday(started_at)<=julianday(?3) AND julianday(ended_at)>=julianday(?3) ORDER BY id DESC LIMIT 1",params![period,prefix,a.timestamp],|r|r.get(0)).optional().map_err(db)
     }
-    pub(crate) fn current_review_context(
-        &self,
-        a: &ActivitySnapshot,
-    ) -> Result<Option<String>, String> {
-        let at = DateTime::parse_from_rfc3339(&a.timestamp)
-            .map_err(|_| "Invalid observation time")?
-            .with_timezone(&Utc);
-        self.review_context_key(self.review_period(at)?, a)
-    }
     pub(crate) fn finish_due_reviews(&mut self, now: DateTime<Utc>) -> Result<(), String> {
         let mut query = self.connection.prepare("SELECT id,day FROM review_periods WHERE summary IS NULL AND analysis_done=1 AND julianday(ends_at)<=julianday(?1) ORDER BY ends_at LIMIT 8").map_err(db)?;
         let periods = query

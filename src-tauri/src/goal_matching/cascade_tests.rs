@@ -210,8 +210,8 @@ async fn ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_ref
     let a = sample("Atlas launch beta");
     let job = {
         let mut i = state.inner.lock().unwrap();
-        feed(&mut i, &a, base, 0, 57);
-        assert!(!due_inner(&i, base + Duration::from_secs(57)));
+        feed(&mut i, &a, base, 0, 27);
+        assert!(!due_inner(&i, base + Duration::from_secs(27)));
         observe_inner_at(&mut i, &a, true, base + AI_STABLE).unwrap();
         claim(&mut i, base + AI_STABLE).unwrap().unwrap()
     };
@@ -230,7 +230,8 @@ async fn ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_ref
     )
     .await;
     let mut i = state.inner.lock().unwrap();
-    finish(&mut i, &job, result, base + AI_STABLE).unwrap();
+    // The answer lands a minute in; its memory for this window lasts five minutes from then.
+    finish(&mut i, &job, result, base + Duration::from_secs(60)).unwrap();
     feed(&mut i, &a, base, 63, 357);
     assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
     assert!(!due_inner(&i, base + Duration::from_secs(357)));
@@ -438,7 +439,7 @@ fn explicit_focus_persists_reopen_and_is_cleared_after_parking() {
 }
 
 #[test]
-fn dnd_sharing_and_cooldown_block_calls_even_for_sustained_ambiguity() {
+fn dnd_and_sharing_block_calls_even_for_sustained_ambiguity() {
     let (state, _) = setup(&["Atlas launch alpha", "Atlas launch beta"]);
     let mut i = state.inner.lock().unwrap();
     let base = Instant::now();
@@ -458,9 +459,7 @@ fn dnd_sharing_and_cooldown_block_calls_even_for_sustained_ambiguity() {
     i.storage
         .write_setting("ai_assistance_preferences", &prefs)
         .unwrap();
-    i.goal_matching.last_attempt = Some(base + Duration::from_secs(59));
-    assert!(!due_inner(&i, base + Duration::from_secs(148)));
-    assert!(due_inner(&i, base + Duration::from_secs(149)));
+    assert!(due_inner(&i, base + AI_STABLE));
 }
 #[test]
 fn work_state_reports_stuck_and_distraction_without_mutating_memory() {
@@ -653,7 +652,10 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
             .unwrap();
     }
     assert_eq!(i.storage.relevant_seconds(ids[1], None).unwrap(), 0);
-    let job = claim(&mut i, base + AI_STABLE).unwrap().unwrap();
+    // The answer arrives a minute in; everything since the window appeared counts.
+    let job = claim(&mut i, base + Duration::from_secs(60))
+        .unwrap()
+        .unwrap();
     finish(
         &mut i,
         &job,
@@ -663,7 +665,7 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
             reason: "The notes draft the beta plan".into(),
             same_task_trail: vec![],
         }),
-        base + AI_STABLE,
+        base + Duration::from_secs(60),
     )
     .unwrap();
     assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
@@ -695,14 +697,14 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
     // A new title in the same window keeps counting while a refresh is requested.
     let mut b = sample("Research notes - beta timeline");
     b.window_id = Some(7);
-    feed(&mut i, &b, base, 63, 120);
+    feed(&mut i, &b, base, 63, 90);
     assert_eq!(i.goal_matching.view.goal_id, Some(ids[1]));
     assert_eq!(i.goal_matching.view.source.as_deref(), Some("nebius_carry"));
     assert!(attribution(&i, &b).unwrap().confidence >= crate::relevance::THRESHOLD);
-    assert!(!due_inner(&i, base + Duration::from_secs(120)));
-    feed(&mut i, &b, base, 123, 150);
-    assert!(due_inner(&i, base + Duration::from_secs(150)));
-    let job = claim(&mut i, base + Duration::from_secs(150))
+    assert!(!due_inner(&i, base + Duration::from_secs(90)));
+    feed(&mut i, &b, base, 93, 93);
+    assert!(due_inner(&i, base + Duration::from_secs(93)));
+    let job = claim(&mut i, base + Duration::from_secs(93))
         .unwrap()
         .unwrap();
     finish(
@@ -714,7 +716,7 @@ fn an_ai_match_counts_the_whole_stable_context_and_carries_across_titles() {
             reason: "Unrelated notes".into(),
             same_task_trail: vec![],
         }),
-        base + Duration::from_secs(150),
+        base + Duration::from_secs(93),
     )
     .unwrap();
     assert!(i.goal_matching.view.goal_id.is_none());
@@ -1174,7 +1176,6 @@ fn a_confident_refresh_corrects_an_automatic_assignment_once_without_double_coun
         .unwrap();
     assert_eq!(total, 60_000, "moved, not duplicated");
     // A later answer naming the first goal again does not flip the visit back.
-    i.goal_matching.last_attempt = None;
     i.goal_matching.cache.clear();
     i.goal_matching.view.source = Some("nebius_carry".into());
     let job = claim(&mut i, base + Duration::from_secs(200))

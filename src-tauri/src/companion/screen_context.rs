@@ -34,6 +34,17 @@ fn same_window(a: &ActivitySnapshot, b: &ActivitySnapshot) -> bool {
 pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot) -> bool {
     allowed_in_session(inner, activity, crate::collector::session_active())
 }
+/// A fingerprint of the text last read from this exact window, when one is cached.
+/// Callers decide whether evidence is new without touching the text itself.
+pub(crate) fn cached_signature(inner: &Inner, activity: &ActivitySnapshot) -> Option<String> {
+    inner
+        .companion
+        .screen_context
+        .as_ref()
+        .filter(|c| same_window(&c.activity, activity))
+        .and_then(|c| c.text.as_ref().ok())
+        .map(|text| crate::companion::engine::fingerprint(text))
+}
 fn allowed_in_session(inner: &Inner, activity: &ActivitySnapshot, session_active: bool) -> bool {
     session_active
         && inner.status.tracking

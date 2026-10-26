@@ -23,24 +23,26 @@ pub const SUGGESTION_CONFIDENCE: f64 = 0.6;
 const NEGATIVE_MATCH_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const SUGGESTION_SNOOZE: Duration = Duration::from_secs(10 * 60);
 pub const LOCAL_STABLE: Duration = Duration::from_secs(30);
-pub const AI_STABLE: Duration = Duration::from_secs(60);
-const AI_COOLDOWN: Duration = Duration::from_secs(90);
+/// Settling time before the first ask: titles and text during a page load are noise, and a
+/// wrong confident answer would be carried forward. Nothing is lost by waiting, since the
+/// whole context is counted retroactively once the answer lands.
+pub const AI_STABLE: Duration = Duration::from_secs(30);
 const CACHE_TTL: Duration = Duration::from_secs(300);
 /// The matcher sees the previous windows of the last 20 minutes: app, title, domain and
 /// the goal they were matched to. Never any page text.
 const TRAIL_SECONDS: i64 = 1200;
 const TRAIL_LIMIT: usize = 12;
 #[derive(Clone)]
-struct TrailEntry {
-    at: i64,
-    until: i64,
+pub(crate) struct TrailEntry {
+    pub(crate) at: i64,
+    pub(crate) until: i64,
     key: String,
     app: String,
     title: String,
     domain: Option<String>,
     goal_id: Option<i64>,
     /// Window metadata only, so an earlier stage of the same task can be counted later.
-    activity: ActivitySnapshot,
+    pub(crate) activity: ActivitySnapshot,
 }
 #[derive(Clone, Default, Serialize)]
 pub struct MatchView {
@@ -71,7 +73,6 @@ pub struct Runtime {
     stable_since: Option<Instant>,
     metadata_gap: Option<stability::MetadataGap>,
     last_seen: Option<Instant>,
-    last_attempt: Option<Instant>,
     in_flight: bool,
     context_revision: u64,
     signature: Option<String>,
@@ -127,8 +128,13 @@ impl Runtime {
             self.trail.pop_front();
         }
     }
+    /// The current window's own trail entry: when this presence began and was last seen.
+    pub(crate) fn current_trail_entry(&self) -> Option<TrailEntry> {
+        let current = self.sample.as_ref().map(fingerprint)?;
+        self.trail.iter().rev().find(|e| e.key == current).cloned()
+    }
     /// Previous windows only, oldest first; the current window is described separately.
-    fn trail_entries(&self, now: i64) -> Vec<TrailEntry> {
+    pub(crate) fn trail_entries(&self, now: i64) -> Vec<TrailEntry> {
         let current = self.sample.as_ref().map(fingerprint);
         self.trail
             .iter()
@@ -234,7 +240,6 @@ pub(crate) fn observe_text(inner: &mut crate::commands::Inner, a: &ActivitySnaps
             // The identified goal keeps counting while a refresh confirms or replaces it.
             runtime.view.source = Some("nebius_carry".into());
             runtime.view.reason = Some("Visible work changed; confirming the goal match".into());
-            runtime.last_attempt = None;
         } else if runtime.view.source.as_deref() == Some("nebius") {
             runtime.view = MatchView {
                 enabled: true,
@@ -242,7 +247,6 @@ pub(crate) fn observe_text(inner: &mut crate::commands::Inner, a: &ActivitySnaps
                 reason: Some("Visible work changed; waiting for a new goal match".into()),
                 ..Default::default()
             };
-            runtime.last_attempt = None;
         }
     }
     runtime.text_fingerprint = Some(text_fingerprint);
@@ -678,13 +682,13 @@ fn due_inner(inner: &crate::commands::Inner, now: Instant) -> bool {
                     && now.saturating_duration_since(c.at) < CACHE_TTL
             })
     };
+    // No cooldown: a window is asked about when its evidence is new. The per-window answer
+    // cache, the text fingerprint and the once-per-visit rule for title-only windows are
+    // what prevent repeats; the hourly budget is the cost ceiling.
     cloud_allowed(inner)
         && (inner.status.nebius_configured || inner.status.mock_ai)
         && !matching.in_flight
         && ready
-        && matching
-            .last_attempt
-            .is_none_or(|at| now.saturating_duration_since(at) >= AI_COOLDOWN)
 }
 pub fn due(state: &AppState) -> bool {
     state
@@ -849,7 +853,7 @@ fn claim(inner: &mut crate::commands::Inner, now: Instant) -> Result<Option<Job>
         return Ok(None);
     }
     inner.goal_matching.in_flight = true;
-    inner.goal_matching.last_attempt = Some(now);
+    let _ = now;
     if metadata_unavailable(&sample) {
         inner.goal_matching.unverified_asked = Some(fingerprint(&sample));
     }
@@ -1319,7 +1323,6 @@ mod tests {
         observe_text(&mut inner, &sample, "Preparing presentation slides");
         assert_eq!(inner.goal_matching.view.goal_id, Some(1));
         assert_eq!(inner.goal_matching.context_revision, revision);
-        inner.goal_matching.last_attempt = Some(Instant::now());
         observe_text(&mut inner, &sample, "Organizing a community event");
         // The goal keeps counting, but the stale answer is no longer final: the cache is
         // dropped, in-flight work is invalidated and a refresh may be requested at once.
@@ -1328,7 +1331,6 @@ mod tests {
             inner.goal_matching.view.source.as_deref(),
             Some("nebius_carry")
         );
-        assert!(inner.goal_matching.last_attempt.is_none());
         assert!(inner.goal_matching.cache.is_empty());
         assert_ne!(inner.goal_matching.context_revision, revision);
         assert_ne!(

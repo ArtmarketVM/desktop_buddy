@@ -440,16 +440,16 @@ partial(
   "P07-04",
   rust(
     "ambiguity_reuses_a_match_within_the_evidence_window_then_requires_a_refresh",
-    "dnd_sharing_and_cooldown_block_calls_even_for_sustained_ambiguity",
+    "dnd_and_sharing_block_calls_even_for_sustained_ambiguity",
   ),
-  "Measure actual roughly 60-second eligibility and live-provider latency.",
+  "Measure actual roughly 30-second eligibility and live-provider latency.",
 );
 contract(
   "P07-05",
   rust(
     "short_switches_do_not_change_lane_but_sustained_switch_does",
     "similar_goals_and_unknown_context_are_never_guessed",
-    "dnd_sharing_and_cooldown_block_calls_even_for_sustained_ambiguity",
+    "dnd_and_sharing_block_calls_even_for_sustained_ambiguity",
   ),
 );
 contract(
