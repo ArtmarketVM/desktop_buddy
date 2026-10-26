@@ -31,16 +31,16 @@ const CACHE_TTL: Duration = Duration::from_secs(300);
 const TRAIL_SECONDS: i64 = 1200;
 const TRAIL_LIMIT: usize = 12;
 #[derive(Clone)]
-struct TrailEntry {
-    at: i64,
-    until: i64,
+pub(crate) struct TrailEntry {
+    pub(crate) at: i64,
+    pub(crate) until: i64,
     key: String,
     app: String,
     title: String,
     domain: Option<String>,
     goal_id: Option<i64>,
     /// Window metadata only, so an earlier stage of the same task can be counted later.
-    activity: ActivitySnapshot,
+    pub(crate) activity: ActivitySnapshot,
 }
 #[derive(Clone, Default, Serialize)]
 pub struct MatchView {
@@ -127,8 +127,13 @@ impl Runtime {
             self.trail.pop_front();
         }
     }
+    /// The current window's own trail entry: when this presence began and was last seen.
+    pub(crate) fn current_trail_entry(&self) -> Option<TrailEntry> {
+        let current = self.sample.as_ref().map(fingerprint)?;
+        self.trail.iter().rev().find(|e| e.key == current).cloned()
+    }
     /// Previous windows only, oldest first; the current window is described separately.
-    fn trail_entries(&self, now: i64) -> Vec<TrailEntry> {
+    pub(crate) fn trail_entries(&self, now: i64) -> Vec<TrailEntry> {
         let current = self.sample.as_ref().map(fingerprint);
         self.trail
             .iter()

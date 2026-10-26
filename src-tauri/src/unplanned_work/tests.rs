@@ -67,6 +67,7 @@ fn offer(inner: &mut Inner) -> String {
             app: "chrome".into(),
             completed: true,
         },
+        episodes: vec![Episode::all(&key)],
         key,
         day: Local::now().date_naive().to_string(),
         goals: goals(inner).unwrap(),
@@ -88,7 +89,14 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     assert_eq!(s.unplanned_milliseconds(&key, &day).unwrap(), 180000);
     assert!(s.core_snapshot(None).unwrap().goals.is_empty());
     let id = s
-        .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
+        .confirm_unplanned_work(
+            &[Episode::all(&key)],
+            &key,
+            &day,
+            "Handle unrelated emails",
+            true,
+            None,
+        )
         .unwrap();
     let snap = s.core_snapshot(None).unwrap();
     assert_eq!(snap.goals[0].id, id);
@@ -104,7 +112,14 @@ fn confirmation_creates_a_completed_today_goal_without_focus_or_invented_time() 
     );
     assert_eq!(snap.hourly.iter().map(|h| h.seconds).sum::<u64>(), 180);
     assert!(s
-        .confirm_unplanned_work(&key, &day, "Handle unrelated emails", true, None)
+        .confirm_unplanned_work(
+            &[Episode::all(&key)],
+            &key,
+            &day,
+            "Handle unrelated emails",
+            true,
+            None
+        )
         .is_err());
     assert_eq!(s.core_snapshot(None).unwrap().goals.len(), 1);
 }
@@ -131,6 +146,7 @@ fn accepting_noticed_work_after_summary_updates_the_same_saved_measured_time() {
     s.finish_due_reviews(Utc::now() + CD::days(2)).unwrap();
     let goal = s
         .confirm_unplanned_work(
+            &[Episode::all(&context_key(&sample()))],
             &context_key(&sample()),
             &Local::now().date_naive().to_string(),
             "Handle unrelated emails",
@@ -193,6 +209,7 @@ fn accepted_work_moves_intervals_and_step_totals_instead_of_double_counting() {
     let day = Local::now().date_naive().to_string();
     let new = s
         .confirm_unplanned_work(
+            &[Episode::all(&context_key(&sample()))],
             &context_key(&sample()),
             &day,
             "Handle unrelated emails",
@@ -387,24 +404,28 @@ fn response_validation_requires_a_new_unambiguous_task_and_valid_candidate_ids()
     let envelope = |v| crate::accuracy_check::envelope(v);
     assert!(parse(
         &envelope(json!({"title":"Handle emails","existing_goal_id":7,"confidence":0.9})),
-        &candidates
+        &candidates,
+        0
     )
     .is_err());
     assert!(parse(
         &envelope(json!({"title":null,"existing_goal_id":77,"confidence":0.9})),
-        &candidates
+        &candidates,
+        0
     )
     .is_err());
     assert!(parse(
         &envelope(
             json!({"title":"Write to person@example.com","existing_goal_id":null,"confidence":0.9})
         ),
-        &candidates
+        &candidates,
+        0
     )
     .is_err());
     assert!(parse(
         &envelope(json!({"title":null,"existing_goal_id":7,"confidence":0.9})),
-        &candidates
+        &candidates,
+        0
     )
     .is_ok());
 }
@@ -440,6 +461,7 @@ async fn classifier_uses_minimized_redacted_context_once_without_credentials_or_
         &json!([]),
         180,
         &Value::Null,
+        &Value::Null,
         &|| Ok(()),
     )
     .await
@@ -461,6 +483,7 @@ fn returning_to_the_same_window_never_relabels_an_earlier_session() {
     let day = Local::now().date_naive().to_string();
     let id = s
         .confirm_unplanned_work(
+            &[Episode::all("afternoon-session")],
             "afternoon-session",
             &day,
             "Handle unrelated emails",
@@ -493,7 +516,14 @@ fn ongoing_work_is_added_open_and_acceptance_does_not_double_count_the_observati
         )
         .unwrap();
     let id = s
-        .confirm_unplanned_work(&key, &day, "Prepare interview follow-ups", false, None)
+        .confirm_unplanned_work(
+            &[Episode::all(&key)],
+            &key,
+            &day,
+            "Prepare interview follow-ups",
+            false,
+            None,
+        )
         .unwrap();
     let snap = s.core_snapshot(None).unwrap();
     assert_eq!(snap.goals[0].status, "open");
@@ -567,4 +597,130 @@ fn unlisted_work_checks_continue_after_hours_and_quiet_discards_pending_offers()
             .unwrap(),
         180_000
     );
+}
+#[test]
+fn time_is_filed_per_context_regardless_of_review_segments_or_gaps() {
+    let state = ready();
+    let mut inner = state.inner.lock().unwrap();
+    let base = Instant::now();
+    observe_at(&mut inner, &sample(), true, None, base).unwrap();
+    assert_eq!(
+        inner.unplanned_work.session_key.as_deref(),
+        Some(context_key(&sample()).as_str())
+    );
+    observe_at(
+        &mut inner,
+        &sample(),
+        true,
+        None,
+        base + Duration::from_secs(360),
+    )
+    .unwrap();
+    assert_eq!(
+        inner.unplanned_work.session_key.as_deref(),
+        Some(context_key(&sample()).as_str())
+    );
+    for i in 0..120 {
+        inner
+            .storage
+            .observe_unplanned_interval(&interval(i), None, &context_key(&sample()))
+            .unwrap();
+    }
+    let day = Local::now().date_naive().to_string();
+    assert_eq!(
+        inner
+            .storage
+            .unplanned_milliseconds(&context_key(&sample()), &day)
+            .unwrap(),
+        360_000
+    );
+}
+fn page(title: &str, domain: &str) -> ActivitySnapshot {
+    let mut a = sample();
+    a.window_title = title.into();
+    a.browser = crate::browser::context(&a.process_name, title, Some(format!("https://{domain}/")));
+    a
+}
+fn file(storage: &Storage, a: &ActivitySnapshot, from: i64, to: i64) {
+    for i in from..to {
+        let mut interval = interval(i);
+        interval.activity = a.clone();
+        storage
+            .observe_unplanned_interval(&interval, None, &context_key(a))
+            .unwrap();
+    }
+}
+#[test]
+fn acceptance_moves_the_presence_and_the_named_episodes_only() {
+    let mut s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    let day = Local::now().date_naive().to_string();
+    let noon = interval(0).start;
+    let posting = sample();
+    let search = page("Blockchain.com careers - Google Search", "www.google.com");
+    let video = page("Trending - YouTube", "www.youtube.com");
+    // An earlier visit to the posting, a search, a video, then the current presence.
+    file(&s, &posting, -200, -160);
+    file(&s, &search, -100, -60);
+    file(&s, &video, -50, -30);
+    file(&s, &posting, 0, 60);
+    let episodes = vec![
+        Episode {
+            key: context_key(&posting),
+            since: Some(noon - CD::seconds(2)),
+            until: None,
+        },
+        Episode {
+            key: context_key(&search),
+            since: Some(noon - CD::seconds(302)),
+            until: Some(noon - CD::seconds(178)),
+        },
+    ];
+    let goal = s
+        .confirm_unplanned_work(
+            &episodes,
+            &context_key(&posting),
+            &day,
+            "Prepare for the Blockchain.com interview",
+            false,
+            None,
+        )
+        .unwrap();
+    // 180 s of the presence and 120 s of the search moved; nothing else did.
+    assert_eq!(s.relevant_seconds(goal, Some(&day)).unwrap(), 300);
+    assert_eq!(
+        s.unplanned_milliseconds(&context_key(&posting), &day)
+            .unwrap(),
+        120_000,
+        "the earlier visit to the same page stays unassigned"
+    );
+    assert_eq!(
+        s.unplanned_milliseconds(&context_key(&search), &day)
+            .unwrap(),
+        0
+    );
+    assert_eq!(
+        s.unplanned_milliseconds(&context_key(&video), &day)
+            .unwrap(),
+        60_000
+    );
+    assert!(s.unplanned_decided(&context_key(&posting), &day).unwrap());
+}
+#[test]
+fn the_classifier_may_only_name_trail_entries_it_was_shown() {
+    let answer = |trail: Value| {
+        crate::accuracy_check::envelope(json!({
+            "title":"Prepare for the interview","existing_goal_id":null,"confidence":0.9,"receipt":null,"same_task_trail":trail
+        }))
+    };
+    assert_eq!(
+        parse(&answer(json!([1])), &json!([]), 2)
+            .unwrap()
+            .same_task_trail,
+        vec![1]
+    );
+    assert!(parse(&answer(json!([2])), &json!([]), 2).is_err());
+    assert!(parse(&answer(json!([])), &json!([]), 0)
+        .unwrap()
+        .same_task_trail
+        .is_empty());
 }

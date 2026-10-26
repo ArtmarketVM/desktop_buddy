@@ -19,8 +19,19 @@ impl Storage {
     pub(super) fn unplanned_decided(&self, key: &str, day: &str) -> Result<bool, String> {
         self.connection.query_row("SELECT EXISTS(SELECT 1 FROM unplanned_work_decisions WHERE context_key=?1 AND day=?2)",params![key,day],|r|r.get(0)).map_err(db)
     }
+    #[cfg(test)]
     pub(super) fn unplanned_milliseconds(&self, key: &str, day: &str) -> Result<i64, String> {
-        self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0) FROM unplanned_work_intervals u WHERE context_key=?1 AND day=?2 AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned'))",params![key,day],|r|r.get(0)).map_err(db)
+        self.unplanned_milliseconds_between(key, day, None, None)
+    }
+    /// Unassigned time of one context within optional bounds on interval start.
+    pub(super) fn unplanned_milliseconds_between(
+        &self,
+        key: &str,
+        day: &str,
+        since: Option<&DateTime<Utc>>,
+        until: Option<&DateTime<Utc>>,
+    ) -> Result<i64, String> {
+        self.connection.query_row("SELECT COALESCE(SUM(milliseconds),0) FROM unplanned_work_intervals u WHERE context_key=?1 AND day=?2 AND (?3 IS NULL OR julianday(started_at)>=julianday(?3)) AND (?4 IS NULL OR julianday(started_at)<=julianday(?4)) AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned'))",params![key,day,since.map(|t|t.to_rfc3339()),until.map(|t|t.to_rfc3339())],|r|r.get(0)).map_err(db)
     }
     pub(super) fn observe_unplanned_interval(
         &self,
@@ -79,8 +90,11 @@ impl Storage {
     fn unplanned_bucket(&self, key: &str, day: &str) -> Result<String, String> {
         self.connection.query_row("SELECT bucket_key FROM unplanned_work_intervals WHERE context_key=?1 AND day=?2 LIMIT 1",params![key,day],|r|r.get(0)).map_err(db)
     }
+    /// Moves exactly the episodes' intervals to a new goal: the current presence and the
+    /// earlier contexts the model named. Other time in the same contexts stays unassigned.
     pub(super) fn confirm_unplanned_work(
         &mut self,
+        episodes: &[Episode],
         key: &str,
         day: &str,
         title: &str,
@@ -94,7 +108,13 @@ impl Storage {
         if self.unplanned_decided(&bucket, day)? {
             return Err("This work was already reviewed".into());
         }
-        if self.unplanned_milliseconds(key, day)? < MIN_ACTIVE_MS {
+        let total: i64 = episodes
+            .iter()
+            .map(|e| {
+                self.unplanned_milliseconds_between(&e.key, day, e.since.as_ref(), e.until.as_ref())
+            })
+            .sum::<Result<i64, String>>()?;
+        if total < MIN_ACTIVE_MS {
             return Err("Observed time is no longer available".into());
         }
         let duplicate:bool=self.connection.query_row("SELECT EXISTS(SELECT 1 FROM goals g JOIN core_goals c ON c.goal_id=g.id WHERE lower(trim(g.text))=lower(trim(?1)) AND (c.state!='completed' OR EXISTS(SELECT 1 FROM core_day_items d WHERE d.goal_id=g.id AND d.day=?2)))",params![title,day],|r|r.get(0)).map_err(db)?;
@@ -103,26 +123,43 @@ impl Storage {
                 "A goal with that title already exists. Rename this work before adding it.".into(),
             );
         }
-        let mut q=self.connection.prepare("SELECT u.started_at,u.ended_at,u.milliseconds,u.app,u.title,u.domain,u.page_title,u.source_interval_id,u.source_step,i.goal_id,i.match_confidence FROM unplanned_work_intervals u LEFT JOIN usage_intervals i ON i.id=u.source_interval_id WHERE u.context_key=?1 AND u.day=?2 AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned')) ORDER BY u.id").map_err(db)?;
-        let rows = q
-            .query_map(params![key, day], |r| {
-                Ok(Recorded {
-                    from: r.get(0)?,
-                    to: r.get(1)?,
-                    ms: r.get(2)?,
-                    app: r.get(3)?,
-                    title: r.get(4)?,
-                    domain: r.get(5)?,
-                    page: r.get(6)?,
-                    source: r.get(7)?,
-                    step: r.get(8)?,
-                    old_goal: r.get(9)?,
-                    old_confidence: r.get::<_, Option<f64>>(10)?.unwrap_or(0.0),
-                })
-            })
-            .map_err(db)?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(db)?;
+        let mut q=self.connection.prepare("SELECT u.started_at,u.ended_at,u.milliseconds,u.app,u.title,u.domain,u.page_title,u.source_interval_id,u.source_step,i.goal_id,i.match_confidence,u.id FROM unplanned_work_intervals u LEFT JOIN usage_intervals i ON i.id=u.source_interval_id WHERE u.context_key=?1 AND u.day=?2 AND (?3 IS NULL OR julianday(u.started_at)>=julianday(?3)) AND (?4 IS NULL OR julianday(u.started_at)<=julianday(?4)) AND NOT EXISTS(SELECT 1 FROM review_intervals r WHERE r.started_at=u.started_at AND r.ended_at=u.ended_at AND (r.manual=1 OR r.status='assigned')) ORDER BY u.id").map_err(db)?;
+        let mut rows: Vec<Recorded> = Vec::new();
+        for episode in episodes {
+            let found = q
+                .query_map(
+                    params![
+                        episode.key,
+                        day,
+                        episode.since.map(|t| t.to_rfc3339()),
+                        episode.until.map(|t| t.to_rfc3339())
+                    ],
+                    |r| {
+                        Ok(Recorded {
+                            from: r.get(0)?,
+                            to: r.get(1)?,
+                            ms: r.get(2)?,
+                            app: r.get(3)?,
+                            title: r.get(4)?,
+                            domain: r.get(5)?,
+                            page: r.get(6)?,
+                            source: r.get(7)?,
+                            step: r.get(8)?,
+                            old_goal: r.get(9)?,
+                            old_confidence: r.get::<_, Option<f64>>(10)?.unwrap_or(0.0),
+                            id: r.get(11)?,
+                        })
+                    },
+                )
+                .map_err(db)?
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(db)?;
+            for row in found {
+                if !rows.iter().any(|r| r.id == row.id) {
+                    rows.push(row);
+                }
+            }
+        }
         drop(q);
         // Keep an immutable connection borrow so the daily summary can be
         // refreshed inside this same transaction. SQLite still rejects nesting.
@@ -171,6 +208,7 @@ impl Storage {
             };
             tx.execute("UPDATE work_events SET undo_plan=?1,after_revision=0,core_event_id=(SELECT MAX(id) FROM core_events WHERE goal_id=?2) WHERE evidence_key=?3",params![serde_json::to_string(&plan).map_err(|_|"Invalid undo snapshot")?,goal,format!("accepted:{key}")]).map_err(db)?;
         }
+        let moved: Vec<i64> = rows.iter().map(|r| r.id).collect();
         for row in rows {
             // The original interval is moved, never copied. No elapsed duration is
             // inferred from a session's first/last timestamp or from model output.
@@ -207,11 +245,10 @@ impl Storage {
             params![bucket, day, goal],
         )
         .map_err(db)?;
-        tx.execute(
-            "DELETE FROM unplanned_work_intervals WHERE context_key=?1 AND day=?2",
-            params![key, day],
-        )
-        .map_err(db)?;
+        for id in moved {
+            tx.execute("DELETE FROM unplanned_work_intervals WHERE id=?1", [id])
+                .map_err(db)?;
+        }
         let periods = {
             let mut q = tx
                 .prepare(
@@ -244,4 +281,5 @@ struct Recorded {
     step: String,
     old_goal: Option<i64>,
     old_confidence: f64,
+    id: i64,
 }
