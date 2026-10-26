@@ -3,8 +3,8 @@
 ## Release 0.47.0 preparation
 
 - The owner explicitly requested publication. Branch `codex/goal-suggestions-system-theme` includes both goal autocomplete and system appearance. All five manifests and `docs/RELEASE_0.47.0.md` are prepared; the privacy policy describes goal autocomplete. Base `8dfc9df` matched fetched `origin/main` before preparation.
-- Reuse the final implementation validation below: 325 frontend tests, 733 Rust tests/5 ignored, production build, ESLint, local signed build and native checks. Version-only changes do not invalidate application test evidence; release-policy checks passed. Rust lint is running in `.tools/release-047-clippy.log`.
-- Windows candidate captures are required for the changed Settings General control. Use `visual-checks.yml` with `candidates=true`; these remain provisional until owner review. Do not overwrite approved expectations automatically or weaken comparisons. After approval and both platform checks, merge and dispatch the shared release workflow for v0.47.0; no public release yet.
+- Reuse the final implementation validation below: 325 frontend tests, 733 Rust tests/5 ignored, production build, ESLint, local signed build and native checks. Version-only changes do not invalidate application test evidence; release-policy checks passed. Rust lint passed with zero warnings (`.tools/release-047-clippy.log`); unused-code lint passed with zero findings.
+- Canonical [Windows candidates](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40381674589) passed both generation and strict repeatability (70 checks passed, 2 intentional skips each). The owner explicitly approved all seven changed captures: four General settings views and three one-level edge antialiasing differences (12–19 pixels). The other 27 PNGs are unchanged. Exact captured files and provenance are committed in `visual/baselines`; no masks/tolerance changes. After both platform checks, merge and dispatch the shared release workflow for v0.47.0; no public release yet.
 
 ## System appearance — 26 October 2026
 
