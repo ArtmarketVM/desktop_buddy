@@ -208,11 +208,9 @@ fn a_metadata_gap_invalidates_ai_results_suggestions_and_page_evidence_epochs() 
             assert!(inner.goal_matching.view.goal_id.is_none());
             assert!(inner.goal_matching.cache.is_empty());
             assert!(inner.goal_matching.pending_suggestion.is_none());
-            assert_eq!(inner.goal_matching.last_attempt, Some(base + AI_STABLE));
-            feed(&mut inner, &a, base, 69, 147);
-            assert!(!due_inner(&inner, base + Duration::from_secs(149)));
-            observe_inner_at(&mut inner, &a, true, base + Duration::from_secs(150)).unwrap();
-            assert!(due_inner(&inner, base + Duration::from_secs(150)));
+            // The gap invalidated the old answer, so fresh evidence is asked about at once.
+            feed(&mut inner, &a, base, 69, 75);
+            assert!(due_inner(&inner, base + Duration::from_secs(75)));
         }
     }
 }
@@ -246,9 +244,9 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
     let base = Instant::now();
     // The title names the first goal, but keywords never apply without a domain.
     let unknown = browser(None);
-    feed(&mut inner, &unknown, base, 0, 57);
+    feed(&mut inner, &unknown, base, 0, 27);
     assert!(inner.goal_matching.view.goal_id.is_none());
-    assert!(!due_inner(&inner, base + Duration::from_secs(57)));
+    assert!(!due_inner(&inner, base + Duration::from_secs(27)));
     observe_inner_at(&mut inner, &unknown, true, base + AI_STABLE).unwrap();
     assert!(due_inner(&inner, base + AI_STABLE));
     let job = claim(&mut inner, base + AI_STABLE).unwrap().unwrap();
@@ -272,7 +270,7 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
     );
     assert!(inner.goal_matching.cache.is_empty());
     assert_eq!(inner.storage.goal().unwrap().unwrap().id, ids[1]);
-    feed(&mut inner, &unknown, base, 63, 120);
+    feed(&mut inner, &unknown, base, 33, 120);
     assert_eq!(inner.goal_matching.view.goal_id, Some(ids[1]));
     let matched = attribution(&inner, &unknown).unwrap();
     assert_eq!(
@@ -285,14 +283,14 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
     let mut other = unknown.clone();
     other.window_title = "Another tab - Browser".into();
     other.browser = crate::browser::context(&other.process_name, &other.window_title, None);
-    feed(&mut inner, &other, base, 123, 180);
+    feed(&mut inner, &other, base, 123, 150);
     assert!(inner.goal_matching.view.goal_id.is_none());
     assert_eq!(attribution(&inner, &other).unwrap().confidence, 0.);
-    assert!(!due_inner(&inner, base + Duration::from_secs(180)));
-    observe_inner_at(&mut inner, &other, true, base + Duration::from_secs(183)).unwrap();
-    assert!(due_inner(&inner, base + Duration::from_secs(183)));
+    assert!(!due_inner(&inner, base + Duration::from_secs(150)));
+    observe_inner_at(&mut inner, &other, true, base + Duration::from_secs(153)).unwrap();
+    assert!(due_inner(&inner, base + Duration::from_secs(153)));
     // A null answer is not asked again for the same visit.
-    let job = claim(&mut inner, base + Duration::from_secs(183))
+    let job = claim(&mut inner, base + Duration::from_secs(153))
         .unwrap()
         .unwrap();
     finish(
@@ -304,10 +302,10 @@ fn title_only_browser_windows_match_through_the_ai_alone_and_are_never_reused() 
             reason: "Unrelated".into(),
             same_task_trail: vec![],
         }),
-        base + Duration::from_secs(183),
+        base + Duration::from_secs(153),
     )
     .unwrap();
-    feed(&mut inner, &other, base, 186, 400);
+    feed(&mut inner, &other, base, 156, 400);
     assert!(inner.goal_matching.view.goal_id.is_none());
     assert!(!due_inner(&inner, base + Duration::from_secs(400)));
     assert_eq!(inner.goal_matching.metrics.nemotron_calls, 2);

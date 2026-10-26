@@ -17,8 +17,7 @@ use tauri::{AppHandle, Emitter, State, WebviewWindow};
 
 /// A few minutes of engaged work that no goal claims before sumi offers to add it.
 const MIN_ACTIVE_MS: i64 = 180_000;
-const STABLE: Duration = Duration::from_secs(60);
-const REQUEST_COOLDOWN: Duration = Duration::from_secs(300);
+const STABLE: Duration = Duration::from_secs(30);
 const DISMISS_COOLDOWN: Duration = Duration::from_secs(600);
 const OFFER_LIFETIME: Duration = Duration::from_secs(1800);
 const MIN_CONFIDENCE: f64 = 0.85;
@@ -75,7 +74,9 @@ pub struct Runtime {
     generation: u64,
     stable_since: Option<Instant>,
     last_seen: Option<Instant>,
-    last_attempt: Option<Instant>,
+    /// Evidence already asked about: the context plus the visible text it showed. A new ask
+    /// needs new evidence, never just elapsed time.
+    attempted: Option<String>,
     snoozed_until: Option<Instant>,
     pending: Option<Pending>,
     last_classified: Option<String>,
@@ -98,6 +99,7 @@ impl Runtime {
         self.reset_sample();
         self.pending = None;
         self.last_classified = None;
+        self.attempted = None;
     }
 }
 fn context_key(a: &ActivitySnapshot) -> String {
@@ -225,10 +227,9 @@ fn due_inner(inner: &Inner, now: Instant) -> bool {
         && inner.status.nebius_configured
         && !crate::companion::quiet_mode(inner)
         && inner.unplanned_work.pending.is_none()
-        && inner
-            .unplanned_work
-            .last_attempt
-            .is_none_or(|at| now.saturating_duration_since(at) >= REQUEST_COOLDOWN)
+        && inner.unplanned_work.sample.as_ref().is_some_and(|a| {
+            inner.unplanned_work.attempted.as_deref() != Some(evidence_signature(inner, a).as_str())
+        })
         && inner
             .unplanned_work
             .snoozed_until
@@ -408,7 +409,7 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
         if !crate::observation::reserve(&mut inner) {
             return Ok(());
         }
-        inner.unplanned_work.last_attempt = Some(now);
+        inner.unplanned_work.attempted = Some(evidence_signature(&inner, &sample));
         let wall = Utc::now().timestamp();
         (
             sample,
@@ -438,15 +439,17 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
             }
         }
     };
-    // Sampling can await an OS worker. Recheck before the first cloud disclosure.
+    // Sampling can await an OS worker. Recheck before the first cloud disclosure, and
+    // record the evidence as it is now cached, so the same text is not asked about twice.
     {
-        let inner = state
+        let mut inner = state
             .inner
             .lock()
             .map_err(|_| "Application state unavailable")?;
         if !current(&inner, &sample, &candidates, consent, generation)? {
             return Ok(());
         }
+        inner.unplanned_work.attempted = Some(evidence_signature(&inner, &sample));
     }
     let text = crate::vision::enrich(state, &sample, text).await?;
     if text.trim().is_empty() {
@@ -667,6 +670,14 @@ pub async fn identify(app: &AppHandle, state: &AppState) -> Result<(), String> {
         crate::buddy::sync(app, &mut inner)?;
     }
     Ok(())
+}
+/// What the classifier would be asked about: this context and the text it currently shows.
+fn evidence_signature(inner: &Inner, a: &ActivitySnapshot) -> String {
+    crate::companion::engine::fingerprint(&format!(
+        "{}:{}",
+        context_key(a),
+        crate::companion::screen_context::cached_signature(inner, a).unwrap_or_default()
+    ))
 }
 fn episode_milliseconds(
     storage: &crate::storage::Storage,

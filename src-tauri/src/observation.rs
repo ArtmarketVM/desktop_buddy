@@ -1,7 +1,9 @@
 //! Shared budget and capability diagnostics for foreground-only observation.
 use crate::commands::Inner;
 use std::time::{Duration, Instant};
-pub(crate) const HOURLY_LIMIT: usize = 60;
+/// The one cost ceiling for background model calls. Everything else that used to pace
+/// requests was a cooldown; repeats are now prevented by evidence fingerprints instead.
+pub(crate) const HOURLY_LIMIT: usize = 120;
 pub(crate) fn reserve(inner: &mut Inner) -> bool {
     reserve_with_headroom(inner, 0)
 }
