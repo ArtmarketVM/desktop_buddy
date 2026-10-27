@@ -10,7 +10,65 @@ type Props = {
 };
 
 export function InterventionCard(props: Props) {
+  if (props.prompt.kind === "onboarding_completion")
+    return <OnboardingChoices key={props.prompt.id} {...props} />;
   return <Choices key={props.prompt.id} {...props} />;
+}
+
+function OnboardingChoices({ prompt, busy, respond }: Props) {
+  const first = prompt.step_id === "step-0";
+  const last = prompt.step_id === "step-2";
+  const title = first
+    ? "Welcome to Sumi!"
+    : last
+      ? "You’re all set!"
+      : "Your first goal is ready";
+  const primary = first
+    ? "Cross it off"
+    : last
+      ? "Finish setup"
+      : "Cross off & view progress";
+  return (
+    <div className="companion-bubble">
+      <section
+        className="suggestion-card companion-prompt onboarding-prompt"
+        aria-label={title}
+        aria-live="polite"
+      >
+        {last && (
+          <button
+            className="text-button onboarding-close"
+            aria-label="Dismiss setup message"
+            disabled={busy}
+            onClick={() => respond("ignore")}
+          >
+            ×
+          </button>
+        )}
+        <h2>{title}</h2>
+        <p>{prompt.text}</p>
+        {first && (
+          <p className="onboarding-next">
+            Next: create a goal. I can suggest ideas.
+          </p>
+        )}
+        <div className="companion-prompt-actions">
+          <button disabled={busy} onClick={() => respond("accept")}>
+            {primary}
+          </button>
+          {!last && (
+            <button
+              className="text-button"
+              disabled={busy}
+              onClick={() => respond("ignore")}
+            >
+              Later
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
@@ -23,6 +81,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
   );
   const [error, setError] = useState("");
   const title = {
+    onboarding_completion: "One more step with Sumi",
     automatic_completion: "You completed this work",
     unplanned_completed: "Add this to today’s completed work?",
     unplanned_work: "Add this work to Today?",
@@ -43,6 +102,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
     midday: "A quick check-in",
   }[prompt.kind];
   const primary = {
+    onboarding_completion: "Cross it off",
     automatic_completion: "Got it",
     unplanned_completed: "Add completed",
     unplanned_work: "Add to Today",

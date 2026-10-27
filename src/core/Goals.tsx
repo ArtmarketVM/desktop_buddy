@@ -75,7 +75,9 @@ export function GoalRow({
   initialExpanded?: boolean;
   initialAdding?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(initialExpanded);
+  const [expanded, setExpanded] = useState(
+    initialExpanded || snapshot.onboarding_goal_id === goal.id,
+  );
   const [coaching, setCoaching] = useState(false);
   const {
     open: menu,
@@ -416,6 +418,12 @@ export function GoalRow({
                   }
                   onDelete={() => void removeStep(step.id)}
                 />
+                {snapshot.onboarding_goal_id === goal.id &&
+                  step.id === "step-0" && (
+                    <small title="Fixed onboarding credit for installing and opening Sumi">
+                      5 mins spent
+                    </small>
+                  )}
                 {!readOnly && goal.status === "open" && (
                   <button
                     type="button"

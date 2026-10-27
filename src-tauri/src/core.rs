@@ -124,6 +124,7 @@ pub struct HourTime {
 }
 #[derive(Serialize)]
 pub struct CoreSnapshot {
+    pub onboarding_goal_id: Option<i64>,
     pub date: String,
     pub selected_date: String,
     pub date_goals: Vec<i64>,
@@ -381,6 +382,7 @@ impl Storage {
             )
             .map_err(db)?;
         }
+        crate::onboarding_goal::goal_created(&tx)?;
         tx.commit().map_err(db)
     }
     #[cfg(test)]
@@ -800,6 +802,7 @@ impl Storage {
         )
         .map_err(db)?;
         tx.execute("INSERT INTO core_days(day,mode) VALUES(?1,'plan') ON CONFLICT(day) DO UPDATE SET mode='plan'", [date]).map_err(db)?;
+        crate::onboarding_goal::goal_created(&tx)?;
         tx.commit().map_err(db)
     }
     pub fn core_goals_for_date(&self, date: &str) -> Result<Vec<i64>, String> {
@@ -922,6 +925,9 @@ impl Storage {
                 *totals.entry((local.hour() as u8, goal)).or_default() += next - cursor;
                 cursor = next;
             }
+        }
+        if let Some((hour, id)) = self.onboarding_hour(date)? {
+            *totals.entry((hour, id)).or_default() += 300_000;
         }
         Ok(totals
             .into_iter()
@@ -1120,6 +1126,7 @@ impl Storage {
             .map(|offset| self.core_progress(&(anchor - Duration::days(offset)).to_string()))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(CoreSnapshot {
+            onboarding_goal_id: self.onboarding_goal_id()?,
             date: date.clone(),
             selected_date: anchor.to_string(),
             date_goals: self.core_goals_for_date(&anchor.to_string())?,
@@ -1189,6 +1196,7 @@ pub fn finish_core_setup(
     if !drafts.is_empty() {
         inner.storage.core_add_goals(drafts, &batch)?;
     }
+    inner.storage.start_onboarding_goal()?;
     let snapshot = inner.storage.core_snapshot(None)?;
     let open: Vec<i64> = snapshot
         .goals
@@ -1278,6 +1286,7 @@ pub(crate) fn mutate(
         ],
         false,
     );
+    crate::companion::offer_onboarding(app, &mut inner)?;
     crate::buddy::sync(app, &mut inner)?;
     inner.storage.core_snapshot(None)
 }
@@ -1296,6 +1305,20 @@ pub fn get_core_snapshot(
         .storage
         .core_snapshot_period(anchor.as_deref(), period.as_deref())
 }
+#[tauri::command(async)]
+pub fn visit_core_progress(state: State<AppState>, app: AppHandle) -> Result<(), String> {
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Application state unavailable")?;
+    if !inner.storage.user_settings()?.onboarding.completed {
+        return Ok(());
+    }
+    inner.storage.visit_onboarding_progress()?;
+    crate::companion::offer_onboarding(&app, &mut inner)?;
+    crate::buddy::sync(&app, &mut inner)
+}
+
 #[tauri::command(async)]
 pub fn add_core_goals(
     state: State<AppState>,

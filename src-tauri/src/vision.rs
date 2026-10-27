@@ -313,6 +313,13 @@ mod tests {
     #[tokio::test]
     async fn screenshots_off_never_capture_or_contact_a_provider() {
         let (s, a) = fixture();
+        s.inner
+            .lock()
+            .unwrap()
+            .companion
+            .view
+            .preferences
+            .use_screenshots = false;
         assert!(
             !s.inner
                 .lock()

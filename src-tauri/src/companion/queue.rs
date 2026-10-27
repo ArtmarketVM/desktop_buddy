@@ -25,7 +25,8 @@ impl Queue {
 pub(super) fn priority(p: &Intervention) -> u8 {
     match p.kind {
         Kind::Deadline if p.id.ends_with(":now") => 0,
-        Kind::Completion
+        Kind::OnboardingCompletion
+        | Kind::Completion
         | Kind::GoalCompletion
         | Kind::AutomaticCompletion
         | Kind::UnplannedCompleted => 1,
@@ -123,9 +124,10 @@ fn valid(inner: &Inner, p: &Intervention, now: i64) -> bool {
         return false;
     }
     match p.kind {
+        Kind::OnboardingCompletion => inner.storage.valid_onboarding_prompt(p, now),
         Kind::Deadline => inner.companion.view.preferences.deadline_reminders
             && deadlines::validate(&inner.storage, p, "", now).is_ok(),
-        Kind::NoGoals => inner.companion.view.preferences.daily_checkins
+        Kind::NoGoals => !inner.storage.onboarding_active().unwrap_or(false) && inner.companion.view.preferences.daily_checkins
             && p.id.starts_with(&format!("schedule:{}:planning", chrono::DateTime::from_timestamp(now,0).unwrap().with_timezone(&chrono::Local).date_naive())),
         Kind::EndOfDay => inner.companion.view.preferences.daily_checkins && schedule::allowed(inner, p.kind, now),
         Kind::Movement => inner.companion.view.preferences.movement_reminder
@@ -171,7 +173,10 @@ fn reserve(inner: &mut Inner, prompt: &Intervention, now: i64) -> Result<bool, S
         .execute_batch("SAVEPOINT mascot_delivery")
         .map_err(|e| e.to_string())?;
     let result = (|| {
-        let reserved = if prompt.kind == Kind::Deadline {
+        let reserved = if prompt.kind == Kind::OnboardingCompletion {
+            // Durable milestone responses own deduplication, independent of AI cooldowns.
+            true
+        } else if prompt.kind == Kind::Deadline {
             deadlines::reserve(&inner.storage, &mut inner.companion.memory, prompt, "", now)?
         } else if matches!(
             prompt.kind,
@@ -339,6 +344,30 @@ mod tests {
     use super::*;
     use crate::{commands::AppState, models::ActivitySnapshot, storage::Storage};
     use chrono::{Local, TimeZone};
+    #[test]
+    fn setup_milestones_deliver_with_observation_off_and_respect_quiet_mode() {
+        let state = state();
+        let mut inner = state.inner.lock().unwrap();
+        inner.storage.start_onboarding_goal().unwrap();
+        inner.storage.visit_onboarding_progress().unwrap();
+        assert!(schedule::candidates(&mut inner, now())
+            .unwrap()
+            .iter()
+            .all(|p| p.kind != Kind::NoGoals));
+        assert!(!valid(&inner, &plan(now()), now()));
+        inner.companion.view.preferences.screen_task_detection = false;
+        inner.companion.memory.last_prompt = now();
+        inner.companion.memory.shown = 100;
+        let prompt = inner.storage.onboarding_prompt(now()).unwrap().unwrap();
+        enqueue(&mut inner, prompt.clone(), now());
+        assert_eq!(deliver(&mut inner, now()).unwrap().unwrap().id, prompt.id);
+        inner.status.dnd = true;
+        assert!(deliver(&mut inner, now()).unwrap().is_none());
+        assert!(inner.companion.view.intervention.is_none());
+        inner.status.dnd = false;
+        enqueue(&mut inner, prompt.clone(), now());
+        assert_eq!(deliver(&mut inner, now()).unwrap().unwrap().id, prompt.id);
+    }
     fn state() -> AppState {
         AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap()
     }

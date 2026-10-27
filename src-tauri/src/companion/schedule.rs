@@ -228,7 +228,7 @@ pub(super) fn candidates(inner: &mut Inner, now: i64) -> Result<Vec<Intervention
         && !inner.companion.memory.seen.contains(&plan_id)
         && inner.companion.memory.planning_reminder_at.is_none();
     let mut messages = Vec::new();
-    if checkins && (initial_plan || reminder.is_some()) {
+    if checkins && (initial_plan || reminder.is_some()) && !inner.storage.onboarding_active()? {
         let due = include_due_today(&mut inner.storage, local.date_naive())?;
         let text = if due.is_empty() {
             "Want to plan today and choose from your previous goals?".into()

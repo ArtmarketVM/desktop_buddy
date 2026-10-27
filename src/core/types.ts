@@ -53,6 +53,7 @@ export interface DayProgress {
   goals: GoalTime[];
 }
 export interface CoreSnapshot {
+  onboarding_goal_id?: number | null;
   date: string;
   selected_date: string;
   date_goals: number[];

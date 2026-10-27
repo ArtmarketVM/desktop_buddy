@@ -169,7 +169,16 @@ function dashboard(theme: "light" | "dark", buddy: boolean): Dashboard {
       snoozed_until: null,
       quiet_reason: null,
       avatar: defaultUserSettings.profile.avatar,
-      companion: { ...defaultCompanionView, chat_open: buddy },
+      // This is an existing saved profile; fresh-install defaults must not change its choices.
+      companion: {
+        ...defaultCompanionView,
+        preferences: {
+          ...defaultCompanionView.preferences,
+          use_screenshots: false,
+          automatic_completion: false,
+        },
+        chat_open: buddy,
+      },
     },
   };
 }
@@ -239,6 +248,7 @@ export function fixtureReply(
         blocks: [],
         summaries: [],
       };
+    case "visit_core_progress":
     case "set_activity_review_context":
       return null;
     case "get_goal_match_suggestion":

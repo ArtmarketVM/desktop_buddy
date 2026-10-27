@@ -65,18 +65,18 @@ it("keeps consent controls disabled after a failed initial read and shows a safe
   ).toBe(true);
 });
 
-it("requires a separate opt-in for pre-send transcript correction", async () => {
+it("starts new profiles with transcript correction on and preserves switching it off", async () => {
   render(<AiSettings compact onChanged={async () => {}} />);
   const checkbox = screen.getByRole("checkbox", {
     name: /Correct dictated text before editing/,
   }) as HTMLInputElement;
   await waitFor(() => expect(checkbox.disabled).toBe(false));
-  expect(checkbox.checked).toBe(false);
+  expect(checkbox.checked).toBe(true);
   fireEvent.click(checkbox);
   await waitFor(() =>
     expect(aiApi.savePreferences).toHaveBeenCalledWith({
       ...defaultAiPreferences,
-      voice_text_cleanup: true,
+      voice_text_cleanup: false,
     }),
   );
 });

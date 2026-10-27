@@ -23,8 +23,8 @@ export const defaultCompanionPreferences: CompanionPreferences = {
   quiet_hours_enabled: false,
   quiet_days: [],
   screen_task_detection: true,
-  use_screenshots: false,
-  automatic_completion: false,
+  use_screenshots: true,
+  automatic_completion: true,
   hide_fullscreen: true,
   morning_delay_minutes: 10,
   cooldown_minutes: 60,
@@ -36,6 +36,7 @@ export const defaultCompanionPreferences: CompanionPreferences = {
 export interface Intervention {
   id: string;
   kind:
+    | "onboarding_completion"
     | "automatic_completion"
     | "unplanned_work"
     | "unplanned_completed"

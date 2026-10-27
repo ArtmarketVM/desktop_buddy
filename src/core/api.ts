@@ -10,6 +10,7 @@ import type {
   GoalDetails,
 } from "./types";
 export const coreApi = {
+  visitProgress: () => invoke<void>("visit_core_progress"),
   retryAnalysis: (id: number) =>
     invoke<void>("retry_core_goal_analysis", { id }),
   focus: (id: number) => invoke<void>("select_core_goal", { id }),

@@ -74,6 +74,18 @@ export function Experience({
       }).catch(() => {});
     };
   }, [page, editor, planningGoal]);
+  useEffect(() => {
+    if (!desktop || page !== "activity") return;
+    let recorded = false;
+    const visit = () => {
+      if (recorded || document.visibilityState !== "visible") return;
+      recorded = true;
+      void coreApi.visitProgress().catch((e) => setError(String(e)));
+    };
+    visit();
+    document.addEventListener("visibilitychange", visit);
+    return () => document.removeEventListener("visibilitychange", visit);
+  }, [page]);
   const snapshotAnchor = page === "activity" ? anchor : null;
   const snapshotPeriod = page === "activity" ? progressPeriod : "week";
   const workspace = workspaceQuery(snapshotAnchor, snapshotPeriod);

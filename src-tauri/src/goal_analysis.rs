@@ -24,6 +24,39 @@ impl Default for AiPreferences {
     }
 }
 impl Storage {
+    pub(crate) fn initialize_first_launch_ai(&self) -> Result<(), String> {
+        // Product defaults are not personal choices and must not create user memories.
+        let ai = AiPreferences {
+            automatic_goal_matching: true,
+            voice_text_cleanup: true,
+            ..AiPreferences::default()
+        };
+        let companion = crate::companion::engine::Preferences {
+            use_screenshots: true,
+            automatic_completion: true,
+            ..Default::default()
+        };
+        crate::memory::atomic(&self.connection, || {
+            for (name, value) in [
+                (
+                    "ai_assistance_preferences",
+                    serde_json::to_string(&ai).map_err(|e| e.to_string())?,
+                ),
+                (
+                    "companion_preferences",
+                    serde_json::to_string(&companion).map_err(|e| e.to_string())?,
+                ),
+            ] {
+                self.connection
+                    .execute(
+                        "INSERT INTO preferences(name,value) VALUES(?1,?2)",
+                        rusqlite::params![name, value],
+                    )
+                    .map_err(|e| e.to_string())?;
+            }
+            Ok(())
+        })
+    }
     pub fn ai_preferences(&self) -> Result<AiPreferences, String> {
         Ok(self
             .read_setting("ai_assistance_preferences")?

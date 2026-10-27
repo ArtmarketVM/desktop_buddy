@@ -432,3 +432,74 @@ async fn coaching_judge_preserves_its_model_and_does_not_retry_unavailable_or_re
         assert!(error.contains(&format!("HTTP {status}")));
     }
 }
+
+#[test]
+fn first_launch_enables_all_ai_features_without_starting_activity_tracking() {
+    let s = Storage::open(std::path::Path::new(":memory:")).unwrap();
+    let ai = s.ai_preferences().unwrap();
+    assert!(ai.enabled && ai.share_goal_context && ai.web_research);
+    assert!(ai.automatic_goal_matching && ai.voice_text_cleanup);
+    let companion: crate::companion::engine::Preferences =
+        s.read_setting("companion_preferences").unwrap().unwrap();
+    assert!(
+        companion.screen_task_detection
+            && companion.use_screenshots
+            && companion.automatic_completion
+    );
+    assert!(s.list_memories(Default::default()).unwrap().is_empty());
+    assert!(!crate::tracking::requested(&s).unwrap());
+    assert!(!s.user_settings().unwrap().onboarding.completed);
+}
+
+#[test]
+fn reopening_keeps_ai_opt_outs_and_legacy_profiles_are_not_reseeded() {
+    let path = std::env::temp_dir().join(format!(
+        "sumi-ai-defaults-{}-{}.db",
+        std::process::id(),
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    {
+        let s = Storage::open(&path).unwrap();
+        s.write_setting(
+            "ai_assistance_preferences",
+            &AiPreferences {
+                enabled: false,
+                share_goal_context: false,
+                web_research: false,
+                automatic_goal_matching: false,
+                voice_text_cleanup: false,
+            },
+        )
+        .unwrap();
+        let companion = crate::companion::engine::Preferences {
+            screen_task_detection: false,
+            ..Default::default()
+        };
+        s.write_setting("companion_preferences", &companion)
+            .unwrap();
+    }
+    {
+        let s = Storage::open(&path).unwrap();
+        let ai = s.ai_preferences().unwrap();
+        assert!(!ai.enabled && !ai.automatic_goal_matching && !ai.voice_text_cleanup);
+        let companion: crate::companion::engine::Preferences =
+            s.read_setting("companion_preferences").unwrap().unwrap();
+        assert!(
+            !companion.screen_task_detection
+                && !companion.use_screenshots
+                && !companion.automatic_completion
+        );
+        // Simulate an existing older profile that has never saved AI preferences.
+        s.connection.execute("DELETE FROM preferences WHERE name IN ('ai_assistance_preferences','companion_preferences')", []).unwrap();
+    }
+    {
+        let s = Storage::open(&path).unwrap();
+        let ai = s.ai_preferences().unwrap();
+        assert!(!ai.automatic_goal_matching && !ai.voice_text_cleanup);
+        assert!(s
+            .read_setting::<crate::companion::engine::Preferences>("companion_preferences")
+            .unwrap()
+            .is_none());
+    }
+    std::fs::remove_file(path).unwrap();
+}

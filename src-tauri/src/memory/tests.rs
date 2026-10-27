@@ -692,7 +692,7 @@ fn default_preferences_are_not_reclassified_as_explicit_user_choices() {
     let s = store();
     let prefs = crate::goal_analysis::AiPreferences {
         enabled: false,
-        ..crate::goal_analysis::AiPreferences::default()
+        ..s.ai_preferences().unwrap()
     };
     s.write_setting("ai_assistance_preferences", &prefs)
         .unwrap();

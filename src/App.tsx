@@ -122,6 +122,11 @@ export default function App() {
     let disposed = false;
     let stop: (() => void) | undefined;
     void listen<string>("buddy://navigate", (event) => {
+      if (event.payload === "create-goal") {
+        setPage("focus");
+        setQuickRequest((previous) => previous + 1);
+        return;
+      }
       if (event.payload === "plan-today" || event.payload === "plan-tomorrow") {
         setPlanningRequest({
           revision: Date.now(),
@@ -245,13 +250,12 @@ export default function App() {
         >
           {onboarding ? (
             <CoreOnboarding
-              nebiusConfigured={data.status.nebius_configured}
               initial={settings}
               onChanged={refresh}
               onDirty={setSetupDirty}
               onComplete={() => {
                 setPage("focus");
-                setOverview(true);
+                setOverview(false);
               }}
             />
           ) : (

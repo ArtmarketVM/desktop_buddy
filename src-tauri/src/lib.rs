@@ -41,6 +41,7 @@ mod models;
 mod nebius;
 mod observation;
 mod observation_check;
+mod onboarding_goal;
 mod privacy;
 mod product_feedback;
 mod profile;
@@ -572,6 +573,7 @@ pub fn run() {
             companion::respond_companion_intervention,
             companion::update_companion_inbox,
             core::get_core_snapshot,
+            core::visit_core_progress,
             core_capture::get_core_drafts,
             core_capture::resolve_core_draft,
             core::add_core_goals,

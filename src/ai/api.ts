@@ -15,8 +15,8 @@ export const defaultAiPreferences: AiPreferences = {
   enabled: true,
   share_goal_context: true,
   web_research: true,
-  automatic_goal_matching: false,
-  voice_text_cleanup: false,
+  automatic_goal_matching: true,
+  voice_text_cleanup: true,
 };
 export interface ChatResource {
   title: string;

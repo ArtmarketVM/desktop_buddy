@@ -9,6 +9,10 @@ type LastActivity = (i64, String, String, u64, Option<String>, Option<u64>);
 impl Storage {
     pub fn open(path: &std::path::Path) -> Result<Self, String> {
         let connection = Connection::open(path).map_err(|e| e.to_string())?;
+        let first_launch: bool = connection.query_row(
+            "SELECT NOT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='preferences')",
+            [], |row| row.get(0),
+        ).map_err(|e| e.to_string())?;
         let store = Self { connection };
         store.initialize()?;
         store.initialize_tracking()?;
@@ -24,6 +28,9 @@ impl Storage {
         store.initialize_unplanned_work()?;
         store.initialize_activity_review()?;
         store.initialize_work_journal()?;
+        if first_launch {
+            store.initialize_first_launch_ai()?;
+        }
         Ok(store)
     }
     pub(crate) fn initialize(&self) -> Result<(), String> {
@@ -448,8 +455,10 @@ pub(crate) fn insert_goal(tx: &rusqlite::Transaction<'_>, text: &str) -> Result<
         params![text, now],
     )
     .map_err(|e| e.to_string())?;
+    let id = tx.last_insert_rowid();
+    crate::onboarding_goal::goal_created(tx)?;
     Ok(Goal {
-        id: tx.last_insert_rowid(),
+        id,
         text: text.into(),
         created_at: now,
     })

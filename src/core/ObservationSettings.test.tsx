@@ -18,7 +18,7 @@ vi.mock("../api/tauri", () => ({
 vi.mock("../data/ipc", () => ({ invoke: vi.fn().mockResolvedValue(false) }));
 beforeEach(() => vi.clearAllMocks());
 afterEach(cleanup);
-it("screenshots and automatic completion are opt-in and changing one preserves other preferences", async () => {
+it("new-profile observation features start on and can be disabled independently", async () => {
   render(
     <ObservationSettings
       preferences={defaultCompanionPreferences}
@@ -31,13 +31,13 @@ it("screenshots and automatic completion are opt-in and changing one preserves o
   const completion = screen.getByRole("checkbox", {
     name: /Automatically complete/,
   }) as HTMLInputElement;
-  expect(screenshot.checked).toBe(false);
-  expect(completion.checked).toBe(false);
+  expect(screenshot.checked).toBe(true);
+  expect(completion.checked).toBe(true);
   fireEvent.click(screenshot);
   await waitFor(() =>
     expect(api.companionPreferences).toHaveBeenCalledWith({
       ...defaultCompanionPreferences,
-      use_screenshots: true,
+      use_screenshots: false,
     }),
   );
   expect(invoke).not.toHaveBeenCalledWith("screenshot_permission", {

@@ -227,6 +227,13 @@ pub(crate) fn delivery_reason(inner: &Inner) -> Option<String> {
 fn suppressed(inner: &Inner) -> bool {
     delivery_paused(inner) || inner.companion.view.chat_open
 }
+pub(crate) fn offer_onboarding(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
+    let now = chrono::Utc::now().timestamp();
+    if let Some(prompt) = inner.storage.onboarding_prompt(now)? {
+        offer(app, inner, prompt, now)?;
+    }
+    Ok(())
+}
 pub(crate) fn offer(
     app: &AppHandle,
     inner: &mut Inner,
@@ -315,7 +322,8 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
         let independent = inner.companion.view.intervention.take().filter(|p| {
             matches!(
                 p.kind,
-                Kind::Deadline
+                Kind::OnboardingCompletion
+                    | Kind::Deadline
                     | Kind::NoGoals
                     | Kind::EndOfDay
                     | Kind::Movement
@@ -390,6 +398,9 @@ pub fn tick(app: &AppHandle, inner: &mut Inner) -> Result<(), String> {
     }
     if !inner.storage.user_settings()?.onboarding.completed {
         return Ok(());
+    }
+    if let Some(prompt) = inner.storage.onboarding_prompt(now)? {
+        queue::enqueue(inner, prompt, now);
     }
     for prompt in schedule::candidates(inner, now)? {
         queue::enqueue(inner, prompt, now);
@@ -1020,6 +1031,39 @@ pub fn respond_companion_intervention(
     let now = chrono::Utc::now().timestamp();
     if matches!(prompt.kind, Kind::Midday | Kind::Research) {
         return Err("This retired help offer is no longer available".into());
+    }
+    if prompt.kind == Kind::OnboardingCompletion && action != "chat" {
+        inner.storage.respond_onboarding_prompt(&prompt, &action)?;
+        if action == "accept" {
+            inner.storage.ensure_today_focus()?;
+            inner.privacy_revision += 1;
+            inner.goal_matching.clear();
+            if prompt.step_id.as_deref() == Some("step-2") && !inner.storage.onboarding_active()? {
+                schedule::respond_planning(&mut inner.companion.memory, "skip_today", now);
+                inner
+                    .storage
+                    .write_setting("companion_memory", &inner.companion.memory)?;
+            }
+        }
+        inner.companion.view.intervention = None;
+        crate::frontend_events::changed(
+            &app,
+            &[
+                crate::frontend_events::Resource::Workspace,
+                crate::frontend_events::Resource::Dashboard,
+            ],
+            false,
+        );
+        offer_onboarding(&app, &mut inner)?;
+        crate::buddy::sync(&app, &mut inner)?;
+        drop(inner);
+        if action == "accept" {
+            if let Some(page) = crate::onboarding_goal::next_page(prompt.step_id.as_deref()) {
+                let _ = app.emit("buddy://navigate", page);
+                crate::buddy::open_workspace(app)?;
+            }
+        }
+        return Ok(());
     }
     if prompt.kind == Kind::GoalMatch {
         use crate::goal_matching::suggestions::Response;

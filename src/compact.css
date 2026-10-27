@@ -1813,3 +1813,101 @@ main.desktop-buddy.surface-panel {
   bottom: auto;
   transform: rotate(135deg);
 }
+
+/* The final onboarding card follows the owner's compact two-choice design. */
+.app-shell .main .core-onboarding.onboarding-choice {
+  max-width: 580px;
+  margin-inline: auto;
+  padding-top: clamp(32px, 8vh, 104px);
+  gap: 20px;
+}
+.onboarding-choice > .eyebrow,
+.onboarding-choice h1,
+.onboarding-choice p {
+  margin: 0;
+}
+.onboarding-choice h1 {
+  line-height: 1.2;
+}
+.onboarding-choice form,
+.onboarding-choice fieldset {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+.onboarding-choice fieldset {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+.onboarding-choice .onboarding-intro {
+  color: var(--muted);
+}
+.onboarding-options {
+  display: grid;
+  gap: 12px;
+}
+.onboarding-choice .onboarding-option {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.onboarding-option[data-selected="true"] {
+  border-color: var(--accent);
+}
+.onboarding-option:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.onboarding-choice .onboarding-option input[type="radio"] {
+  width: 20px;
+  height: 20px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  flex: 0 0 20px;
+  accent-color: var(--accent);
+}
+.onboarding-option > span {
+  display: grid;
+  gap: 3px;
+}
+.onboarding-option > span > span {
+  font-weight: 500;
+}
+.onboarding-option small {
+  font-size: var(--text-body);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.onboarding-tracking-setup {
+  display: grid;
+  gap: 12px;
+}
+.onboarding-tracking-setup .setting-row {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.onboarding-tracking-setup summary {
+  font-size: var(--text-caption);
+  color: var(--muted);
+}
+
+.onboarding-access {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  color: var(--muted);
+  font-size: var(--text-caption);
+}
+.onboarding-access button {
+  padding: 0;
+  min-height: 0;
+  font-size: var(--text-caption);
+}

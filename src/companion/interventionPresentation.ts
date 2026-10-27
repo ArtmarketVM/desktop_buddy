@@ -9,6 +9,8 @@ export function interventionState(prompt: Intervention): AvatarState {
     case "end_of_day":
     case "automatic_completion":
       return "success";
+    case "onboarding_completion":
+      return prompt.step_id === "step-2" ? "success" : "attention";
     case "completion":
     case "goal_completion":
     case "goal_match":

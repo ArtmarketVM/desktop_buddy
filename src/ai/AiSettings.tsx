@@ -38,7 +38,7 @@ export function AiSettings({
       <span className={compact ? "lbl" : undefined}>
         Correct dictated text before editing
         {compact ? (
-          <Hint text="Before the draft appears, send the recognized text to Nebius to fix likely misheard words. Includes up to 12 open goal titles only when goal sharing is on. Audio stays on your device. Nothing is sent as a chat message or changes your goals until Send. Off by default." />
+          <Hint text="Before the draft appears, send the recognized text to Nebius to fix likely misheard words. Includes up to 12 open goal titles only when goal sharing is on. Audio stays on your device. Nothing is sent as a chat message or changes your goals until Send. On for new profiles; you can switch it off here." />
         ) : (
           <small>
             Before the draft appears, send recognized text to Nebius to fix

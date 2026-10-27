@@ -76,3 +76,30 @@ describe("macOS Accessibility state", () => {
     expect(invoke).not.toHaveBeenCalled();
   });
 });
+
+describe("minimal onboarding permission prompt", () => {
+  it("shows no granted badge, repair controls or extra text after access is allowed", async () => {
+    vi.mocked(invoke).mockResolvedValue(true);
+    const view = render(<MacPermissions variant="onboarding" />);
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("get_accessibility_permission"),
+    );
+    expect(view.container.textContent).toBe("");
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+  it("shows one action only when access is missing and clears itself after the user grants it", async () => {
+    let allowed = false;
+    vi.mocked(invoke).mockImplementation(async () => allowed as never);
+    render(<MacPermissions variant="onboarding" />);
+    await screen.findByText("Allow Accessibility to track activity.");
+    expect(screen.getAllByRole("button")).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Open settings" }));
+    await waitFor(() =>
+      expect(invoke).toHaveBeenCalledWith("request_accessibility_permission"),
+    );
+    allowed = true;
+    fireEvent.focus(window);
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
+    expect(screen.queryByRole("button")).toBeNull();
+  });
+});

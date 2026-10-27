@@ -8,7 +8,7 @@ export function MacPermissions({
   variant = "callout",
 }: {
   /** "row" is a Settings row with status and actions; "callout" shows only when access is missing. */
-  variant?: "callout" | "row";
+  variant?: "callout" | "row" | "onboarding";
 } = {}) {
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
@@ -68,6 +68,20 @@ export function MacPermissions({
       })
       .catch((e) => setError(String(e)));
   };
+  if (variant === "onboarding")
+    return (
+      <>
+        {allowed === false && (
+          <div className="onboarding-access" role="status">
+            <span>Allow Accessibility to track activity.</span>
+            <button type="button" className="text-button" onClick={request}>
+              Open settings
+            </button>
+          </div>
+        )}
+        {error && <p role="alert">{error}</p>}
+      </>
+    );
   if (variant === "row")
     return (
       <>

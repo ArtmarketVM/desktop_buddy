@@ -119,7 +119,17 @@ pub fn request_accessibility_permission(window: WebviewWindow) -> Result<bool, S
     if window.label() != "main" {
         return Err("Open Settings in the workspace to manage permissions".into());
     }
-    Ok(unsafe { buddy_accessibility(true) })
+    let allowed = unsafe { buddy_accessibility(true) };
+    if !allowed {
+        let status = std::process::Command::new("/usr/bin/open")
+            .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+            .status()
+            .map_err(|_| "Could not open Accessibility settings. Open System Settings → Privacy & Security → Accessibility.")?;
+        if !status.success() {
+            return Err("Could not open Accessibility settings. Open System Settings → Privacy & Security → Accessibility.".into());
+        }
+    }
+    Ok(allowed)
 }
 /// Legacy ad-hoc builds identify an exact binary hash, so their grants may become stale after an
 /// update or signing-identity transition. This explicit repair removes only sumi's old grant.
