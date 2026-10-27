@@ -2,6 +2,7 @@
   "name": "desktop-buddy",
   "private": true,
   "version": "0.47.1",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",

@@ -1,5 +1,14 @@
 # Desktop Buddy session handoff
 
+## MIT license and font notices — 27 October 2026
+
+- Based on `4b0b0b6`, identical to `origin/main` after fetch; working tree was clean before this change. Added the standard root MIT `LICENSE` with attribution to ArtmarketVM and Desktop Buddy contributors, matching npm/Cargo license metadata and README links. Third-party licenses remain separate.
+- Documentation/license metadata only; application code, dependencies and version 0.47.1 are unchanged. No installer rebuild is required. The owner authorized commit/push; verify GitHub license detection after publication.
+- Validation for this change on `4b0b0b6`: `git diff --check`, `node scripts/check-version.mjs` (0.47.1), and Node assertions for matching MIT metadata in package.json, package-lock.json and Cargo.toml passed. Application tests/builds were not run because no runtime code or dependencies changed.
+- Added verbatim Instrument Sans and Silkscreen copyright/OFL notices from `docs/fonts/` to `THIRD_PARTY_NOTICES.md`, preserving existing speech-component notices. This file is already a shared Tauri bundle resource; platform configurations do not override it. The new notices will ship with the next Windows/macOS release; published 0.47.1 installers have not been rebuilt or replaced.
+- Font-notice validation: exact source-text inclusion, preservation of existing component notices, shared bundle-resource mapping and absence of platform resource overrides checked with Node assertions; `git diff --check` passed. This verifies source/configuration only, not newly built installers.
+- Suggested commit: `Add MIT license and bundled font license notices`.
+
 ## Published 0.47.0 — 26 October 2026
 
 - [Release 0.47.0](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.47.0) is public for Windows x64 and Apple Silicon macOS 14.5+. Source **2ea26ee50273bfad7dd68279bc45b5ea23120ee3**, merged through [PR #55](https://github.com/ArtmarketVM/desktop_buddy/pull/55). All five manifests are 0.47.0. This handoff update is documentation only; do not bump/rebuild.

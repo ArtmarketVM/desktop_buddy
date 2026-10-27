@@ -2,6 +2,7 @@
 name = "desktop-buddy"
 version = "0.47.1"
 description = "A local-first focus companion for Windows and macOS"
+license = "MIT"
 edition = "2021"
 
 [lib]

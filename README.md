@@ -2,6 +2,8 @@
 
 A local-first desktop companion that helps you keep track of goals, return to unfinished work, and take the next useful step. Built with **Tauri 2, Rust, React/TypeScript and SQLite**, with cloud AI through **Nebius Token Factory** and web research through **Tavily**.
 
+[MIT licensed](LICENSE).
+
 ## Download
 
 [Get the latest release](https://github.com/ArtmarketVM/desktop_buddy/releases/latest) for the current version, release notes and verified installer assets. Replace `<version>` below with that release’s version.
@@ -180,4 +182,10 @@ Buddy is a bounded assistant with validated application skills, not an unrestric
 
 Google/Apple Calendar integration, arbitrary application control and a vector database are not implemented. There is no model fine-tuning: personalization comes from permitted local memory, explicit preferences and feedback. The project does not promise ChatGPT-equivalent quality or completely autonomous completion of work.
 
-See [CHANGELOG.md](CHANGELOG.md) for version history and the [demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) for current acceptance steps. Older version-specific documents in `docs/` are historical design/validation records and can contain superseded behavior; use current source and release evidence when checking a claim. A project license has not yet been added.
+See [CHANGELOG.md](CHANGELOG.md) for version history and the [demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) for current acceptance steps. Older version-specific documents in `docs/` are historical design/validation records and can contain superseded behavior; use current source and release evidence when checking a claim.
+
+## License
+
+Desktop Buddy is available under the [MIT License](LICENSE), copyright 2026 ArtmarketVM and Desktop Buddy contributors.
+
+Third-party components retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md) and the bundled [Instrument Sans](docs/fonts/instrument-sans-LICENSE.txt) and [Silkscreen](docs/fonts/silkscreen-LICENSE.txt) font licenses. The project license does not replace the terms of external AI services or model licenses.
