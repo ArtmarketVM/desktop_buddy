@@ -20,28 +20,35 @@ export function CoreOnboarding({
 }) {
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState(initial.profile);
-  const [tracking, setTracking] = useState(false);
+  const [tracking, setTracking] = useState(true);
   const [busy, setBusy] = useState(false);
   const [openingPermissions, setOpeningPermissions] = useState(false);
   const [error, setError] = useState("");
   const batch = useRef(crypto.randomUUID());
+  const trackingSetupOpened = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     heading.current?.focus();
   }, [step]);
   useEffect(() => {
     onDirty(
-      JSON.stringify(profile) !== JSON.stringify(initial.profile) || tracking,
+      JSON.stringify(profile) !== JSON.stringify(initial.profile) || !tracking,
     );
     return () => onDirty(false);
   }, [profile, tracking, initial.profile, onDirty]);
+  async function openTrackingSetup() {
+    await invoke<boolean>("request_accessibility_permission");
+    if (isMac)
+      await invoke<boolean>("screenshot_permission", { request: true });
+    trackingSetupOpened.current = true;
+  }
   async function chooseTracking(enabled: boolean) {
     setTracking(enabled);
     setError("");
     if (!enabled || !desktop) return;
     setOpeningPermissions(true);
     try {
-      await invoke<boolean>("request_accessibility_permission");
+      await openTrackingSetup();
     } catch (e) {
       setError(String(e));
     } finally {
@@ -52,6 +59,11 @@ export function CoreOnboarding({
     setBusy(true);
     setError("");
     try {
+      // The default choice still opens the native permission flow on Continue.
+      // Selecting With tracking manually may already have opened it once.
+      if (tracking && !trackingSetupOpened.current) {
+        await openTrackingSetup();
+      }
       await coreApi.setup(
         profile.name,
         [],

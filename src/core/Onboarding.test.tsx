@@ -63,32 +63,65 @@ function openChoices() {
   return { changed, complete };
 }
 
-it("defaults to no tracking and does not ask for system access when continuing", async () => {
-  const { changed, complete } = openChoices();
-  expect(
-    (
-      screen.getByRole("radio", {
-        name: "Without tracking",
-      }) as HTMLInputElement
-    ).checked,
-  ).toBe(true);
-  expect(
-    screen.getByText("Notice work, time spent, and finished steps."),
-  ).toBeTruthy();
-  expect(screen.queryByLabelText("Tracking setup")).toBeNull();
-  expect(invoke).not.toHaveBeenCalled();
-  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
-  await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
-  expect(setup).toHaveBeenCalledWith(
-    "Sam",
-    [],
-    false,
-    expect.any(String),
-    "",
-    defaultUserSettings.profile.avatar,
+it("does not treat the preselected tracking default as an unsaved edit", () => {
+  const dirty = vi.fn();
+  render(
+    <CoreOnboarding
+      initial={defaultUserSettings}
+      onChanged={vi.fn()}
+      onDirty={dirty}
+    />,
   );
+  expect(dirty).toHaveBeenLastCalledWith(false);
+});
+
+it.each([false, true])(
+  "defaults to tracking and opens native setup only on Continue (macOS=%s)",
+  async (mac) => {
+    platform.isMac = mac;
+    const { changed, complete } = openChoices();
+    expect(
+      (
+        screen.getByRole("radio", {
+          name: "With tracking",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(true);
+    expect(
+      screen.getByText("Notice work, time spent, and finished steps."),
+    ).toBeTruthy();
+    expect(screen.getByLabelText("Tracking setup")).toBeTruthy();
+    expect(invoke).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(complete).toHaveBeenCalledTimes(1));
+    expect(setup).toHaveBeenCalledWith(
+      "Sam",
+      [],
+      true,
+      expect.any(String),
+      "",
+      defaultUserSettings.profile.avatar,
+    );
+    expect(invoke.mock.calls).toEqual(
+      mac
+        ? [
+            ["request_accessibility_permission"],
+            ["screenshot_permission", { request: true }],
+          ]
+        : [["request_accessibility_permission"]],
+    );
+    expect(changed).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("honors an explicit manual-mode choice without requesting system access", async () => {
+  const { complete } = openChoices();
+  fireEvent.click(screen.getByRole("radio", { name: "Without tracking" }));
+  expect(screen.queryByLabelText("Tracking setup")).toBeNull();
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  await waitFor(() => expect(complete).toHaveBeenCalledOnce());
+  expect(setup.mock.calls[0][2]).toBe(false);
   expect(invoke).not.toHaveBeenCalled();
-  expect(changed).toHaveBeenCalledTimes(1);
 });
 
 it.each([false, true])(
@@ -96,10 +129,8 @@ it.each([false, true])(
   async (mac) => {
     platform.isMac = mac;
     const { complete } = openChoices();
+    fireEvent.click(screen.getByRole("radio", { name: "Without tracking" }));
     fireEvent.click(screen.getByRole("radio", { name: "With tracking" }));
-    expect(invoke).toHaveBeenCalledExactlyOnceWith(
-      "request_accessibility_permission",
-    );
     expect(setup).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(screen.queryByText("Opening tracking setup…")).toBeNull(),
@@ -120,12 +151,20 @@ it.each([false, true])(
       "",
       defaultUserSettings.profile.avatar,
     );
-    expect(invoke).toHaveBeenCalledTimes(1);
+    expect(invoke.mock.calls).toEqual(
+      mac
+        ? [
+            ["request_accessibility_permission"],
+            ["screenshot_permission", { request: true }],
+          ]
+        : [["request_accessibility_permission"]],
+    );
   },
 );
 
 it("switches back to manual mode without enabling tracking or reopening system setup", async () => {
   const { complete } = openChoices();
+  fireEvent.click(screen.getByRole("radio", { name: "Without tracking" }));
   fireEvent.click(screen.getByRole("radio", { name: "With tracking" }));
   await waitFor(() =>
     expect(screen.queryByText("Opening tracking setup…")).toBeNull(),
@@ -141,7 +180,7 @@ it("switches back to manual mode without enabling tracking or reopening system s
 it("keeps the card recoverable if system setup cannot open", async () => {
   invoke.mockRejectedValueOnce("System settings unavailable");
   openChoices();
-  fireEvent.click(screen.getByRole("radio", { name: "With tracking" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
   await waitFor(() =>
     expect(screen.getByRole("alert").textContent).toContain(
       "System settings unavailable",
