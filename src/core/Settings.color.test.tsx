@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -57,6 +58,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.resetAllMocks();
 });
 it("can return to system appearance and keeps the displayed theme when choosing manual mode", async () => {
@@ -149,6 +151,8 @@ it("color autosaves without saving unrelated name drafts", async () => {
         .disabled,
     ).toBe(false),
   );
+  // Keep the independent name debounce from expiring on a busy test worker.
+  vi.useFakeTimers();
   fireEvent.click(screen.getByRole("button", { name: "Profile" }));
   fireEvent.change(screen.getByLabelText("Preferred name"), {
     target: { value: "Unsaved name" },
@@ -158,7 +162,8 @@ it("color autosaves without saving unrelated name drafts", async () => {
   expect(
     screen.getByRole("button", { name: "Violet" }).getAttribute("aria-pressed"),
   ).toBe("true");
-  await waitFor(() => expect(changed).toHaveBeenCalledOnce());
+  await act(async () => {});
+  expect(changed).toHaveBeenCalledOnce();
   expect(api.setAvatarColor).toHaveBeenCalledWith("#6C5FFF");
   expect(coreApi.identity).not.toHaveBeenCalled();
   fireEvent.click(screen.getByRole("button", { name: "Profile" }));

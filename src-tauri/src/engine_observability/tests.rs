@@ -324,6 +324,7 @@ fn sidebar_status_is_content_free_and_configuration_does_not_claim_connectivity(
             "configured_model",
             "configured_response_model",
             "configured_vision_model",
+            "connection_mode",
             "services"
         ]
     );
@@ -335,6 +336,7 @@ fn sidebar_status_is_content_free_and_configuration_does_not_claim_connectivity(
         status["configured_image_description_model"],
         serde_json::json!(model_label(&crate::vision::image_model()))
     );
+    assert_eq!(status["connection_mode"], "personal");
     let serialized = status.to_string();
     for private in [
         "api_key",
@@ -399,9 +401,16 @@ fn sidebar_invalidates_checks_and_discards_results_when_credentials_or_privacy_c
     );
     begin_connection_check(&mut inner, "nebius").unwrap();
     finish_connection_check(&mut inner, "nebius", revision, true, Some(true));
+    // A stale completion must not clear the newer connection check.
     assert_eq!(
         service_status_view(&inner)["services"][0]["status"],
-        "not_checked"
+        "checking"
+    );
+    let current_revision = inner.privacy_revision;
+    finish_connection_check(&mut inner, "nebius", current_revision, true, Some(true));
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "verified"
     );
     inner.status.mock_ai = true;
     assert_eq!(service_status_view(&inner)["services"][0]["status"], "mock");
