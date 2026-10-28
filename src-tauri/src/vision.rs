@@ -11,12 +11,20 @@ const MODEL: &str = "nvidia/Nemotron-3.5-Super-VL";
 fn capture_failure_status(error: &str) -> &'static str {
     match error {
         "Screen Recording permission is unavailable" => "capture_permission_required",
+        "Capture access denied" => "capture_permission_required",
         "Capture source lookup failed" => "capture_source_lookup_failed",
         "Focused window has no unique capture source" => "capture_source_not_unique",
         "Focused window bounds unavailable"
         | "Window bounds unavailable"
         | "Client area unavailable" => "capture_bounds_unavailable",
         "Window capture timed out" => "capture_timed_out",
+        "Window capture is unsupported" => "capture_unsupported",
+        "Capture runtime unavailable" => "capture_runtime_unavailable",
+        "Capture graphics device unavailable" => "capture_device_unavailable",
+        "Window excludes capture" => "capture_protected",
+        "Capture start failed" => "capture_start_failed",
+        "Window identity unavailable" => "capture_source_unavailable",
+        "Window capture unavailable" => "capture_worker_unavailable",
         "Image exceeds the context budget" => "capture_image_too_large",
         "Desktop session is inactive or locked" => "capture_session_inactive",
         "Screen context changed"
@@ -91,11 +99,9 @@ pub(crate) async fn capture_frame(
         inner.vision.status = "capturing";
         inner.last_consent_change
     };
-    let Some(window) = activity.window_id else {
-        return Ok(None);
-    };
     let expected = activity.clone();
     let result = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
+        let window = expected.window_id.ok_or("Window identity unavailable")?;
         if !crate::collector::matches_foreground(&expected) {
             return Err("Capture foreground changed".into());
         }
@@ -106,7 +112,7 @@ pub(crate) async fn capture_frame(
         Ok(image)
     })
     .await
-    .map_err(|_| "Window capture unavailable")?;
+    .unwrap_or_else(|_| Err("Window capture unavailable".into()));
     let mut inner = state
         .inner
         .lock()
@@ -115,6 +121,7 @@ pub(crate) async fn capture_frame(
         || !inner.companion.view.preferences.use_screenshots
         || !crate::companion::screen_context::allowed(&inner, activity)
     {
+        inner.vision.status = "capture_consent_or_context_changed";
         return Err("Vision consent or foreground changed".into());
     }
     match result {
@@ -355,6 +362,17 @@ mod tests {
                 "capture_window_occluded",
             ),
             ("Window capture timed out", "capture_timed_out"),
+            ("Window capture is unsupported", "capture_unsupported"),
+            ("Capture runtime unavailable", "capture_runtime_unavailable"),
+            (
+                "Capture graphics device unavailable",
+                "capture_device_unavailable",
+            ),
+            ("Window excludes capture", "capture_protected"),
+            ("Capture start failed", "capture_start_failed"),
+            ("Capture access denied", "capture_permission_required"),
+            ("Window identity unavailable", "capture_source_unavailable"),
+            ("Window capture unavailable", "capture_worker_unavailable"),
             ("Private title or provider payload", "capture_unavailable"),
         ] {
             assert_eq!(capture_failure_status(error), status);
