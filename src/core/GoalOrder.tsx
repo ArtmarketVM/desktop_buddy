@@ -1,4 +1,11 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { GripVertical } from "lucide-react";
 import { desktop } from "../api/tauri";
 import type { CoreGoal } from "./types";
@@ -38,7 +45,7 @@ const MOVE_TOLERANCE = 6;
 const IGNORED =
   "input, textarea, select, a, [contenteditable], .goal-menu, .goal-expanded, .goal-work-context, .checkpoint-popover, .goal-status-icon, .today-queue-heading";
 type Bounds = { top: number; bottom: number };
-type Drag = { from: number; to: number; dy: number; height: number };
+type Drag = { from: number; to: number; dy: number; span: number };
 type Press = {
   index: number;
   to: number;
@@ -72,6 +79,10 @@ export function GoalOrder({
   const [drag, setDrag] = useState<Drag | null>(null);
   const [keyboard, setKeyboard] = useState<number | null>(null);
   const [announcement, announce] = useState("");
+  const [preview, setPreview] = useState<number[] | null>(null);
+  const saving = useRef(false);
+  const landing = useRef<Map<number, number> | null>(null);
+  const animations = useRef<Animation[]>([]);
   const rows = useRef<Array<HTMLDivElement | null>>([]);
   const press = useRef<Press | null>(null);
   const frame = useRef<number | null>(null);
@@ -89,6 +100,49 @@ export function GoalOrder({
   const visibleIds = goals.map((goal) => goal.id);
   const allKey = allIds.join(",");
   const visibleKey = visibleIds.join(",");
+  const displayed = preview
+    ? preview.flatMap((id) => goals.filter((goal) => goal.id === id))
+    : goals;
+  function capturePositions() {
+    landing.current = new Map(
+      rows.current.flatMap((row) =>
+        row
+          ? [
+              [
+                Number(row.dataset.goalId),
+                row.getBoundingClientRect().top,
+              ] as const,
+            ]
+          : [],
+      ),
+    );
+  }
+  // FLIP the existing rows into their final slots, including rollback and priority sorting.
+  // Keep the optimistic order until refresh finishes so a drop never flashes the old list.
+  useLayoutEffect(() => {
+    const positions = landing.current;
+    if (!positions) return;
+    landing.current = null;
+    animations.current.forEach((animation) => animation.cancel());
+    animations.current = [];
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    displayed.forEach((goal, index) => {
+      const row = rows.current[index];
+      const before = positions.get(goal.id);
+      if (!row?.animate || before === undefined) return;
+      const delta = before - row.getBoundingClientRect().top;
+      if (Math.abs(delta) < 0.5) return;
+      animations.current.push(
+        row.animate(
+          [
+            { transform: `translateY(${delta}px)` },
+            { transform: "translateY(0)" },
+          ],
+          { duration: 220, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+        ),
+      );
+    });
+  });
   const bounds = () =>
     rows.current.slice(0, goals.length).map((row) => {
       const rect = row?.getBoundingClientRect();
@@ -101,6 +155,7 @@ export function GoalOrder({
     press.current = null;
   }
   function cancel() {
+    if (press.current?.active || keyboardState.current) capturePositions();
     stopPointer();
     keyboardState.current = null;
     setKeyboard(null);
@@ -113,6 +168,7 @@ export function GoalOrder({
     return () => {
       alive.current = false;
       stopPointer();
+      animations.current.forEach((animation) => animation.cancel());
       window.removeEventListener("blur", blur);
     };
     // Mount-only listener: cancel() reads refs and state setters, so the first instance stays correct.
@@ -133,7 +189,7 @@ export function GoalOrder({
     from: number,
     to: number,
   ) {
-    if (from === to || blocked) return;
+    if (from === to || blocked || saving.current) return;
     const same =
       all.join(",") === allIds.join(",") &&
       visible.join(",") === visibleIds.join(",");
@@ -142,6 +198,8 @@ export function GoalOrder({
       return;
     }
     announce(`Saving the position of ${goals[from].title}…`);
+    saving.current = true;
+    setPreview(moveGoal(visible, visible[from], visible[to]));
     try {
       const result = await reorder(
         moveVisibleGoal(all, visible, visible[from], visible[to]),
@@ -156,6 +214,13 @@ export function GoalOrder({
         );
     } catch {
       if (alive.current) announce("The order was not saved. Try again.");
+    } finally {
+      saving.current = false;
+      if (alive.current) {
+        // Read by identity: a parent refresh may already have changed the goal array.
+        capturePositions();
+        setPreview(null);
+      }
     }
   }
   function updatePointer(y: number) {
@@ -179,7 +244,12 @@ export function GoalOrder({
       from: state.index,
       to: closest,
       dy,
-      height: origin.bottom - origin.top,
+      span:
+        state.index < closest
+          ? state.rects[state.index + 1].top - origin.top
+          : state.index > closest
+            ? origin.bottom - state.rects[state.index - 1].bottom
+            : origin.bottom - origin.top,
     });
   }
   function scrollWhileDragging() {
@@ -200,6 +270,7 @@ export function GoalOrder({
     frame.current = requestAnimationFrame(scrollWhileDragging);
   }
   function lift(node: HTMLDivElement, state: Press) {
+    animations.current.forEach((animation) => animation.cancel());
     state.rects = bounds();
     state.active = true;
     node.setPointerCapture?.(state.pointer);
@@ -208,6 +279,7 @@ export function GoalOrder({
   }
   function finish() {
     const state = press.current;
+    if (state?.active) capturePositions();
     stopPointer();
     setDrag(null);
     if (!state?.active) return;
@@ -220,9 +292,9 @@ export function GoalOrder({
   function shift(index: number) {
     if (!drag || index === drag.from) return 0;
     if (drag.from < drag.to && index > drag.from && index <= drag.to)
-      return -drag.height;
+      return -drag.span;
     if (drag.from > drag.to && index >= drag.to && index < drag.from)
-      return drag.height;
+      return drag.span;
     return 0;
   }
   return (
@@ -245,13 +317,14 @@ export function GoalOrder({
       <span role="status" className="sr-only">
         {announcement}
       </span>
-      {goals.map((goal, index) => (
+      {displayed.map((goal, index) => (
         <div
           key={goal.id}
+          data-goal-id={goal.id}
           ref={(node) => {
             rows.current[index] = node;
           }}
-          className={`ordered-goal ${showHandles ? "has-drag-handle" : ""} ${drag?.from === index ? "lifted" : ""} ${drag?.to === index && drag.from !== index ? "drop-target" : ""}`}
+          className={`ordered-goal ${showHandles ? "has-drag-handle" : ""} ${drag?.from === index ? "lifted" : ""}`}
           style={
             drag
               ? {
@@ -271,6 +344,7 @@ export function GoalOrder({
             );
             if (
               blocked ||
+              saving.current ||
               event.button !== 0 ||
               event.isPrimary === false ||
               (!handle && (event.target as Element).closest(IGNORED))
@@ -335,6 +409,7 @@ export function GoalOrder({
               onKeyDown={(event) => {
                 if (
                   blocked ||
+                  saving.current ||
                   ![" ", "Enter", "ArrowUp", "ArrowDown"].includes(event.key)
                 )
                   return;
@@ -343,6 +418,7 @@ export function GoalOrder({
                 const state = keyboardState.current;
                 if (event.key === " " || event.key === "Enter") {
                   if (state) {
+                    capturePositions();
                     keyboardState.current = null;
                     setKeyboard(null);
                     setDrag(null);
@@ -367,7 +443,7 @@ export function GoalOrder({
                       from: index,
                       to: index,
                       dy: 0,
-                      height: rects[index].bottom - rects[index].top,
+                      span: rects[index].bottom - rects[index].top,
                     });
                     announce(
                       `Picked up ${goal.title}. Use the arrow keys, then Space to save.`,
@@ -385,10 +461,20 @@ export function GoalOrder({
                     from: state.index,
                     to: state.to,
                     dy:
-                      state.rects[state.to].top - state.rects[state.index].top,
-                    height:
-                      state.rects[state.index].bottom -
-                      state.rects[state.index].top,
+                      state.to > state.index
+                        ? state.rects[state.to].bottom -
+                          state.rects[state.index].bottom
+                        : state.rects[state.to].top -
+                          state.rects[state.index].top,
+                    span:
+                      state.to > state.index
+                        ? state.rects[state.index + 1].top -
+                          state.rects[state.index].top
+                        : state.to < state.index
+                          ? state.rects[state.index].bottom -
+                            state.rects[state.index - 1].bottom
+                          : state.rects[state.index].bottom -
+                            state.rects[state.index].top,
                   });
                   rows.current[state.to]?.scrollIntoView?.({
                     block: "nearest",

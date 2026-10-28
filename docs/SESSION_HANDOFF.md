@@ -1,5 +1,13 @@
 # Desktop Buddy session handoff
 
+## Smooth goal dragging — 28 October 2026
+
+- Branch `codex/smooth-goal-drag`, based on fetched `origin/main` `156716c`. Scope: shared Today/All goals drag presentation only. Today priority/completion sorting, persistence API, existing pickup gesture and application versions are unchanged. No installers, release or installed-data changes.
+- Removed the blue drop line. Neighbours slide with a 220 ms easing curve; spacing accounts for unequal row heights and gaps. Dropped rows keep their optimistic position until the parent refresh completes. FLIP animations settle into the authoritative order or roll back a failed save; reduced motion skips animation. Pending saves block overlapping drags.
+- Validation of the four changed frontend files: `npm test` passed 336 tests in 52 suites; three suites initially could not load the PDF worker through an external dependency symlink. After replacing only that symlink with an APFS clone of the identical locked dependencies, `npm test -- src/App.data.test.tsx src/companion/Conversation.coaching.test.tsx src/core/media.voice.test.ts` passed the remaining 5 tests in 3 suites. Total: **341 tests / 55 suites passed**, including 13 drag tests. `npm run build`, `npm run lint` (0 errors/warnings), and `git diff --check` passed. Logs: ignored `.tools/drag-{full-tests,rechecked-tests,build}.log` and `.tools/quality/eslint.json`. No Rust changes; Rust checks and installer builds were not rerun.
+- The actual workspace rendered with fictional goals in a temporary browser preview. Manual pointer verification did not complete: browser input timed out, then automatic review refused inspection of the general Chrome window because it contained unrelated private mail. Do not claim a native macOS/Windows gesture pass. The preview server was stopped. Static reviewed baselines were not changed; no new canonical screenshots need approval.
+- User authorized this focused commit and GitHub push, with installers deferred until several changes are collected. Suggested commit title: `Smooth goal drag and drop transitions`.
+
 ## Published 0.48.0 — 27 October 2026
 
 - [Release 0.48.0](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.48.0) is public for **Windows x64 and Apple Silicon macOS 14.5+**. Release source **97e00d5bad95274c10125e223b3982f24b78be89**, tag `v0.48.0`. All five product manifests use 0.48.0. [Release notes](RELEASE_0.48.0.md) describe the final behavior; this handoff update is documentation only and needs no installer rebuild/version bump.

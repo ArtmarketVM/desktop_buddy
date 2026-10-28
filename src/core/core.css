@@ -517,13 +517,19 @@
   cursor: grabbing;
 }
 .reordering .ordered-goal {
-  transition: transform 150ms ease;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  will-change: transform;
 }
 .reordering .ordered-goal.lifted {
   transition: none;
   z-index: 5;
   background: var(--surface);
   box-shadow: 0 8px 24px var(--color-fixed-rgba-0-0-0-0-14);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reordering .ordered-goal {
+    transition: none;
+  }
 }
 .core-steps li {
   display: flex;
