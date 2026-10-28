@@ -1,6 +1,13 @@
 # Desktop Buddy session handoff
 
-## Working 20-second observation cadence — 28 October 2026
+## Preparing 0.48.1 — 28 October 2026
+
+- Owner requested another build. Patch release metadata is synchronized at 0.48.1 across all five manifests, with complete notes in `RELEASE_0.48.1.md`. Includes `33544b8`'s shared 20-second capture/observation/text refresh and the first-launch-default documentation correction. No other developer branch was merged.
+- Local `npm run build`, `npm run test:release` (**18 passed**), `node scripts/prepare-release.mjs --check` and `git diff --check` passed. Reuse the successful Windows Rust checks below: runtime source/dependencies are unchanged by version preparation. Logs `.tools/release-0481-{build,policy}.log`.
+- Source-change CI is [Application checks 40728044765](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40728044765), watched once via `.tools/release-0481-base-ci-watch.log`. Wait for both platform checks and both Rust lint jobs before publishing the candidate. Signing identities, trusted updater keys and review baselines are unchanged.
+- No 0.48.1 installer has been built/published yet. Use the existing shared signed release workflow for Windows x64 and Apple Silicon macOS 14.5+. Public artifact verification is still required after publication. Local helper `.tools/verify-release-0481-public.mjs` verifies downloaded checksums, both signed channels and retained Windows compatibility manifests.
+
+## Source 20-second observation cadence — 28 October 2026
 
 - Fast-forwarded the clean tracked checkout from `fa8d746` to fetched `origin/main` at `156716c`, preserving the untracked completion plan. The owner's subsequent request changes the shared foreground capture, semantic observation and Accessibility text-cache intervals to 20 seconds via `observation::SAMPLE_INTERVAL`.
 - Both platform adapters use the same gates. The existing 120-disclosure rolling-hour budget and three verification slots remain; this is a minimum interval, not a guaranteed continuous three calls per minute. Consent/legacy opt-outs, privacy, foreground validation, the two-minute sealed result lease and completion verification remain unchanged.
@@ -8,8 +15,8 @@
 - Windows test prerequisites: ignored checkout-local Cargo/Rustup, CMake 4.4.4 under `.tools/cmake-runtime/cmake/data/bin`, libclang 18.1.1 under `.tools/libclang-runtime/clang/native` (`LIBCLANG_PATH`), and Visual Studio Developer PowerShell. Tools were downloaded using the Windows trusted-root bundle with TLS verification enabled. The dependency's bundled-bindings fallback was incompatible with Windows and was abandoned; normal bindgen generates actual Windows bindings. No application dependencies or system toolchain settings changed.
 - Validation covers the final Rust working diff on `156716c`: `cargo test --locked --manifest-path src-tauri/Cargo.toml --test backend observation` **24 passed**; full `cargo test --locked --manifest-path src-tauri/Cargo.toml` **748 passed / 5 intentionally ignored / 0 failed**. Full suite reported 3660.11 seconds; retain this successful evidence instead of repeating it for documentation or commit-only work. `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and `git diff --check` passed. Logs: `.tools/observation-20s-{targeted,full}.log`. No frontend runtime files changed; frontend tests/build were not rerun.
 - Follow-up fetch: `main` remains identical to `origin/main` at `156716c`. New remote branch `origin/codex/smooth-goal-drag` has `4680998` (goal-order UI/tests/CSS and handoff only), with no overlap in observation Rust sources; it has not been merged into this change.
-- The owner authorized commit/push of this source change. No installer or version bump is included. Installed 0.48.0 still uses the released cadence. Native/live cadence and macOS execution have not been validated.
-- Suggested commit: `Refresh foreground observation every 20 seconds`.
+- Committed and pushed to `main` as `33544b8` (`Refresh foreground observation every 20 seconds`). No installer or version bump is included. Installed 0.48.0 still uses the released cadence. Native/live cadence and macOS execution have not been validated.
+- Documentation correction included in 0.48.1 preparation: `PERSONAL_AI_OBSERVATION.md` describes 0.48.0 first-launch screenshot/automatic-completion defaults while preserving existing-profile opt-outs. This does not change runtime behavior.
 
 ## Published 0.48.0 — 27 October 2026
 
