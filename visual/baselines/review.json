@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "applicationBase": "8dfc9dfc1c458eb0c81e211cc6fc188222cb64e0",
-  "captureCommit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
-  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40381674589",
-  "approvedOn": "2026-10-26",
-  "approvedBy": "Repository owner, explicit chat approval of all seven changed canonical screenshots",
-  "approval": "Owner confirmed: Approve screenshots and continue publication. Review covered four Settings General captures adding Use system appearance and three captures with only 12\u201319 edge pixels changing by one color level.",
+  "applicationBase": "e9f7468a329cbdbb9fe48d24aef6add982797e97",
+  "captureCommit": "7ddd1937067456bf30d6834a2f501dd524ca149d",
+  "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40762810956",
+  "approvedOn": "2026-10-28",
+  "approvedBy": "Repository owner, explicit chat approval of all 34 screenshots",
+  "approval": "Owner confirmed: Approve all 34 screenshots. Review covered the AI connection row in both themes and viewport sizes, and the not-yet-checked Built-in AI fixture states.",
   "knownExistingIssues": [
     "The previous narrow Privacy working-hours overflow is superseded by the intentional removal of those controls, included in this approval. Native WebView rendering and physical-device interactions are not established by browser screenshots."
   ],
   "environment": {
-    "commit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
+    "commit": "7ddd1937067456bf30d6834a2f501dd524ca149d",
     "runner": "Windows",
     "image": "20261022.344.1",
     "node": "v24.22.1",
@@ -23,37 +23,37 @@
       "height": 873
     },
     "narrow-dark/chats.png": {
-      "sha256": "1497bca20ec05c74049418568633f4711a412e1fbafefa34a33576eebf695137",
+      "sha256": "c55c23b8c042dde8777b8668cdb9ff947b21090289488f0848a3c428188f3c91",
       "width": 720,
       "height": 873
     },
     "narrow-dark/goals.png": {
-      "sha256": "4a1640b529cb36ae4082399b4887cb2228536710a1e497c7eefb952ccbb4c4b9",
+      "sha256": "df9d5acfca3648ffc6ac5e8231086b89b6001d2edac5e3f1844eb17af0be424a",
       "width": 720,
       "height": 873
     },
     "narrow-dark/progress.png": {
-      "sha256": "f10eb51b731bafaea059e0e699c7e95561b368da5931f873b33b8fb3e8b790ee",
+      "sha256": "b184c7faa0757db9c5d7e3764f7748015b884c81023bdc9204f50a47199173eb",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-ai.png": {
-      "sha256": "ffcf57cd584648fde87c474e9fac53701904601608673c220765c7e3f47e00b5",
+      "sha256": "5fb230ff6ebff767d1d9d990e57a017b7f46a71c7a3b91b24ba74f5f1dae6da8",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-general.png": {
-      "sha256": "2533ae2bfd5ede63192ebc041e7abc5994ad5485c926fdb3bbae350b0f4d5ea2",
+      "sha256": "3374c18e0d1bbf9d25684f40a90dcfa92ca37659ff2027b183a4072705bb91da",
       "width": 720,
       "height": 873
     },
     "narrow-dark/settings-privacy.png": {
-      "sha256": "68650db3463adb048d62e8b86b9593c5ea7b9ef4c25a2c3d12f95dd6fc4e9d0f",
+      "sha256": "1898cef4a965a275188025ae10d96768e822a31d98bb1e7ec9b5ca9188464d3a",
       "width": 720,
       "height": 873
     },
     "narrow-dark/today.png": {
-      "sha256": "9f1c7363dcc693bd2e622d00a02d546ce94015001f12fa57137c4997f3b9126a",
+      "sha256": "7a7f936b64c52ede7fc7b0f18b0e33dcf2eb1f4b4a736683ae5d793d856824da",
       "width": 720,
       "height": 873
     },
@@ -63,37 +63,37 @@
       "height": 873
     },
     "narrow-light/chats.png": {
-      "sha256": "de12c9226fc8b70559d603b93618ab166fa24fcab0a8381edaf264aa02623d78",
+      "sha256": "1bb512f9da0df47935d339d142073b0cdd0e0eef52e00588cae5f48211234fd0",
       "width": 720,
       "height": 873
     },
     "narrow-light/goals.png": {
-      "sha256": "dbf76e8c18a028b1f744ad582f0722f20d754d6c4bab8fb7867f5dbb9a85fd05",
+      "sha256": "2ad5a65bf606f6a7f79d014e64ed5fd2734b3d133bde3a7e52a5fb63d7d5355c",
       "width": 720,
       "height": 873
     },
     "narrow-light/progress.png": {
-      "sha256": "f922be4fa6f5cc7a7cc00d97d0f8afa22477973b4c41d1b7dd7dfe9d31308997",
+      "sha256": "b2f3a45c39d35553218e68254dc2789b82dcd7e5e231736b78b81b1267935884",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-ai.png": {
-      "sha256": "1329455154eb8ad01536d82e30e73b51392700ef8d4b9966c79464de9874bbf5",
+      "sha256": "c15a2f2cb4003ac22906c5a4d4593a83cd90a599de4f74acd7e0cef84acd3174",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-general.png": {
-      "sha256": "57babe70b7238cbad08ec3b015653f548dcceb67815b09cdf88a022541eea026",
+      "sha256": "bc16db137f246e13917f99826a925f5b068c01c10e9fc9b85bde7cae87ea7a99",
       "width": 720,
       "height": 873
     },
     "narrow-light/settings-privacy.png": {
-      "sha256": "7e71ccf3e81d3343a33487077c8f763a0f1d3e451894d0e22ef57624234a0af5",
+      "sha256": "413aa95d2eb9d87b6180ab4c929f1f33ec2f5def4047f08035d1a2b01979cc88",
       "width": 720,
       "height": 873
     },
     "narrow-light/today.png": {
-      "sha256": "3bdc296e5e381a28214dbe55c39e354e728f5d33f2d387c898954d74058f4cef",
+      "sha256": "6c0401a3c99019637f85f825784090f20b4aa2bd06ebcaa4162ed85f36e2adf7",
       "width": 720,
       "height": 873
     },
@@ -103,42 +103,42 @@
       "height": 873
     },
     "wide-dark/chats.png": {
-      "sha256": "77e0924ee0f717cd70cfac25bd8889f9690bc363b7a7f5e65e9accad5f4f329d",
+      "sha256": "e51f1179f96cad66e2073636ba7320afb6637ebcec714fa6803524ddd0c57d6b",
       "width": 1280,
       "height": 873
     },
     "wide-dark/collapsed-sidebar.png": {
-      "sha256": "d225ba2a9add02d029fdf9667d1829c16d15fd2dabab227c60fc3bb727d905ae",
+      "sha256": "ac3b748f028f96bf6fe582028b930ee36b8b80c0735ac927eabbe732560f233d",
       "width": 1280,
       "height": 873
     },
     "wide-dark/goals.png": {
-      "sha256": "eac904334ed5b3b69a95fbdcca0e85b5afd44d66ea14551ed3c06655506e4516",
+      "sha256": "883ff7b4033ee6430424cc10283741f7d04bc499b33a5fdf3af265f6b0c0b489",
       "width": 1280,
       "height": 873
     },
     "wide-dark/progress.png": {
-      "sha256": "e182e6a3cc9a179684774e55583fb486fa4f8e0a62ac828d1411bc125c373c1b",
+      "sha256": "919a4b629ec4fda008aa03cab93446cb99969d580bd82f7483c92888ab0384cc",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-ai.png": {
-      "sha256": "5eeaf465eb827879045412d9b47824f602f2886a072c1b4b2145ad90f2a564e5",
+      "sha256": "55bb97d77bc37042f38cbeb6cfb77a94cba53df9c4c2892e46237159f11e1b12",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-general.png": {
-      "sha256": "7998ea63c2b91728c74a2a75779111f4176910b8eae78c7871176fdaa660cacc",
+      "sha256": "f97997d3c91191e7616bde053526114da398dd2493cea8e9b657e4a248645809",
       "width": 1280,
       "height": 873
     },
     "wide-dark/settings-privacy.png": {
-      "sha256": "5decdc0609f8e4d7cbd8d1e485baf9ddddde28d0b73b5f1112feecdac17f1ac0",
+      "sha256": "608769e56bcc2e78ac92e155e24a0aaa2cce2f1865f151429b646d8b0f7d5684",
       "width": 1280,
       "height": 873
     },
     "wide-dark/today.png": {
-      "sha256": "0eb6e844fdc23a09bba0b1bba45f34343d991ed7e42758f821685b2afcc3412e",
+      "sha256": "3352005d65df1c3dbaa61d9ca91d9c3cb47e9153b7c3b2e73ab5e86acbbec9c7",
       "width": 1280,
       "height": 873
     },
@@ -148,42 +148,42 @@
       "height": 873
     },
     "wide-light/chats.png": {
-      "sha256": "d58e9fcc560c60d9d5fb45ca6ffe4cd145657d29263186960f21452911cc9e1c",
+      "sha256": "5539fb38578d5e73cbe2212ba2b5cc076a58976816ef3cee7d0a677688e6c00f",
       "width": 1280,
       "height": 873
     },
     "wide-light/collapsed-sidebar.png": {
-      "sha256": "2354b2512c9570cd28865a19320872b50e7c389045bd5349aa66f8063e301e82",
+      "sha256": "0094b24ccfd68590077127caba26676ec7dfdb50b9adf6069eca2ccea4e70544",
       "width": 1280,
       "height": 873
     },
     "wide-light/goals.png": {
-      "sha256": "0afcd4e5861178fb06bef7eee1bb581bc6e30f9f633c371d027abf9030ba1587",
+      "sha256": "e25e492c6c02863b3ff701c7d2e37f99cf9c451706e2f7d94d588d2e01bbc46c",
       "width": 1280,
       "height": 873
     },
     "wide-light/progress.png": {
-      "sha256": "f8dec911d3f8ecc86b00b58459751e895c81532fd6ff1c9ad15345dafd27f773",
+      "sha256": "fd32c16b6c2be264312b74ed72216e0f52632517e76b0438f66c909924d6e46f",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-ai.png": {
-      "sha256": "167751f535b6685dcd07bc2eacd5810982e90aae06cf0c41eaf2a3ff8a40292e",
+      "sha256": "58b95cfe3992c49ae5a490c6a99f210efe1725803c95cf4f0c157c5c01326dc8",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-general.png": {
-      "sha256": "2ae6f4368c5eec690a4ac928cdc424cc7a5f8b6fae3c7bdb45465aa9073a4e07",
+      "sha256": "21603930a301cf24c097b1cd97a7af91c0991e1003b13c077010008a7c80fa24",
       "width": 1280,
       "height": 873
     },
     "wide-light/settings-privacy.png": {
-      "sha256": "409e308f91927a2d7dc7cf9b5cce8ade7cec37db879adf79067826a819074501",
+      "sha256": "80235242e7f73fc4bafbb1937ec80a18fbcd3ef5097db6a8b990e43b93608fb4",
       "width": 1280,
       "height": 873
     },
     "wide-light/today.png": {
-      "sha256": "c00def05e2040a999d3b4594d817db1a0d00432c43b27cd64275221a653eb8ab",
+      "sha256": "081500358e7592a9a286d7d669daad473ddea63cd48af623c8a57f6757700ce4",
       "width": 1280,
       "height": 873
     }
@@ -227,12 +227,12 @@
         "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/39621146427",
         "approvedOn": "2026-10-21",
         "approvedBy": "Repository owner, explicit chat confirmation after reviewing all 34 candidates",
-        "approval": "\u041f\u0440\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043b, \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u044e \u0432\u0441\u0435 34"
+        "approval": "Просмотрел, подтверждаю все 34"
       }
     }
   ],
   "previousReviewCommit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
-  "changeReason": "Settings General adds Use system appearance, enabled by default. Three other captures have reviewed one-level antialiasing differences at 12\u201319 edge pixels; no layout change.",
+  "changeReason": "One AI connection row; built-in service fixtures use configured but not-checked states. Layout and existing controls are preserved.",
   "history": [
     {
       "date": "2026-10-22",
@@ -302,18 +302,59 @@
         ],
         "retainedScreenshots": 26
       }
+    },
+    {
+      "date": "2026-10-28",
+      "reason": "Preserve preceding review before the owner-approved 0.49.0 Built-in AI connection update.",
+      "previousReview": {
+        "captureCommit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
+        "workflowRun": "https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40381674589",
+        "approvedOn": "2026-10-26",
+        "approvedBy": "Repository owner, explicit chat approval of all seven changed canonical screenshots",
+        "approval": "Owner confirmed: Approve screenshots and continue publication. Review covered four Settings General captures adding Use system appearance and three captures with only 12–19 edge pixels changing by one color level.",
+        "environment": {
+          "commit": "003b5193d8a8632b0869b2ce7683271e01b00ba2",
+          "runner": "Windows",
+          "image": "20261022.344.1",
+          "node": "v24.22.1",
+          "reused": ""
+        }
+      }
     }
   ],
   "updatedScreenshots": [
+    "wide-light/chats.png",
+    "wide-light/collapsed-sidebar.png",
+    "wide-light/goals.png",
+    "wide-light/progress.png",
+    "wide-light/settings-ai.png",
     "wide-light/settings-general.png",
+    "wide-light/settings-privacy.png",
+    "wide-light/today.png",
+    "wide-dark/chats.png",
+    "wide-dark/collapsed-sidebar.png",
+    "wide-dark/goals.png",
+    "wide-dark/progress.png",
     "wide-dark/settings-ai.png",
     "wide-dark/settings-general.png",
+    "wide-dark/settings-privacy.png",
+    "wide-dark/today.png",
     "narrow-light/chats.png",
+    "narrow-light/goals.png",
+    "narrow-light/progress.png",
     "narrow-light/settings-ai.png",
     "narrow-light/settings-general.png",
-    "narrow-dark/settings-general.png"
+    "narrow-light/settings-privacy.png",
+    "narrow-light/today.png",
+    "narrow-dark/chats.png",
+    "narrow-dark/goals.png",
+    "narrow-dark/progress.png",
+    "narrow-dark/settings-ai.png",
+    "narrow-dark/settings-general.png",
+    "narrow-dark/settings-privacy.png",
+    "narrow-dark/today.png"
   ],
-  "retainedScreenshots": 27,
-  "repeatability": "Both canonical Windows passes succeeded: 70 passed, 2 intentionally skipped in each pass. No masks or tolerance changes.",
+  "retainedScreenshots": 4,
+  "repeatability": "Both canonical Windows capture/compare passes succeeded in the recorded run. No masks, thresholds or tolerance changes.",
   "retainedMinorRasterDifferences": []
 }

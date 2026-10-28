@@ -854,3 +854,50 @@ fn continuity_read_skill_validates_goal_view_and_result_contract() {
     )
     .contains("Which goal"));
 }
+
+#[test]
+fn creating_after_park_uses_the_new_batch_reference_and_rolls_back_wrong_targets() {
+    let mut storage = store();
+    let old = create(&mut storage, "Existing parked goal", vec![]);
+    storage.core_transition(old, "defer").unwrap();
+    let rejected = fail(
+        &mut storage,
+        vec![
+            action(
+                "create_goal",
+                json!({"title":"Fresh goal","steps":["Send reply"]}),
+            ),
+            action("add_goal_to_today", json!({"goal":goal(old)})),
+        ],
+    );
+    assert!(rejected.contains("Resume this goal"));
+    assert_eq!(storage.core_snapshot(None).unwrap().goals.len(), 1);
+    let out = run(
+        &mut storage,
+        vec![
+            action(
+                "create_goal",
+                json!({"title":"Fresh goal","steps":["Send reply"]}),
+            ),
+            action(
+                "add_goal_to_today",
+                json!({"goal":reference("last_created")}),
+            ),
+            action("set_focus_goal", json!({"goal":reference("last_created")})),
+        ],
+    );
+    let new = out.results[0].goal_id.unwrap();
+    let snapshot = storage.core_snapshot(None).unwrap();
+    assert_ne!(new, old);
+    assert_eq!(snapshot.focused_goal_id, Some(new));
+    assert!(snapshot.today.contains(&new));
+    assert_eq!(
+        snapshot.goals.iter().find(|g| g.id == old).unwrap().status,
+        "deferred"
+    );
+    assert_eq!(
+        snapshot.goals.iter().find(|g| g.id == new).unwrap().title,
+        "Fresh goal"
+    );
+    assert_eq!(storage.goal_plan(new).unwrap().steps.len(), 1);
+}
