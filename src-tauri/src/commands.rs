@@ -41,6 +41,7 @@ impl Inner {
         self.companion.invalidate_screen_context();
         self.unplanned_work.clear();
         self.last_consent_change = self.privacy_revision;
+        crate::engine_observability::invalidate_connections(self);
     }
     /// Whether consent changed after a request captured `revision`.
     pub fn consent_changed(&self, revision: u64) -> bool {

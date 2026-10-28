@@ -1584,7 +1584,6 @@ pub fn set_core_preferences(
         #[cfg(not(test))]
         crate::shared_ai::activate(preferences.ai_connection_mode);
         inner.mark_consent_change();
-        crate::engine_observability::invalidate_connections(&mut inner);
         inner.status.nebius_configured = crate::http::configured("NEBIUS_API_KEY");
         inner.status.tavily_configured = crate::http::configured("TAVILY_API_KEY");
     }

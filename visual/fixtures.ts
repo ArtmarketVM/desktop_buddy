@@ -119,6 +119,7 @@ const core: CoreSnapshot = {
     working_days: [1, 2, 3, 4, 5],
     movement_reminders: false,
     vision_model: "",
+    ai_connection_mode: "built_in",
   },
 };
 
@@ -144,8 +145,8 @@ function dashboard(theme: "light" | "dark", buddy: boolean): Dashboard {
       dnd: false,
       demo: false,
       mock_ai: false,
-      nebius_configured: false,
-      tavily_configured: false,
+      nebius_configured: true,
+      tavily_configured: true,
       last_collected_at: NOW,
     },
     user_settings: {
@@ -214,12 +215,13 @@ export function fixtureReply(
       };
     case "get_ai_service_status":
       return {
+        connection_mode: "built_in",
         configured_model: null,
         configured_vision_model: "moonshotai/Kimi-K3",
         configured_image_description_model: "nvidia/Nemotron-3.5-Super-VL",
         services: ["nebius", "nvidia", "tavily"].map((id) => ({
           id,
-          status: "not_configured",
+          status: "not_checked",
           checked_at: null,
         })),
       };
@@ -231,7 +233,7 @@ export function fixtureReply(
         automatic_goal_matching: false,
       };
     case "test_provider_connection":
-      return "No provider key configured (visual fixture).";
+      return "Connection not checked (visual fixture).";
     case "get_privacy_preview":
       return {
         focus_check: { recent_activity: [{ app: "Code", seconds: 3300 }] },

@@ -484,3 +484,23 @@ fn goal_edits_do_not_invalidate_provider_authentication_or_in_flight_checks() {
         assert_eq!(service["status"], "not_checked");
     }
 }
+
+#[test]
+fn privacy_change_releases_old_probe_without_waiting_for_its_response() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.nebius_configured = true;
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    let old = inner.privacy_revision;
+    inner.mark_consent_change();
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "not_checked"
+    );
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    finish_connection_check(&mut inner, "nebius", old, true, Some(true));
+    assert_eq!(
+        service_status_view(&inner)["services"][0]["status"],
+        "checking"
+    );
+}

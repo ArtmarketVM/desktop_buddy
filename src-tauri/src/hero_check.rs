@@ -142,8 +142,8 @@ pub async fn run() -> Result<Value, String> {
         passed(&mut rows,stage,started);
 
         stage="create_and_focus_goal_b";let started=Instant::now();
-        send(&state,&service,"Create a goal named AI DEMO Client with one step: Send the client reply. Add it to Today and focus it.",false).await?;
-        let b=goal_id(&state,"AI DEMO Client")?;
+        let answer=send(&state,&service,"Create a goal named AI DEMO Client with one step: Send the client reply. Add it to Today and focus it.",false).await?;
+        let b=goal_id(&state,"AI DEMO Client").map_err(|error|format!("{error}. Synthetic response: {answer}"))?;
         require(state.inner.lock().unwrap().storage.core_snapshot(None)?.focused_goal_id==Some(b),"Second goal was not focused")?;
         passed(&mut rows,stage,started);
 
