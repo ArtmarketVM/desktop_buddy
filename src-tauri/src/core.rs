@@ -15,6 +15,7 @@ pub struct CorePreferences {
     pub movement_reminders: bool,
     pub movement_interval_minutes: u32,
     pub vision_model: String,
+    pub ai_connection_mode: crate::shared_ai::ConnectionMode,
 }
 impl Default for CorePreferences {
     fn default() -> Self {
@@ -23,6 +24,7 @@ impl Default for CorePreferences {
             movement_reminders: true,
             movement_interval_minutes: 45,
             vision_model: String::new(),
+            ai_connection_mode: Default::default(),
         }
     }
 }
@@ -1573,7 +1575,19 @@ pub fn set_core_preferences(
         .inner
         .lock()
         .map_err(|_| "Application state unavailable")?;
+    let previous: CorePreferences = inner
+        .storage
+        .read_setting("core_preferences")?
+        .unwrap_or_default();
     let companion = persist_preferences(&mut inner.storage, &preferences)?;
+    if previous.ai_connection_mode != preferences.ai_connection_mode {
+        #[cfg(not(test))]
+        crate::shared_ai::activate(preferences.ai_connection_mode);
+        inner.mark_consent_change();
+        crate::engine_observability::invalidate_connections(&mut inner);
+        inner.status.nebius_configured = crate::http::configured("NEBIUS_API_KEY");
+        inner.status.tavily_configured = crate::http::configured("TAVILY_API_KEY");
+    }
     inner.companion.view.preferences = companion;
     crate::frontend_events::changed(
         &app,

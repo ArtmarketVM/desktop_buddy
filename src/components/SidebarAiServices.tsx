@@ -51,6 +51,7 @@ export function SidebarAiServices({
   const [checking, setChecking] = useState<ServiceId[]>([]);
   const inFlight = useRef<Promise<void> | null>(null);
   const started = useRef(false);
+  const connectionMode = useRef<string | null>(null);
   const allowed = useRef(enabled);
   allowed.current = enabled;
   const [offline, setOffline] = useState(
@@ -136,6 +137,16 @@ export function SidebarAiServices({
       window.removeEventListener("offline", network);
     };
   }, [enabled, refresh, check]);
+  useEffect(() => {
+    if (!snapshot?.connection_mode) return;
+    const previous = connectionMode.current;
+    connectionMode.current = snapshot.connection_mode;
+    if (previous && previous !== snapshot.connection_mode) {
+      void (inFlight.current ?? Promise.resolve()).finally(() => {
+        if (mounted.current && allowed.current) void check();
+      });
+    }
+  }, [snapshot?.connection_mode, check]);
   useEffect(
     () => () => {
       if (timer.current) clearTimeout(timer.current);

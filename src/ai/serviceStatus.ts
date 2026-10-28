@@ -10,6 +10,7 @@ export type ServiceState =
   | "mock"
   | "offline";
 export type ServiceSnapshot = {
+  connection_mode?: "built_in" | "personal";
   configured_model: string | null;
   configured_response_model?: string | null;
   configured_vision_model?: string | null;

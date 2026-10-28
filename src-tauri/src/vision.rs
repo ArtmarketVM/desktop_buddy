@@ -7,6 +7,29 @@ use serde_json::json;
 use std::time::Instant;
 use tauri::WebviewWindow;
 const MODEL: &str = "nvidia/Nemotron-3.5-Super-VL";
+// Only fixed categories enter diagnostics. Never expose provider/OS error payloads.
+fn capture_failure_status(error: &str) -> &'static str {
+    match error {
+        "Screen Recording permission is unavailable" => "capture_permission_required",
+        "Capture source lookup failed" => "capture_source_lookup_failed",
+        "Focused window has no unique capture source" => "capture_source_not_unique",
+        "Focused window bounds unavailable"
+        | "Window bounds unavailable"
+        | "Client area unavailable" => "capture_bounds_unavailable",
+        "Window capture timed out" => "capture_timed_out",
+        "Image exceeds the context budget" => "capture_image_too_large",
+        "Desktop session is inactive or locked" => "capture_session_inactive",
+        "Screen context changed"
+        | "Capture foreground changed"
+        | "Capture context changed"
+        | "Foreground changed" => "capture_foreground_changed",
+        "Safe unoccluded window unavailable" => "capture_window_occluded",
+        "Active window image capture failed"
+        | "Window pixels unavailable"
+        | "Image encoding unavailable" => "capture_pixels_unavailable",
+        _ => "capture_unavailable",
+    }
+}
 #[derive(Default)]
 pub(crate) struct Runtime {
     pub(crate) last_capture: Option<Instant>,
@@ -24,7 +47,7 @@ fn allowed_at(inner: &Inner, activity: &ActivitySnapshot, text: &str, now: Insta
         })
 }
 pub(crate) fn configured_model(inner: &Inner) -> String {
-    std::env::var("NEBIUS_VISION_MODEL_ID")
+    let configured = std::env::var("NEBIUS_VISION_MODEL_ID")
         .ok()
         .filter(|s| !s.trim().is_empty())
         .or_else(|| {
@@ -36,7 +59,17 @@ pub(crate) fn configured_model(inner: &Inner) -> String {
                 .map(|p| p.vision_model)
                 .filter(|s| !s.trim().is_empty())
         })
-        .unwrap_or_else(|| crate::http::DEFAULT_RESPONSE_MODEL.into())
+        .unwrap_or_else(|| crate::http::DEFAULT_RESPONSE_MODEL.into());
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn
+        && !matches!(
+            configured.as_str(),
+            "moonshotai/Kimi-K3" | "nvidia/Nemotron-3.5-Super-VL"
+        )
+    {
+        crate::http::DEFAULT_RESPONSE_MODEL.into()
+    } else {
+        configured
+    }
 }
 
 /// A fresh frame is retained only through the existing encrypted review lifecycle.
@@ -97,8 +130,12 @@ pub(crate) async fn capture_frame(
             inner.vision.status = "captured";
             Ok(Some(image))
         }
-        _ => {
-            inner.vision.status = "capture_unavailable";
+        Err(error) => {
+            inner.vision.status = capture_failure_status(&error);
+            Ok(None)
+        }
+        Ok(_) => {
+            inner.vision.status = "capture_image_invalid";
             Ok(None)
         }
     }
@@ -225,6 +262,9 @@ pub(crate) async fn request_observation(
 }
 
 pub(crate) fn image_model() -> String {
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn {
+        return MODEL.into();
+    }
     std::env::var("NEBIUS_VISION_MODEL_ID")
         .ok()
         .filter(|s| !s.trim().is_empty())
@@ -294,6 +334,32 @@ mod windows;
 mod tests {
     use super::*;
     use std::time::Duration;
+    #[test]
+    fn capture_diagnostics_distinguish_causes_without_revealing_error_contents() {
+        for (error, status) in [
+            (
+                "Focused window has no unique capture source",
+                "capture_source_not_unique",
+            ),
+            (
+                "Capture source lookup failed",
+                "capture_source_lookup_failed",
+            ),
+            (
+                "Screen Recording permission is unavailable",
+                "capture_permission_required",
+            ),
+            ("Screen context changed", "capture_foreground_changed"),
+            (
+                "Safe unoccluded window unavailable",
+                "capture_window_occluded",
+            ),
+            ("Window capture timed out", "capture_timed_out"),
+            ("Private title or provider payload", "capture_unavailable"),
+        ] {
+            assert_eq!(capture_failure_status(error), status);
+        }
+    }
     fn fixture() -> (AppState, ActivitySnapshot) {
         let state =
             AppState::new(crate::storage::Storage::open(std::path::Path::new(":memory:")).unwrap())

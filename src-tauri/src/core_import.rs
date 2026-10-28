@@ -111,6 +111,10 @@ pub async fn propose_core_import(
     };
     let model = if mock {
         "mock".into()
+    } else if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn
+        && !images.is_empty()
+    {
+        http::DEFAULT_RESPONSE_MODEL.into()
     } else if images.is_empty() {
         http::secret("NEBIUS_MODEL_ID")?
     } else if vision.is_empty() {

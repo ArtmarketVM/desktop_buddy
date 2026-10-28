@@ -29,7 +29,7 @@ The Mac application uses the project's stable internal code-signing identity. Th
 - **Contextual research:** after applicable search authorization, use Tavily sources to answer a current work question and attach research to the goal's WorkContext.
 - **Evidence-based completion:** interpret goals against bounded interface text, recent context and optional actual pixels. A separate opt-in can automatically complete an existing goal/step after independent outcome verification, with durable Undo in Progress. Time alone never proves completion.
 - **Work outside the plan:** offer an open Today task for ongoing work, or a completed item only for a verified result. New goals always require acceptance.
-- **Optional active-window vision:** disabled by default, with separate system permission, bounded encrypted review evidence, private/excluded-window gates and text fallback. Vision descriptions alone cannot close tasks.
+- **Optional active-window vision:** enabled for new profiles and switchable in Settings, with separate system permission, bounded encrypted review evidence, private/excluded-window gates and text fallback. Vision descriptions alone cannot close tasks.
 - **Daily continuity:** summarize saved priorities, waiting items, parked work and confirmed completions across goals, without inventing completed work or assigning a productivity score.
 - **Coaching:** one executable **Tiny Habits** workflow helps turn a goal barrier into a small feasible action and an anchor. It is not a collection of 16 implemented coaching workflows, and finishing a coaching micro-action does not automatically complete its parent goal.
 - **Local voice input:** turn supported local speech recognition into a transcript that enters the same chat/action pipeline as typed text. Raw audio is not sent to Nebius or Tavily.
@@ -90,8 +90,8 @@ Research uses the relevant goal, step and checkpoint to form a limited query. Ta
 
 ## First run and privacy
 
-1. Install the appropriate release and complete setup.
-2. In **Settings → Integrations / AI**, save your Nebius and, for web research, Tavily API keys. Model access, usage charges and quotas belong to those provider accounts.
+1. Install the appropriate release and complete setup. With tracking is preselected; continuing enables observation after the required system access is granted. Choose Without tracking for manual use. New profiles enable AI assistance, goal context, research, activity matching, dictation text correction, memory, screenshots and verified automatic completion; each can be disabled in Settings.
+2. **Built-in AI** is selected by default: no account, invitation or API-key entry is required. To use personal provider accounts, choose **Settings → AI → Services → AI connection → Use my API keys**, then save your Nebius and Tavily keys in the existing rows.
 3. Choose tracking, AI context-sharing, visible-text assistance, memory and interruption preferences. On macOS, grant the relevant Accessibility permission for supported observation features.
 4. For voice, grant microphone/speech permissions and install the desired local recognition language. On macOS, enable Dictation and wait for its language download to finish. Recognition success in English does not establish Russian readiness.
 5. Select a focus goal and inspect Progress and the **Personal AI Engine** panel to verify actual behavior.
@@ -100,7 +100,9 @@ Tracking startup follows saved onboarding consent and the saved tracking request
 
 Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. Optional screenshot buffers are transient and never stored in the local journal. Full raw accessibility text is not stored as permanent Personal Memory; an explicitly enabled completion feature can send a bounded, filtered visible-text sample to Nebius.
 
-Provider keys remain runtime-only: Windows uses Credential Manager; macOS uses Keychain through a pinned credential helper that verifies the calling application's signing identity. Saved keys take precedence over environment keys. Removing a saved key does not revoke it at the provider and can expose an existing environment fallback.
+Built-in AI relays permitted requests through an authenticated Supabase Edge Function. Nebius and Tavily keys remain server-side; only the public Supabase client configuration ships in the app. A technical anonymous session starts automatically and is retained in a private local file; it cannot read service tables or retrieve provider secrets. Atomic server limits apply uniformly, with no account tiers or invitations. See [Shared AI deployment](docs/SUPABASE_GATEWAY.md).
+
+In **Use my API keys**, provider keys remain runtime-only: Windows uses Credential Manager; macOS uses Keychain through the unchanged pinned credential helper. Saved keys take precedence over environment keys. Removing a saved key does not revoke it at the provider and can expose an existing environment fallback. Switching connections preserves saved keys and never silently falls back to a different account.
 
 “Local-first” does not mean entirely offline: enabled cloud features send permitted text/context to Nebius and authorized search queries to Tavily. Memory OFF stops memory use/writes through its controls; it is separate from deleting chat history, goals or activity. Review the individual data controls before sharing sensitive work.
 

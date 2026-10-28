@@ -21,6 +21,9 @@ fn resolve_response_model(
         .into()
 }
 pub fn response_model(primary: &str) -> String {
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn {
+        return DEFAULT_RESPONSE_MODEL.into();
+    }
     resolve_response_model(
         primary,
         std::env::var("NEBIUS_MODEL_ID").ok().as_deref(),
@@ -178,25 +181,29 @@ async fn post_json_with_timeout(
 ) -> Result<Value, String> {
     let payload = constrained_payload(payload);
     let mut last = "Service unavailable".to_string();
-    let attempts = if retry_transient { 3 } else { 1 };
+    let attempts = if retry_transient && key != crate::shared_ai::SHARED_CREDENTIAL {
+        3
+    } else {
+        1
+    };
     for attempt in 0..attempts {
-        match client
-            .post(url)
-            .bearer_auth(key)
-            .json(&payload)
-            .timeout(timeout)
-            .send()
-            .await
-        {
+        let (request, guard) =
+            crate::shared_ai::prepare(client, reqwest::Method::POST, url, key).await?;
+        guard.check()?;
+        let response = request.json(&payload).timeout(timeout).send().await;
+        guard.check()?;
+        match response {
             Ok(response) if response.status().is_success() => {
-                return response.json().await.map_err(|error| {
+                let result = response.json().await.map_err(|error| {
                     if error.is_timeout() {
                         "The provider response timed out. Your saved API key has not been removed."
                             .into()
                     } else {
                         "Service returned invalid JSON".into()
                     }
-                })
+                });
+                guard.check()?;
+                return result;
             }
             Ok(response) => {
                 let status = response.status();
@@ -252,6 +259,17 @@ pub fn endpoint(name: &str) -> Result<String, String> {
     Ok(value)
 }
 pub fn secret(name: &str) -> Result<String, String> {
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn {
+        match name {
+            "NEBIUS_API_KEY" | "TAVILY_API_KEY" => {
+                return Ok(crate::shared_ai::SHARED_CREDENTIAL.into())
+            }
+            "NEBIUS_API_URL" | "TAVILY_API_URL" => return crate::shared_ai::endpoint(name),
+            "NEBIUS_MODEL_ID" => return Ok(DEFAULT_PRIMARY_MODEL.into()),
+            "NEBIUS_VISION_MODEL_ID" => return Ok(DEFAULT_RESPONSE_MODEL.into()),
+            _ => {}
+        }
+    }
     // Test providers use synthetic environment keys, never the user's vault.
     if !cfg!(test) && matches!(name, "NEBIUS_API_KEY" | "TAVILY_API_KEY") {
         if let Some(key) = crate::credentials::read(name)? {
@@ -272,6 +290,11 @@ pub fn secret(name: &str) -> Result<String, String> {
         .ok_or_else(|| format!("Configure {name} in Settings"))
 }
 pub fn configured(name: &str) -> bool {
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn
+        && matches!(name, "NEBIUS_API_KEY" | "TAVILY_API_KEY")
+    {
+        return crate::shared_ai::configured();
+    }
     if !cfg!(test) && matches!(name, "NEBIUS_API_KEY" | "TAVILY_API_KEY") {
         return std::env::var(name)
             .map(|s| !s.trim().is_empty())

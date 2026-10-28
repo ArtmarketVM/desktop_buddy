@@ -58,6 +58,8 @@ pub struct AppState {
 }
 impl AppState {
     pub fn new(mut storage: Storage) -> Result<Self, String> {
+        #[cfg(not(test))]
+        crate::shared_ai::initialize(&storage)?;
         let demo = http::enabled("DEMO_MODE");
         let mut buddy = crate::buddy::Runtime::new(crate::attention::validate_preferences(
             storage.buddy_preferences()?,
@@ -144,6 +146,9 @@ pub fn set_provider_key(
 ) -> Result<(), String> {
     if window.label() != "main" {
         return Err("Open Settings in the main window".into());
+    }
+    if crate::shared_ai::mode() == crate::shared_ai::ConnectionMode::BuiltIn {
+        return Err("Choose Use my API keys before editing personal credentials".into());
     }
     let name = crate::credentials::provider_name(&provider)?;
     let key = key

@@ -12,6 +12,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SidebarAiServices } from "./SidebarAiServices";
+import { servicesQuery } from "../data/resources";
 import { serviceStatusApi, type ServiceSnapshot } from "../ai/serviceStatus";
 import { api } from "../api/tauri";
 vi.mock("../api/tauri", () => ({
@@ -44,6 +45,26 @@ it("startup probes both providers without claiming health from key metadata alon
   render(<SidebarAiServices />);
   await screen.findByRole("button", { name: "NVIDIA Nemotron: Not checked" });
   expect(api.testConnection).toHaveBeenCalledTimes(2);
+  expect(document.querySelectorAll(".service-verified")).toHaveLength(0);
+});
+it("rechecks both services after the selected connection changes", async () => {
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    connection_mode: "built_in",
+  });
+  render(<SidebarAiServices />);
+  await waitFor(() => expect(api.testConnection).toHaveBeenCalledTimes(2));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  vi.mocked(serviceStatusApi.read).mockResolvedValue({
+    ...fixture,
+    connection_mode: "personal",
+  });
+  await act(async () => {
+    servicesQuery.setData({ ...fixture, connection_mode: "personal" });
+  });
+  await waitFor(() => expect(api.testConnection).toHaveBeenCalledTimes(4));
   expect(document.querySelectorAll(".service-verified")).toHaveLength(0);
 });
 it("hover details explain the cloud model and preserve configured-model provenance", async () => {

@@ -8,6 +8,7 @@ export function ProviderRow({
   name,
   role,
   configured,
+  managed = false,
   checked,
   onChanged,
 }: {
@@ -15,6 +16,7 @@ export function ProviderRow({
   name: string;
   role: string;
   configured: boolean;
+  managed?: boolean;
   /** Result of the last background check, when known. */
   checked?: ServiceState;
   onChanged: () => Promise<void>;
@@ -76,7 +78,12 @@ export function ProviderRow({
             ? ["paused", "Checking…"]
             : checked === "offline"
               ? ["paused", "Offline"]
-              : ["paused", "Key saved, not checked yet"];
+              : [
+                  "paused",
+                  managed
+                    ? "Built-in AI, not checked yet"
+                    : "Key saved, not checked yet",
+                ];
   const state = note ? (note.ok ? "running" : "attention") : verdict[0];
   return (
     <>
@@ -118,7 +125,12 @@ export function ProviderRow({
           <button
             type="button"
             className="text-button row-link"
-            disabled={off}
+            disabled={off || managed}
+            title={
+              managed
+                ? "Choose Use my API keys to manage personal keys"
+                : undefined
+            }
             onClick={() => {
               setEditing((open) => !open);
               setKey("");
@@ -130,7 +142,12 @@ export function ProviderRow({
             <button
               type="button"
               className="text-button row-link muted"
-              disabled={off}
+              disabled={off || managed}
+              title={
+                managed
+                  ? "Choose Use my API keys to manage personal keys"
+                  : undefined
+              }
               onClick={() =>
                 void act(() => api.providerKey(provider, null), "Key removed")
               }

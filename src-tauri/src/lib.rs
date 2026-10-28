@@ -50,6 +50,7 @@ mod relevance;
 mod research;
 mod research_evidence;
 mod semantic_observation;
+mod shared_ai;
 mod signing_trust;
 mod skills;
 mod startup;
@@ -76,6 +77,8 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    #[cfg(not(test))]
+    shared_ai::initialize_cli();
     if std::env::args().any(|arg| arg == "--check-semantic-observation")
         || (cfg!(debug_assertions) && http::enabled("BUDDY_SEMANTIC_NATIVE_CHECK"))
     {

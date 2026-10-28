@@ -36,6 +36,7 @@ export interface CorePreferences {
   movement_reminders: boolean;
   movement_interval_minutes?: number;
   vision_model: string;
+  ai_connection_mode?: "built_in" | "personal";
 }
 interface GoalTime {
   goal_id: number;
@@ -104,6 +105,7 @@ export const emptyCore = (): CoreSnapshot => {
       movement_reminders: true,
       movement_interval_minutes: 45,
       vision_model: "",
+      ai_connection_mode: "built_in",
     },
   };
 };

@@ -622,9 +622,33 @@ export function CoreSettings({
               aria-label="Services"
             >
               <p className="eyebrow settings-card-title">Services</p>
+              <label className="setting-row">
+                <span className="svc">AI connection</span>
+                <select
+                  aria-label="AI connection"
+                  value={preferences.ai_connection_mode ?? "built_in"}
+                  disabled={
+                    blocked || !workspace.ready || preferenceSave.pending
+                  }
+                  onChange={(event) =>
+                    preferenceSave.update({
+                      ...preferences,
+                      ai_connection_mode: event.target.value as
+                        "built_in" | "personal",
+                    })
+                  }
+                >
+                  <option value="built_in">Built-in AI</option>
+                  <option value="personal">Use my API keys</option>
+                </select>
+              </label>
               <ProviderRow
+                key={`nebius:${preferences.ai_connection_mode ?? "built_in"}`}
                 provider="nebius"
                 name="Nebius"
+                managed={
+                  (preferences.ai_connection_mode ?? "built_in") === "built_in"
+                }
                 role={
                   services?.configured_model
                     ? `runs the AI · ${services.configured_model}`
@@ -635,8 +659,12 @@ export function CoreSettings({
                 onChanged={providerChanged}
               />
               <ProviderRow
+                key={`tavily:${preferences.ai_connection_mode ?? "built_in"}`}
                 provider="tavily"
                 name="Tavily"
+                managed={
+                  (preferences.ai_connection_mode ?? "built_in") === "built_in"
+                }
                 role="web search"
                 configured={data.status.tavily_configured}
                 checked={serviceState("tavily")}

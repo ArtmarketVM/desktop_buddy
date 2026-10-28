@@ -442,6 +442,20 @@ fn failed_or_stale_probe_cannot_restore_removed_credential_status() {
 }
 
 #[test]
+fn a_probe_from_the_previous_connection_cannot_clear_the_new_connections_check() {
+    let state = state();
+    let mut inner = state.inner.lock().unwrap();
+    let old = inner.last_consent_change;
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    inner.mark_consent_change();
+    invalidate_connections(&mut inner);
+    begin_connection_check(&mut inner, "nebius").unwrap();
+    finish_connection_check(&mut inner, "nebius", old, true, Some(true));
+    assert!(inner.engine.checking_connections[0]);
+    assert!(inner.engine.connections[0].is_none());
+}
+
+#[test]
 fn goal_edits_do_not_invalidate_provider_authentication_or_in_flight_checks() {
     let state = state();
     let mut inner = state.inner.lock().unwrap();

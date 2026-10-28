@@ -51,6 +51,7 @@ const data = {
   buddy: { preferences: defaultBuddyPreferences },
 } as Dashboard;
 let snapshot: ServiceSnapshot;
+let workspace = emptyCore();
 beforeEach(() => {
   queryClient.invalidate(undefined, true);
   snapshot = {
@@ -63,7 +64,11 @@ beforeEach(() => {
       checked_at: null,
     })),
   };
-  vi.mocked(coreApi.snapshot).mockResolvedValue(emptyCore());
+  workspace = emptyCore();
+  workspace.preferences.ai_connection_mode = "personal";
+  vi.mocked(coreApi.snapshot).mockImplementation(async () =>
+    structuredClone(workspace),
+  );
   vi.mocked(coreApi.preferences).mockResolvedValue(undefined);
   vi.mocked(api.trackingSettings).mockResolvedValue(defaultTrackingSettings);
   vi.mocked(serviceStatusApi.read).mockImplementation(async () =>
@@ -88,6 +93,52 @@ async function openSettings(onChanged = vi.fn().mockResolvedValue(undefined)) {
   await waitFor(() => expect(serviceStatusApi.read).toHaveBeenCalledOnce());
   return within(screen.getByRole("region", { name: "Services" }));
 }
+
+it("defaults the single connection row to built-in AI while keeping personal keys untouched", async () => {
+  workspace.preferences.ai_connection_mode = "built_in";
+  const services = await openSettings();
+  expect(
+    services.getByRole("combobox", { name: "AI connection" }),
+  ).toHaveProperty("value", "built_in");
+  expect(
+    services
+      .getAllByRole("button", { name: "Replace key" })
+      .every((b) => (b as HTMLButtonElement).disabled),
+  ).toBe(true);
+  fireEvent.click(services.getAllByRole("button", { name: "Test" })[0]);
+  await waitFor(() =>
+    expect(api.testConnection).toHaveBeenCalledWith("nebius"),
+  );
+  expect(api.providerKey).not.toHaveBeenCalled();
+});
+
+it("switches connection automatically without replacing, deleting or requesting saved keys", async () => {
+  workspace.preferences.ai_connection_mode = "built_in";
+  vi.mocked(coreApi.preferences).mockImplementation(async (next) => {
+    workspace.preferences = next;
+    snapshot = { ...snapshot, connection_mode: next.ai_connection_mode };
+  });
+  const services = await openSettings();
+  const selector = services.getByRole("combobox", { name: "AI connection" });
+  await waitFor(() =>
+    expect((selector as HTMLSelectElement).disabled).toBe(false),
+  );
+  fireEvent.change(selector, { target: { value: "personal" } });
+  await waitFor(() =>
+    expect(coreApi.preferences).toHaveBeenCalledWith(
+      expect.objectContaining({ ai_connection_mode: "personal" }),
+    ),
+  );
+  await waitFor(() =>
+    expect(
+      services
+        .getAllByRole("button", { name: "Replace key" })
+        .every((b) => !(b as HTMLButtonElement).disabled),
+    ).toBe(true),
+  );
+  expect(api.providerKey).not.toHaveBeenCalled();
+  expect(screen.queryByRole("button", { name: "Save preferences" })).toBeNull();
+});
 
 it("keeps a successful provider check after the temporary receipt disappears, for both keys", async () => {
   const services = await openSettings();

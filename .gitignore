@@ -22,3 +22,6 @@ artifacts/
 playwright-report/
 test-results/
 src-tauri/test-data/results/
+
+# Local Supabase CLI state (never ship deployment credentials or metadata)
+server/supabase/.temp/

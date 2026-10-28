@@ -12,6 +12,8 @@ const config: KnipConfig = {
     "src/ai/contracts.ts!",
     "scripts/*.mjs",
     "server/*.mjs",
+    "server/supabase/functions/*/index.ts",
+    "server/supabase/functions/*/*.verify.mjs",
     "browser-extension/*.{js,mjs}",
   ],
   project: [

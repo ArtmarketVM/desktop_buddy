@@ -1,3 +1,7 @@
 [functions.buddy-contact]
 # Public write-only endpoint. The function enforces input limits, confirmation and atomic rate caps.
 verify_jwt = false
+
+[functions.buddy-ai]
+# User JWT validation stays enabled; the handler independently validates the user too.
+verify_jwt = true

@@ -145,13 +145,14 @@ pub async fn probe_connection(
     provider: &str,
     model: Option<&str>,
 ) -> Result<ConnectionProbe, String> {
-    let response = client
-        .get(url)
-        .bearer_auth(key)
+    let (request, guard) =
+        crate::shared_ai::prepare(client, reqwest::Method::GET, url, key).await?;
+    let response = request
         .timeout(Duration::from_secs(10))
         .send()
         .await
         .map_err(|_| "Connection failed. Check your network and endpoint settings.")?;
+    guard.check()?;
     if !response.status().is_success() {
         return Err(http::status_error(response.status().as_u16()));
     }
@@ -159,6 +160,7 @@ pub async fn probe_connection(
         .json()
         .await
         .map_err(|_| "Provider returned an invalid connection-check response")?;
+    guard.check()?;
     match provider {
         "nebius" => {
             let models = data.get("data").and_then(Value::as_array).ok_or("Nebius returned an invalid model list")?;

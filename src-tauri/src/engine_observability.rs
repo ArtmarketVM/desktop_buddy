@@ -239,6 +239,11 @@ fn provider_index(provider: &str) -> Result<usize, String> {
         _ => Err("Unknown provider".into()),
     }
 }
+pub(crate) fn invalidate_connections(inner: &mut Inner) {
+    inner.engine.connections = [None, None];
+    inner.engine.checking_connections = [false, false];
+    inner.engine.health = Default::default();
+}
 pub(crate) fn begin_connection_check(inner: &mut Inner, provider: &str) -> Result<(), String> {
     let index = provider_index(provider)?;
     if inner.engine.checking_connections[index] {
@@ -262,10 +267,10 @@ pub(crate) fn finish_connection_check(
     let Ok(index) = provider_index(provider) else {
         return;
     };
-    inner.engine.checking_connections[index] = false;
     if inner.last_consent_change != revision {
         return;
     }
+    inner.engine.checking_connections[index] = false;
     // Startup metadata can predate Keychain authorization or a completed app update.
     // A successful current probe proves that a usable runtime credential exists.
     if connected {
@@ -322,6 +327,7 @@ fn service_status_view(inner: &Inner) -> Value {
     })
     .collect();
     json!({
+        "connection_mode": crate::shared_ai::mode(),
         "configured_model": configured_model,
         "configured_response_model": http::secret("NEBIUS_MODEL_ID")
             .ok().map(|m| http::response_model(&m)).as_deref().and_then(model_label),
@@ -732,14 +738,27 @@ async fn health_call(service: &Service<'_>, timeout: Duration) -> Health {
         "response_format":{"type":"json_schema","json_schema":{"name":"buddy_safe_inference_health","strict":true,"schema":schema}},
         "messages":[{"role":"system","content":"Return exactly the JSON object {\"ok\":true}. No explanation or user data is needed."},{"role":"user","content":"Check structured inference."}]});
     let result = tokio::time::timeout(timeout, async {
-        let mut response = service
-            .client
-            .post(&service.endpoint)
-            .bearer_auth(&service.key)
+        let (request, guard) = crate::shared_ai::prepare(
+            service.client,
+            reqwest::Method::POST,
+            &service.endpoint,
+            &service.key,
+        )
+        .await
+        .map_err(|_| {
+            (
+                "network_error",
+                "The selected AI connection is unavailable.",
+            )
+        })?;
+        let mut response = request
             .json(&http::constrained_payload(&payload))
             .send()
             .await
             .map_err(|_| ("network_error", "Nebius could not be reached."))?;
+        guard
+            .check()
+            .map_err(|_| ("cancelled", "AI connection changed."))?;
         if !response.status().is_success() {
             return Err(match response.status().as_u16() {
                 401 | 403 => (
@@ -771,6 +790,9 @@ async fn health_call(service: &Service<'_>, timeout: Duration) -> Health {
         }
         let value: Value = serde_json::from_slice(&bytes)
             .map_err(|_| ("invalid_json", "Nebius returned invalid JSON."))?;
+        guard
+            .check()
+            .map_err(|_| ("cancelled", "AI connection changed."))?;
         let text = goal_analysis::response_text(&value).map_err(|_| {
             (
                 "invalid_response",
