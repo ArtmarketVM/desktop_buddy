@@ -41,6 +41,34 @@ fn literal_grounding_accepts_layout_whitespace_but_rejects_paraphrases_and_missi
 }
 use crate::storage::Storage;
 
+#[test]
+fn observation_rechecks_at_twenty_seconds_and_preserves_pause_and_consent_gates() {
+    let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
+    let mut inner = state.inner.lock().unwrap();
+    inner.status.tracking = true;
+    inner.status.demo = false;
+    inner.status.mock_ai = false;
+    inner.status.nebius_configured = true;
+    inner.companion.view.preferences.paused = false;
+    inner.companion.view.preferences.screen_task_detection = true;
+    inner.buddy.foreground = Some(ActivitySnapshot {
+        process_name: "Future editor".into(),
+        window_title: "A result".into(),
+        window_id: Some(42),
+        ..Default::default()
+    });
+    let checked = Instant::now();
+    assert!(due_at(&inner, checked));
+    inner.companion.semantic.last_check = Some(checked);
+    assert!(!due_at(&inner, checked + Duration::from_secs(19)));
+    assert!(due_at(&inner, checked + Duration::from_secs(20)));
+    inner.companion.view.preferences.paused = true;
+    assert!(!due_at(&inner, checked + Duration::from_secs(20)));
+    inner.companion.view.preferences.paused = false;
+    inner.companion.view.preferences.screen_task_detection = false;
+    assert!(!due_at(&inner, checked + Duration::from_secs(20)));
+}
+
 fn candidates() -> Value {
     json!([{"id":1,"title":"Order a birthday cake","description":"Chocolate cake for Tuesday","created_at":"2026-10-24T09:00:00Z","plan_revision":0,"done_when":"Order confirmed for Tuesday","steps":[]},
         {"id":2,"title":"Прочитать книгу","description":"Read the entire ebook","created_at":"2026-10-24T09:00:00Z","plan_revision":0,"done_when":"Reach the end of this ebook","steps":[]}])

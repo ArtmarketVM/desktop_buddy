@@ -1,5 +1,16 @@
 # Desktop Buddy session handoff
 
+## Working 20-second observation cadence — 28 October 2026
+
+- Fast-forwarded the clean tracked checkout from `fa8d746` to fetched `origin/main` at `156716c`, preserving the untracked completion plan. The owner's subsequent request changes the shared foreground capture, semantic observation and Accessibility text-cache intervals to 20 seconds via `observation::SAMPLE_INTERVAL`.
+- Both platform adapters use the same gates. The existing 120-disclosure rolling-hour budget and three verification slots remain; this is a minimum interval, not a guaranteed continuous three calls per minute. Consent/legacy opt-outs, privacy, foreground validation, the two-minute sealed result lease and completion verification remain unchanged.
+- Updated operational timing docs and deterministic 19/20-second scheduling/capture/cache regressions. `docs/COMPLETION_RELIABILITY_PLAN.md` records the broader proposed work and this limited cadence follow-up; persistent diagnostics and the remaining plan are not implemented.
+- Windows test prerequisites: ignored checkout-local Cargo/Rustup, CMake 4.4.4 under `.tools/cmake-runtime/cmake/data/bin`, libclang 18.1.1 under `.tools/libclang-runtime/clang/native` (`LIBCLANG_PATH`), and Visual Studio Developer PowerShell. Tools were downloaded using the Windows trusted-root bundle with TLS verification enabled. The dependency's bundled-bindings fallback was incompatible with Windows and was abandoned; normal bindgen generates actual Windows bindings. No application dependencies or system toolchain settings changed.
+- Validation covers the final Rust working diff on `156716c`: `cargo test --locked --manifest-path src-tauri/Cargo.toml --test backend observation` **24 passed**; full `cargo test --locked --manifest-path src-tauri/Cargo.toml` **748 passed / 5 intentionally ignored / 0 failed**. Full suite reported 3660.11 seconds; retain this successful evidence instead of repeating it for documentation or commit-only work. `cargo fmt --manifest-path src-tauri/Cargo.toml --check` and `git diff --check` passed. Logs: `.tools/observation-20s-{targeted,full}.log`. No frontend runtime files changed; frontend tests/build were not rerun.
+- Follow-up fetch: `main` remains identical to `origin/main` at `156716c`. New remote branch `origin/codex/smooth-goal-drag` has `4680998` (goal-order UI/tests/CSS and handoff only), with no overlap in observation Rust sources; it has not been merged into this change.
+- The owner authorized commit/push of this source change. No installer or version bump is included. Installed 0.48.0 still uses the released cadence. Native/live cadence and macOS execution have not been validated.
+- Suggested commit: `Refresh foreground observation every 20 seconds`.
+
 ## Published 0.48.0 — 27 October 2026
 
 - [Release 0.48.0](https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.48.0) is public for **Windows x64 and Apple Silicon macOS 14.5+**. Release source **97e00d5bad95274c10125e223b3982f24b78be89**, tag `v0.48.0`. All five product manifests use 0.48.0. [Release notes](RELEASE_0.48.0.md) describe the final behavior; this handoff update is documentation only and needs no installer rebuild/version bump.

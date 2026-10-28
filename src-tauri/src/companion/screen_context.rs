@@ -5,10 +5,7 @@ use crate::{
     commands::{AppState, Inner},
     models::ActivitySnapshot,
 };
-use std::{
-    future::Future,
-    time::{Duration, Instant},
-};
+use std::{future::Future, time::Instant};
 
 pub(crate) struct CachedText {
     activity: ActivitySnapshot,
@@ -109,7 +106,7 @@ async fn read_at<F: Future<Output = Result<String, String>>>(
                     inner.companion.screen_context_epoch,
                 )
                 && same_window(&cached.activity, activity)
-                && now.saturating_duration_since(cached.at) < Duration::from_secs(60)
+                && now.saturating_duration_since(cached.at) < crate::observation::SAMPLE_INTERVAL
             {
                 return cached.text.clone().map(Some);
             }

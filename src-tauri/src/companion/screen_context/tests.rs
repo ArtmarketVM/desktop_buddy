@@ -1,6 +1,7 @@
 use super::*;
 use crate::storage::Storage;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 fn fixture() -> (AppState, ActivitySnapshot) {
     let state = AppState::new(Storage::open(std::path::Path::new(":memory:")).unwrap()).unwrap();
     let activity = ActivitySnapshot {
@@ -86,7 +87,7 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     let cached = read_at(
         &state,
         &activity,
-        base + Duration::from_secs(59),
+        base + Duration::from_secs(19),
         |_| async { panic!("A second Accessibility read is forbidden") },
     )
     .await
@@ -102,7 +103,7 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     read_at(
         &state,
         &activity,
-        base + Duration::from_secs(61),
+        base + Duration::from_secs(20),
         |_| async {
             reads.fetch_add(1, Ordering::SeqCst);
             Ok("Fresh screen".into())
@@ -118,7 +119,7 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     read_at(
         &state,
         &changed,
-        base + Duration::from_secs(62),
+        base + Duration::from_secs(21),
         |_| async {
             reads.fetch_add(1, Ordering::SeqCst);
             Ok("Other window".into())
