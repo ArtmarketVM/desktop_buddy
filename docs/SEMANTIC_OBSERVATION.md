@@ -82,7 +82,7 @@ The native fixture source is `scripts/fixtures/semantic-observation.m`. Compile 
 
 - Observation sees permitted foreground content, not hidden tabs, arbitrary files, offline reading, thought or actual attention. A terminal progress indicator is observable evidence, not proof of understanding a book/video.
 - At most 40 open goals enter a pass, prioritizing Today; descriptions/steps are bounded. Full target criteria are re-read before independent verification.
-- Up to eight samples/20 minutes and two bounded actual images; 60-second inference checks, 120-second capture attempts, 60 total disclosures/hour with three slots reserved from primary sampling for verification. Privacy controls and encrypted review retention remain intact. Battery use and long-session memory have not been benchmarked.
+- Up to eight samples/20 minutes and two bounded actual images; 20-second inference checks, 20-second capture attempts, 120 total disclosures/hour with three slots reserved from primary sampling for verification. Privacy controls and encrypted review retention remain intact. Battery use and long-session memory have not been benchmarked.
 - Revoked consent, lock, exclusions, private context, a changed goal revision reject stale work. Capture still requires the exact foreground; after capture, an ordinary switch to another permitted app may finish the sealed packet for at most two minutes. Privacy boundaries irreversibly invalidate its epoch. Quiet mode silences bubbles while permitted observation continues. New goals and steps always need acceptance.
 - Provider outages produce a visible failed state and no mutation. A configured key/model or an enabled toggle is not proof of a successful capture.
 

@@ -264,12 +264,13 @@ fn enabled(inner: &Inner) -> bool {
             .is_ok_and(|p| p.enabled && p.share_goal_context)
 }
 pub(crate) fn due(inner: &Inner) -> bool {
+    due_at(inner, Instant::now())
+}
+fn due_at(inner: &Inner, now: Instant) -> bool {
     enabled(inner)
-        && inner
-            .companion
-            .semantic
-            .last_check
-            .is_none_or(|at| at.elapsed() >= Duration::from_secs(60))
+        && inner.companion.semantic.last_check.is_none_or(|at| {
+            now.saturating_duration_since(at) >= crate::observation::SAMPLE_INTERVAL
+        })
         && inner
             .buddy
             .foreground

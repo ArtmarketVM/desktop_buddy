@@ -38,7 +38,7 @@ a full store reports an error and stops saving new evidence instead of deleting
 unfinished evidence silently.
 
 Capture retains its opt-in, foreground/exclusion/private-window checks, bounded
-image size and two-minute cooldown. It is conditional on recognition needs,
+image size and 20-second cooldown. It is conditional on recognition needs,
 not continuous recording or a promise of an image for every activity.
 
 ## Daily review lifecycle

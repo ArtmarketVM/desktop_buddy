@@ -1,6 +1,8 @@
 //! Shared budget and capability diagnostics for foreground-only observation.
 use crate::commands::Inner;
 use std::time::{Duration, Instant};
+/// Minimum interval for foreground text refresh, image capture and goal observation.
+pub(crate) const SAMPLE_INTERVAL: Duration = Duration::from_secs(20);
 /// The one cost ceiling for background model calls. Everything else that used to pace
 /// requests was a cooldown; repeats are now prevented by evidence fingerprints instead.
 pub(crate) const HOURLY_LIMIT: usize = 120;

@@ -4,7 +4,7 @@ use crate::{
     models::ActivitySnapshot,
 };
 use serde_json::json;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use tauri::WebviewWindow;
 const MODEL: &str = "nvidia/Nemotron-3.5-Super-VL";
 #[derive(Default)]
@@ -13,13 +13,15 @@ pub(crate) struct Runtime {
     pub(crate) status: &'static str,
 }
 pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot, text: &str) -> bool {
+    allowed_at(inner, activity, text, Instant::now())
+}
+fn allowed_at(inner: &Inner, activity: &ActivitySnapshot, text: &str, now: Instant) -> bool {
     inner.companion.view.preferences.use_screenshots
         && crate::companion::screen_context::allowed(inner, activity)
         && !text.contains("[sensitive line omitted]")
-        && inner
-            .vision
-            .last_capture
-            .is_none_or(|at| at.elapsed() >= Duration::from_secs(120))
+        && inner.vision.last_capture.is_none_or(|at| {
+            now.saturating_duration_since(at) >= crate::observation::SAMPLE_INTERVAL
+        })
 }
 pub(crate) fn configured_model(inner: &Inner) -> String {
     std::env::var("NEBIUS_VISION_MODEL_ID")
@@ -291,6 +293,7 @@ mod windows;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
     fn fixture() -> (AppState, ActivitySnapshot) {
         let state =
             AppState::new(crate::storage::Storage::open(std::path::Path::new(":memory:")).unwrap())
@@ -351,6 +354,25 @@ mod tests {
         assert!(!allowed(&i, &a, "[sensitive line omitted]"));
         i.vision.last_capture = Some(Instant::now());
         assert!(!allowed(&i, &a, "Public document"));
+        let captured = i.vision.last_capture.unwrap();
+        assert!(!allowed_at(
+            &i,
+            &a,
+            "Public document",
+            captured + Duration::from_secs(19)
+        ));
+        assert!(allowed_at(
+            &i,
+            &a,
+            "Public document",
+            captured + Duration::from_secs(20)
+        ));
+        assert!(!allowed_at(
+            &i,
+            &a,
+            "[sensitive line omitted]",
+            captured + Duration::from_secs(20)
+        ));
         i.vision.last_capture = None;
         i.status.tracking = false;
         assert!(!allowed(&i, &a, "Public document"));
