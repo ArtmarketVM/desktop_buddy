@@ -82,12 +82,22 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     .await
     .unwrap()
     .unwrap();
+    // read_at accounts for lock acquisition time; measure expiry from the stored timestamp.
+    let cached_at = state
+        .inner
+        .lock()
+        .unwrap()
+        .companion
+        .screen_context
+        .as_ref()
+        .unwrap()
+        .at;
     // Changing a goal/checklist must not cause the second consumer to read again.
     state.inner.lock().unwrap().companion.invalidate();
     let cached = read_at(
         &state,
         &activity,
-        base + Duration::from_secs(19),
+        cached_at + Duration::from_secs(19),
         |_| async { panic!("A second Accessibility read is forbidden") },
     )
     .await
@@ -100,10 +110,10 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     assert!(matching_excerpt(&activity, true, Some(&cached))
         .unwrap()
         .contains("Release notes"));
-    read_at(
+    let fresh = read_at(
         &state,
         &activity,
-        base + Duration::from_secs(20),
+        cached_at + Duration::from_secs(20),
         |_| async {
             reads.fetch_add(1, Ordering::SeqCst);
             Ok("Fresh screen".into())
@@ -111,6 +121,8 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     )
     .await
     .unwrap();
+    assert_eq!(fresh.as_deref(), Some("Fresh screen"));
+    assert_eq!(reads.load(Ordering::SeqCst), 2);
     let changed = ActivitySnapshot {
         window_id: Some(43),
         ..activity
@@ -119,7 +131,7 @@ async fn matching_and_completion_share_one_redacted_read_until_expiry_or_window_
     read_at(
         &state,
         &changed,
-        base + Duration::from_secs(21),
+        cached_at + Duration::from_secs(21),
         |_| async {
             reads.fetch_add(1, Ordering::SeqCst);
             Ok("Other window".into())
