@@ -11,9 +11,6 @@ on:
         default: false
 permissions:
   contents: read
-concurrency:
-  group: application-checks-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
-  cancel-in-progress: true
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -33,7 +30,10 @@ jobs:
           bash scripts/install-actionlint.sh
           .tools/ci/bin/actionlint -shellcheck=
       - name: Check CI policy and classify changes conservatively
-        run: node --test scripts/ci.verify.mjs
+        run: |
+          node --test scripts/ci.verify.mjs
+          node --test server/supabase/functions/buddy-ai/handler.verify.mjs
+          node scripts/check-privacy-source.mjs
       - id: plan
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
@@ -42,64 +42,30 @@ jobs:
   platforms:
     needs: plan
     if: needs.plan.outputs.checks == 'true'
+    concurrency:
+      group: application-platforms-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+      cancel-in-progress: true
     uses: ./.github/workflows/platform-checks.yml
     with:
       build_installers: ${{ github.event_name == 'workflow_dispatch' && inputs.validate_installers }}
   visual:
     needs: plan
     if: needs.plan.outputs.visual == 'true'
+    concurrency:
+      group: application-visual-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+      cancel-in-progress: true
     uses: ./.github/workflows/visual-checks.yml
+  # The native jobs run both lint profiles with their existing compiler/cache.
+  # Keep this small aggregate gate without requesting another macOS runner.
   rust-lint:
-    needs: plan
-    if: needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: windows-2022
-            name: windows-x64
-            target: x86_64-pc-windows-msvc
-          - runner: macos-15
-            name: macos-apple-silicon
-            target: aarch64-apple-darwin
-    runs-on: ${{ matrix.runner }}
-    env:
-      MACOSX_DEPLOYMENT_TARGET: "14.5"
-      CARGO_PROFILE_DEV_DEBUG: "0"
-      CARGO_PROFILE_TEST_DEBUG: "0"
+    needs: [plan, platforms]
+    if: always() && needs.plan.outputs.rust == 'true' && github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-      # Pinned so a new stable Clippy cannot fail the zero-warning gate without a code change.
-      # Bump deliberately together with any new findings (docs/QUALITY_GATES.md).
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: 1.99.1
-          components: clippy
-          targets: ${{ matrix.target }}
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-          shared-key: buddy-lint-${{ matrix.target }}-v2
-          save-if: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
-      # Tauri's context macro only needs ../dist to exist; Clippy never reads the bundle,
-      # so lint runs alongside the platform checks instead of waiting for their frontend build.
-      - name: Provide a placeholder frontend
-        shell: bash
-        run: mkdir -p dist && printf '<!doctype html>\n' > dist/index.html
-      - run: npm run lint:rust
-      # Release builds compile code gated on not(debug_assertions) that debug lint and tests never see.
-      - name: Check the release configuration
-        run: cargo clippy --locked --release --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: rust-lint-${{ matrix.target }}
-          path: .tools/quality
-          if-no-files-found: warn
+      - name: Require Rust lint within both native validations
+        env:
+          PLATFORMS: ${{ needs.platforms.result }}
+        run: test "$PLATFORMS" = success
   complete:
     name: Required application checks
     needs: [plan, platforms, visual, rust-lint]

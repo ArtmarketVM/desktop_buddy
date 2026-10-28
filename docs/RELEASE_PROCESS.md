@@ -4,10 +4,11 @@
 
 `ci.yml` classifies changes and calls the same platform/visual validation used by `release.yml`. Ordinary CI does not build installers. `platform-checks.yml` owns Windows x64 (pinned Windows 2022 runner) and Apple Silicon checks; `visual-checks.yml` owns the strict reviewed Windows browser matrix. The old automatic Windows/macOS installer workflows are removed.
 
-- Ordinary Markdown/text changes: workflow-policy checks and the aggregate gate; no Node dependency install, Rust compilation or screenshots. The acceptance checklist is an explicit exception.
+- Ordinary Markdown/text and the separately hosted `docs/privacy.html`: workflow-policy checks, the fast privacy-source check and the aggregate gate; no Node dependency install, Rust compilation or screenshots. Unknown HTML/build inputs remain conservative. The acceptance checklist is an explicit exception.
 - Frontend/application changes: both platform acceptance reports and applicable screenshots. CSS does not invalidate matching Rust test evidence.
 - Backend, embedded role data, dependency, build-policy or toolchain changes: affected Rust evidence is invalidated. Unknown changes conservatively schedule validation; an unavailable diff schedules all gates.
-- Rust lint blocks `Required application checks` for changed Rust inputs on push/PR: debug Clippy within the zero budget, then release-profile Clippy with `-D warnings`. It starts right after `plan`, in parallel with the platform checks, using a placeholder `dist` because Clippy does not read the bundle. `release.yml` does not repeat it; the release commit already passed it on main. Manual reuse/packaging validation does not repeat those reports.
+- Rust lint runs inside each existing native validation job, with pinned Rust 1.99.1 and the same compiler cache: debug Clippy within the zero budget, then release-profile Clippy with `-D warnings`. A small Ubuntu aggregate preserves the required gate without allocating a second macOS runner. Both successful, zero-warning JSON reports are hashed and retained as a separate content/environment-bound proof; matching frontend-only/version-only work can reuse them. Failed, incomplete, stale or corrupted lint evidence reruns both profiles. Full validation and packaging proof require the embedded lint proof as well as acceptance/frontend bytes. Release does not repeat valid reports.
+- Cancellation belongs to applicable platform/visual jobs. A documentation-only push no longer cancels an already-running native validation; a newer application change still supersedes obsolete application checks.
 - Explicit `validate_installers=true` on Application checks builds unsigned validation packages on both systems. Do not install an unsigned Mac candidate: its credential helper cannot read saved keys.
 - A real release always builds and verifies both signed update packages once. It cannot publish until both platform and visual gates succeed.
 
@@ -31,9 +32,14 @@ Per-commit/per-platform concurrency serializes overlapping CI and release valida
 
 Cargo caches have stable platform/target namespaces shared between appropriate workflows, with separate test and bundle keys so an immutable test cache cannot prevent saving release artifacts. Workspace artifacts are retained; Cargo still decides what needs recompilation. Saving compiled artifacts and proof is restricted to main. Only CI dev/test debug symbols are disabled; test assertions and release optimization/signing settings are unchanged. No new local Rust target directory is required for routine frontend work.
 
-Clippy compilation uses its own `buddy-lint-*` cache and is separate from the signed release path. Both platform Rust tests, formatting, the full 122-item acceptance mapping and immutable helper/signature checks remain available. Automated acceptance does not establish the manual/live parts of that checklist.
+Clippy shares each native job's Cargo cache; it no longer has a separate runner/cache namespace. Its successful-report proof remains separate so frontend-only changes can reuse it without trusting compiler-cache presence. Both platform Rust tests, formatting, the full 122-item acceptance mapping and immutable helper/signature checks remain available. Automated acceptance does not establish the manual/live parts of that checklist.
 
 ## Prepare a complete release once
+
+Use one release owner for the combined changes. Developers finish and share their small code commits first; the release owner prepares notes, policy and synchronized metadata, then starts one signed release. Do not independently package the same version from both developer sessions.
+
+The fast source check compares the documented capture cadence with `observation::SAMPLE_INTERVAL` and checks the current encrypted-evidence disclosure. CI planning and `release:prepare --check` run it before native builds, so a stale privacy statement stops the inexpensive preflight instead of cancelling completed installers. Source-only policy corrections do not invalidate application proof; public Pages/content verification remains separate.
+
 
 1. Complete feature/fix work and targeted tests. Update relevant docs and known limitations.
 2. Write English notes beginning with `# Desktop Buddy X.Y.Z`; no TODO/TBD placeholders.
@@ -44,6 +50,18 @@ Clippy compilation uses its own `buddy-lint-*` cache and is separate from the si
 7. After success, verify the actual public version, both channels and asset/signature/checksum results once. Record source/results and stop. Documentation-only follow-ups do not require repeating application tests or installers.
 
 Do not change Pages/protection settings, trusted signing keys or approved screenshots to make a release pass. Do not bump the app version or publish a new installer merely for CI/documentation work.
+
+## Measured 0.48.1 delay and current optimization
+
+The 28 October 2026 run took about 96 minutes from the first source check to public assets, and about 102 minutes including the final verification note. This was not one 100-minute installer compilation:
+
+- Initial check [40728044765](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40728044765): 10 minutes, failed an expiry regression already corrected upstream.
+- Corrected check [40732457888](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40732457888): 32 minutes including a cancelled/abandoned macOS lint allocation and its retry; native validation itself finished in about 5 minutes on Mac and 8 minutes on Windows.
+- First packaging [40737913721](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40737913721): cancelled after nearly 8 minutes for stale privacy wording.
+- Privacy-only check [40739316924](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40739316924): nearly 7 minutes; now handled by the fast source preflight.
+- Final signed release [40742101371](https://github.com/ArtmarketVM/desktop_buddy/actions/runs/40742101371): 8m12s. Native packaging was 173 seconds on Mac and 269 seconds on Windows, in parallel. Editing, handoff and verification gaps account for the remaining elapsed time.
+
+The new workflow removes the extra macOS lint allocation, preserves both lint profiles with verified reuse, avoids native work for the external policy, and catches policy mismatches before packaging. The first run after this proof-format change will rebuild valid evidence; later matching runs can reuse it. These changes have local regression/syntax validation; their real hosted-runner speedup has not yet been measured. Runner availability remains outside this repository's control. Use the measured 8-minute final release as a useful warm-run baseline, not a guaranteed deadline.
 
 ## New sessions and cost measurement
 

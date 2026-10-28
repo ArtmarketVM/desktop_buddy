@@ -4,13 +4,14 @@ import { appendFileSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-export const POLICY = "ci-proof-v1";
+export const POLICY = "ci-proof-v2";
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 export function ordinaryDocs(p) {
   return (
-    /\.(md|txt)$/i.test(p) &&
-    (p.startsWith("docs/") || !p.includes("/")) &&
-    p !== "docs/TEN_PHASES_ACCEPTANCE_CHECKLIST.md"
+    p === "docs/privacy.html" ||
+    (/\.(md|txt)$/i.test(p) &&
+      (p.startsWith("docs/") || !p.includes("/")) &&
+      p !== "docs/TEN_PHASES_ACCEPTANCE_CHECKLIST.md")
   );
 }
 export function classify(paths) {
@@ -66,7 +67,7 @@ export function included(path, suite) {
       path,
     );
   if (suite === "rust")
-    return /^(src-tauri\/|src\/data\/.*\.json$|scripts\/|\.github\/|package(?:-lock)?\.json$|rust-toolchain|\.cargo\/)/.test(
+    return /^(src-tauri\/|server\/supabase\/public\.json$|src\/data\/.*\.json$|scripts\/|\.github\/|package(?:-lock)?\.json$|rust-toolchain|\.cargo\/)/.test(
       path,
     );
   return !ordinaryDocs(path);

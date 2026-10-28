@@ -57,10 +57,11 @@ jobs:
         with:
           node-version: 24
           cache: npm
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: 1.99.1
           targets: ${{ matrix.target }}
-          components: rustfmt
+          components: rustfmt, clippy
       - name: Bind validation to source, toolchain and runner image
         id: inputs
         run: node scripts/ci-inputs.mjs
@@ -87,6 +88,16 @@ jobs:
         with:
           path: .tools/ci/rust
           key: rust-proof-v1-${{ matrix.name }}-${{ steps.inputs.outputs.rust_key }}
+      - uses: actions/cache/restore@v4
+        if: steps.proof.outputs.reusable != 'true'
+        id: lint-cache
+        with:
+          path: .tools/ci/lint
+          key: lint-proof-v2-${{ matrix.name }}-${{ steps.inputs.outputs.rust_key }}
+      - name: Verify both cached Rust lint profiles
+        if: steps.proof.outputs.reusable != 'true'
+        id: lint-proof
+        run: node scripts/ci-proof.mjs lint-inspect '${{ steps.inputs.outputs.rust_key }}'
       - run: npm ci
         if: steps.proof.outputs.reusable != 'true' || inputs.release || inputs.build_installers
       - name: Lint frontend (errors and warnings over the committed budget fail)
@@ -95,13 +106,27 @@ jobs:
       - name: Find unused files, exports and dependencies (findings over the committed budget fail)
         if: steps.proof.outputs.reusable != 'true'
         run: npm run lint:unused
+      - name: Provide a placeholder frontend for Rust context generation
+        if: steps.proof.outputs.reusable != 'true' && steps.lint-proof.outputs.reusable != 'true'
+        run: |
+          mkdir -p dist
+          printf '<!doctype html>\n' > dist/index.html
+      - name: Lint Rust using the native validation runner and compiler cache
+        if: steps.proof.outputs.reusable != 'true' && steps.lint-proof.outputs.reusable != 'true'
+        run: npm run lint:rust
+      - name: Check release Rust and certify both lint profiles
+        if: steps.proof.outputs.reusable != 'true' && steps.lint-proof.outputs.reusable != 'true'
+        run: |
+          cargo clippy --locked --release --manifest-path src-tauri/Cargo.toml --all-targets --message-format=json -- -D warnings > .tools/quality/clippy-release.jsonl
+          node scripts/ci-proof.mjs lint-record '${{ steps.inputs.outputs.rust_key }}'
       - name: Run applicable checks once and preserve the full acceptance report
         if: steps.proof.outputs.reusable != 'true'
         run: |
           node scripts/ci-proof.mjs clean
+          node --test scripts/native-context.verify.mjs
           cargo fmt --manifest-path src-tauri/Cargo.toml --check
           npm run test:acceptance -- --output .tools/ci/full/acceptance --rust-evidence .tools/ci/rust/receipt.json --rust-key '${{ steps.inputs.outputs.rust_key }}'
-          node scripts/ci-proof.mjs record '${{ steps.inputs.outputs.validation_key }}'
+          node scripts/ci-proof.mjs record '${{ steps.inputs.outputs.validation_key }}' '${{ steps.inputs.outputs.rust_key }}'
       - name: Record reuse provenance
         if: steps.proof.outputs.reusable == 'true'
         run: echo 'Reused successful validation with matching source, runner, toolchain and frontend artifact bytes.'
@@ -117,6 +142,11 @@ jobs:
         with:
           path: .tools/ci/rust
           key: rust-proof-v1-${{ matrix.name }}-${{ steps.inputs.outputs.rust_key }}
+      - uses: actions/cache/save@v4
+        if: success() && steps.proof.outputs.reusable != 'true' && steps.lint-cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        with:
+          path: .tools/ci/lint
+          key: lint-proof-v2-${{ matrix.name }}-${{ steps.inputs.outputs.rust_key }}
       - name: Verify the frontend before packaging without recompiling it
         if: inputs.release || inputs.build_installers
         run: node scripts/ci-proof.mjs prebuilt '${{ steps.inputs.outputs.validation_key }}'

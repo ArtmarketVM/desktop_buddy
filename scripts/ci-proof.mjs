@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   existsSync,
+  cpSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -85,6 +86,44 @@ export function rustProof(path, key) {
   const proof = readProof(path, key, "rust");
   return proof && validRustSuite(proof.suite) ? proof : null;
 }
+export function validLintReport(raw) {
+  try {
+    const events = raw
+      .toString()
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => JSON.parse(line));
+    return (
+      events.at(-1)?.reason === "build-finished" &&
+      events.at(-1).success === true &&
+      !events.some(
+        (e) =>
+          e.reason === "compiler-message" &&
+          ["warning", "error", "failure-note"].includes(e.message?.level),
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+export function rustLintProof(path, key) {
+  const proof = readProof(path, key, "rust-lint");
+  if (!proof) return null;
+  try {
+    for (const profile of ["debug", "release"]) {
+      const raw = readFileSync(join(dirname(path), `${profile}.jsonl`));
+      if (
+        !validLintReport(raw) ||
+        proof.digests?.[profile] !==
+          createHash("sha256").update(raw).digest("hex")
+      )
+        return null;
+    }
+    return proof;
+  } catch {
+    return null;
+  }
+}
 export function distDigest(directory) {
   const hash = createHash("sha256");
   function walk(path, prefix = "") {
@@ -132,6 +171,13 @@ export function fullProof(path, key, dist) {
   const proof = readProof(path, key, "full");
   try {
     if (!proof || proof.distDigest !== distDigest(dist)) return null;
+    if (
+      !rustLintProof(
+        join(dirname(path), "rust-lint/receipt.json"),
+        proof.rustLintKey,
+      )
+    )
+      return null;
     const raw = readFileSync(join(dirname(path), "acceptance/report.json"));
     const report = JSON.parse(raw);
     if (
@@ -148,7 +194,7 @@ if (
   process.argv[1] &&
   import.meta.url === pathToFileURL(resolve(process.argv[1])).href
 ) {
-  const [operation, key] = process.argv.slice(2);
+  const [operation, key, rustKey] = process.argv.slice(2);
   const path = ".tools/ci/full/receipt.json";
   if (operation === "inspect")
     outputs({ reusable: Boolean(fullProof(path, key, "dist")) });
@@ -157,10 +203,35 @@ if (
       report = JSON.parse(raw);
     if (!validReport(report))
       throw new Error("Cannot certify failed or incomplete validation");
+    if (!rustLintProof(".tools/ci/lint/receipt.json", rustKey))
+      throw new Error(
+        "Both Rust lint profiles must pass for the current Rust inputs",
+      );
+    cpSync(".tools/ci/lint", ".tools/ci/full/rust-lint", { recursive: true });
     writeProof(path, key, "full", {
+      rustLintKey: rustKey,
       distDigest: distDigest("dist"),
       reportDigest: createHash("sha256").update(raw).digest("hex"),
     });
+  } else if (operation === "lint-inspect") {
+    outputs({
+      reusable: Boolean(rustLintProof(".tools/ci/lint/receipt.json", key)),
+    });
+  } else if (operation === "lint-record") {
+    const directory = ".tools/ci/lint";
+    mkdirSync(directory, { recursive: true });
+    const digests = {};
+    for (const [profile, source] of [
+      ["debug", "clippy.jsonl"],
+      ["release", "clippy-release.jsonl"],
+    ]) {
+      const raw = readFileSync(join(".tools/quality", source));
+      if (!validLintReport(raw))
+        throw new Error(`Cannot certify unsuccessful ${profile} Clippy`);
+      writeFileSync(join(directory, `${profile}.jsonl`), raw);
+      digests[profile] = createHash("sha256").update(raw).digest("hex");
+    }
+    writeProof(join(directory, "receipt.json"), key, "rust-lint", { digests });
   } else if (operation === "clean") {
     rmSync(".tools/ci/full", { recursive: true, force: true });
     rmSync("dist", { recursive: true, force: true });

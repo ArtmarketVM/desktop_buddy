@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 import { assertNewerRelease } from "./verify-release.mjs";
+import { checkPrivacySource } from "./check-privacy-source.mjs";
 
 export function validateNotes(text, version) {
   text = text.replaceAll("\r\n", "\n");
@@ -80,6 +81,7 @@ if (
 ) {
   const [version, flag, source] = process.argv.slice(2);
   if (version === "--check") {
+    checkPrivacySource();
     execFileSync(process.execPath, ["scripts/check-version.mjs"], {
       stdio: "inherit",
     });

@@ -24,7 +24,10 @@ import {
   distDigest,
   fullProof,
   validReport,
+  validLintReport,
+  rustLintProof,
 } from "./ci-proof.mjs";
+import { validatePrivacyCopy } from "./check-privacy-source.mjs";
 import { watch } from "./watch-ci.mjs";
 import { prepare, validateNotes } from "./prepare-release.mjs";
 
@@ -70,6 +73,21 @@ function proof(extra = {}) {
     ...extra,
   };
 }
+function lintFixture(root, directory = "full/rust-lint") {
+  const raw =
+    JSON.stringify({ reason: "build-finished", success: true }) + "\n";
+  const digest = createHash("sha256").update(raw).digest("hex");
+  for (const profile of ["debug", "release"])
+    write(root, `${directory}/${profile}.jsonl`, raw);
+  return write(
+    root,
+    `${directory}/receipt.json`,
+    proof({
+      kind: "rust-lint",
+      digests: { debug: digest, release: digest },
+    }),
+  );
+}
 function repository(root) {
   execFileSync("git", ["init", "-q"], { cwd: root });
   write(root, "src-tauri/src/lib.rs", "fn actual() {}\n");
@@ -77,12 +95,18 @@ function repository(root) {
   write(root, "src/style.css", "body { color: black; }");
   write(root, "package.json", { version: "1.0.0", dependencies: { x: "1" } });
   write(root, "README.md", "original");
+  write(root, "docs/privacy.html", "policy text");
   execFileSync("git", ["add", "."], { cwd: root });
 }
 
 test("documentation changes do not schedule native compilation or visual work", () => {
   assert.deepEqual(
-    classify(["README.md", "AGENTS.md", "docs/SESSION_HANDOFF.md"]),
+    classify([
+      "README.md",
+      "AGENTS.md",
+      "docs/SESSION_HANDOFF.md",
+      "docs/privacy.html",
+    ]),
     { checks: false, visual: false, rust: false },
   );
   assert.equal(
@@ -92,7 +116,7 @@ test("documentation changes do not schedule native compilation or visual work", 
 });
 test("frontend, backend, visual and unknown changes select conservative gates", () => {
   assert.equal(classify(["src-tauri/embedded.md"]).checks, true);
-  assert.equal(classify(["docs/privacy.html"]).checks, true);
+  assert.equal(classify(["docs/unknown.html"]).checks, true);
   assert.deepEqual(classify(["src/style.css"]), {
     checks: true,
     visual: true,
@@ -103,6 +127,11 @@ test("frontend, backend, visual and unknown changes select conservative gates", 
     visual: false,
     rust: true,
   });
+  assert.equal(classify(["server/supabase/public.json"]).rust, true);
+  assert.equal(
+    classify(["server/supabase/functions/buddy-ai/handler.ts"]).checks,
+    true,
+  );
   assert.deepEqual(classify(["visual/screens.spec.ts"]), {
     checks: false,
     visual: true,
@@ -145,6 +174,8 @@ test("CSS and documentation preserve Rust keys while embedded data and backend c
     repository(root);
     const before = fingerprint(root, "rust"),
       full = fingerprint(root, "full");
+    write(root, "docs/privacy.html", "corrected policy text");
+    assert.equal(fingerprint(root, "full"), full);
     write(root, "src/style.css", "body { color: red; }");
     write(root, "README.md", "changed");
     assert.equal(fingerprint(root, "rust"), before);
@@ -240,10 +271,13 @@ test("full proofs require all acceptance suites and exact report and bundle byte
       "full/receipt.json",
       proof({
         kind: "full",
+        rustLintKey: key,
         distDigest: distDigest(dist),
         reportDigest: createHash("sha256").update(raw).digest("hex"),
       }),
     );
+    assert.equal(fullProof(path, key, dist), null);
+    lintFixture(root);
     assert.ok(fullProof(path, key, dist));
     write(root, "dist/assets/app.js", "tampered");
     assert.equal(fullProof(path, key, dist), null);
@@ -255,6 +289,57 @@ test("full proofs require all acceptance suites and exact report and bundle byte
     );
     assert.equal(fullProof(path, key, dist), null);
   }));
+test("Rust lint reuse requires both successful zero-warning profiles and exact report bytes", () =>
+  temporary((root) => {
+    const path = lintFixture(root);
+    assert.ok(rustLintProof(path, key));
+    assert.equal(rustLintProof(path, "different-inputs"), null);
+    write(
+      root,
+      "full/rust-lint/release.jsonl",
+      '{"reason":"build-finished","success":false}\n',
+    );
+    assert.equal(rustLintProof(path, key), null);
+    for (const raw of [
+      "",
+      "not JSON",
+      '{"reason":"build-finished","success":false}',
+      '{"reason":"compiler-message","message":{"level":"warning"}}\n{"reason":"build-finished","success":true}',
+      '{"reason":"compiler-message","message":{"level":"error"}}\n{"reason":"build-finished","success":true}',
+    ])
+      assert.equal(validLintReport(raw), false);
+    assert.equal(
+      validLintReport('{"reason":"build-finished","success":true}'),
+      true,
+    );
+  }));
+test("privacy corrections are checked before native compilation and stale claims fail fast", () => {
+  const source =
+    "pub(crate) const SAMPLE_INTERVAL: Duration = Duration::from_secs(20);";
+  const policy =
+    "at most one capture attempt per 20 seconds. encrypted temporary review evidence, deleted after the corresponding daily summary is successfully saved.";
+  assert.doesNotThrow(() => validatePrivacyCopy(source, policy));
+  assert.throws(
+    () =>
+      validatePrivacyCopy(source, policy.replace("20 seconds", "120 seconds")),
+    /cadence/,
+  );
+  assert.throws(
+    () =>
+      validatePrivacyCopy(
+        source,
+        policy.replace(
+          "encrypted temporary review evidence",
+          "Images are temporary and are not saved",
+        ),
+      ),
+    /encrypted/,
+  );
+  assert.throws(
+    () => validatePrivacyCopy("unrecognized interval", policy),
+    /cadence/,
+  );
+});
 test("monitor emits stage changes once and retries bounded network errors without calling CI failed", async () => {
   const states = [
     { status: "in_progress", jobs: [] },
@@ -356,10 +441,26 @@ test("lint gates block and their warning budgets cannot be bypassed", () => {
   assert.doesNotMatch(ci + platforms, /continue-on-error/);
   assert.match(platforms, /run: npm run lint\n/);
   assert.match(platforms, /run: npm run lint:unused\n/);
-  assert.match(ci, /run: npm run lint:rust\n/);
-  assert.match(ci, /cargo clippy --locked --release --manifest-path src-tauri\/Cargo.toml --all-targets -- -D warnings/);
+  assert.match(platforms, /run: npm run lint:rust\n/);
+  assert.match(
+    platforms,
+    /cargo clippy --locked --release --manifest-path src-tauri\/Cargo.toml --all-targets --message-format=json -- -D warnings/,
+  );
   assert.match(ci, /needs: \[plan, platforms, visual, rust-lint\]/);
-  assert.match(ci, /rust-lint:\n    needs: plan\n/);
+  assert.match(ci, /rust-lint:\n    needs: \[plan, platforms\]\n/);
+  assert.doesNotMatch(ci, /runner: macos-15/);
+  assert.match(platforms, /components: rustfmt, clippy/);
+  assert.match(platforms, /toolchain: 1.99.1/);
+  assert.match(platforms, /ci-proof.mjs lint-record/);
+  assert.ok(
+    platforms.indexOf("Provide a placeholder frontend") <
+      platforms.indexOf("run: npm run lint:rust"),
+  );
+  assert.doesNotMatch(ci, /^concurrency:/m);
+  assert.match(
+    ci,
+    /platforms:\n    needs: plan\n    if: needs.plan.outputs.checks == 'true'\n    concurrency:/,
+  );
   assert.match(ci, /test "\$RUST_LINT" = success/);
   const budget = JSON.parse(read("scripts/lint-budget.json"));
   assert.ok(Number.isInteger(budget.eslintWarnings));
