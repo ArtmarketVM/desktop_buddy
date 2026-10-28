@@ -119,16 +119,18 @@ unsafe fn sample(automation: &IUIAutomation2, window: HWND, selected: bool) -> O
     let mut remaining = if selected { 4001usize } else { 3000usize };
     while let Some((element, depth)) = stack.pop() {
         visited += 1;
-        if visited > 80 || Instant::now() > deadline || remaining == 0 {
+        if visited > 256 || Instant::now() > deadline || remaining == 0 {
             break;
         }
         // Do not inspect password or editable controls. Document text depends on its provider.
-        if element.CurrentIsPassword().ok()?.as_bool()
-            || element.CurrentIsOffscreen().ok()?.as_bool()
+        if element.CurrentIsPassword().map_or(true, |v| v.as_bool())
+            || element.CurrentIsOffscreen().map_or(true, |v| v.as_bool())
         {
             continue;
         }
-        let control = element.CurrentControlType().ok()?;
+        let Ok(control) = element.CurrentControlType() else {
+            continue;
+        };
         if control == UIA_EditControlTypeId && !selected {
             continue;
         }
@@ -141,7 +143,8 @@ unsafe fn sample(automation: &IUIAutomation2, window: HWND, selected: bool) -> O
                 pattern.GetVisibleRanges()
             };
             if let Ok(ranges) = ranges {
-                for index in 0..ranges.Length().ok()?.min(3) {
+                let before = pieces.len();
+                for index in 0..ranges.Length().unwrap_or(0).min(3) {
                     if let Ok(range) = ranges.GetElement(index) {
                         if let Ok(text) = range.GetText(remaining as i32) {
                             let text: String = text.to_string().chars().take(remaining).collect();
@@ -152,24 +155,37 @@ unsafe fn sample(automation: &IUIAutomation2, window: HWND, selected: bool) -> O
                         }
                     }
                 }
-                if !pieces.is_empty() {
+                if pieces.len() > before {
                     break;
                 }
             }
         }
-        if depth >= 7 {
+        // Many native apps expose read-only labels without TextPattern.
+        if !selected && control == UIA_TextControlTypeId {
+            if let Ok(name) = element.CurrentName() {
+                let text: String = name.to_string().chars().take(remaining).collect();
+                if !text.trim().is_empty() {
+                    remaining = remaining.saturating_sub(text.chars().count());
+                    pieces.push(text);
+                }
+            }
+        }
+        if depth >= 32 {
             continue;
         }
         let mut child = walker.GetFirstChildElement(&element).ok();
-        let mut siblings = 0;
+        let mut children = Vec::new();
         while let Some(element) = child {
-            if siblings >= 25 || Instant::now() > deadline {
+            if children.len() >= 64
+                || stack.len() + children.len() >= 256
+                || Instant::now() > deadline
+            {
                 break;
             }
             child = walker.GetNextSiblingElement(&element).ok();
-            stack.push((element, depth + 1));
-            siblings += 1;
+            children.push((element, depth + 1));
         }
+        stack.extend(children.into_iter().rev());
     }
     Some(pieces.join("\n"))
 }

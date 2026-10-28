@@ -67,6 +67,12 @@ pub(crate) async fn run() -> Result<Value, String> {
         .ok()
         .filter(|s| !s.trim().is_empty())
         .unwrap_or_else(|| crate::http::DEFAULT_RESPONSE_MODEL.into());
+    if let Some(path) = std::env::args().find_map(|arg| {
+        arg.strip_prefix("--captured-request-report=")
+            .map(str::to_owned)
+    }) {
+        return captured_request(&service, &configured, &path).await;
+    }
     let mut models = vec![configured];
     if compare {
         for model in [
@@ -321,6 +327,80 @@ pub(crate) async fn run() -> Result<Value, String> {
     Ok(
         json!({"all_passed":rows.iter().all(|r|r["passed"]==true),"source":"real_nebius_synthetic_fixtures","cases":rows,"provider_calls":calls,"provider_reported_prompt_tokens":prompt_tokens,"provider_reported_completion_tokens":completion_tokens,
         "scope":"Fabricated goals, in-memory storage and rendered synthetic images only. No installed goals, chats, native screens or private evidence were read. Native capture and actual application transitions remain separate acceptance checks."}),
+    )
+}
+
+/// Replay actual native text from the public Maple fixture through the production
+/// classifier and consent path. This never opens or changes the installed database.
+async fn captured_request(service: &Service<'_>, model: &str, path: &str) -> Result<Value, String> {
+    use std::io::Read;
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .map_err(|_| "Native capture report unavailable")?
+        .take(32001)
+        .read_to_end(&mut bytes)
+        .map_err(|_| "Native capture report unavailable")?;
+    if bytes.len() > 32000 {
+        return Err("Native capture report exceeds the test budget".into());
+    }
+    let report: Value =
+        serde_json::from_slice(&bytes).map_err(|_| "Invalid native capture report")?;
+    let text = report["text"]
+        .as_str()
+        .ok_or("Native fixture text missing")?;
+    if !text.contains("Maple") || !text.contains("speaker order") || text.len() > 12000 {
+        return Err(
+            "Only the public Maple request fixture is supported; no cloud request made".into(),
+        );
+    }
+    let state = AppState::new(crate::storage::Storage::open(std::path::Path::new(
+        ":memory:",
+    ))?)?;
+    let candidates = {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Fixture state unavailable")?;
+        goals(&inner)?
+    };
+    let samples = vec![sample(1, Utc::now().timestamp(), text, false)];
+    let started = Instant::now();
+    let response = infer(
+        service,
+        model,
+        Pass::Observation,
+        json!({"open_goals":candidates,"observations":samples,"image_sample_ids":[],
+            "current_time":Utc::now().to_rfc3339(),"relevant_personal_context":null}),
+        &[],
+        &|| Ok(()),
+    )
+    .await?;
+    let answer = parse(&response, &candidates, &samples)?;
+    let signal = answer
+        .signals
+        .iter()
+        .find(|s| s.kind == "new_goal" && s.confidence >= PROPOSAL_CONFIDENCE)
+        .ok_or("Captured request did not produce a grounded new-goal proposal")?;
+    let mut inner = state
+        .inner
+        .lock()
+        .map_err(|_| "Fixture state unavailable")?;
+    let p = super::prompt(&inner, signal)?;
+    let before = inner.storage.core_work_snapshot()?.goals.len();
+    companion::confirm_new_goal(&mut inner.storage, &p)?;
+    let after = inner.storage.core_work_snapshot()?;
+    let saved = after.goals.iter().find(|g| g.title == p.text);
+    let accepted_once = companion::confirm_new_goal(&mut inner.storage, &p).is_err();
+    Ok(
+        json!({"all_passed":before==0 && saved.is_some() && accepted_once,
+        "source":"native_public_fixture_text_real_nebius", "model":model,
+        "native_text_characters":text.chars().count(), "image_used_by_model":false,
+        "native_capture_succeeded":report["capture"]["jpeg_base64_length"].as_u64().is_some_and(|n|n>0),
+        "provider_calls":1,"latency_ms":started.elapsed().as_millis(),
+        "proposed_title":p.text,"confidence":signal.confidence,"evidence":signal.evidence,
+        "no_goal_before_acceptance":before==0,"saved_after_acceptance":saved.is_some(),
+        "duplicate_acceptance_rejected":accepted_once,
+        "scope":"Actual captured public-fixture text, real model and isolated consent/storage path. This does not verify the installed scheduler or visible bubble."}),
     )
 }
 
