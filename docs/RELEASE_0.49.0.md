@@ -6,7 +6,6 @@
 - Service indicators check the selected connection. Provider keys stay on the server in built-in mode; uniform server limits bound shared usage.
 - New profiles enable the existing AI observation tools by default. Explicit saved privacy choices remain respected, and operating-system permissions are still required.
 - Improved foreground interface text collection and active-window capture, including content nested deeply in browser accessibility trees.
-- Windows snapshots capture the active window's own surface even when the companion or another window overlaps it. Capture failures report specific safe diagnostic categories. This capture path requires Windows 10 version 1903 or newer; Windows may display its capture border during a snapshot.
 - Smoother Today goal dragging preserves the existing priority rules.
 - Release validation reuses matching verified results and avoids duplicate native lint allocations while retaining both platform checks and signing verification.
 
