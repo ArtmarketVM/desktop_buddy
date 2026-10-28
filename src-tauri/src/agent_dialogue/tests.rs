@@ -1885,3 +1885,75 @@ async fn voice_soundalike_context_reaches_planner_authorizer_and_reply_without_r
     );
     assert_eq!(goals.focused_goal_id, Some(ids["Client reply"]));
 }
+
+#[tokio::test]
+async fn natural_preparatory_read_can_finish_a_requested_change_but_cannot_authorize_one() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    for (requested_change, duplicate_read) in [(false, false), (true, false), (true, true)] {
+        let (state, ids) = fixture(&case()).unwrap();
+        let target = ids["Psychology assignment"];
+        let original_focus = ids["Client reply"];
+        let conversation = state
+            .inner
+            .lock()
+            .unwrap()
+            .storage
+            .current_conversation()
+            .unwrap();
+        let server = MockServer::start().await;
+        let plans = Arc::new(AtomicUsize::new(0));
+        let seen = plans.clone();
+        Mock::given(method("POST")).respond_with(move |request:&Request| {
+            let (b,c)=body(request);
+            match b["response_format"]["json_schema"]["name"].as_str().unwrap_or("buddy_dialogue_response") {
+                "buddy_skill_plan" if seen.fetch_add(1,Ordering::SeqCst)<if duplicate_read {2}else{1}=>{
+                    let mut read=action(&c,"inspect_goal",json!({"goal":{"goal_id":target,"reference":null}}),"read",true);
+                    read["proposed_actions"][0]["instruction"]=json!(if seen.load(Ordering::SeqCst)==1 {"Read the goal details."}else{"Inspect the same saved goal."});
+                    response(read)
+                },
+                "buddy_skill_plan"=>{
+                    assert!(c["request_contract"]["authorization"].is_null());
+                    if duplicate_read {
+                        assert_eq!(c["tool_results"].as_array().unwrap().len(),1);
+                        assert!(c["validation_feedback"]["correction"].as_str().unwrap().contains("already succeeded"));
+                    }
+                    response(action(&c,if requested_change {"set_focus_goal"}else{"delete_goal"},json!({"goal":{"goal_id":target,"reference":null}}),"change",true))
+                },
+                "buddy_dialogue_authorization"=>{
+                    assert_eq!(c["latest_request"],if requested_change {"Read Psychology assignment and focus it"}else{"Read Psychology assignment"});
+                    response(json!({"review":{"verdict":if requested_change {"approved"}else{"clarify"},"request_mode":if requested_change {"change"}else{"read"},"message":if requested_change {""}else{"Reading does not authorize deletion. No changes were made."}}}))
+                },
+                "buddy_dialogue_response"=>{
+                    assert_eq!(c["verified_execution"]["status"],"executed");
+                    response(json!({"message":"Psychology assignment is now in focus.","resources":[],"memory_update":null,"verified_result_indices":[0]}))
+                },
+                "buddy_dialogue_review"=>response(json!({"review":{"verdict":"approved","request_mode":"change","message":""}})),
+                name=>panic!("Unexpected operation {name}"),
+            }
+        }).expect(if duplicate_read {6}else if requested_change {5}else{3}).mount(&server).await;
+        let service = Service {
+            client: &state.client,
+            endpoint: server.uri(),
+            key: "fixture".into(),
+            model: "fixture".into(),
+        };
+        let out=run(&json!({"latest_request":if requested_change {"Read Psychology assignment and focus it"}else{"Read Psychology assignment"},"natural_reply":true}),conversation,&state,0,true,&service).await.unwrap();
+        assert_eq!(out.committed, requested_change);
+        let inner = state.inner.lock().unwrap();
+        assert_eq!(
+            inner.storage.core_snapshot(None).unwrap().focused_goal_id,
+            Some(if requested_change {
+                target
+            } else {
+                original_focus
+            })
+        );
+        assert!(inner.storage.goal_plan(target).is_ok());
+        assert!(skills::pending_confirmation(&inner.storage, conversation)
+            .unwrap()
+            .is_none());
+    }
+}

@@ -132,6 +132,7 @@ pub(crate) async fn post_default_interactive_json(
     key: &str,
     payload: &Value,
     budget: Duration,
+    fallback_budget: Duration,
     preflight: Option<Preflight<'_>>,
 ) -> Result<Value, String> {
     if let Some(check) = preflight {
@@ -158,11 +159,11 @@ pub(crate) async fn post_default_interactive_json(
     }
     let mut fallback = payload.clone();
     fallback["model"] = serde_json::json!(DEFAULT_PRIMARY_MODEL);
-    fallback["chat_template_kwargs"] = serde_json::json!({"enable_thinking":false});
+    fallback["chat_template_kwargs"] = serde_json::json!({"enable_thinking":true});
     fallback.as_object_mut().unwrap().remove("reasoning_effort");
     tokio::time::timeout(
-        budget,
-        post_json_with_timeout(client, url, key, &fallback, budget, false, false),
+        fallback_budget,
+        post_json_with_timeout(client, url, key, &fallback, fallback_budget, false, false),
     )
     .await
     .map_err(|_| {
@@ -536,7 +537,7 @@ mod tests {
                 let body: Value = serde_json::from_slice(&request.body).unwrap();
                 assert_eq!(body["messages"], expected["messages"]);
                 assert_eq!(body["response_format"], expected["response_format"]);
-                assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
+                assert_eq!(body["chat_template_kwargs"]["enable_thinking"], true);
                 ResponseTemplate::new(200)
                     .set_body_json(serde_json::json!({"model":DEFAULT_PRIMARY_MODEL,"ok":true}))
             })
@@ -548,6 +549,7 @@ mod tests {
             &server.uri(),
             "fixture",
             &payload,
+            Duration::from_millis(300),
             Duration::from_millis(300),
             None,
         )
@@ -570,6 +572,7 @@ mod tests {
                 &server.uri(),
                 "fixture",
                 &payload,
+                Duration::from_millis(300),
                 Duration::from_millis(300),
                 None,
             )
@@ -596,6 +599,7 @@ mod tests {
             "fixture",
             &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
             Duration::from_millis(300),
+            Duration::from_millis(300),
             None,
         )
         .await
@@ -613,6 +617,7 @@ mod tests {
                 &server.uri(),
                 "fixture",
                 &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+                Duration::from_millis(300),
                 Duration::from_millis(300),
                 None,
             )
@@ -648,6 +653,7 @@ mod tests {
             "fixture",
             &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
             Duration::from_millis(300),
+            Duration::from_millis(300),
             Some(&check),
         )
         .await
@@ -655,5 +661,49 @@ mod tests {
         assert_eq!(error, "Coaching context or privacy changed");
         assert_eq!(checks.load(Ordering::SeqCst), 2);
         assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    }
+    #[tokio::test]
+    async fn reasoning_fallback_has_a_separate_budget_and_keeps_thinking_enabled() {
+        use wiremock::{
+            matchers::{body_partial_json, method},
+            Mock, MockServer, ResponseTemplate,
+        };
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_RESPONSE_MODEL}),
+            ))
+            .respond_with(ResponseTemplate::new(503))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(body_partial_json(
+                serde_json::json!({"model":DEFAULT_PRIMARY_MODEL}),
+            ))
+            .respond_with(|request: &wiremock::Request| {
+                let body: Value = serde_json::from_slice(&request.body).unwrap();
+                assert_eq!(body["chat_template_kwargs"]["enable_thinking"], true);
+                assert!(body.get("reasoning_effort").is_none());
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!({"ok":true}))
+                    .set_delay(Duration::from_millis(80))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        let result = post_default_interactive_json(
+            &reqwest::Client::new(),
+            &server.uri(),
+            "fixture",
+            &serde_json::json!({"model":DEFAULT_RESPONSE_MODEL,"reasoning_effort":"low"}),
+            Duration::from_millis(20),
+            Duration::from_millis(300),
+            None,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result["ok"], true);
+        assert_eq!(server.received_requests().await.unwrap().len(), 2);
     }
 }

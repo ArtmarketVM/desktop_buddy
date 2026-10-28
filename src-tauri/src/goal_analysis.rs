@@ -402,6 +402,9 @@ fn default_interactive_fallback(
             | "buddy_dialogue_review"
             | "buddy_coaching_interpretation"
             | "buddy_coaching_response"
+            | "buddy_research_evidence"
+            | "buddy_research_synthesis"
+            | "buddy_dialogue_response"
     ) && primary == http::DEFAULT_PRIMARY_MODEL
         && model == http::DEFAULT_RESPONSE_MODEL
         && explicit.is_none_or(|m| m.trim().is_empty())
@@ -561,14 +564,15 @@ impl<'a> Service<'a> {
         } else if name == "buddy_coaching_voice_judge" {
             http::post_evaluation_json(self.client, &self.endpoint, &self.key, &payload).await
         } else if default_interactive {
-            // Two ten-second generation attempts fit inside the review's 25-second
-            // bound. Both are proposals and still pass the same independent checks.
+            // Keep review attempts within 25 seconds, but give a deliberate planner
+            // enough time to reason. Both remain unexecuted, validated proposals.
             http::post_default_interactive_json(
                 self.client,
                 &self.endpoint,
                 &self.key,
                 &payload,
                 std::time::Duration::from_secs(10),
+                std::time::Duration::from_secs(if name == "buddy_skill_plan" { 20 } else { 12 }),
                 preflight,
             )
             .await
@@ -591,7 +595,7 @@ impl<'a> Service<'a> {
                 if let Ok(content) = response_text(value) {
                     eprintln!(
                         "Synthetic dialogue JSON {}",
-                        json!({"operation":name,"response":serde_json::from_str::<Value>(content).ok()})
+                        json!({"operation":name,"request":payload,"response":serde_json::from_str::<Value>(content).ok()})
                     );
                 }
             }

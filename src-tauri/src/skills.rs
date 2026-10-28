@@ -4,7 +4,7 @@ use rusqlite::{params, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 mod enhancements;
-pub const WORKFLOW_PROMPT: &str = "For new goals prefer create_planned_goal: date=null keeps a backlog goal; an explicit local YYYY-MM-DD date schedules it. New goals have no ID in the supplied workspace. In an ordered creation plan, subsequent steps, scheduling and focus for that new goal must use last_created (or previous_action when its immediately preceding result is the new goal), never an existing goal ID or a guessed next ID. Creation must precede those dependent actions. Earlier last_created/active/parked references do not identify a goal that has not been created yet. Existing goals can remain parked while another goal is created. Preserve a different existing target only when the user actually requested it. Use state.date and local_timezone_offset for relative dates and clarify ambiguity. update_goal changes only explicitly requested fields; null keeps a field and clear_fields removes it. Scheduling is distinct from deadlines and focus. reopen_goal preserves progress; restart_goal resets all steps only when starting over was explicitly requested and requires backend confirmation. complete_goal also creates a backend confirmation preview. find_goals searches all goals beyond the bounded workspace: use filters and pagination instead of requesting an unbounded index. Retain last_goal_search filters and advance offset for the next page. reorder_steps must include every real step ID exactly once; set_current_step selects an unfinished step without a timer. update_work_context records explicit user facts without completion, parking or focus. A reported result is not verified completion. inspect_research reads a saved ready receipt; add_research_step requires explicit approval to add its next action as unfinished. undo_last_goal_edit undoes the latest supported single edit in this chat; reads do not grant mutation permission or invalidate that journal. It is a separate operation; deletes use restore_goal. Goal sharing off allows only creation from the user's supplied content and conversation reads. Preserve existing scope, duplicate-target, authorization, state and response review guards. Never infer object IDs or completion.";
+pub const WORKFLOW_PROMPT: &str = "For new goals prefer create_planned_goal: date=null keeps a backlog goal; an explicit local YYYY-MM-DD date schedules it. New goals have no ID in the supplied workspace. In an ordered creation plan, subsequent steps, scheduling and focus for that new goal must use last_created (or previous_action when its immediately preceding result is the new goal), never an existing goal ID or a guessed next ID. Creation must precede those dependent actions. Earlier last_created/active/parked references do not identify a goal that has not been created yet. Existing goals can remain parked while another goal is created. Existing-goal mutations belong before creation; after creation, mutate only goals reached through that creation result. Existing-goal reads remain available. Preserve a different existing target only when the user actually requested it. Use state.date and local_timezone_offset for relative dates and clarify ambiguity. update_goal changes only explicitly requested fields; null keeps a field and clear_fields removes it. Scheduling is distinct from deadlines and focus. reopen_goal preserves progress; restart_goal resets all steps only when starting over was explicitly requested and requires backend confirmation. complete_goal also creates a backend confirmation preview. find_goals searches all goals beyond the bounded workspace: use filters and pagination instead of requesting an unbounded index. Retain last_goal_search filters and advance offset for the next page. reorder_steps must include every real step ID exactly once; set_current_step selects an unfinished step without a timer. update_work_context records explicit user facts without completion, parking or focus. A reported result is not verified completion. inspect_research reads a saved ready receipt; add_research_step requires explicit approval to add its next action as unfinished. undo_last_goal_edit undoes the latest supported single edit in this chat; reads do not grant mutation permission or invalidate that journal. It is a separate operation; deletes use restore_goal. Goal sharing off allows only creation from the user's supplied content and conversation reads. Preserve existing scope, duplicate-target, authorization, state and response review guards. Never infer object IDs or completion.";
 
 #[derive(Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -341,7 +341,7 @@ pub fn registry() -> Vec<Skill> {
         ("inspect_today", "Read today's confirmed results and separate timer, observed and relevant time; time alone is not completion", Safety::ReadOnly, json!({})),
         ("inspect_work_queue", "Read the actual Today queue: In focus, ordered Later today, and Up next; does not change focus", Safety::ReadOnly, json!({})),
         ("park_context","Save a short checkpoint and park this goal before switching work",Safety::Reversible,json!({"goal":goal,"checkpoint":{"anyOf":[crate::work_context::checkpoint_schema(),{"type":"null"}]},"current_app":{"type":["string","null"],"maxLength":120}})),
-        ("resume_context","Resume this saved work context; optionally focus the goal without starting a timer",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
+        ("resume_context","Change a parked goal back to active, record its resumption and restore its saved checkpoint; optionally focus it without starting a timer. Reading a checkpoint alone does not resume or focus the goal",Safety::Reversible,json!({"goal":goal,"set_focus":{"type":"boolean"}})),
         ("inspect_work_context","Read where work stopped, the last meaningful result, next action and waiting state",Safety::ReadOnly,json!({"goal":goal})),
         (
             "list_goals",
@@ -1320,12 +1320,48 @@ fn restore_inner(storage: &mut Storage, backup_id: i64) -> Result<i64, String> {
 }
 
 /// All actions, references and undo records commit together or roll back together.
+// Prevent pre-creation IDs from masquerading as a newly created goal. Existing-goal
+// mutations may precede creation; dependent mutations must use its result reference.
+fn validate_creation_targets(plan: &Plan) -> Result<(), String> {
+    let mut created = false;
+    let mut last_reference_is_new = false;
+    let mut last_result_is_new = false;
+    for action in &plan.actions {
+        if matches!(action.name.as_str(), "create_goal" | "create_planned_goal") {
+            created = true;
+            last_reference_is_new = true;
+            last_result_is_new = true;
+            continue;
+        }
+        let Some(target) = action.input.get("goal") else {
+            last_result_is_new = false;
+            continue;
+        };
+        let targets_new = match target["reference"].as_str() {
+            Some("last_created") => created,
+            Some("last_referenced") => last_reference_is_new,
+            Some("previous_action") => last_result_is_new,
+            _ => false,
+        };
+        let mutation = registry()
+            .iter()
+            .any(|skill| skill.name == action.name && skill.safety != Safety::ReadOnly);
+        if created && mutation && !targets_new {
+            return Err("A mutation after goal creation targets an earlier goal instead of the creation result. For the new goal use goal_id=null, reference=last_created. Put intentionally requested existing-goal mutations before creation, or use a separate plan. No changes were made.".into());
+        }
+        last_reference_is_new = targets_new;
+        last_result_is_new = targets_new;
+    }
+    Ok(())
+}
+
 fn batch(
     storage: &mut Storage,
     snap: &Snapshot,
     plan: &Plan,
     commit: bool,
 ) -> Result<Vec<SkillResult>, String> {
+    validate_creation_targets(plan)?;
     storage
         .connection
         .execute_batch("SAVEPOINT buddy_skill_batch")

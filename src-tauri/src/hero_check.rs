@@ -101,10 +101,170 @@ async fn send(
         .map_err(|_| "Demo state unavailable")?
         .storage
         .save_chat_turn(text, &outcome.reply, None)?;
+    // This rehearsal never opens installed data; retain synthetic state for diagnosis.
+    let inner = state.inner.lock().map_err(|_| "Demo state unavailable")?;
+    eprintln!(
+        "Hero synthetic turn: {}",
+        json!({"request":text,"reply":outcome.reply.message,"workspace":inner.storage.core_snapshot(None)?})
+    );
     Ok(outcome.reply.message)
 }
 
+// A focused live regression avoids re-running already verified prefix stages.
+async fn resume_fixture() -> Result<Value, String> {
+    let workspace = Workspace::new()?;
+    let mut storage = Storage::open(&workspace.database())?;
+    storage.core_add_goals(
+        vec![crate::core::GoalDraft {
+            title: "AI DEMO Hackathon".into(),
+            area: "General".into(),
+            steps: vec![
+                "Find the official Tauri 2 documentation for the minimum macOS deployment target"
+                    .into(),
+                "Draft the technical application".into(),
+            ],
+        }],
+        "hero-resume-a",
+    )?;
+    let a = storage.core_snapshot(None)?.goals[0].id;
+    let day = chrono::Local::now().date_naive().to_string();
+    storage.core_today(a, true, &day)?;
+    storage.transition_goal(a, "resume")?;
+    let checkpoint = storage.park_work_context(
+        a,
+        crate::work_context::CheckpointDraft {
+            summary: "Stopped before finding the Tauri 2 minimum deployment target.".into(),
+            next_action: "Find the official configuration reference.".into(),
+            waiting_for: None,
+        },
+        None,
+    )?;
+    storage.core_add_goals(
+        vec![crate::core::GoalDraft {
+            title: "AI DEMO Client".into(),
+            area: "General".into(),
+            steps: vec!["Send the client reply".into()],
+        }],
+        "hero-resume-b",
+    )?;
+    let b = storage
+        .core_snapshot(None)?
+        .goals
+        .into_iter()
+        .find(|g| g.title == "AI DEMO Client")
+        .ok_or("Synthetic goal missing")?;
+    storage.core_today(b.id, true, &day)?;
+    storage.transition_goal(b.id, "resume")?;
+    storage.mark_explicit_focus(b.id)?;
+    let conversation = storage.current_conversation()?;
+    let refs = crate::skills::References {
+        last_created_goal_id: Some(b.id),
+        last_referenced_goal_id: Some(b.id),
+        last_created_goal_created_at: Some(b.created_at.clone()),
+        last_referenced_goal_created_at: Some(b.created_at),
+        ..Default::default()
+    };
+    storage.save_references(conversation, &refs)?;
+    for (request, reply) in [
+        ("Create AI DEMO Hackathon with two steps and focus it.","Created AI DEMO Hackathon with its two steps and selected it for tracking."),
+        ("Park AI DEMO Hackathon. Next action: find the official configuration reference.","Parked AI DEMO Hackathon and saved its checkpoint."),
+        ("Create AI DEMO Client with one step: Send the client reply. Add it to Today and focus it.","Created AI DEMO Client with Send the client reply and selected it for tracking."),
+    ] { storage.save_chat_turn(request, &crate::ai_chat::ChatReply { message:reply.into(), ..Default::default() }, None)?; }
+    let mut state = AppState::new(storage)?;
+    require(
+        !state
+            .inner
+            .lock()
+            .map_err(|_| "Fixture state unavailable")?
+            .status
+            .mock_ai,
+        "Live fixture refuses mocks",
+    )?;
+    let client = state.client.clone();
+    let service = Service::configured(&client)?;
+    let started = Instant::now();
+    let reply = send(
+        &state,
+        &service,
+        "Resume AI DEMO Hackathon and focus it. Tell me the saved checkpoint and next action.",
+        false,
+    )
+    .await?;
+    let (focused, resumed, preserved) = {
+        let inner = state
+            .inner
+            .lock()
+            .map_err(|_| "Fixture state unavailable")?;
+        let context = inner.storage.work_context(a)?.ok_or("Checkpoint missing")?;
+        (
+            inner.storage.core_snapshot(None)?.focused_goal_id == Some(a),
+            context.resumed_at.is_some(),
+            context.context.summary == checkpoint.context.summary,
+        )
+    };
+    if std::env::args().any(|arg| arg == "--only-hero-tail") {
+        require(
+            focused && resumed && preserved,
+            "Focused Resume failed before tail checks",
+        )?;
+        // Recorded fixture completions use the same storage path as manual completion.
+        {
+            let mut inner = state
+                .inner
+                .lock()
+                .map_err(|_| "Fixture state unavailable")?;
+            for id in [a, b.id] {
+                let snapshot = inner.storage.core_snapshot(None)?;
+                let goal = snapshot
+                    .goals
+                    .iter()
+                    .find(|g| g.id == id)
+                    .ok_or("Synthetic goal missing")?;
+                let mut plan = goal.plan.clone();
+                plan.steps[0].done = true;
+                inner
+                    .storage
+                    .core_save_goal_details(&goal.title, "General", plan, None)?;
+            }
+        }
+        let summary=send(&state,&service,"What did I complete today across AI DEMO Hackathon and AI DEMO Client? Use recorded facts only, mention both goals and keep unfinished work separate.",false).await?;
+        let summary_passed = summary.contains("AI DEMO Hackathon")
+            && summary.contains("AI DEMO Client")
+            && !state.inner.lock().unwrap().storage.goal_plan(a)?.steps[1].done;
+        require(
+            summary_passed,
+            "Grounded summary did not match the recorded fixture results",
+        )?;
+        let before = {
+            let inner = state.inner.lock().unwrap();
+            json!({"context":inner.storage.work_context(a)?,"plan_a":inner.storage.goal_plan(a)?,"plan_b":inner.storage.goal_plan(b.id)?})
+        };
+        drop(state);
+        state = AppState::new(Storage::open(&workspace.database())?)?;
+        let after = {
+            let inner = state.inner.lock().unwrap();
+            json!({"context":inner.storage.work_context(a)?,"plan_a":inner.storage.goal_plan(a)?,"plan_b":inner.storage.goal_plan(b.id)?})
+        };
+        require(
+            before == after,
+            "Reopening the database changed the recorded context or plans",
+        )?;
+        let recalled=send(&state,&service,"Where did I stop on AI DEMO Hackathon? Use the saved work context and the recorded remaining step.",false).await?;
+        require(!recalled.trim().is_empty(), "Context recall was empty")?;
+        return Ok(
+            json!({"backend_passed":true,"stages":["resume_goal_a","grounded_daily_summary","database_reopen_and_context_retrieval"],"focused_expected":focused,"resumed_at_present":resumed,"summary_preserved":preserved,"reopen_preserved_state":before==after,"summary":summary,"recalled_context":recalled,"latency_ms":started.elapsed().as_millis(),"synthetic_data_only":true,"mock_providers":false,"scope":"Focused live tail with deterministic synthetic setup and recorded fixture completions; preceding creation/native UI are not re-exercised."}),
+        );
+    }
+    Ok(
+        json!({"backend_passed":focused&&resumed&&preserved,"stage":"resume_goal_a","focused_expected":focused,"resumed_at_present":resumed,"summary_preserved":preserved,"reply":reply,"latency_ms":started.elapsed().as_millis(),"synthetic_data_only":true,"mock_providers":false,"scope":"Focused real-provider Resume check with deterministic synthetic setup. Prefix creation, native UI and installed data are not exercised."}),
+    )
+}
+
 pub async fn run() -> Result<Value, String> {
+    if std::env::args().any(|arg| matches!(arg.as_str(), "--only-hero-resume" | "--only-hero-tail"))
+    {
+        return resume_fixture().await;
+    }
     let root = AppState::new(Storage::open(std::path::Path::new(":memory:"))?)?;
     require(
         !root
@@ -160,7 +320,7 @@ pub async fn run() -> Result<Value, String> {
         stage="resume_goal_a";let started=Instant::now();
         let answer=send(&state,&service,"Resume AI DEMO Hackathon and focus it. Tell me the saved checkpoint and next action.",false).await?;
         {let i=state.inner.lock().unwrap();let context=i.storage.work_context(a)?.ok_or("Resumed checkpoint missing")?;
-            require(i.storage.core_snapshot(None)?.focused_goal_id==Some(a) && context.resumed_at.is_some() && context.context.summary==checkpoint.context.summary,"Resume did not restore the original goal checkpoint")?;}
+            require(i.storage.core_snapshot(None)?.focused_goal_id==Some(a) && context.resumed_at.is_some() && context.context.summary==checkpoint.context.summary,&format!("Resume check: focused_expected={}, resumed_at_present={}, summary_preserved={}. Synthetic response: {}",i.storage.core_snapshot(None)?.focused_goal_id==Some(a),context.resumed_at.is_some(),context.context.summary==checkpoint.context.summary,answer))?;}
         require(!answer.contains("Client reply has been delivered"),"Resume leaked the other lane's completion receipt")?;
         passed(&mut rows,stage,started);
 

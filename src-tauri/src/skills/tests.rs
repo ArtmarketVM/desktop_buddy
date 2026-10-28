@@ -870,7 +870,7 @@ fn creating_after_park_uses_the_new_batch_reference_and_rolls_back_wrong_targets
             action("add_goal_to_today", json!({"goal":goal(old)})),
         ],
     );
-    assert!(rejected.contains("Resume this goal"));
+    assert!(rejected.contains("creation result"));
     assert_eq!(storage.core_snapshot(None).unwrap().goals.len(), 1);
     let out = run(
         &mut storage,
@@ -900,4 +900,44 @@ fn creating_after_park_uses_the_new_batch_reference_and_rolls_back_wrong_targets
         "Fresh goal"
     );
     assert_eq!(storage.goal_plan(new).unwrap().steps.len(), 1);
+}
+
+#[test]
+fn creation_never_treats_an_open_existing_id_as_the_new_goal() {
+    let mut storage = store();
+    let old = create(&mut storage, "Existing open goal", vec![]);
+    let message = fail(
+        &mut storage,
+        vec![
+            action("create_goal", json!({"title":"Another goal","steps":[]})),
+            action("set_focus_goal", json!({"goal":goal(old)})),
+        ],
+    );
+    assert!(message.contains("reference=last_created"));
+    assert_eq!(storage.core_snapshot(None).unwrap().goals.len(), 1);
+    let out = run(
+        &mut storage,
+        vec![
+            action("create_goal", json!({"title":"Another goal","steps":[]})),
+            action("inspect_goal", json!({"goal":goal(old)})),
+            action("set_focus_goal", json!({"goal":reference("last_created")})),
+        ],
+    );
+    assert_eq!(
+        storage.core_snapshot(None).unwrap().focused_goal_id,
+        out.results[0].goal_id
+    );
+    // A deliberate existing target remains supported before creation.
+    let out = run(
+        &mut storage,
+        vec![
+            action("set_focus_goal", json!({"goal":goal(old)})),
+            action("create_goal", json!({"title":"Third goal","steps":[]})),
+        ],
+    );
+    assert_eq!(out.status, "executed");
+    assert_eq!(
+        storage.core_snapshot(None).unwrap().focused_goal_id,
+        Some(old)
+    );
 }
