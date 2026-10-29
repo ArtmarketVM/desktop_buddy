@@ -34,3 +34,7 @@ Deployment does not enable profile collection or upload existing Feedback/histor
 ## Focused live checks
 
 The signed app's opt-in `--check-hero` rehearsal uses disposable synthetic data and real providers. `--only-hero-resume` checks Resume/focus/checkpoint only; `--only-hero-tail` checks Resume, a grounded summary and database-reopen recall with deterministic fixture setup. Use `BUDDY_AI_CONNECTION_MODE=built_in` or `personal` only for these `--check-*` commands. These checks never run on ordinary app startup or in automated mock-provider suites. `BUDDY_DIALOGUE_TRACE=true` is restricted to the supported synthetic CLI checks; it can print their request/response JSON, never provider headers, credentials or provider reasoning content.
+
+## Daily operational availability
+
+The [availability workflow](AI_SERVICE_AVAILABILITY.md) exercises anonymous sign-in and the existing two health routes daily, with sanitized output and no generation/search. Provider secrets stay in Supabase. Daily activity is not a guaranteed replacement for a paid plan's no-inactivity-pause policy.

@@ -1,5 +1,14 @@
 # sumi session handoff
 
+## Hackathon readiness documentation and operational monitor — 29 October 2026
+
+- Fast-forwarded the clean working branch from db0dd14 to origin/main 3402f24 before editing; installed app not restarted. App/version remain 0.49.4.
+- README and demo runbook now lead with Built-in AI and ready-made packages. Added docs/JUDGES_START_HERE.md with direct Mac Apple Silicon / Windows x64 0.49.4 downloads, system approval/permission limitations and a short testing path. Clarified encrypted temporary review evidence in README; no UI or installer change.
+- Added an isolated server/supabase/availability.mjs check and daily .github/workflows/ai-availability.yml (07:17 UTC). Public anonymous Auth plus existing model/usage health routes only; no provider secrets in GitHub, no generation/search, no new gateway endpoint. Auth records are technical and tokens are signed out/not persisted. See docs/AI_SERVICE_AVAILABILITY.md.
+- Live local check passed: anonymous Auth, all three allowed model IDs, Tavily auth and signout. Sanitized report is outside Git in visualization output launch-readiness/availability-20261029.json. This is health evidence, not a native/inference/agent-loop proof.
+- Validation: seven monitor tests and 15 CI-policy tests passed; actionlint, privacy-source validation and git diff --check passed. No frontend/native source or version change; no local application rebuild needed.
+- Dashboard shows ArtmarketVM's Org / Sumi Buddy on Free. Daily activity is not a guarantee against pausing; paid-plan changes require the owner's decision. Provider validity/credit audit stays outside Git; do not expose keys or financial account data.
+
 ## Published 0.49.4 — 29 October 2026
 
 - https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.49.4 , source `3335277` (merge of PR #57 from `fix/window-capture-diagnostics`), successful release run `40869718422`, published `2026-10-29T12:15:58Z`. PR run `40868469234` passed both platforms, visual and both lint profiles. Verified after publication: `releases/latest` resolves to v0.49.4; `updates-epoch-3.json` (Windows) and `updates-macos-epoch-1.json` carry 0.49.4 with signatures; `latest.json`, `updates-epoch-1.json`, `updates-epoch-2.json` remain the retained transition channels; 12 checksum entries listed. Installers were not installed or run on any machine from this session; no installed app was restarted. Do not rerun this completed release.

@@ -1,0 +1,31 @@
+name: Built-in AI availability
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: built-in-ai-availability
+  cancel-in-progress: false
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify health-check isolation and redaction
+        run: node --test server/supabase/availability.verify.mjs
+      - name: Check the real built-in connection without generation or search
+        run: node server/supabase/availability.mjs --report availability-report.json
+      - name: Save sanitized operational report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: built-in-ai-availability
+          path: availability-report.json
+          if-no-files-found: ignore
+          retention-days: 14
