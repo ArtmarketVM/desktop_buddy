@@ -7,42 +7,123 @@ use serde_json::json;
 use std::time::Instant;
 use tauri::WebviewWindow;
 const MODEL: &str = "nvidia/Nemotron-3.5-Super-VL";
-// Only fixed categories enter diagnostics. Never expose provider/OS error payloads.
-fn capture_failure_status(error: &str) -> &'static str {
-    match error {
-        "Screen Recording permission is unavailable" => "capture_permission_required",
-        "Capture access denied" => "capture_permission_required",
-        "Capture source lookup failed" => "capture_source_lookup_failed",
-        "Focused window has no unique capture source" => "capture_source_not_unique",
-        "Focused window bounds unavailable"
-        | "Window bounds unavailable"
-        | "Client area unavailable" => "capture_bounds_unavailable",
-        "Window capture timed out" => "capture_timed_out",
-        "Window capture is unsupported" => "capture_unsupported",
-        "Capture runtime unavailable" => "capture_runtime_unavailable",
-        "Capture graphics device unavailable" => "capture_device_unavailable",
-        "Window excludes capture" => "capture_protected",
-        "Capture start failed" => "capture_start_failed",
-        "Window identity unavailable" => "capture_source_unavailable",
-        "Window capture unavailable" => "capture_worker_unavailable",
-        "Image exceeds the context budget" => "capture_image_too_large",
-        "Desktop session is inactive or locked" => "capture_session_inactive",
-        "Screen context changed"
-        | "Capture foreground changed"
-        | "Capture context changed"
-        | "Foreground changed" => "capture_foreground_changed",
-        "Safe unoccluded window unavailable" => "capture_window_occluded",
-        "Active window image capture failed"
-        | "Window pixels unavailable"
-        | "Image encoding unavailable" => "capture_pixels_unavailable",
-        _ => "capture_unavailable",
-    }
-}
 #[derive(Default)]
 pub(crate) struct Runtime {
     pub(crate) last_capture: Option<Instant>,
+    /// Sanitized outcome category of the latest attempt (`CaptureFailure::status`).
     pub(crate) status: &'static str,
+    /// Platform-specific stage detail for the latest attempt. Never screen content.
+    pub(crate) detail: &'static str,
 }
+impl Runtime {
+    pub(crate) fn record(&mut self, status: &'static str, detail: &'static str) {
+        self.status = status;
+        self.detail = detail;
+    }
+    pub(crate) fn fail(&mut self, failure: &CaptureFailure) {
+        self.record(failure.status(), failure.detail);
+    }
+}
+/// Sanitized reasons a window capture produced no usable image. Categories are stable
+/// diagnostic codes; `detail` names the platform stage without inventing a diagnosis.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CaptureFailureKind {
+    /// The desktop session is locked, switching or otherwise not interactive.
+    SessionInactive,
+    /// The operating system has not granted screen capture to sumi.
+    PermissionUnavailable,
+    /// The target window is no longer the foreground window or its context changed.
+    ForegroundChanged,
+    /// The target window is minimized.
+    WindowMinimized,
+    /// The target handle, bounds or capture identity could not be resolved.
+    WindowUnavailable,
+    /// The target opted out of capture (display affinity or protected content).
+    ProtectedContent,
+    /// Another application's window overlaps the target on the guarded fallback path.
+    Occluded,
+    /// The capture API did not deliver a frame within the bounded wait.
+    Timeout,
+    /// The platform lacks a safe window-capture API.
+    Unsupported,
+    /// The capture API returned an error.
+    ApiError,
+    /// The delivered frame carried no content (uniform pixels).
+    BlankFrame,
+    /// JPEG encoding failed.
+    Encoding,
+    /// The encoded image exceeds the context budget.
+    ImageTooLarge,
+    /// Encrypted evidence retention failed after a successful capture.
+    EvidenceStorage,
+    /// Any other local failure.
+    Unavailable,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct CaptureFailure {
+    pub(crate) kind: CaptureFailureKind,
+    pub(crate) detail: &'static str,
+}
+impl CaptureFailure {
+    pub(crate) const fn new(kind: CaptureFailureKind, detail: &'static str) -> Self {
+        Self { kind, detail }
+    }
+    pub(crate) fn status(&self) -> &'static str {
+        use CaptureFailureKind::*;
+        match self.kind {
+            SessionInactive => "session_inactive",
+            PermissionUnavailable => "permission_unavailable",
+            ForegroundChanged => "foreground_changed",
+            WindowMinimized => "window_minimized",
+            WindowUnavailable => "window_unavailable",
+            ProtectedContent => "protected_content",
+            Occluded => "window_occluded",
+            Timeout => "capture_timeout",
+            Unsupported => "capture_unsupported",
+            ApiError => "capture_api_error",
+            BlankFrame => "blank_frame",
+            Encoding => "encoding_failed",
+            ImageTooLarge => "image_too_large",
+            EvidenceStorage => "evidence_storage_unavailable",
+            Unavailable => "capture_unavailable",
+        }
+    }
+    /// Human-readable, content-free text for callers that report a plain string.
+    pub(crate) fn message(&self) -> &'static str {
+        use CaptureFailureKind::*;
+        match self.kind {
+            SessionInactive => "Desktop session is inactive or locked",
+            PermissionUnavailable => "Screen capture permission is unavailable",
+            ForegroundChanged => "Capture foreground changed",
+            WindowMinimized => "Window is minimized",
+            WindowUnavailable => "Window bounds unavailable",
+            ProtectedContent => "Window content is protected from capture",
+            Occluded => "Safe unoccluded window unavailable",
+            Timeout => "Window capture timed out",
+            Unsupported => "Window capture is unsupported",
+            ApiError => "Window capture failed",
+            BlankFrame => "Window frame carried no content",
+            Encoding => "Image encoding unavailable",
+            ImageTooLarge => "Image exceeds the context budget",
+            EvidenceStorage => "Protected evidence storage is unavailable",
+            Unavailable => "Window capture unavailable",
+        }
+    }
+}
+impl std::fmt::Display for CaptureFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.message(), self.detail)
+    }
+}
+impl From<CaptureFailure> for String {
+    fn from(failure: CaptureFailure) -> Self {
+        failure.to_string()
+    }
+}
+/// Encoded image payload limits shared by every platform adapter.
+#[cfg(windows)]
+pub(crate) const MAX_JPEG_BYTES: usize = 300_000;
+pub(crate) const MAX_BASE64_BYTES: usize = 400_000;
 pub(crate) fn allowed(inner: &Inner, activity: &ActivitySnapshot, text: &str) -> bool {
     allowed_at(inner, activity, text, Instant::now())
 }
@@ -96,23 +177,42 @@ pub(crate) async fn capture_frame(
             return Ok(None);
         }
         inner.vision.last_capture = Some(Instant::now());
-        inner.vision.status = "capturing";
+        inner.vision.record("capturing", "");
         inner.last_consent_change
     };
+    let Some(window) = activity.window_id else {
+        if let Ok(mut inner) = state.inner.lock() {
+            inner.vision.fail(&CaptureFailure::new(
+                CaptureFailureKind::WindowUnavailable,
+                "activity_without_window_identity",
+            ));
+        }
+        return Ok(None);
+    };
     let expected = activity.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || -> Result<String, String> {
-        let window = expected.window_id.ok_or("Window identity unavailable")?;
+    let result = tauri::async_runtime::spawn_blocking(move || -> Result<String, CaptureFailure> {
         if !crate::collector::matches_foreground(&expected) {
-            return Err("Capture foreground changed".into());
+            return Err(CaptureFailure::new(
+                CaptureFailureKind::ForegroundChanged,
+                "foreground_changed_before_capture",
+            ));
         }
         let image = capture(window)?;
         if !crate::collector::matches_foreground(&expected) {
-            return Err("Capture foreground changed".into());
+            return Err(CaptureFailure::new(
+                CaptureFailureKind::ForegroundChanged,
+                "foreground_changed_after_capture",
+            ));
         }
         Ok(image)
     })
     .await
-    .unwrap_or_else(|_| Err("Window capture unavailable".into()));
+    .unwrap_or_else(|_| {
+        Err(CaptureFailure::new(
+            CaptureFailureKind::Unavailable,
+            "capture_worker_unavailable",
+        ))
+    });
     let mut inner = state
         .inner
         .lock()
@@ -121,28 +221,43 @@ pub(crate) async fn capture_frame(
         || !inner.companion.view.preferences.use_screenshots
         || !crate::companion::screen_context::allowed(&inner, activity)
     {
-        inner.vision.status = "capture_consent_or_context_changed";
+        inner
+            .vision
+            .record("capture_consent_or_context_changed", "");
         return Err("Vision consent or foreground changed".into());
     }
     match result {
-        Ok(image) if !image.is_empty() && image.len() <= 400_000 => {
+        Ok(image) if image.is_empty() => {
+            inner.vision.fail(&CaptureFailure::new(
+                CaptureFailureKind::Unavailable,
+                "empty_image_payload",
+            ));
+            Ok(None)
+        }
+        Ok(image) if image.len() > MAX_BASE64_BYTES => {
+            inner.vision.fail(&CaptureFailure::new(
+                CaptureFailureKind::ImageTooLarge,
+                "encoded_payload_over_budget",
+            ));
+            Ok(None)
+        }
+        Ok(image) => {
             if let Err(error) = inner
                 .storage
                 .retain_review_evidence(activity, "image", &image)
             {
-                inner.vision.status = "evidence_storage_unavailable";
+                inner.vision.fail(&CaptureFailure::new(
+                    CaptureFailureKind::EvidenceStorage,
+                    "review_evidence_retention_failed",
+                ));
                 inner.last_error = Some(error);
                 return Ok(None);
             }
-            inner.vision.status = "captured";
+            inner.vision.record("captured", "");
             Ok(Some(image))
         }
-        Err(error) => {
-            inner.vision.status = capture_failure_status(&error);
-            Ok(None)
-        }
-        Ok(_) => {
-            inner.vision.status = "capture_image_invalid";
+        Err(failure) => {
+            inner.vision.fail(&failure);
             Ok(None)
         }
     }
@@ -299,7 +414,9 @@ pub(crate) async fn request_image(
     )
     .await
 }
-pub(crate) fn capture(window: u64) -> Result<String, String> {
+/// Captures only the identified foreground window's own pixels as a bounded base64 JPEG.
+/// Overlapping applications never enter the image; failures carry sanitized categories.
+pub(crate) fn capture(window: u64) -> Result<String, CaptureFailure> {
     #[cfg(target_os = "macos")]
     {
         crate::macos::capture_window(window)
@@ -311,7 +428,10 @@ pub(crate) fn capture(window: u64) -> Result<String, String> {
     #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = window;
-        Err("Window capture is unsupported".into())
+        Err(CaptureFailure::new(
+            CaptureFailureKind::Unsupported,
+            "platform_without_window_capture",
+        ))
     }
 }
 #[tauri::command(async)]
@@ -334,6 +454,7 @@ pub fn screenshot_permission(request: bool, window: WebviewWindow) -> Result<boo
         Ok(false)
     }
 }
+pub(crate) mod geometry;
 #[cfg(windows)]
 mod windows;
 
@@ -343,40 +464,38 @@ mod tests {
     use std::time::Duration;
     #[test]
     fn capture_diagnostics_distinguish_causes_without_revealing_error_contents() {
-        for (error, status) in [
-            (
-                "Focused window has no unique capture source",
-                "capture_source_not_unique",
-            ),
-            (
-                "Capture source lookup failed",
-                "capture_source_lookup_failed",
-            ),
-            (
-                "Screen Recording permission is unavailable",
-                "capture_permission_required",
-            ),
-            ("Screen context changed", "capture_foreground_changed"),
-            (
-                "Safe unoccluded window unavailable",
-                "capture_window_occluded",
-            ),
-            ("Window capture timed out", "capture_timed_out"),
-            ("Window capture is unsupported", "capture_unsupported"),
-            ("Capture runtime unavailable", "capture_runtime_unavailable"),
-            (
-                "Capture graphics device unavailable",
-                "capture_device_unavailable",
-            ),
-            ("Window excludes capture", "capture_protected"),
-            ("Capture start failed", "capture_start_failed"),
-            ("Capture access denied", "capture_permission_required"),
-            ("Window identity unavailable", "capture_source_unavailable"),
-            ("Window capture unavailable", "capture_worker_unavailable"),
-            ("Private title or provider payload", "capture_unavailable"),
+        use CaptureFailureKind::*;
+        for (kind, status) in [
+            (PermissionUnavailable, "permission_unavailable"),
+            (ForegroundChanged, "foreground_changed"),
+            (WindowMinimized, "window_minimized"),
+            (WindowUnavailable, "window_unavailable"),
+            (ProtectedContent, "protected_content"),
+            (Occluded, "window_occluded"),
+            (Timeout, "capture_timeout"),
+            (Unsupported, "capture_unsupported"),
+            (ApiError, "capture_api_error"),
+            (BlankFrame, "blank_frame"),
+            (Encoding, "encoding_failed"),
+            (ImageTooLarge, "image_too_large"),
+            (EvidenceStorage, "evidence_storage_unavailable"),
+            (SessionInactive, "session_inactive"),
+            (Unavailable, "capture_unavailable"),
         ] {
-            assert_eq!(capture_failure_status(error), status);
+            let failure = CaptureFailure::new(kind, "stage_identifier");
+            assert_eq!(failure.status(), status);
+            let text: String = failure.into();
+            assert!(text.ends_with("(stage_identifier)"), "{text}");
+            assert!(text.is_ascii());
         }
+        let mut runtime = Runtime::default();
+        runtime.fail(&CaptureFailure::new(Timeout, "frame_wait_timed_out"));
+        assert_eq!(
+            (runtime.status, runtime.detail),
+            ("capture_timeout", "frame_wait_timed_out")
+        );
+        runtime.record("captured", "");
+        assert_eq!((runtime.status, runtime.detail), ("captured", ""));
     }
     fn fixture() -> (AppState, ActivitySnapshot) {
         let state =

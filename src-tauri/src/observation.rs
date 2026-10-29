@@ -77,6 +77,7 @@ pub(crate) fn capabilities(inner: &Inner) -> serde_json::Value {
         "interface_text_status": crate::companion::screen_context::capability(inner),
         "screenshots_enabled": p.use_screenshots,
         "screenshot_status": if inner.vision.status.is_empty() {"not_sampled"} else {inner.vision.status},
+        "screenshot_detail": inner.vision.detail,
         "automatic_completion_enabled": p.automatic_completion,
         "observation_paused": p.paused,
         "quiet_mode": crate::companion::quiet_mode(inner),

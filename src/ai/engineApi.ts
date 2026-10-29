@@ -41,6 +41,7 @@ export interface PersonalAiEngine {
     interface_text: string;
     screenshots_enabled: boolean;
     screenshot_status: string;
+    screenshot_detail?: string;
     configured_vision_model: string;
     automatic_completion: boolean;
     hourly_disclosures: number;

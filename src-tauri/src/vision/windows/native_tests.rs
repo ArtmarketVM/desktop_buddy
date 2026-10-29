@@ -1,10 +1,10 @@
 //! Explicit interactive regression; captures only synthetic windows owned by this test.
 use super::*;
+use std::sync::mpsc;
 use windows::{
     core::w,
     Win32::{
         Foundation::{COLORREF, LPARAM, LRESULT, POINT, WPARAM},
-        Graphics::Gdi::*,
         System::Threading::{AttachThreadInput, GetCurrentThreadId},
     },
 };
@@ -172,7 +172,7 @@ fn window_capture_excludes_overlay_and_rejects_changed_or_protected_target() {
         pixel[2] > 220 && pixel[0] < 25,
         "Captured another window's red pixels: {pixel:?}"
     );
-    let original = context(target, None).unwrap();
+    let original = Target::resolve(target).unwrap();
     unsafe {
         SetWindowPos(
             target,
@@ -186,22 +186,22 @@ fn window_capture_excludes_overlay_and_rejects_changed_or_protected_target() {
         .unwrap();
     }
     assert_eq!(
-        context(target, Some(original)).unwrap_err(),
-        "Capture foreground changed"
+        original.still_current().unwrap_err().kind,
+        Kind::ForegroundChanged
     );
     unsafe {
         SetWindowDisplayAffinity(target, WDA_EXCLUDEFROMCAPTURE).unwrap();
     }
     assert_eq!(
-        capture(fixture.target as u64).unwrap_err(),
-        "Window excludes capture"
+        capture(fixture.target as u64).unwrap_err().kind,
+        Kind::ProtectedContent
     );
     unsafe {
         SetWindowDisplayAffinity(target, WDA_NONE).unwrap();
     }
     activate(overlay);
     assert_eq!(
-        capture(fixture.target as u64).unwrap_err(),
-        "Capture foreground changed"
+        capture(fixture.target as u64).unwrap_err().kind,
+        Kind::ForegroundChanged
     );
 }

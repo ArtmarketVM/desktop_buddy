@@ -166,11 +166,15 @@ async fn native_fixture() -> Result<Value, String> {
             .await
             .map_err(|_| "Native capture unavailable")?
     } else {
-        Err("System screen permission is missing".into())
+        Err(crate::vision::CaptureFailure::new(
+            crate::vision::CaptureFailureKind::PermissionUnavailable,
+            "system_screen_permission_missing",
+        ))
     };
     Ok(
         json!({"fixture":"public_native_window_only","cloud_requests":0,"screen_permission":permission,
         "accessible_text_available":text.as_ref().is_ok_and(|s|s.contains("BEACON")),"image_captured":image.is_ok(),
+        "capture_status":image.as_ref().err().map(|f|f.status()),"capture_detail":image.as_ref().err().map(|f|f.detail),
         "image_base64_bytes":image.as_ref().ok().map(|s|s.len()),"all_passed":text.as_ref().is_ok_and(|s|s.contains("BEACON"))&&image.is_ok(),
         "scope":"No real application content, API keys or provider requests are used by this native probe. Image data is discarded, not printed or saved."}),
     )
