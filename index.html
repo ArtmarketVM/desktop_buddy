@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Meet Sumi, your AI desktop companion for focused work. It notices what you actually do, maps it to your goals, and keeps you moving with reminders, coaching, and research - so hours become progress."
+    />
+    <meta name="theme-color" content="#f3f3ef" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <meta property="og:title" content="sumi — Your desktop companion" />
+    <meta
+      property="og:description"
+      content="Meet Sumi, your AI desktop companion for focused work. It notices what you actually do, maps it to your goals, and keeps you moving with reminders, coaching, and research - so hours become progress."
+    />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:url"
+      content="https://artmarketvm.github.io/desktop_buddy/"
+    />
+    <meta
+      property="og:image"
+      content="https://artmarketvm.github.io/desktop_buddy/assets/youtube-poster.jpg"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>sumi — Your desktop companion</title>
+    <link rel="icon" href="./assets/sumi.svg" type="image/svg+xml" />
+    <link
+      rel="preload"
+      href="./assets/fonts/instrument-sans-latin-400-normal.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="./style.css?v=youtube-4Vu0HkIB1gY" />
+    <script type="module" src="./site.mjs?v=youtube-4Vu0HkIB1gY"></script>
+  </head>
+  <body>
+    <main class="page">
+      <header class="brand">
+        <h1>sumi</h1>
+        <p class="intro">
+          Meet Sumi, your AI desktop companion for focused work. It notices what
+          you actually do, maps it to your goals, and keeps you moving with
+          reminders, coaching, and research - so hours become progress.
+        </p>
+      </header>
+      <section class="demo" aria-label="Sumi product video">
+        <div class="player" id="player">
+          <img
+            id="video-poster"
+            class="video-poster"
+            src="./assets/youtube-poster.jpg"
+            width="1280"
+            height="720"
+            alt="Meet Sumi — Your AI Desktop Companion video preview"
+          />
+          <button
+            class="play"
+            id="play-video"
+            type="button"
+            aria-label="Play Sumi demo"
+            hidden
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 5 11 7-11 7z" />
+            </svg>
+          </button>
+        </div>
+        <p class="video-error" id="video-error">
+          <a href="https://www.youtube.com/watch?v=4Vu0HkIB1gY"
+            >Watch on YouTube ↗</a
+          >
+        </p>
+      </section>
+      <section class="downloads" aria-label="Download Sumi">
+        <div class="download-buttons">
+          <a
+            class="download"
+            id="download-windows"
+            href="https://github.com/ArtmarketVM/desktop_buddy/releases/latest"
+            aria-label="Download Sumi for Windows"
+          >
+            <img
+              src="./assets/microsoft-windows.svg"
+              width="28"
+              height="28"
+              alt=""
+            />
+            <span class="download-copy"
+              ><span class="download-title">Download for Windows</span
+              ><span class="download-detail">Windows 10 / 11 · x64</span></span
+            >
+            <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" />
+            </svg>
+          </a>
+          <a
+            class="download"
+            id="download-macos"
+            href="https://github.com/ArtmarketVM/desktop_buddy/releases/latest"
+            aria-label="Download Sumi for macOS"
+          >
+            <img src="./assets/apple.svg" width="29" height="29" alt="" />
+            <span class="download-copy"
+              ><span class="download-title">Download for macOS</span
+              ><span class="download-detail"
+                >Apple Silicon · macOS 14.5+</span
+              ></span
+            >
+            <svg class="download-arrow" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" />
+            </svg>
+          </a>
+        </div>
+        <p class="download-note">
+          <span id="release-version"></span>
+        </p>
+        <p class="download-status" id="download-status" role="status" hidden>
+          Open the latest release to choose your installer.
+        </p>
+        <noscript
+          ><p class="download-status">
+            The buttons open the latest release. Choose the Windows EXE or Apple
+            Silicon DMG.
+          </p></noscript
+        >
+      </section>
+      <footer>
+        <a href="https://github.com/ArtmarketVM/desktop_buddy">GitHub</a
+        ><span aria-hidden="true">·</span
+        ><a href="./docs/privacy.html">Privacy</a>
+      </footer>
+    </main>
+  </body>
+</html>
