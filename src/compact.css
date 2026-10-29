@@ -1193,9 +1193,9 @@ main.desktop-buddy.chatting > .desktop-compact-input {
   margin: 0;
   outline: 2px solid var(--sidebar);
 }
-/* Status in the palette: lime connected, violet needs attention, grey checking. */
+/* Status in the palette: lime connected, red needs attention, grey checking. */
 .service-dot.service-verified {
-  background: #16a34a;
+  background: var(--lime);
   outline: 1px solid color-mix(in srgb, var(--text) 25%, transparent);
   outline-offset: -1px;
 }

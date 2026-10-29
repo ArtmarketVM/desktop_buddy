@@ -1,5 +1,12 @@
 # Desktop Buddy session handoff
 
+## Release 0.49.1 preparation — 29 October 2026
+
+- User authorizes publishing both macOS Apple Silicon and Windows x64 installers now, including latest upstream developer changes and the original service indicator color. The broader agent-reasoning proposal is deferred; do not add it to this patch. All five manifests and `docs/RELEASE_0.49.1.md` are synchronized; not published yet.
+- Fetched GitHub: `origin/main` `315d31c`, including capture fix `1f48209` and publication notes, integrates without conflict. Upstream Application checks `40780933118` passed. Shared CSS restores connected service dots to `var(--lime)` (`#e4fa8e` in both themes); red failures and gray pending remain. Approved visual baselines have not changed.
+- Reusable local frontend validation covers `315d31c` plus the identical CSS change before version-only preparation: `npm test -- --maxWorkers=2` passed 55 files / 347 tests; `npm run build` passed. Logs `/private/tmp/sumi-lime-restore-{test,build}.log`; two workers use the previously measured memory bound. Synchronized-version/privacy preflight and workflow/release policy tests passed after version preparation (`/private/tmp/sumi-0491-preflight.log`). Final release validates both platforms and strict reviewed visuals; no local installer duplication.
+- Prior read-only audit of installed 0.49.0 found eight failed semantic observations (four 30-second timeouts, four stale-context rejections), no successful semantic inference in that session. LostFilm text/image capture was present. That analysis path, its broad anti-page-opening criteria and missing structured proposal deadlines are not fixed by this capture/color patch. Do not claim full screen-to-goal behavior is verified. Installed app was observed at 0.49.0 during that audit.
+
 ## Capture reliability follow-up — 28 October 2026
 
 - Capture fix `1f48209` was developed and validated from `54e76d1`. Upstream publication record `930c7bd` was then merged; it changed only this handoff, so the native check results remain applicable. Public 0.49.0 uses `54e76d1` and does not contain this fix. Notes for the next patch are in `docs/RELEASE_0.49.1.md`; synchronize all five manifests to a new patch version before preparing its installers. No installer was built or installed for this fix; never replace the published 0.49.0 artifacts.
