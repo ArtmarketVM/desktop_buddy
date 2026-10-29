@@ -6,7 +6,6 @@
 #import <CoreAudio/CoreAudio.h>
 #import <ScreenCaptureKit/ScreenCaptureKit.h>
 #import "visible_text_walk.h"
-#import "capture_window_selection.h"
 #include <sys/stat.h>
 #include <libproc.h>
 
@@ -398,72 +397,114 @@ char *buddy_transcribe(const unsigned char *audio, size_t length, const char *la
 bool buddy_screen_permission(bool request) {
     return CGPreflightScreenCaptureAccess() || (request && CGRequestScreenCaptureAccess());
 }
+// Capture failures carry a stable category code and a stage detail; neither contains screen content.
+static char *captureFailure(NSString *code, NSString *detail) { return json(@{@"error": @"Window capture unavailable", @"code": code, @"detail": detail}); }
+static BOOL sameFrame(CGRect a, CGRect b) {
+    return fabs(a.origin.x - b.origin.x) <= 1 && fabs(a.origin.y - b.origin.y) <= 1
+        && fabs(a.size.width - b.size.width) <= 1 && fabs(a.size.height - b.size.height) <= 1;
+}
+// Accessibility identities contain PID + AX hash, not a CGWindowID. The window list is ordered
+// front to back, so the frontmost normal-level window of the focused application whose bounds
+// match the focused Accessibility window is the focused window itself. Titles are not required
+// to agree because the Accessibility title can lag behind a live window name; when several
+// stacked windows share the same bounds, a matching title breaks the tie before z-order.
+static CGWindowID focusedWindowNumber(pid_t pid, CGRect expectedFrame, NSString *expectedTitle) {
+    NSArray *windows = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID));
+    CGWindowID frontmost = kCGNullWindowID, titled = kCGNullWindowID;
+    for (NSDictionary *info in windows) {
+        if ([info[(__bridge NSString *)kCGWindowOwnerPID] intValue] != pid || [info[(__bridge NSString *)kCGWindowLayer] intValue] != 0) continue;
+        CGRect bounds = CGRectNull;
+        if (!CGRectMakeWithDictionaryRepresentation((__bridge CFDictionaryRef)info[(__bridge NSString *)kCGWindowBounds], &bounds) || !sameFrame(bounds, expectedFrame)) continue;
+        CGWindowID number = [info[(__bridge NSString *)kCGWindowNumber] unsignedIntValue];
+        if (frontmost == kCGNullWindowID) frontmost = number;
+        if (titled == kCGNullWindowID && expectedTitle.length && [text(info[(__bridge NSString *)kCGWindowName], 160) isEqualToString:expectedTitle]) titled = number;
+    }
+    return titled != kCGNullWindowID ? titled : frontmost;
+}
+// The application's window carrying this identity, when it still exists (focused or not).
+static AXUIElementRef windowWithIdentity(pid_t pid, uint64_t identity) {
+    AXUIElementRef application = AXUIElementCreateApplication(pid);
+    AXUIElementSetMessagingTimeout(application, 0.08);
+    CFArrayRef windows = NULL;
+    AXUIElementRef match = NULL;
+    if (AXUIElementCopyAttributeValues(application, kAXWindowsAttribute, 0, 32, &windows) == kAXErrorSuccess) {
+        for (id window in (__bridge NSArray *)windows) {
+            if (windowID(pid, (__bridge AXUIElementRef)window) == identity) { match = (AXUIElementRef)CFRetain((__bridge CFTypeRef)window); break; }
+        }
+        CFRelease(windows);
+    }
+    CFRelease(application);
+    return match;
+}
+// The focused Accessibility window must still carry the captured identity and bounds; the title
+// may legitimately change while the capture runs, so it is not compared here.
+static BOOL focusedWindowUnchanged(pid_t pid, uint64_t identity, CGRect expectedFrame) {
+    AXUIElementRef latest = focusedWindow(pid);
+    BOOL unchanged = latest && windowID(pid, latest) == identity && sameFrame(elementFrame(latest), expectedFrame);
+    if (latest) CFRelease(latest);
+    return unchanged;
+}
 char *buddy_capture_window(uint64_t identity) {
     @autoreleasepool {
-        if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
-        if (!CGPreflightScreenCaptureAccess()) return failure(@"Screen Recording permission is unavailable");
+        if (!buddy_session_active()) return captureFailure(@"session_inactive", @"session_inactive_or_locked");
+        if (!CGPreflightScreenCaptureAccess()) return captureFailure(@"permission_unavailable", @"screen_recording_not_granted");
         pid_t pid = (pid_t)(identity >> 32);
-        if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) return failure(@"Screen context changed");
+        // A zero hash means the collector could not resolve a focused window (Accessibility
+        // timeout or an application without windows); it never identifies a capture target.
+        if ((uint32_t)identity == 0) return captureFailure(@"window_unavailable", @"focused_window_identity_unresolved");
+        if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) return captureFailure(@"foreground_changed", @"frontmost_application_differs");
         AXUIElementRef focused = focusedWindow(pid);
-        if (!focused || windowID(pid, focused) != identity) { if (focused) CFRelease(focused); return failure(@"Screen context changed"); }
+        if (!focused || windowID(pid, focused) != identity) {
+            if (focused) CFRelease(focused);
+            AXUIElementRef known = windowWithIdentity(pid, identity);
+            if (!known) return captureFailure(@"foreground_changed", @"target_window_closed_or_stale");
+            BOOL minimized = [attribute(known, kAXMinimizedAttribute) boolValue];
+            CFRelease(known);
+            return minimized ? captureFailure(@"window_minimized", @"target_window_minimized") : captureFailure(@"foreground_changed", @"focused_window_differs");
+        }
+        if ([attribute(focused, kAXMinimizedAttribute) boolValue]) { CFRelease(focused); return captureFailure(@"window_minimized", @"focused_window_minimized"); }
         CGRect expectedFrame = elementFrame(focused);
         NSString *expectedTitle = text(attribute(focused, kAXTitleAttribute), 160);
         CFRelease(focused);
-        if (CGRectIsNull(expectedFrame) || CGRectIsEmpty(expectedFrame)) return failure(@"Focused window bounds unavailable");
-        // Resolve a public WindowServer ID independently of shareability. If the
-        // focused window is absent from SC, never substitute a sibling behind it.
-        NSArray *visibleWindows = CFBridgingRelease(CGWindowListCopyWindowInfo(
-            kCGWindowListOptionOnScreenOnly | kCGWindowListExcludeDesktopElements, kCGNullWindowID));
-        NSDictionary *source = buddyUniqueCaptureWindow(visibleWindows, pid, expectedFrame,
-            ^pid_t(id window) {
-                return [window[(__bridge id)kCGWindowLayer] intValue] == 0
-                    ? [window[(__bridge id)kCGWindowOwnerPID] intValue] : -1;
-            }, ^CGRect(id window) {
-                CGRect bounds = CGRectNull;
-                CGRectMakeWithDictionaryRepresentation((__bridge CFDictionaryRef)window[(__bridge id)kCGWindowBounds], &bounds);
-                return bounds;
-            });
-        CGWindowID sourceID = [source[(__bridge id)kCGWindowNumber] unsignedIntValue];
-        if (!sourceID) return failure(@"Focused window has no unique capture source");
+        if (CGRectIsNull(expectedFrame) || expectedFrame.size.width < 2 || expectedFrame.size.height < 2) return captureFailure(@"window_unavailable", @"focused_window_bounds_unavailable");
+        CGWindowID number = focusedWindowNumber(pid, expectedFrame, expectedTitle);
+        if (number == kCGNullWindowID) return captureFailure(@"window_unavailable", @"focused_window_not_on_screen");
         dispatch_group_t group = dispatch_group_create();
         dispatch_group_enter(group);
         __block NSData *jpeg = nil;
-        __block NSString *captureFailure = @"Active window image capture failed";
+        __block NSString *code = @"api_error", *detail = @"shareable_content_unavailable";
         [SCShareableContent getShareableContentExcludingDesktopWindows:YES onScreenWindowsOnly:YES completionHandler:^(SCShareableContent *content, NSError *error) {
-            // Accessibility identities contain PID + AX hash, not a CGWindowID.
-            if (error) { captureFailure = @"Capture source lookup failed"; dispatch_group_leave(group); return; }
-            SCWindow *selected = buddyUniqueCaptureWindow(content.windows, pid, expectedFrame,
-                ^pid_t(id window) { return ((SCWindow *)window).owningApplication.processID; },
-                ^CGRect(id window) { return ((SCWindow *)window).frame; });
-            if (!selected || selected.windowID != sourceID || selected.frame.size.width < 2 || selected.frame.size.height < 2) {
-                captureFailure = @"Focused window has no unique capture source";
-                dispatch_group_leave(group); return;
+            SCWindow *selected = nil;
+            for (SCWindow *window in content.windows) {
+                if (window.windowID == number && window.owningApplication.processID == pid && sameFrame(window.frame, expectedFrame)) { selected = window; break; }
             }
+            if (error) { dispatch_group_leave(group); return; }
+            if (!selected) { detail = @"capture_window_not_resolved"; code = @"window_unavailable"; dispatch_group_leave(group); return; }
+            // The desktop-independent filter renders this window's own layers only.
             SCContentFilter *filter = [[SCContentFilter alloc] initWithDesktopIndependentWindow:selected];
             SCStreamConfiguration *config = [SCStreamConfiguration new];
             double scale = MIN(1.0, 1280.0 / MAX(selected.frame.size.width, selected.frame.size.height));
             config.width = MAX(1, selected.frame.size.width * scale);
             config.height = MAX(1, selected.frame.size.height * scale);
             config.showsCursor = NO;
+            config.ignoreShadowsSingleWindow = YES;
             [SCScreenshotManager captureImageWithFilter:filter configuration:config completionHandler:^(CGImageRef image, NSError *captureError) {
-                AXUIElementRef latest = focusedWindow(pid);
-                BOOL unchanged = buddy_session_active() && NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier == pid
-                    && latest && windowID(pid, latest) == identity
-                    && CGRectEqualToRect(elementFrame(latest), expectedFrame)
-                    && [text(attribute(latest, kAXTitleAttribute), 160) isEqualToString:expectedTitle];
-                if (latest) CFRelease(latest);
-                if (!unchanged) captureFailure = @"Screen context changed";
-                if (image && !captureError && unchanged) {
+                if (captureError || !image) { detail = @"screenshot_manager_failed"; }
+                else if (!buddy_session_active()) { code = @"session_inactive"; detail = @"session_locked_during_capture"; }
+                else if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) { code = @"foreground_changed"; detail = @"frontmost_application_changed_during_capture"; }
+                else if (!focusedWindowUnchanged(pid, identity, expectedFrame)) { code = @"foreground_changed"; detail = @"focused_window_changed_during_capture"; }
+                else {
                     NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithCGImage:image];
                     NSData *data = [bitmap representationUsingType:NSBitmapImageFileTypeJPEG properties:@{NSImageCompressionFactor:@0.65}];
-                    if (data.length > 300000) captureFailure = @"Image exceeds the context budget";
-                    else if (data.length) jpeg = data;
+                    if (!data) { code = @"encoding_failed"; detail = @"jpeg_encoding_failed"; }
+                    else if (data.length > 300000) { code = @"image_too_large"; detail = @"jpeg_over_budget"; }
+                    else jpeg = data;
                 }
                 dispatch_group_leave(group);
             }];
         }];
-        if (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) != 0) return failure(@"Window capture timed out");
-        if (!jpeg) return failure(captureFailure);
+        if (dispatch_group_wait(group, dispatch_time(DISPATCH_TIME_NOW, 5 * NSEC_PER_SEC)) != 0) return captureFailure(@"capture_timeout", @"screenshot_wait_timed_out");
+        if (!jpeg) return captureFailure(code, detail);
         return json([jpeg base64EncodedStringWithOptions:0]);
     }
 }

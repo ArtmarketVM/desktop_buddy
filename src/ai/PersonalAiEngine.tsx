@@ -228,7 +228,10 @@ export function PersonalAiEnginePanel({
                 <dt>Screenshots</dt>
                 <dd>
                   {data.observation.screenshots_enabled
-                    ? readable(data.observation.screenshot_status)
+                    ? readable(data.observation.screenshot_status) +
+                      (data.observation.screenshot_detail
+                        ? ` · ${readable(data.observation.screenshot_detail)}`
+                        : "")
                     : "Off"}
                 </dd>
                 <dt>Configured vision model</dt>

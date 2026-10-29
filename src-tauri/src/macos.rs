@@ -298,14 +298,112 @@ pub(crate) fn session_active() -> bool {
 pub(crate) fn screen_permission(request: bool) -> bool {
     unsafe { buddy_screen_permission(request) }
 }
-pub(crate) fn capture_window(window: u64) -> Result<String, String> {
-    if foreground(false)?.window != window {
-        return Err("Capture foreground changed".into());
+use crate::vision::{CaptureFailure, CaptureFailureKind};
+/// Native capture failures arrive as `{error, code, detail}`; the code is one of the stable
+/// categories written by `buddy_capture_window`, the detail names its stage. Neither is
+/// screen content, and unknown codes degrade to the generic category.
+fn decode_capture(pointer: *mut c_char) -> Result<String, CaptureFailure> {
+    if pointer.is_null() {
+        return Err(CaptureFailure::new(
+            CaptureFailureKind::Unavailable,
+            "native_capture_returned_nothing",
+        ));
     }
-    let image = decode(unsafe { buddy_capture_window(window) })?;
-    if foreground(false)?.window != window {
-        return Err("Capture foreground changed".into());
+    let bytes = unsafe { CStr::from_ptr(pointer).to_bytes().to_vec() };
+    unsafe { buddy_free(pointer) };
+    let value: serde_json::Value = serde_json::from_slice(&bytes).map_err(|_| {
+        CaptureFailure::new(
+            CaptureFailureKind::Unavailable,
+            "native_capture_response_invalid",
+        )
+    })?;
+    if let Some(code) = value.get("code").and_then(|v| v.as_str()) {
+        let detail = value.get("detail").and_then(|v| v.as_str()).unwrap_or("");
+        return Err(CaptureFailure::new(
+            capture_failure_kind(code),
+            capture_detail(detail),
+        ));
     }
+    if value.get("error").is_some() {
+        return Err(CaptureFailure::new(
+            CaptureFailureKind::Unavailable,
+            "native_capture_failed",
+        ));
+    }
+    value.as_str().map(str::to_owned).ok_or(CaptureFailure::new(
+        CaptureFailureKind::Unavailable,
+        "native_capture_response_invalid",
+    ))
+}
+pub(crate) fn capture_failure_kind(code: &str) -> CaptureFailureKind {
+    use CaptureFailureKind::*;
+    match code {
+        "session_inactive" => SessionInactive,
+        "permission_unavailable" => PermissionUnavailable,
+        "foreground_changed" => ForegroundChanged,
+        "window_minimized" => WindowMinimized,
+        "window_unavailable" => WindowUnavailable,
+        "protected_content" => ProtectedContent,
+        "window_occluded" => Occluded,
+        "blank_frame" => BlankFrame,
+        "capture_timeout" => Timeout,
+        "capture_unsupported" => Unsupported,
+        "api_error" => ApiError,
+        "encoding_failed" => Encoding,
+        "image_too_large" => ImageTooLarge,
+        _ => Unavailable,
+    }
+}
+/// Stage details are a closed vocabulary written by the native adapter.
+pub(crate) fn capture_detail(detail: &str) -> &'static str {
+    const KNOWN: [&str; 19] = [
+        "session_inactive_or_locked",
+        "screen_recording_not_granted",
+        "focused_window_identity_unresolved",
+        "frontmost_application_differs",
+        "target_window_closed_or_stale",
+        "target_window_minimized",
+        "focused_window_unavailable",
+        "focused_window_differs",
+        "focused_window_minimized",
+        "focused_window_bounds_unavailable",
+        "focused_window_not_on_screen",
+        "shareable_content_unavailable",
+        "capture_window_not_resolved",
+        "screenshot_manager_failed",
+        "session_locked_during_capture",
+        "frontmost_application_changed_during_capture",
+        "focused_window_changed_during_capture",
+        "jpeg_encoding_failed",
+        "jpeg_over_budget",
+    ];
+    KNOWN
+        .iter()
+        .find(|known| **known == detail)
+        .copied()
+        .unwrap_or("native_stage_unknown")
+}
+pub(crate) fn capture_window(window: u64) -> Result<String, CaptureFailure> {
+    if window & 0xFFFF_FFFF == 0 {
+        return Err(CaptureFailure::new(
+            CaptureFailureKind::WindowUnavailable,
+            "focused_window_identity_unresolved",
+        ));
+    }
+    let current = |detail| match foreground(false) {
+        Ok(active) if active.window == window => Ok(()),
+        Ok(_) => Err(CaptureFailure::new(
+            CaptureFailureKind::ForegroundChanged,
+            detail,
+        )),
+        Err(_) => Err(CaptureFailure::new(
+            CaptureFailureKind::WindowUnavailable,
+            "foreground_collection_unavailable",
+        )),
+    };
+    current("foreground_changed_before_capture")?;
+    let image = decode_capture(unsafe { buddy_capture_window(window) })?;
+    current("foreground_changed_after_capture")?;
     Ok(image)
 }
 
@@ -322,6 +420,49 @@ mod tests {
     #[test]
     fn idle_is_a_valid_duration() {
         assert!(idle_seconds().is_some());
+    }
+    #[test]
+    fn native_capture_failures_map_to_sanitized_categories() {
+        let failure = |body: &str| {
+            let raw = std::ffi::CString::new(body).unwrap().into_raw();
+            decode_capture(raw).unwrap_err()
+        };
+        let f = failure(
+            r#"{"error":"Window capture unavailable","code":"permission_unavailable","detail":"screen_recording_not_granted"}"#,
+        );
+        assert_eq!(f.kind, CaptureFailureKind::PermissionUnavailable);
+        assert_eq!(f.detail, "screen_recording_not_granted");
+        assert_eq!(f.status(), "permission_unavailable");
+        let f = failure(
+            r#"{"error":"Window capture unavailable","code":"window_minimized","detail":"focused_window_minimized"}"#,
+        );
+        assert_eq!(f.kind, CaptureFailureKind::WindowMinimized);
+        // Unknown codes and details never pass through verbatim.
+        let f = failure(r#"{"error":"x","code":"Secret title","detail":"Private detail"}"#);
+        assert_eq!(f.kind, CaptureFailureKind::Unavailable);
+        assert_eq!(f.detail, "native_stage_unknown");
+        let f = failure(r#"{"error":"Screen context changed"}"#);
+        assert_eq!(f.detail, "native_capture_failed");
+        assert_eq!(
+            f.to_string(),
+            "Window capture unavailable (native_capture_failed)"
+        );
+        let raw = std::ffi::CString::new(r#""aW1hZ2U=""#).unwrap().into_raw();
+        assert_eq!(decode_capture(raw).unwrap(), "aW1hZ2U=");
+    }
+    #[test]
+    fn stale_or_unresolved_window_identities_never_reach_native_capture() {
+        // Identity 1 belongs to pid 0 and cannot be the live frontmost window.
+        let failure = capture_window(1).unwrap_err();
+        assert!(matches!(
+            failure.kind,
+            CaptureFailureKind::ForegroundChanged | CaptureFailureKind::WindowUnavailable
+        ));
+        assert!(!failure.detail.is_empty());
+        // A zero window hash means the collector never resolved a focused window.
+        let failure = capture_window(u64::from(std::process::id()) << 32).unwrap_err();
+        assert_eq!(failure.kind, CaptureFailureKind::WindowUnavailable);
+        assert_eq!(failure.detail, "focused_window_identity_unresolved");
     }
     #[test]
     #[ignore = "Uses the reviewed local signing identity for an isolated cross-build Keychain test"]

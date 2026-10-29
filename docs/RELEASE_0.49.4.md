@@ -1,0 +1,8 @@
+# sumi 0.49.4
+
+- Capture diagnostics report what stopped a screenshot. Alongside the category (`permission_unavailable`, `foreground_changed`, `window_minimized`, `window_unavailable`, `protected_content`, `window_occluded`, `capture_timeout`, `capture_unsupported`, `capture_api_error`, `blank_frame`, `encoding_failed`, `image_too_large`, `evidence_storage_unavailable`), the Personal AI Engine panel, the chat capability facts and the native fixture report now show the platform stage that failed. Stages are fixed identifiers; no screenshots, screen text, window titles, credentials or provider payloads are logged or stored.
+- Windows: window-specific capture disables the system capture border and cursor where Windows allows it, crops to the client area when the frame maps onto the window, rejects frames without content and reports minimized, moved or protected windows as such. Windows 10 before version 1903 falls back to a guarded screen copy that still refuses any other application's window above the target; only sumi's own windows and hidden (cloaked) windows are exempt.
+- macOS: the focused window is resolved through the front-to-back on-screen window list, so duplicate titles and titles that change during a capture no longer fail. Minimized, closed and unresolved windows are reported as their own categories instead of a foreground change.
+- The 20-second interval, 120-per-hour budget, consent, exclusions, lock protection, foreground checks and encrypted evidence retention are unchanged. No saved setting or operating-system permission changes.
+
+Goal completion still depends on sufficient observable evidence. This patch does not change goal-observation reasoning, completion criteria or task extraction from messages.
