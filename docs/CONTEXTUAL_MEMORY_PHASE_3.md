@@ -1,5 +1,8 @@
 # Contextual retrieval and memory controls (Phase 3)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Phase 3 builds on `f364896` (persistent personal memory) and the structured skill
 registry. Goals, steps, chat messages and activity keep their existing storage.
 No vector database, new agent runtime, fine-tuning or replacement Tavily flow is

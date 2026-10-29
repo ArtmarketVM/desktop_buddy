@@ -1,5 +1,8 @@
 # Phase 9: Daily continuity and adaptive memory
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Implementation
 
 `src-tauri/src/continuity.rs` builds deterministic reports from SQLite. Nemotron selects the read skill and resolves real goal IDs; Rust validates IDs, permissions, state version and the requested view. The final continuity answer bypasses free-form generation. The model cannot add accomplishments to this answer.

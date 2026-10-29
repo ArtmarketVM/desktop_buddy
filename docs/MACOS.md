@@ -1,60 +1,42 @@
 # sumi for macOS
 
-Current release policy: macOS 14.5+ on Apple Silicon only. Do not build or publish Intel or universal Mac installers. Older platform-validation notes below are historical.
+Current support: **Apple Silicon, macOS 14.5 or later**. Windows x64 shares the same release version. Intel and universal Mac installers are not produced. See [installation and testing](JUDGES_START_HERE.md) for ready-made downloads.
 
-Windows and macOS share the React UI, Rust application state, SQLite schema, AI providers and companion. Platform adapters are selected at compile time. Windows retains its NSIS configuration and native adapters; `tauri.macos.conf.json` is merged automatically on macOS.
+## Install, signing and reopening
 
-## Install
+Open the release `sumi_<version>_aarch64.dmg`, then drag **sumi.app** to **Applications**. Releases preserve the reviewed internal code-signing identity and immutable credential helper; they are not ad-hoc builds. Internal signing is not Apple Developer ID signing or notarization, so first launch can require app-specific approval in Privacy & Security. Keep system-wide security protections enabled.
 
-Use `artifacts/sumi_<version>_aarch64.dmg`, open it and drag **sumi.app** into **Applications**. The application contains an Apple Silicon executable and declares macOS **14.5** as its minimum system version. The same app is intended for macOS **14.5** and **27.0.1**; separate OS-specific installers are unnecessary.
+Closing the workspace leaves the tray/menu-bar process running. Open the workspace through the Dock or menu-bar **Open sumi** action; **Quit** stops the process. Saved autostart settings are independent of observation consent. Starting in the background does not universally reset tracking to paused: saved consent/request and current system permissions determine observation.
 
-Local builds use ad-hoc code signing and are not notarized by Apple. For personal use, macOS may require **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper globally. Public distribution requires a Developer ID certificate and notarization; these are separate from Tauri updater signatures.
+## Permissions and data boundaries
 
-## Permissions and behavior
+- **Accessibility** supports foreground application/window metadata and bounded interface text exposed by accessible applications. Hidden tabs, inaccessible/custom content and brief transitions may be unavailable.
+- **Screen Recording** permits optional active-window images via ScreenCaptureKit. The focused Accessibility window is resolved to its matching window identity and checked around capture. Excluded/private/locked states remain gates. See [observation](PERSONAL_AI_OBSERVATION.md) and [encrypted temporary evidence](DAILY_ACTIVITY_REVIEW.md).
+- **Microphone** is used only for explicit voice input. Local `whisper-rs`/Whisper large-v3-turbo performs transcription with Metal on Apple Silicon. First use downloads about 548 MiB of verified public weights. This path does not depend on Apple Dictation or installed Apple Speech language assets. Audio stays in memory; optional correction sends permitted transcript text to Nebius. See [local voice](LOCAL_VOICE.md).
+- **Personal provider keys** use Keychain through the pinned `BuddyCredentialAccess` helper. Built-in AI instead routes through Supabase and does not require the person's Nebius/Tavily keys. No provider key is returned to the frontend.
+- **No system notification permission is requested for reminders.** Notifications appear through sumi's own character/chat cards. Legacy saved banner preferences cannot enable OS delivery.
 
-- **Accessibility**: explicitly enable sumi under System Settings → Privacy & Security → Accessibility to collect foreground app/window titles and selected text. Onboarding and Activity & Privacy settings include a permission button. Resume tracking after granting permission. Goals and chat work without it.
-- **Microphone / Speech Recognition**: requested only for explicit voice input. Recognition requires an available on-device recognizer and installed language support. Audio is temporarily stored with private file permissions and removed after recognition; it is never sent to an AI provider by this adapter. Russian and English availability varies by Mac and installed Dictation assets. Automatic language uses the system locale, rather than mixed-language recognition.
-- Provider keys use the current user's **Keychain** through Security framework APIs. They are never returned to the frontend or stored in SQLite. Environment fallback and provider consent remain unchanged.
-- Login startup uses a per-user `com.artmarketvm.desktopbuddy.plist` LaunchAgent, written only by installed release builds after setup. It launches the installed `.app` with `--background`, with tracking paused. Disabling startup removes that file. Moving the app requires saving the startup setting again.
-- Closing the workspace keeps Buddy in the menu bar. Choose **Quit** there to stop it. The companion supports transparency, dragging and always-on-top behavior. macOS fullscreen Spaces may hide overlays; fullscreen suppression remains enabled. Tauri transparency uses its macOS private API feature, so this configuration targets distribution outside the Mac App Store.
-- **Command + Option + B** opens selected text in Buddy; **Command + Option + G** proposes it as a goal. Secure fields are excluded. Inaccessible selections require manual paste. **Command + Enter** sends chat messages.
+Foreground observation is best-effort, not continuous access to every application or proof of attention. Media and meetings use app-scoped heuristic signals; no calendar integration or meeting transcription is provided. Quiet mode suppresses mascot presentation while permitted tracking can continue. New goal/step proposals require acceptance; verified completion uses its independent saved permission and Undo.
 
-## Tracking limits
+## Development and packaging
 
-The collector uses NSWorkspace, Accessibility and CoreGraphics idle time. Browser domains are best-effort chrome-only Accessibility reads for Safari, Chrome, Edge, Firefox, Brave and Arc. Reads are bounded, skip web document nodes and secure controls, and discard full addresses after hostname sanitization. Unknown, localized, hidden or edited address bars fall back to the window title. No screenshots, keystrokes, or page HTML are captured. Automatic visible-text suggestions have their own consent and read only bounded static text with on-screen frames; they exclude editable and secure controls.
+Requirements: Apple Silicon macOS 14.5+, Xcode Command Line Tools, Node.js 24, Rust and CMake. The current CI pins its Rust version in the platform workflow.
 
-The output audio-device running flag is a conservative suppression guard; it does not identify media content. Meeting detection is heuristic. Installed app discovery inspects app-bundle metadata under `/Applications`, `/System/Applications` and `~/Applications`, without launching applications or returning their paths. Known executables such as VS Code's `Electron` receive a stable app-specific alias so their role rules do not classify unrelated Electron apps.
-
-## Build
-
-Requirements: macOS, Xcode Command Line Tools (`xcode-select --install`), Node.js 24+, and Rust stable through rustup.
-
-```bash
+```sh
 npm ci
-npm test
-npm run build
-MACOSX_DEPLOYMENT_TARGET=14.5 cargo test --locked --manifest-path src-tauri/Cargo.toml
-cargo fmt --manifest-path src-tauri/Cargo.toml --check
+npm run dev:macos
+```
+
+Tauri merges `src-tauri/tauri.macos.conf.json` on macOS. A frontend-only `npm run dev` does not test native collection, permissions, credential access or local transcription. Local native tests that need personal saved keys must use the reviewed internal signature; an ad-hoc parent is refused by the helper.
+
+For a release, prepare the authorized signing environment and run:
+
+```sh
 npm run build:macos
 ```
 
-The build helper installs the selected Rust macOS target, sets the deployment target to 14.5 and produces an Apple Silicon `.app`, `.dmg`, `.zip`, and SHA-256 checksums. It uses the optional ignored `.tools` Rust installation when present; it does not modify the global PATH. For an optional universal or Intel build:
+The helper permits only `aarch64-apple-darwin`, sets deployment target 14.5 and produces the app, DMG, ZIP, signed updater archive, manifest and checksums. Missing signing material must fail; do not regenerate identities or use unsigned validation output as a delivered app. Source and app version must be newer than the latest public release when testing a candidate because startup updating is mandatory.
 
-```bash
-npm run build:macos -- universal-apple-darwin
-npm run build:macos -- x86_64-apple-darwin
-```
+## Release and validation
 
-`npm run dev:macos` runs the desktop development app. Generated apps and installers live in ignored `src-tauri/target` and `artifacts` directories. The checked-in `.icns` preserves the existing Buddy artwork.
-
-## GitHub and updates
-
-The macOS workflow tests on `macos-14` and `macos-latest` and uploads the Apple Silicon installation artifacts. The Windows workflow also runs on the macOS feature branch, preserving a shared source version. CI runners do not establish exact 14.5 or 27.0.1 GUI compatibility.
-
-The initial macOS build is installed manually. The existing Windows updater and signer trust are preserved. macOS checks accept only trusted, repository-pinned `.app.tar.gz` updater archives for `darwin-aarch64` or `darwin-x86_64`; a Windows-only manifest reports that no macOS update is published. The current Mac packaging does not publish such archives or manifests. Do not replace the Windows update channels or publish a new updater key without following the repository's signing procedure.
-
-No release tag or public release is created by the feature branch. To distribute both platforms in one reviewed release, merge the branch, run both build workflows and attach the matching version's Mac artifacts to the Windows release. Use Developer ID signing/notarization for wider Mac distribution.
-
-## Validation
-
-Record actual local checks in `docs/MACOS_VALIDATION.md`. A deployment target and successful cross-compilation do not replace testing on an Intel Mac or on a Mac actually running 14.5. Before declaring exact compatibility, check first launch, permission refusal/grant, activity and idle time, app rules, companion movement, menu-bar reopen/quit, Keychain persistence, voice with supported languages, deep links, login startup and multi-monitor/fullscreen behavior on each requested OS.
+Use the coordinated [release process](RELEASE_PROCESS.md), not an old platform-only workflow or tag trigger. One release contains verified Windows x64 and Apple Silicon assets. Exact runtime behavior on a particular macOS version, microphone or third-party app requires an installed manual check; a deployment target or mock test does not establish it. [Historical Mac validation](MACOS_VALIDATION.md) records older runs, including architectures no longer supported.

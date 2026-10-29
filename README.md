@@ -19,17 +19,17 @@ Intel and universal Mac installers are not supported. Both platforms ship under 
 
 The Mac application uses the project's stable internal code-signing identity. This is **not Apple Developer ID signing or notarization**; macOS may require approval in Privacy & Security on first launch. Updater signatures are separate from operating-system signing and do not imply Windows Authenticode certification.
 
-## What Buddy does
+## What sumi does
 
 - **Goals, steps and Today:** create and edit goals, organize steps, reorder today's goals, and distinguish the current focus from work planned for later.
 - **Chat actions:** use natural language to inspect or change goals and steps, set focus, plan Today, and ask about saved progress. Ambiguous targets require clarification; the backend validates actions before changing anything.
 - **Park and Resume:** save a goal-specific checkpoint, next action and optional waiting state. Return to that context after switching goals, restarting the app or starting a new day.
 - **Personal memory:** retain permitted preferences, meaningful events and work context in local SQLite. Inspect, edit, pin and forget memories in Settings. Memory and conversation history have separate controls.
 - **Activity and Progress:** observe foreground app/window sessions on Windows and macOS when tracking is enabled. Attribute relevant activity to goals, distinguish idle time, and keep observed time separate from confirmed completion.
-- **Gentle interventions:** offer help when work appears stuck or drifting, subject to consent, confidence, quiet hours, cooldowns and other suppression rules. Remaining silent is a valid agent decision.
-- **Overdue goal check-ins:** offer **Mark complete**, **Do today** or **Not now** for eligible unfinished overdue goals. **Do today** adds the goal to Today and moves its deadline to the end of the current local day; it preserves unfinished steps and existing focus.
+- **Gentle interventions:** offer help when work appears stuck or drifting, subject to consent, evidence, quiet schedules, context gates and duplicate prevention. Remaining silent is a valid agent decision.
+- **Deadline check-ins:** show factual mascot reminders before, at and after a goal deadline. **I’m on it** acknowledges the reminder; **Reschedule** saves a future date/time; **Chat** opens a conversation. These reminders do not complete the goal or move it into Today. No macOS/Windows system notifications are used. See [deadline reminders](docs/DEADLINE_REMINDERS.md).
 - **Contextual research:** after applicable search authorization, use Tavily sources to answer a current work question and attach research to the goal's WorkContext.
-- **Evidence-based completion:** interpret goals against bounded interface text, recent context and optional actual pixels. A separate opt-in can automatically complete an existing goal/step after independent outcome verification, with durable Undo in Progress. Time alone never proves completion.
+- **Evidence-based completion:** interpret goals against bounded interface text, recent context and optional actual pixels. A separate saved permission, enabled for new profiles, can automatically complete an existing goal/step after independent outcome verification, with durable Undo in Progress. Time alone never proves completion.
 - **Work outside the plan:** offer an open Today task for ongoing work, or a completed item only for a verified result. New goals always require acceptance.
 - **Optional active-window vision:** enabled for new profiles and switchable in Settings, with separate system permission, bounded encrypted review evidence, private/excluded-window gates and text fallback. Vision descriptions alone cannot close tasks.
 - **Daily continuity:** summarize saved priorities, waiting items, parked work and confirmed completions across goals, without inventing completed work or assigning a productivity score.
@@ -48,11 +48,11 @@ These capabilities have different prerequisites. The companion can remain visibl
 | Goal-aware foreground observation | `moonshotai/Kimi-K3` through Nebius; first-pass vision model is configurable | Combines goals, permitted interface text, recent context and optional actual pixels; independently checks observable outcomes before opt-in completion |
 | Retrospective scene captioning | `nvidia/Nemotron-3.5-Super-VL` through Nebius | Bounded visual context for daily review; a caption alone is not completion evidence |
 | Tavily                    | Search API                                         | Retrieves web sources; it is not a dialogue model                                                              |
-| Native speech recognition | macOS Apple Speech / Windows installed recognizers | Converts local audio to text before chat processing                                                            |
+| Local speech recognition | Whisper large-v3-turbo via `whisper-rs`; Metal on Apple Silicon, CPU on Windows | Converts microphone audio to an editable transcript locally; the first use downloads verified public model weights |
 
 The language models run in the cloud. An NVIDIA GPU is not required on the user's computer. The developer panel distinguishes the **configured model** from a provider-reported model ID when one is available.
 
-Runtime overrides can change these roles. In particular, setting `NEBIUS_MODEL_ID` without `NEBIUS_REASONING_MODEL_ID` makes the interactive role use that explicitly selected primary model too. The checked-in `.env.example` includes a primary override; copying it unchanged therefore does **not** retain the default Nemotron/Kimi split. Remove that model override to use built-in routing, or set both role overrides intentionally.
+**Built-in AI** uses the server-allowed model routing. In **Use my API keys**, runtime overrides can change the personal connection: setting `NEBIUS_MODEL_ID` without `NEBIUS_REASONING_MODEL_ID` makes the interactive role use that explicitly selected primary model too. The checked-in `.env.example` includes a primary override, so copying it unchanged does **not** retain the default Nemotron/Kimi split in personal-key mode. Remove that model override or set both role overrides intentionally. Environment keys alone do not switch the app out of Built-in AI.
 
 See [Personal AI observation](docs/PERSONAL_AI_OBSERVATION.md) for consent, evidence, journal, personalization and limits.
 
@@ -60,21 +60,32 @@ See [Personal AI observation](docs/PERSONAL_AI_OBSERVATION.md) for consent, evid
 
 ```mermaid
 flowchart TD
-    Text[Typed message] --> Dialogue[Shared AgentRuntime dialogue]
-    Voice[Microphone] --> STT[Local speech recognition]
-    STT --> Dialogue
-    Events[Significant activity and work events] --> Gates[Debounce, privacy and interruption gates]
-    Gates --> Background[Background reasoning]
-    Memory[(Local scoped memory and WorkContext)] --> Dialogue
-    Memory --> Background
-    Dialogue --> Plan[Structured model decision]
-    Background --> Plan
-    Plan --> Validate[Rust validation and permission checks]
-    Validate --> Skills[Skill Registry execution or permitted offer]
-    Skills --> Verify[Verify saved result]
-    Verify --> Memory
-    Verify --> Reply[Receipt, response or silence]
+    Typed[Typed message] --> Dialogue[Shared dialogue and scoped memory]
+    Mic[Microphone] --> Whisper[Local Whisper transcript]
+    Whisper --> Draft[Editable draft and optional text correction]
+    Draft -->|User presses Send| Dialogue
+    Screen[Permitted foreground text and optional pixels] --> Observe[Goal matching and outcome analysis]
+    Events[Meaningful work events] --> Runtime[Event-driven background reasoning]
+    Dialogue --> Connection[Selected AI connection]
+    Observe --> Connection
+    Runtime --> Connection
+    Connection --> Gateway[Built-in AI: authenticated Supabase gateway]
+    Connection --> Personal[Personal keys: direct provider requests]
+    Gateway --> Providers[Nebius models and authorized Tavily search]
+    Personal --> Providers
+    Providers --> Validate[Rust validation and freshness checks]
+    Validate --> Offers[Goal or step proposal requires acceptance]
+    Validate --> Verify[Outcome requires independent verification]
+    Validate --> Skills[Explicit authorized skills]
+    Offers -->|User accepts| DB[(Local SQLite and work journal)]
+    Verify -->|Saved automatic-completion permission| DB
+    Verify -->|Otherwise ask for confirmation| Offers
+    Skills --> DB
+    DB --> Progress[Progress and daily review]
+    DB --> Dialogue
 ```
+
+See [the current architecture and decision diagrams](docs/AI_ARCHITECTURE.md) for the separate dialogue, observation, provider and presentation paths.
 
 **The model plans; Rust owns state and executes actions.** The Skill Registry defines names, input/result schemas, validators, safety requirements and executors. Skills cover goals, steps, Today/focus, work context, research and related reads. Real goal and step IDs are supplied to planning; conversational references support follow-up requests such as “add steps there” or “delete the second one.”
 
@@ -92,13 +103,13 @@ Research uses the relevant goal, step and checkpoint to form a limited query. Ta
 
 ## First run and privacy
 
-1. Install the appropriate release and complete setup. With tracking is preselected; continuing enables observation after the required system access is granted. Choose Without tracking for manual use. New profiles enable AI assistance, goal context, research, activity matching, dictation text correction, memory, screenshots and verified automatic completion; each can be disabled in Settings.
+1. Install the appropriate release and complete setup. **With tracking** is preselected; continuing enables observation after the required system access is granted. Choose **Without tracking** for manual use. New profiles enable AI assistance, goal context, research, activity matching, dictation text correction, memory, screenshots and verified automatic completion; each can be disabled in Settings.
 2. **Built-in AI** is selected by default: no account, invitation or API-key entry is required. To use personal provider accounts, choose **Settings → AI → Services → AI connection → Use my API keys**, then save your Nebius and Tavily keys in the existing rows.
 3. Choose tracking, AI context-sharing, visible-text assistance, memory and interruption preferences. On macOS, grant the relevant Accessibility permission for supported observation features.
-4. For voice, grant microphone/speech permissions and install the desired local recognition language. On macOS, enable Dictation and wait for its language download to finish. Recognition success in English does not establish Russian readiness.
+4. For voice, grant microphone access. The first microphone action downloads the verified multilingual Whisper model (about 548 MiB); allow it to finish before recording. OS Dictation language packs are not used by this path. Recognition quality still depends on the recording and language. See [local voice](docs/LOCAL_VOICE.md).
 5. Select a focus goal and inspect Progress and the **Personal AI Engine** panel to verify actual behavior.
 
-Tracking startup follows saved onboarding consent and the saved tracking request; it does not universally reset to paused. OS permissions and privacy gates still apply. Quiet Mode/DND, quiet or working hours, snooze, excluded/private apps and other context gates can suppress background interruptions.
+Tracking startup follows saved onboarding consent and the saved tracking request; it does not universally reset to paused. OS permissions and privacy gates still apply. Quiet Mode/DND, quiet hours or days, companion pause/snooze, excluded/private apps and detected meeting/away/fullscreen states can suppress background interruptions. Legacy working-hours fields are not a mascot delivery schedule; see [mascot message policy](docs/MASCOT_NOTIFICATIONS.md).
 
 Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. When screenshot assistance is enabled, permitted active-window images and bounded interface-text samples can be retained as encrypted local review evidence until the corresponding Daily summary is successfully saved, then deleted. A failed or missed summary can retain this evidence across restarts; clearing local history deletes it. This evidence is separate from permanent Personal Memory and the unencrypted activity database. Enabled AI features can send permitted images and bounded, filtered visible text to Nebius. See [Daily activity review](docs/DAILY_ACTIVITY_REVIEW.md) for the storage and cleanup lifecycle.
 
@@ -110,7 +121,7 @@ In **Use my API keys**, provider keys remain runtime-only: Windows uses Credenti
 
 ## Developer setup
 
-Use Node.js 24 and Rust stable. Windows development also needs the MSVC toolchain, Visual Studio C++ Build Tools, a Windows SDK and WebView2. macOS development needs Apple Silicon, macOS 14.5+ and Xcode Command Line Tools.
+Use Node.js 24, Rust stable and CMake (required by the local Whisper C/C++ dependency). Windows development also needs the MSVC toolchain, Visual Studio C++ Build Tools, a Windows SDK and WebView2. macOS development needs Apple Silicon, macOS 14.5+ and Xcode Command Line Tools.
 
 ```bash
 npm ci
@@ -119,7 +130,7 @@ npm run tauri -- dev
 
 `npm run dev` starts a frontend-only Vite preview. It does not establish native tracking, Keychain access, speech recognition or an end-to-end agent test.
 
-For local runtime credentials, copy `.env.example` to the ignored `.env` and edit it locally; never commit credentials or put them in frontend variables. See the model-override note above before copying its defaults. Packaged builds also accept process environment overrides.
+For optional personal-provider credentials, select **Use my API keys**, then copy `.env.example` to the ignored `.env` and edit it locally; never commit credentials or put them in frontend variables. See the model-override note above before copying its defaults. Packaged builds also accept process environment overrides.
 
 ### Runtime configuration
 
@@ -161,9 +172,13 @@ Unit/integration tests include mocked HTTP calls and do not require live provide
 
 The [hackathon demo runbook](docs/HACKATHON_DEMO_RUNBOOK.md) documents `--check-hero`, the real-provider backend rehearsal, and a separate manual native checklist. The backend rehearsal uses synthetic workspaces and can incur provider charges. Its transcript fixture is not a microphone test; programmatic consent is not evidence of a native button click; database reopen is not a full process-restart test.
 
-The [release workflow](.github/workflows/release.yml) runs frontend tests/build, locked Rust tests on both supported systems and release safeguards before publishing both signed update channels. [Quality gates](docs/QUALITY_GATES.md) describe strict Windows browser comparisons against owner-reviewed baselines and the non-blocking lint rollout. Keep physical microphone, actual foreground tracking, displayed interventions and full restart acceptance separate from mocked/backend evidence.
+The [release workflow](.github/workflows/release.yml) runs frontend tests/build, locked Rust tests on both supported systems and release safeguards before publishing both signed update channels. [Quality gates](docs/QUALITY_GATES.md) describe strict Windows browser comparisons against owner-reviewed baselines and the blocking zero-budget lint gates and their historical rollout. Keep physical microphone, actual foreground tracking, displayed interventions and full restart acceptance separate from mocked/backend evidence.
 
 For current CI, validation reuse and publishing commands, see [the release process](docs/RELEASE_PROCESS.md). New development sessions should begin with [the short handoff](docs/SESSION_HANDOFF.md).
+
+## Documentation
+
+Use the [documentation index](docs/README.md) to distinguish current guides, implementation plans and historical milestone reports. The [architecture overview](docs/AI_ARCHITECTURE.md) describes the current code paths; release notes describe their own delivered versions.
 
 ## Architecture entry points
 
@@ -178,11 +193,13 @@ For current CI, validation reuse and publishing commands, see [the release proce
 | Companion and overdue check-ins | [companion modules](src-tauri/src/companion), [deadlines.rs](src-tauri/src/companion/deadlines.rs)                                                                                                    |
 | Research and source validation  | [research.rs](src-tauri/src/research.rs), [research_evidence.rs](src-tauri/src/research_evidence.rs)                                                                                                  |
 | Coaching strategies             | [coaching modules](src-tauri/src/coaching), [strategy registry](src-tauri/src/coaching/strategy.rs)                                                                                                   |
+| Built-in AI gateway             | [shared_ai.rs](src-tauri/src/shared_ai.rs), [Supabase function](server/supabase/functions/buddy-ai/handler.ts) |
+| Local voice                     | [local_voice.rs](src-tauri/src/local_voice.rs), [voice_cleanup.rs](src-tauri/src/voice_cleanup.rs) |
 | Credential access               | [credentials.rs](src-tauri/src/credentials.rs), [native helper](src-tauri/native/credential-helper)                                                                                                   |
 
 ## Scope and limitations
 
-Buddy is a bounded assistant with validated application skills, not an unrestricted desktop automation agent. Model authorization/review and source validation reduce errors but cannot guarantee human intent or factual correctness. Speech availability depends on the OS, installed languages and permissions. Background interventions require the application to be running and all applicable gates to allow them.
+sumi is a bounded assistant with validated application skills, not an unrestricted desktop automation agent. Model authorization/review and source validation reduce errors but cannot guarantee human intent or factual correctness. Speech availability depends on the OS, installed languages and permissions. Background interventions require the application to be running and all applicable gates to allow them.
 
 Google/Apple Calendar integration, arbitrary application control and a vector database are not implemented. There is no model fine-tuning: personalization comes from permitted local memory, explicit preferences and feedback. The project does not promise ChatGPT-equivalent quality or completely autonomous completion of work.
 

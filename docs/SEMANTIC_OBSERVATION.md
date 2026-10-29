@@ -1,5 +1,8 @@
 # General goal observation: audit and implementation
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Status: implementation and local checks complete on `codex/semantic-goal-observation`, based on freshly fetched `36066ea` (0.42.2). Version 0.43.1 is published from `7401f7c`, following 0.43.0 (`c3bdeb9`). Both-platform CI, signed packaging and public asset verification passed. A native Apple Silicon rehearsal passed the actual collection/provider/completion/Undo chain. The owner approved restart after saving drafts; the normal startup updater installed 0.43.1. Its internal signature and preserved observation settings were verified. Workspace UI inspection remains pending because automation reports noWindowsAvailable; the owner has been asked to open it manually.
 
 ## Confirmed gaps

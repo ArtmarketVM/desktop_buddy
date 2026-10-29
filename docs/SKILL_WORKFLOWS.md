@@ -1,5 +1,8 @@
 # sumi skill workflows on the 0.31.3 baseline
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This implementation builds on baseline commit `9f233b0` (0.31.3). This is a source
 update, not a delivered installer. The release version remains
 0.31.3 until a new installer is built and validated for Windows x64 and Apple

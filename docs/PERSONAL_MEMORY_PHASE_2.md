@@ -1,5 +1,8 @@
 # Persistent personal memory
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Phase 2 builds on Phase 1 commit `8e68da0`. It adds a local SQLite memory service
 without replacing goals, chat history, progress, activity, or existing companion
 cooldown memory. This phase is a source commit, not an installer release.

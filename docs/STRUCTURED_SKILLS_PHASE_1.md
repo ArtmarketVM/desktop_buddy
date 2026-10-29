@@ -1,5 +1,8 @@
 # Structured skill execution
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Phase 1 adds backend-owned chat actions to the existing application. It does not
 introduce an agent runtime, a new memory system, or a new Tavily flow. This is a
 source commit, not an installer or published release; installer versions remain

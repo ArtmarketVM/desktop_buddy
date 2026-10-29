@@ -1,5 +1,8 @@
 # Desktop Buddy 0.12.1 signing handoff
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Version 0.12.1 fixes the desktop avatar hover background and cropped ears. The release is prepared as a GitHub draft; updater users will continue receiving 0.12.0 until the signed assets are uploaded and the draft is published.
 
 ## Sign the prepared installer on the key owner's computer

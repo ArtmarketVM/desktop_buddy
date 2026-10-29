@@ -1,5 +1,8 @@
 # Contextual research with Tavily (Phase 8)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Base: Phase 7 commit `534bf65`. This phase extends the existing Rust Skill Registry,
 AgentRuntime, companion prompts, Nebius JSON Schema client, Tavily adapter,
 deterministic memory retrieval and SQLite WorkContext. It does not introduce a

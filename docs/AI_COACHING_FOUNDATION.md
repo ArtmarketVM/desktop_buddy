@@ -1,5 +1,8 @@
 # AI coaching foundation
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This is the historical backend-stage report for `a3340dc`. For the interactive
 0.36.0 source integration and its validation status, see
 `AI_COACHING_INTEGRATION.md` and `RELEASE_0.36.0.md`.

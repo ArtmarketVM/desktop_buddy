@@ -1,26 +1,31 @@
-# Overdue goal check-ins
+# Deadline reminders
 
-The desktop character can offer a short, factual check-in for an unfinished goal whose deadline has passed:
+Current implementation: `src-tauri/src/companion/deadlines.rs`, the shared mascot queue, and `src/companion/InterventionCard.tsx`.
 
-> “Prepare the demo” is past its deadline. Finished, or do it today?
+## What the user sees
 
-- **Mark complete** is an explicit user confirmation. It completes the selected goal and its steps through the existing goal mutation, with manual completion attribution.
-- **Do today** adds the selected goal to Today and moves its deadline to **23:59:59 today in the computer's local time zone**. Both changes are saved together. It preserves unfinished steps and the user's current focus.
-- **Not now** dismisses the check-in without changing the goal, its deadline, or its schedule.
-- **Start now** adds the task to Today, selects it as the focus and starts its timer. It leaves completion and the deadline unchanged.
-- **Remind in 1 hour** saves a task-specific request across restarts. This explicit request is honored after the automatic budget is spent; quiet hours and attention suppression still apply.
-- **Move deadline 1 day** puts the deadline 24 hours after the current time without changing focus, steps or completion.
+Enable **Settings → General → Nudges → Remind me before, at, and after deadlines**. Open goals with a saved deadline can receive one factual character card for each current phase:
 
-When available, the first unfinished step is included as a small starting point. Imported titles and step text are bounded to keep the card readable.
+- **An upcoming deadline**: during the hour before the deadline.
+- **Your deadline is here**: from the deadline until one hour later. If delivery is late, the text states the actual due time rather than claiming it is due now.
+- **A deadline has passed**: at least one hour after the deadline, while still open.
 
-Open goals remain eligible even when a new day removes them from Today's selection. Completed, deferred, and deleted goals are excluded. Current focus takes priority, then the oldest overdue deadline.
+Example: “Prepare the demo” was due at 15:00 and is still open. Are you on it, or do you need to reschedule?
 
-Check-ins have their own **Remind me about overdue tasks** switch in Settings > General > Nudges. They work while sumi is running, including when AI or activity tracking is off. Automatic offers share the existing companion budget of three ordinary prompts per local day, the configured startup delay and cooldown (at least one hour). Quiet hours, working hours, DND, companion pause/snooze, native meeting/away/fullscreen signals, and fresh tracking signals for media, sensitive windows and privacy exclusions remain authoritative. New offers wait while the companion chat is open.
+The current card offers **I’m on it**, **Reschedule**, and **Chat**:
 
-The existing persisted companion history allows at most one soft automatic repeat for the same task and deadline per local day, after at least one hour and within the shared cooldown/budget. Explicit snoozes use a small separate setting and do not consume another automatic prompt. Both survive restarts. Changed deadlines and later local days have new reminder identities. Background scans run at most once every 30 seconds when eligible.
+- **I’m on it** acknowledges the reminder. It does not complete the goal, change its deadline, add it to Today or start a timer.
+- **Reschedule** opens the date/time editor. **Save deadline** persists a valid future date/time after a fresh backend check. Focus, steps and Today membership are unchanged.
+- **Chat** opens the related conversation. Dismissal changes no goal state.
 
-The optional **Show deadline reminders in system notifications** switch enables native Windows/macOS banners through Tauri's notification adapter. The actionable sumi card remains available if the OS disables banners. No reminders run after quitting the app; closing the workspace keeps the tray/menu-bar process running. Native banner delivery needs verification on installed apps on both systems.
+The earlier Mark complete / Do today / Start now / one-hour-snooze buttons are not the current deadline-card interface. Explicit goal actions remain available through the goal list and validated chat.
 
-Before either mutation, Rust rechecks the goal's identity, open state, deadline, title, plan revision, local day, and the two-minute lifetime of the offer. An obsolete offer cannot modify a changed goal. Moving a goal to Today does not select it as the current focus.
+## Delivery, persistence and safety
 
-All deadline actions, including snooze persistence, commit together or roll back together. No database migration or new memory table is required. The original Mark complete and Do today behavior is preserved.
+Reminders require the app process to be running, but not a model inference or provider key. They use the character, not native macOS/Windows notification banners. The legacy `system_deadline_notifications` field is forced off.
+
+The common mascot queue respects quiet mode/hours/days, pause/snooze, detected meeting/away/fullscreen states and an open floating chat. Legacy working-hour settings do not schedule mascot delivery. Deadlines do not use the former generic three-per-day cap or one-hour spacing. See [mascot message policy](MASCOT_NOTIFICATIONS.md) for priority and suppression.
+
+Only the currently applicable phase is considered after a missed tick; old phases are not replayed in a burst. Phase delivery is recorded per goal/deadline and survives restart. Editing the deadline creates a new identity. Completed/deleted goals are excluded; candidates prefer due-now, then overdue, then upcoming, with current focus breaking ties.
+
+Offers expire after five minutes. Before responding or presenting a retained card, Rust validates the exact goal, current phase/deadline, title, plan revision and expiry. A stale card cannot modify a changed goal. The queue and backend, not model wording, own the mutation.

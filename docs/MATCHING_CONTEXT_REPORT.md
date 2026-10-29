@@ -1,5 +1,8 @@
 # Goal-matching context verification
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Date: 2026-10-20. Baseline commit: `80b0c94` (the preceding desktop/UI fixes). This is a source change; no installer was delivered or release published.
 
 ## Payload and sampling

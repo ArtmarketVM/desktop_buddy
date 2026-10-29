@@ -29,11 +29,11 @@ Theme and size tokens live in `:root` in `src/workspace.css`, with dark-theme ov
 | Connected service    | Green `#15803d`        | Green `#22c55e`        | `--service-connected`    |
 | Disconnected service | Red `#dc2626`          | Red `#f87171`          | `--service-disconnected` |
 
-The compact sidebar uses lime for verified service dots and violet for attention states. The older green/red `--service-connected` / `--service-disconnected` tokens are retained without recoloring the current dots.
+The compact sidebar uses lime for verified service dots, red `#e52323` for unavailable/not-configured/offline, and muted grey while checking (the actual rules are in `src/compact.css`). The older green/red `--service-connected` / `--service-disconnected` tokens are retained without recoloring the current dots.
 
 The visual identity is white, ink, lime and violet, not the older moss-green/sky-blue design. Existing priority/status treatments and fixed illustration colors are preserved. A fixed color must stay fixed across themes when the original CSS did so: do not replace it with a theme-dependent token merely because the light value happens to match. `--color-fixed-*` tokens retain those historical values; semantic tokens remain the first choice for new design work.
 
-Typography uses Instrument Sans and Silkscreen via `--sans` and `--pix`. See [TYPOGRAPHY.md](TYPOGRAPHY.md) for the shipped exceptions and decisions still required from the owner.
+Typography uses Instrument Sans and Silkscreen via `--sans` and `--pix`. See [TYPOGRAPHY.md](TYPOGRAPHY.md) for the shipped scale, approved exceptions and dated decisions.
 
 ## Companion window
 

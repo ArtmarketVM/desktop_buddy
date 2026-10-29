@@ -1,5 +1,14 @@
 # sumi session handoff
 
+## Documentation source audit — 29 October 2026
+
+- Base/remote: `54fa607`, clean and 0/0 against fetched origin/main; app/public release 0.49.4.
+- Current entry points: docs/README.md and docs/AI_ARCHITECTURE.md. docs/HISTORY.md scopes phase/release/design records; dated evidence remains historical.
+- Corrected Whisper vs OS Dictation, obsolete Mac architectures/ad-hoc instructions, tag-triggered/removed release workflow guidance, actual deadline cards/no OS banners, Built-in/personal routing, contact-vs-AI service boundaries and UI branding/status-color exceptions. See docs/DOCUMENTATION_AUDIT.md.
+- Documentation only; no product source, version, approved images, installer, service setting or signing change. User explicitly authorized publishing these documentation improvements on GitHub. Publish as a documentation-only commit; no installer release or repository-settings change.
+- Validation on the documentation diff over 54fa607: 154 Markdown files checked, no broken local Markdown links or unbalanced fences; all four Mermaid blocks parsed with Mermaid 11.12.2 in an isolated temporary runtime; privacy-source check passed; public policy returned HTTP 200, matched local bytes and used no external fonts; git diff --check passed. Final fetch still 0/0 against origin/main; public 0.49.4 Mac/Windows installer assets are uploaded. No app tests/builds needed for documentation-only edits.
+
+
 ## Hackathon readiness documentation and operational monitor — 29 October 2026
 
 - Fast-forwarded the clean working branch from db0dd14 to origin/main 3402f24 before editing; installed app not restarted. App/version remain 0.49.4.

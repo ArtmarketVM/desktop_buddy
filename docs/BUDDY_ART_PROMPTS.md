@@ -1,5 +1,8 @@
 # sumi character prompts
 
+> Historical artwork exploration. These animal and red/yellow/blue palettes are not the shipped pixel mascot or its presets. Use [current branding](BRANDING.md) and the actual Avatar/ProfileFields source for current assets.
+
+
 Use these prompts in ChatGPT image generation. Start with one character in Blue, approve its appearance, then attach that approved image when requesting other colors or poses. These prompts are for this independent Windows app, not ChatGPT Pets.
 
 ## Shared art direction

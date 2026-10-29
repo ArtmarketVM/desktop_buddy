@@ -33,6 +33,6 @@ One feature commit may include its code, tests, and documentation. Do not split 
 
 Use a new version for every delivered installer: patch for fixes, minor for features. Synchronize `package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and `src-tauri/tauri.conf.json`. Update `CHANGELOG.md` with user-visible changes and limitations. Do not replace an already delivered version with different code.
 
-The `main` workflow builds Windows artifacts. A `v*` tag additionally publishes a GitHub Release; create a release tag only when intentionally publishing a release.
+[Application checks](.github/workflows/ci.yml) run change-aware validation on pushes to `main` and pull requests. Ordinary CI does not build installers. The explicitly dispatched [release workflow](.github/workflows/release.yml) runs from reviewed `main`, accepts a new synchronized `release_tag`, and publishes one release only after Windows x64, Apple Silicon macOS and visual gates succeed. Pushing a tag alone does not publish. Follow [the release process](docs/RELEASE_PROCESS.md). Documentation-only changes do not require application builds or a version bump.
 
 Commit and push only with project-owner authorization. Prefer smaller, frequent commits when multiple developers are collaborating.

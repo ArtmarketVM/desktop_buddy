@@ -1,6 +1,6 @@
 # Windows builds and team signing
 
-Version 0.13.0 provides personal builds without signing credentials and support for approved team signers. Existing 0.12.0 installations still trust the original key and receive 0.13.0 through the initial compatibility channel. No additional developer is enrolled and no private key has been shared or uploaded to GitHub.
+Current publication uses [the coordinated release workflow](RELEASING_MACOS.md) for Windows x64 and Apple Silicon macOS. Built-in AI is independent of updater signing. The procedures below describe optional owner-approved Windows signer enrollment and local packaging; they do not create or publish a complete two-platform release. Version 0.13.0 and the old 0.12.0 bridge are retained compatibility history, not a migration that new developers must repeat.
 
 ## Running and building without a private key
 
@@ -22,11 +22,11 @@ The last command creates a personal installer without an updater signature under
 
 The script refuses to overwrite an existing signer. It creates a key outside the repository, verifies Windows DPAPI protection and removes its temporary plaintext file without printing the private key. The private key stays at `%USERPROFILE%/.desktop-buddy/signers/developer-name/signing-key.dpapi`. Only `public-key.pub` is shared with the maintainer. Keep a separately encrypted backup: DPAPI is bound to the Windows account/computer. Reuse the same key for later releases.
 
-The owner keeps the existing protected primary key at `%USERPROFILE%/.desktop-buddy/signing-key.dpapi`. No changes are made to that key. GitHub Actions Secrets remain optional and are not configured by this work.
+The owner keeps the existing protected primary key at `%USERPROFILE%/.desktop-buddy/signing-key.dpapi`. No changes are made to that key. The current shared release workflow uses the existing authorized Actions secrets. Creating a new local signer does not enroll it or change those secrets.
 
 ## Enroll the public key and ship a transition
 
-First publish the initial 0.13.0 bridge signed with the existing primary key. Then a maintainer reviews the developer's public file and runs:
+Preserve the already delivered compatibility bridges. For a genuinely new signer, a maintainer reviews the developer's public file and runs:
 
 ```powershell
 node scripts/add-trusted-signer.mjs developer-name C:/path/to/public-key.pub
@@ -46,7 +46,7 @@ Review and build this transition with an **already trusted** signer. A new key c
 
 The release task loads only the selected local protected key (or an explicit signing environment override), builds the installer, verifies the signature against the trusted public list and checks its signed version. It then creates all required updater manifests. Unknown keys and altered artifacts are rejected. The signing environment loaded by the helper is cleared afterward. This command does not push or publish.
 
-Commit the generated **public** `updates/compatibility.json` with the release source before publishing. Keep the trust history and compatibility manifests; do not regenerate older installers. Publish the installer, its `.sig`, `latest.json` and **every** `updates-epoch-*.json` to the same new GitHub Release. The optional workflow includes these channel files; when using CI, retrieve its generated compatibility archive and commit it for subsequent releases. Never add private keys to Git.
+Commit the generated **public** `updates/compatibility.json` with the release source before publishing. Keep the trust history and compatibility manifests; do not regenerate older installers. Publish the installer, its `.sig`, `latest.json` and **every** `updates-epoch-*.json` to the same new GitHub Release. The shared release workflow combines and verifies the channel files; preserve the public compatibility archive and trust history for subsequent releases. Never add private keys to Git.
 
 ## Why the compatibility files are required
 

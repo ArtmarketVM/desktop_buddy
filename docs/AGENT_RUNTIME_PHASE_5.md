@@ -1,5 +1,8 @@
 # Event-driven personal AI runtime (Phase 5)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Built on Phase 4 commit `8f483b0`. This phase reuses the existing collector,
 companion, SQLite storage, deterministic memory retriever, skill registry,
 Nebius service and chat/research flow. It does not introduce a second database,

@@ -1,5 +1,8 @@
 # sumi ten phase acceptance checklist
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This checklist translates the changes described in `Desktop_Buddy_10_phases_RU.docx` into repeatable acceptance checks. It covers all ten development phases and the installation, privacy, and regression checks described in the document. Each item states an action and an observable expected result.
 
 The source document describes version 0.27.0; the checkout was subsequently updated to 0.27.3. Verify the installed build and the source revision before testing; this checklist does not establish that an installed release has passed verification. All boxes are initially unchecked. Test counts and release claims in the source document are historical claims, not results of this checklist.

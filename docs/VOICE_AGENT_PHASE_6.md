@@ -1,5 +1,8 @@
 # Voice as the agent interface (Phase 6)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Built on `524079f feat(agent): add event driven personal AI runtime`. The existing
 microphone recorder, WAV validation, local speech recognizers, shared chat
 planner, skill registry, confirmations and SQLite state are reused.

@@ -1,8 +1,6 @@
 # Daily activity review
 
-Implemented on top of `883b6c1` (0.41.0); not released. After integrating 0.41.0,
-the user chose the configured **Daily summary** time as the review boundary,
-replacing the earlier Working hours requirement.
+Current review lifecycle at release 0.49.4. The configured **Daily summary** time is the review boundary; the earlier Working hours requirement is superseded. See [current observation](PERSONAL_AI_OBSERVATION.md) for later attribution/trail changes and [mascot delivery](MASCOT_NOTIFICATIONS.md) for presentation timing.
 
 ## Measured time and goals
 

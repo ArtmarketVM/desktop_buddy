@@ -1,5 +1,8 @@
 # Core experience and companion integration — 0.15.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This version combines Developer 1's daily workspace with Developer 2's companion commit `d237c27`. The Windows release uses the normal signed release workflow; private signing credentials remain on the release owner's computer.
 
 ## Daily flow

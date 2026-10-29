@@ -1,5 +1,8 @@
 # Developer handoff — 0.12.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This release includes the workspace changes developed after 0.10.0. Source is on `main`; Windows distribution uses the signed **v0.12.0** GitHub release. The [Russian handoff](DEVELOPER_HANDOFF_RU.txt) opens in Word or Notepad.
 
 ## What changed since 0.10.0

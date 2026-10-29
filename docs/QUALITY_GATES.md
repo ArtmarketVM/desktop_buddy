@@ -4,7 +4,9 @@ As of the CI optimization, `ci.yml` is the automatic change-aware entry point. `
 
 # Quality gates and visual handoff
 
-## Final handoff: 20 October 2026
+## Historical handoff: 20 October 2026
+
+This dated handoff is retained as evidence, not current integration work. The branches and privacy blocker described in this section were superseded. The application now uses `/docs/privacy.html`; `npm run verify:privacy` checks the configured URL, public bytes and absence of external fonts. Use the current entry points above and RELEASE_PROCESS.md for new work.
 
 Infrastructure is published on `codex/quality-gates`. Merge this branch first; Developers 1 and 2 should then rebase onto it. Application source remains unchanged from the agreed base. No Linux, Docker, installer release, version bump, Pages-setting change, or direct developer messaging was used.
 
@@ -61,7 +63,7 @@ node scripts/visual-review.mjs PATH_TO_EXTRACTED_VISUAL_ARTIFACT
 
 Canonical candidates: dispatch the existing **Windows build** workflow on this branch with `visual_candidates=true`. Download the `visual-windows-2022` artifact and inspect every candidate alongside the application at the recorded base. Capture twice in that same job: the second run must compare with zero differing pixels. Preserve the runner image/version artifact with the review record. Human reviewers must approve all 34 images before committing them under `visual/baselines/`. Never automatically approve snapshots from a pull request or hide changed areas with screenshot masks. Future updates use the same procedure and must explain each intentional visual change in the PR.
 
-The visual job explicitly fetches the agreed base commit because Actions' default shallow checkout does not include it. To iterate browser infrastructure while a full native run is already validating the same application source/dependencies, dispatch with `visual_only=true`; the default remains false, and normal push/PR/full-dispatch native checks remain intact. A visual-only run never counts as native validation.
+The visual job fetches the required base evidence explicitly. For current provisional captures, dispatch `visual-checks.yml` with `candidates=true`; approved baselines still require owner review. `visual_only` is not a current Application checks input. A visual run never counts as native validation.
 
 CI always uploads the HTML report, actual/expected/diff images, traces, candidate images and environment metadata, including failures. Browser visual coverage does **not** validate native Tauri window behaviour, updater, signing, credentials, permissions, or macOS rendering.
 
@@ -72,10 +74,10 @@ All three lint gates block CI. ESLint and Clippy since 21 October 2026 (base `62
 | Gate | Command | CI step | Fails when |
 | --- | --- | --- | --- |
 | ESLint | `npm run lint` | `platform-checks.yml`, both platforms | any error, or warnings above `eslintWarnings` |
-| Clippy | `npm run lint:rust` | `ci.yml` `rust-lint`, Windows x64 and Apple Silicon | compilation fails, any error, or unique warnings above `clippyWarnings` |
+| Clippy | `npm run lint:rust` | `platform-checks.yml`, both native platforms/profiles; `ci.yml` aggregates | compilation fails, any error, or unique warnings above `clippyWarnings` |
 | Unused code (knip) | `npm run lint:unused` | `platform-checks.yml`, both platforms | knip cannot run, or unused files, exports, types, dependencies and test-only modules together exceed `unusedCode` |
 
-Budgets live in `scripts/lint-budget.json` and are all **0**. A budget may only go down; the scripts print a reminder when the count drops below it. `Required application checks` now requires `rust-lint` whenever the Rust suite applies, and `scripts/ci.verify.mjs` fails if a lint step regains `continue-on-error`, disappears, or loses its budget check. The `rust-lint` job pins Rust **1.99.1**, the stable version CI used for the last measured run, so a new Clippy release cannot fail the gate without a code change. Bump it deliberately and fix or justify any new findings in the same change.
+Budgets live in `scripts/lint-budget.json` and are all **0**. A budget may only go down; the scripts print a reminder when the count drops below it. `Required application checks` now requires `rust-lint` whenever the Rust suite applies, and `scripts/ci.verify.mjs` fails if a lint step regains `continue-on-error`, disappears, or loses its budget check. The native platform jobs pin Rust **1.99.1**, the stable version CI used for the last measured run, so a new Clippy release cannot fail the gate without a code change. Bump it deliberately and fix or justify any new findings in the same change.
 
 Counts at the base and after this change:
 

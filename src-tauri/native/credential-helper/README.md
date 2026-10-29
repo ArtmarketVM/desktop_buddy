@@ -7,13 +7,13 @@ Why this exists: internal code-signing certificates receive a `cdhash:` partitio
 Security boundaries:
 
 - Public Security framework APIs only; no fabricated Apple entitlements or private APIs.
-- A request is accepted only from a same-user parent process whose running code satisfies the exact Buddy identifier and pinned certificate requirement.
+- A request is accepted only from a same-user parent process whose running code satisfies the exact compatibility app identifier (`com.artmarketvm.desktopbuddy`) and pinned certificate requirement.
 - The parent must use hardened runtime without task debugging, disabled library validation, or DYLD environment injection entitlements.
-- Buddy verifies the helper's identifier/certificate and strict code validity before sending any credential.
+- sumi verifies the helper's identifier/certificate and strict code validity before sending any credential.
 - Only the two provider accounts and one isolated synthetic self-test account are supported.
 - Requests and results use anonymous pipes, never argv, URLs, environment variables, disk caches, webview IPC, or logs.
 - Provider values remain in the encrypted login Keychain. New items retain its default application-specific ACL; there is no all-applications access or partition allowlist expansion.
-- Metadata checks suppress UI. Credential reads are serialized and cached only in Buddy process memory. A denied read is not automatically retried by background jobs; Settings' connection test explicitly permits retry.
+- Metadata checks suppress UI. Credential reads are serialized and cached only in sumi process memory. A denied read is not automatically retried by background jobs; Settings' connection test explicitly permits retry.
 
 Existing items may require one **Always Allow** approval for the bridge, separately for each provider. This is a real identity transition; the app cannot grant it itself. Keychain locking, changed passwords, revocation, a future helper security upgrade, or replacing the signing identity can still require user interaction. This is not Apple Developer ID signing or notarization.
 

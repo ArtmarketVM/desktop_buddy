@@ -1,5 +1,8 @@
 # Goals / Today core — Developer 1
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Delivered scope
 
 - Today starts with goals and a compact direct-entry form. Imports and existing AI composition remain available through a secondary action and the Import page.

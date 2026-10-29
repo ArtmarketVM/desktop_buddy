@@ -1,0 +1,123 @@
+# Historical documentation
+
+These records describe their own source/version. Their old UI labels, platform support, model routing, commands and passing test counts may be superseded. Use [the current index](README.md) and [architecture](AI_ARCHITECTURE.md) for today's behavior. The original body/evidence is retained; no failed test is rewritten as a pass.
+
+## Milestones, design and validation
+
+- [AGENT_RUNTIME_PHASE_5.md](AGENT_RUNTIME_PHASE_5.md) — Event-driven personal AI runtime (Phase 5)
+- [AI_BUDDY_TAVILY_TRACKING.md](AI_BUDDY_TAVILY_TRACKING.md) — Buddy AI, Tavily and tracking — 0.19.0
+- [AI_COACHING_FOUNDATION.md](AI_COACHING_FOUNDATION.md) — AI coaching foundation
+- [AI_COACHING_INTEGRATION.md](AI_COACHING_INTEGRATION.md) — AI coaching integration proposal
+- [AI_RELIABILITY_0.31.0.md](AI_RELIABILITY_0.31.0.md) — AI reliability audit and fixes: 0.31.0
+- [AI_RELIABILITY_0.31.1.md](AI_RELIABILITY_0.31.1.md) — AI research continuation audit: 0.31.1
+- [AI_TIMEOUT_INVESTIGATION_2026-10-20.md](AI_TIMEOUT_INVESTIGATION_2026-10-20.md) — Chat timeout investigation and desktop UI fixes
+- [AI_VALIDATION_0.30.0.md](AI_VALIDATION_0.30.0.md) — AI validation for Desktop Buddy 0.30.0
+- [BUDDY_ART_PROMPTS.md](BUDDY_ART_PROMPTS.md) — sumi character prompts
+- [COACHING_0.36.0_VALIDATION.md](COACHING_0.36.0_VALIDATION.md) — Desktop Buddy 0.36.0 validation
+- [COACHING_0.36.1_VALIDATION.md](COACHING_0.36.1_VALIDATION.md) — Desktop Buddy 0.36.1 coaching chat fix
+- [COMPANION_MVP.md](COMPANION_MVP.md) — Desktop companion MVP — 0.14.0
+- [CONTEXTUAL_AGENT_DIALOGUE.md](CONTEXTUAL_AGENT_DIALOGUE.md) — Contextual agent dialogue candidate
+- [CONTEXTUAL_MEMORY_PHASE_3.md](CONTEXTUAL_MEMORY_PHASE_3.md) — Contextual retrieval and memory controls (Phase 3)
+- [CONTEXTUAL_RESEARCH_PHASE_8.md](CONTEXTUAL_RESEARCH_PHASE_8.md) — Contextual research with Tavily (Phase 8)
+- [CORE_EXPERIENCE.md](CORE_EXPERIENCE.md) — Core experience and companion integration — 0.15.0
+- [CSS_CONSOLIDATION.md](CSS_CONSOLIDATION.md) — CSS consolidation — Developer 1
+- [DAILY_CONTINUITY_PHASE_9.md](DAILY_CONTINUITY_PHASE_9.md) — Phase 9: Daily continuity and adaptive memory
+- [DEVELOPER_2_QUALITY_HANDOFF.md](DEVELOPER_2_QUALITY_HANDOFF.md) — Developer 2 quality integration
+- [DEVELOPER_HANDOFF.md](DEVELOPER_HANDOFF.md) — Developer handoff — 0.12.0
+- [GOALS_TODAY_CORE.md](GOALS_TODAY_CORE.md) — Goals / Today core — Developer 1
+- [GOAL_MATCHING_PHASE_7.md](GOAL_MATCHING_PHASE_7.md) — Goal matching and Personal Work State (Phase 7)
+- [HACKATHON_PHASE_10_REPORT.md](HACKATHON_PHASE_10_REPORT.md) — Personal AI: Phase 10 hardening and acceptance report
+- [MACOS_VALIDATION.md](MACOS_VALIDATION.md) — macOS validation
+- [MATCHING_CONTEXT_REPORT.md](MATCHING_CONTEXT_REPORT.md) — Goal-matching context verification
+- [ONBOARDING.md](ONBOARDING.md) — Onboarding and settings (0.9.0)
+- [PARK_RESUME_PHASE_4.md](PARK_RESUME_PHASE_4.md) — Phase 4: Park, Remember, Resume
+- [PERSONAL_AI_VALIDATION.md](PERSONAL_AI_VALIDATION.md) — Personal AI observation validation — 0.40.0
+- [PERSONAL_MEMORY_PHASE_2.md](PERSONAL_MEMORY_PHASE_2.md) — Persistent personal memory
+- [PUBLISH_0.12.1.md](PUBLISH_0.12.1.md) — Desktop Buddy 0.12.1 signing handoff
+- [SEMANTIC_OBSERVATION.md](SEMANTIC_OBSERVATION.md) — General goal observation: audit and implementation
+- [SHARED_FRONTEND_DATA.md](SHARED_FRONTEND_DATA.md) — Shared frontend data flow
+- [SKILL_WORKFLOWS.md](SKILL_WORKFLOWS.md) — sumi skill workflows on the 0.31.3 baseline
+- [STRUCTURED_SKILLS_PHASE_1.md](STRUCTURED_SKILLS_PHASE_1.md) — Structured skill execution
+- [TEN_PHASES_ACCEPTANCE_CHECKLIST.md](TEN_PHASES_ACCEPTANCE_CHECKLIST.md) — sumi ten phase acceptance checklist
+- [TRACKING.md](TRACKING.md) — Tracking implementation (0.8.0)
+- [UX_ONBOARDING_GOALS_SETTINGS.md](UX_ONBOARDING_GOALS_SETTINGS.md) — Daily UX and automatic goal matching — 0.20.0
+- [VALIDATION.md](VALIDATION.md) — Validation record
+- [VOICE_AGENT_PHASE_6.md](VOICE_AGENT_PHASE_6.md) — Voice as the agent interface (Phase 6)
+- [compact-workspace.md](compact-workspace.md) — Compact workspace
+
+## Delivered/version-specific release notes
+
+Release notes are historical by definition. They do not change when the current support policy changes. Published assets and signed compatibility channels retain their original names. Use [CHANGELOG](../CHANGELOG.md) for chronology and [GitHub Releases](https://github.com/ArtmarketVM/desktop_buddy/releases/latest) for downloadable packages.
+
+- [0.49.4](RELEASE_0.49.4.md)
+- [0.49.3](RELEASE_0.49.3.md)
+- [0.49.2](RELEASE_0.49.2.md)
+- [0.49.1](RELEASE_0.49.1.md)
+- [0.49.0](RELEASE_0.49.0.md)
+- [0.48.1](RELEASE_0.48.1.md)
+- [0.48.0](RELEASE_0.48.0.md)
+- [0.47.1](RELEASE_0.47.1.md)
+- [0.47.0](RELEASE_0.47.0.md)
+- [0.46.0](RELEASE_0.46.0.md)
+- [0.45.0](RELEASE_0.45.0.md)
+- [0.44.0](RELEASE_0.44.0.md)
+- [0.43.1](RELEASE_0.43.1.md)
+- [0.43.0](RELEASE_0.43.0.md)
+- [0.42.2](RELEASE_0.42.2.md)
+- [0.42.1](RELEASE_0.42.1.md)
+- [0.42.0](RELEASE_0.42.0.md)
+- [0.41.0](RELEASE_0.41.0.md)
+- [0.40.0](RELEASE_0.40.0.md)
+- [0.39.4](RELEASE_0.39.4.md)
+- [0.39.3](RELEASE_0.39.3.md)
+- [0.39.2](RELEASE_0.39.2.md)
+- [0.39.1](RELEASE_0.39.1.md)
+- [0.39.0](RELEASE_0.39.0.md)
+- [0.38.0](RELEASE_0.38.0.md)
+- [0.37.3](RELEASE_0.37.3.md)
+- [0.37.2](RELEASE_0.37.2.md)
+- [0.37.1](RELEASE_0.37.1.md)
+- [0.37.0](RELEASE_0.37.0.md)
+- [0.36.10](RELEASE_0.36.10.md)
+- [0.36.3](RELEASE_0.36.3.md)
+- [0.36.2](RELEASE_0.36.2.md)
+- [0.36.0](RELEASE_0.36.0.md)
+- [0.35.0](RELEASE_0.35.0.md)
+- [0.34.1](RELEASE_0.34.1.md)
+- [0.34.0](RELEASE_0.34.0.md)
+- [0.33.2](RELEASE_0.33.2.md)
+- [0.33.1](RELEASE_0.33.1.md)
+- [0.33.0](RELEASE_0.33.0.md)
+- [0.32.2](RELEASE_0.32.2.md)
+- [0.32.1](RELEASE_0.32.1.md)
+- [0.32.0](RELEASE_0.32.0.md)
+- [0.31.3](RELEASE_0.31.3.md)
+- [0.31.2](RELEASE_0.31.2.md)
+- [0.31.1](RELEASE_0.31.1.md)
+- [0.31.0](RELEASE_0.31.0.md)
+- [0.30.0](RELEASE_0.30.0.md)
+- [0.29.0](RELEASE_0.29.0.md)
+- [0.28.1](RELEASE_0.28.1.md)
+- [0.28.0](RELEASE_0.28.0.md)
+- [0.27.5](RELEASE_0.27.5.md)
+- [0.27.4](RELEASE_0.27.4.md)
+- [0.27.3](RELEASE_0.27.3.md)
+- [0.27.0](RELEASE_0.27.0.md)
+- [0.26.1](RELEASE_0.26.1.md)
+- [0.26.0](RELEASE_0.26.0.md)
+- [0.25.1](RELEASE_0.25.1.md)
+- [0.25.0](RELEASE_0.25.0.md)
+- [0.24.2](RELEASE_0.24.2.md)
+- [0.24.1](RELEASE_0.24.1.md)
+- [0.24.0](RELEASE_0.24.0.md)
+- [0.23.2](RELEASE_0.23.2.md)
+- [0.23.1](RELEASE_0.23.1.md)
+- [0.19.0](RELEASE_0.19.0.md)
+- [0.18.0](RELEASE_0.18.0.md)
+- [0.17.1](RELEASE_0.17.1.md)
+- [0.17.0](RELEASE_0.17.0.md)
+- [0.16.1](RELEASE_0.16.1.md)
+- [0.15.0](RELEASE_0.15.0.md)
+- [0.13.0](RELEASE_0.13.0.md)
+- [0.12.1](RELEASE_0.12.1.md)
+- [0.12.0](RELEASE_0.12.0.md)

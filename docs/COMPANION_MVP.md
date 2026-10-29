@@ -1,5 +1,8 @@
 # Desktop companion MVP — 0.14.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This module implements the Developer 2 companion/tracking brief without replacing Developer 1's Goals UI. Version 0.14.0 is a local build until explicitly published.
 
 ## Using Buddy

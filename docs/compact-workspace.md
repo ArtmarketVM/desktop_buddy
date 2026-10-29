@@ -1,5 +1,8 @@
 # Compact workspace
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 The workspace introduced in 0.21.0 keeps Today focused on goals and steps. Buddy opens a compact text input or a voice recording bar at the bottom right. The Chats page provides the full conversation view and local history. The sidebar can be collapsed; its state is saved on this device. Do not disturb is an icon on Today, with additional controls in Settings. The app version and local profile information are in Settings. These components and the SQLite conversation implementation are shared by Windows and macOS.
 
 Accepted steps use checkboxes and a contextual edit/delete menu. Automatically generated suggestions appear below them, with Add, Add all and Ignore. Ignored suggestions stay dismissed on this device. Adding suggestions preserves the existing plan and its revision checks. AI title improvements and research continue through the existing background analysis service; no manual Improve / Research panel is shown.

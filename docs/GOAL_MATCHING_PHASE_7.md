@@ -1,5 +1,8 @@
 # Goal matching and Personal Work State (Phase 7)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Built on `5b89240 feat(agent): route voice commands through agent skills`.
 Existing collection, app rules, local relevance classification, WorkContext,
 Nebius HTTP matching, skill execution and SQLite storage are reused.

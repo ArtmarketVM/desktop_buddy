@@ -1,5 +1,8 @@
 # Windows workspace design QA — 0.10.0
 
+> Historical 0.10.0 design validation. Current interface rules and screenshot gates are indexed in [docs/README.md](docs/README.md). The dated screenshots and results below are not the current application UI.
+
+
 **Final result: passed**
 
 ## Visual truth and scope

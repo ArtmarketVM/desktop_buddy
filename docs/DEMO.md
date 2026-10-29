@@ -1,42 +1,31 @@
 # Demo and manual verification
 
-## Offline rehearsal
+Use [the judge guide](JUDGES_START_HERE.md) to install a ready-made release and [the current demo runbook](HACKATHON_DEMO_RUNBOOK.md) for the full sequence. Neither source compilation nor entering personal API keys is required for judges.
 
-```powershell
-./scripts/dev.ps1 -Demo -MockAI
-```
+## Three different kinds of evidence
 
-1. Enter `Finish the hackathon presentation` and start focus.
-2. Enable AI check-ins. The UI must clearly say that activity and decisions are simulated.
-3. The sequence advances every 15 seconds: PowerPoint (10 minutes), Nebius Docs (5 minutes), YouTube (7 minutes).
-4. After YouTube appears, click Check my focus or wait for the automatic check. Expect a drifting decision and a separate Buddy popup.
-5. Click This is related. Verify that the popup closes and feedback is stored in SQLite.
-6. Enable Do not disturb. No additional popup should appear.
-7. Pause tracking. Activity must stop changing.
-8. Restart. The saved goal and activity should remain, but tracking and AI should be off.
+| Check | What it establishes | What it does not establish |
+| --- | --- | --- |
+| Unit/acceptance tests with mock responses | State, schema, privacy, cancellation and receipt behavior on fixtures | Real model quality, microphone input or a visible desktop interaction |
+| Real-provider backend rehearsal (`--check-hero`) | Actual Nebius/Tavily operations on isolated synthetic data | Physical microphone input, real screen collection, displayed cards or a full process restart |
+| Installed manual demo on each platform | The observed native user sequence on that build and system | General accuracy for every application, language or goal |
 
-## Real provider demonstration
+`DEMO_MODE=true` simulates activity. `AI_MOCK=true` independently substitutes provider responses. Leave both false for a native live demo. A real provider called with simulated activity is still not proof of real foreground capture.
 
-1. Set valid Nebius and Tavily credentials in the local `.env` file. Confirm the model ID in your Nebius account.
-2. Set `DEMO_MODE=true` and `AI_MOCK=false`, or run `./scripts/dev.ps1 -Demo` in a fresh terminal without an `AI_MOCK=true` override.
-3. Start a presentation goal. Enable AI check-ins after reading the disclosure.
-4. Wait for the simulated YouTube segment and click Check my focus. The response must come from Nebius; a classification is not guaranteed because it is model-generated.
-5. Confirm a high-confidence drifting/intervene response opens Buddy. Dismiss it or mark it related.
-6. Enter a relevant search query and click Search. Confirm real Tavily titles, links, and snippets appear.
-7. Restart and confirm the goal, activity, and decision remain.
-8. Stop the application and remove runtime credentials from the terminal if no longer needed.
+## Preparation and live sequence
 
-## Live Windows collection
+1. Use the same reviewed release on Apple Silicon macOS 14.5+ and Windows x64. Keep **Built-in AI** selected, or deliberately select **Use my API keys** for a personal account.
+2. Use fictional goals, messages and visible result receipts. Enable only the observation options intended for the test; grant system permissions yourself and check quiet/meeting/fullscreen suppression.
+3. Prepare the local Whisper model through the microphone control before recording the demonstration. First use downloads verified weights. Test the actual microphone; an existing text transcript is not a speech test.
+4. Create a goal and steps, make it the focus, Park it, switch tasks and Resume. Verify saved context.
+5. Show a matching request/outcome in a real foreground window. Check the observed interface-text/image capability in **Settings → About → Diagnostics → Personal AI Engine**. New tasks require acceptance; completion requires verified evidence and the applicable confirmation/automatic-completion permission.
+6. Authorize a research request and inspect actual Tavily-backed sources, then inspect Progress and the work journal.
+7. Quit and reopen the process. Check saved goals, history/context and Undo. Saved consent/settings persist; do not expect restart to reset tracking or AI to off.
 
-1. Set `DEMO_MODE=false`, `AI_MOCK=false` and start the app.
-2. Set a goal, switch between an editor, PowerPoint, and a browser, and check timeline segments.
-3. Keep one foreground window active for at least 10 seconds. Its duration should increase without duplicate segment rows.
-4. Leave the machine idle for over 60 seconds. Idle time should appear and active duration should reset.
-5. Pause tracking, switch apps, and resume. Paused time must not be counted.
-6. Enable AI only if you are comfortable sending the displayed titles to Nebius.
-7. Confirm that missing/invalid credentials show a readable error while local tracking continues.
-8. Confirm that neither focus checks nor web searches expose credentials in the UI.
+Record failures and evidence scope honestly. Model silence can be a valid decision; no collection, a failed request and presentation suppression are separate conditions.
 
-## Release smoke test
+## Developer diagnostics and release checks
 
-Build with `npm run tauri -- build -- --locked`, install the generated NSIS executable, and launch with runtime environment variables. Verify goal creation, tracking, DND, popup feedback, real search, and persistence. Never put provider credentials into GitHub build secrets or compile-time frontend variables.
+The available `--check-*` flags are documented in [the demo runbook](HACKATHON_DEMO_RUNBOOK.md), [accuracy checks](ACCURACY_CHECKS.md) and [local voice](LOCAL_VOICE.md). They use synthetic data but live modes can incur provider charges. Keep keys and private reports outside Git. CLI diagnostics accept `BUDDY_AI_CONNECTION_MODE=personal` or `built_in`; environment keys alone do not select the connection.
+
+Run required checks once for the affected source and follow [the coordinated release process](RELEASE_PROCESS.md). Do not build/publish an unsigned one-platform installer as a complete release smoke test. Preserve both platform gates, updater trust and the macOS internal signing identity.

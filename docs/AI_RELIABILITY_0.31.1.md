@@ -1,5 +1,8 @@
 # AI research continuation audit: 0.31.1
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Reproduced failure after installing 0.31.0
 
 The installed release correctly recalled the corrected synthetic budget,

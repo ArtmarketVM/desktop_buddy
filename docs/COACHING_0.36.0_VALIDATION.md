@@ -1,5 +1,8 @@
 # Desktop Buddy 0.36.0 validation
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 - **Help me start** opens a voluntary Tiny Habits session from an unfinished goal
   or the full chat's goal picker. The selected goal and optional step are explicit.
 - Coaching controls cover readiness, barriers, a 10–60 second suggested action,

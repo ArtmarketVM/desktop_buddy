@@ -1,5 +1,8 @@
 # Personal AI: Phase 10 hardening and acceptance report
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Date: 2026-10-13. Baseline: `de2c00c`. Branch: `codex/event-driven-agent-runtime`.
 
 This is a source-code milestone, not a published installer update. The application version remains 0.26.1. No release, tag, push, installation, signing-key change or provider-key change was performed. Every change uses shared React/Rust code for Windows and macOS. Native Windows verification remains a release prerequisite.

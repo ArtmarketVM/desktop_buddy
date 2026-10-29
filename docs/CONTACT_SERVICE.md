@@ -1,8 +1,8 @@
 # Private contact service
 
-The shipped app keeps the local profile in the Windows user's SQLite database. It is not an online account or a shared customer directory. No existing profile email is uploaded automatically.
+The shipped app keeps the local profile in the user's SQLite database on Windows and macOS. It is not an online account or a shared customer directory. No existing profile email is uploaded automatically.
 
-Prepared integration: [schema](../server/supabase/schema.sql) and [Edge Function](../server/supabase/functions/buddy-contact/index.ts). No Supabase project has been created or deployed. The template sends real HTTPS requests when deployed; it has no mock delivery mode.
+Prepared integration: [schema](../server/supabase/schema.sql) and [Edge Function](../server/supabase/functions/buddy-contact/index.ts). This optional contact/subscription service is separate from the deployed Built-in AI `buddy-ai` gateway. The existence of the AI project does not establish contact-service deployment or mail delivery. The contact template sends real HTTPS requests when independently configured and deployed; it has no mock delivery mode.
 
 ## Owner setup
 
@@ -10,8 +10,8 @@ Prepared integration: [schema](../server/supabase/schema.sql) and [Edge Function
 2. Configure a verified sending domain with Resend. `artmarket.vm@gmail.com` is the **recipient**, not a verified application sender. Set `CONTACT_FROM` to your verified sender address.
 3. Set **server-only** function secrets: `RESEND_API_KEY`, `CONTACT_FROM`, `CONTACT_PUBLIC_URL` (the deployed function's HTTPS URL). Supabase supplies `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` inside the function. Never put these secrets in Git, `.env.example`, the desktop app or GitHub Actions for desktop builds.
 4. Deploy `buddy-contact` with the provided function configuration. The endpoint allows anonymous submissions; the database does not. Input validation and atomic database rate caps bound traffic to 100 email attempts/hour globally and three/hour per address/kind. Configure your gateway's abuse protection and adjust limits for the intended audience before opening the service broadly.
-5. In Buddy, open Settings → Connected services → Advanced → Private contact service URL. Save `https://YOUR_PROJECT.supabase.co/functions/v1/buddy-contact`. Alternatively set the runtime `CONTACT_API_URL` environment variable. A URL contains no private credentials. Reopen the feedback card or profile after changing the connection.
-6. Test feedback, subscription and research confirmations, repeated/expired links, unsubscribe and research removal. Verify anonymous and signed-in database reads/writes are denied. These cloud checks cannot be performed until the project exists.
+5. For an explicitly configured contact deployment, set runtime `CONTACT_API_URL=https://YOUR_PROJECT.supabase.co/functions/v1/buddy-contact`, or use the backend contact-endpoint API. The current Settings interface does not expose the earlier Connected services / Advanced URL field. A URL contains no private credentials. Current Feedback uses the email-draft path; contact delivery must not be advertised as connected merely because its backend API exists.
+6. Test feedback, subscription and research confirmations, repeated/expired links, unsubscribe and research removal. Verify anonymous and signed-in database reads/writes are denied. Perform these checks against the actual configured contact deployment; AI gateway availability is not a substitute.
 
 Use multi-factor authentication for owner accounts and restrict administrative access to people who manage the service. The public repository contains source and schema only, never subscriber data.
 
@@ -23,7 +23,7 @@ Use multi-factor authentication for owner accounts and restrict administrative a
 - `buddy_unsubscribe_tokens`: hashed unsubscribe tokens. Previously issued unsubscribe links remain valid after new subscription requests. Tokens are random, plaintext values exist only in confirmation emails.
 - `buddy_contact_limits`: hourly rate counters. Delete counters older than 48 hours on a server schedule; remove expired unconfirmed subscriptions according to your retention policy.
 - RLS is enabled on all tables; `anon` and `authenticated` have no table access. The backend's service role handles writes and the owner uses the protected dashboard/SQL editor for exports.
-- The subscription checkbox is optional and separate from the local privacy acknowledgement, tracking and AI sharing. It is disabled when no service is connected. Choosing it does not submit anything until the user requests confirmation.
+- Subscription and role-research consent are separate from the local privacy acknowledgement, tracking and AI sharing. These are backend/template contracts; the current frontend does not expose subscription or role-research forms. A future client must request confirmation explicitly.
 - Confirmation links show a page first; only its button POST changes consent. Email-link scanners cannot subscribe or unsubscribe by fetching a URL.
 - Feedback uses a fixed recipient, plain-text bodies and no app activity context. No server response body or credential is shown in desktop errors.
 
@@ -56,7 +56,7 @@ Return HTTP 202 with `{"status":"confirmation_required"}` after a verification e
 
 Return HTTP 202 with `{"status":"confirmation_required"}` only after the verification email is accepted. Confirmation updates research fields in the same protected subscriber row without adding marketing consent. Research removal clears those fields without unsubscribing marketing; unsubscribe changes marketing consent without deleting verified research. The verification email contains the relevant removal link. All link GETs display a confirmation form; only its POST mutates data. A single address has one pending confirmation purpose, so the latest subscription or research request replaces its previous pending request. Existing confirmed consent is retained until its corresponding removal/unsubscribe action.
 
-In the app, expand **Help us understand your role (optional)**, choose its separate consent and explicitly request confirmation. Saving the local profile or selecting Other does not upload anything. Configure the service URL and reopen the profile to enable this control. With no endpoint, the feedback card opens an email draft to **artmarket.vm@gmail.com**. The user reviews and sends it in their email app. Buddy never claims that opening a draft sent a message.
+The current profile screen does not expose the earlier **Help us understand your role (optional)** flow. These subscription/research endpoints are prepared backend capabilities, not an active user-facing feature. Saving the local profile does not upload it. The current feedback card opens an email draft to **artmarket.vm@gmail.com**, regardless of whether a contact endpoint is configured. The user reviews and sends it in their email app; opening a draft does not establish delivery.
 
 This integration does not implement online authentication, synchronization of goals, or a shared AI proxy. Those need separate backend endpoints and account design.
 

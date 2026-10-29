@@ -1,6 +1,6 @@
 # Mascot message policy
 
-Implemented from the owner-approved launch, summary and quiet-schedule rules on 21 October 2026. Base: `aeb1dd4cad5ce9d6a2171756ad61f983a3e80dff` (main, v0.40.0). This change is not a published release.
+Current mascot delivery policy at release 0.49.4. Source boundaries: the companion engine/queue, deadline service and InterventionCard. Historical validation evidence below applies only to its recorded source; it is not a new live verification of every platform.
 
 ## Delivery and settings
 

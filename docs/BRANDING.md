@@ -1,6 +1,6 @@
 # sumi product naming
 
-All current user-facing app, installer, shortcut, release and extension names use **sumi**. New public assets beginning with 0.49.2 use `sumi_<version>_*`. macOS bundles are `sumi.app`; the packaged executable is `sumi` / `sumi.exe`.
+The current desktop app, installer, shortcut, release title and extension manifest use **sumi**. The selected-text extension still displays legacy menu/bridge labels (Add as goal in Buddy / Open Buddy), and the feedback email subject retains its historical wording; these are source-confirmed remaining branding exceptions, not renamed by this documentation-only audit. New public assets beginning with 0.49.2 use `sumi_<version>_*`. macOS bundles are `sumi.app`; the packaged executable is `sumi` / `sumi.exe`.
 
 Compatibility identifiers intentionally retain their historical values: `com.artmarketvm.desktopbuddy`, the `desktopbuddy://` protocol, package/crate/library identifiers, credential services, the immutable credential helper and signing requirements, repository URLs, Windows installation registry keys and previously published update assets. Renaming these is not a visual-branding change and could disconnect existing data, keys or update channels.
 
@@ -11,3 +11,7 @@ The standard macOS updater extracts into the existing bundle path. On the next r
 Historical release notes, signed compatibility channels and validation evidence retain the names actually used at publication. Do not rename or replace delivered assets.
 
 Release gates rehearse the actual signed macOS legacy-bundle relaunch before packaging and install the verified published Windows 0.49.1 package followed by the new installer on an isolated hosted Windows runner. The Windows gate checks executable/shortcut names, the retained installation registry and a user-data sentinel; it never launches the app or sends provider requests. The macOS check exits before application state is opened. These rehearsals run during release packaging, not at every application startup.
+
+## Current mascot presets
+
+The shipped presets in `src/components/ProfileFields.tsx` are Lime `#E4FA8E`, Violet `#6C5FFF` and Cloud `#F3F3EF`. The UI also permits a custom color. Older animal/palette prompts in BUDDY_ART_PROMPTS.md are historical explorations, not current artwork specifications.

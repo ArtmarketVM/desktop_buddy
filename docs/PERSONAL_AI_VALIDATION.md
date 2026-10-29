@@ -1,5 +1,8 @@
 # Personal AI observation validation — 0.40.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Scope and evidence
 
 Implementation starts at upstream `7387877`, after release 0.39.4 and the second developer's cleanup. No production goals, chats, messages or screenshots were used in provider tests. Tests use synthetic English fixtures and an isolated in-memory database. The final release source is `aee23f443cf784878242639ad5b740963b0b9b8a`. Both platform gates and signed installer publication passed; native desktop checks are distinguished from CI below.

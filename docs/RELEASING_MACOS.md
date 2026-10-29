@@ -32,17 +32,6 @@ download may still require macOS Open Anyway. Apple Developer ID is an explicit
 future distribution option and requires its own reviewed identity transition.
 The minimum deployment target does not establish exact macOS 14.5 runtime testing.
 
-# Goal monitoring
+## Goal monitoring is a separate validation boundary
 
-The onboarding switch **Track goals and suggest completed work** explicitly
-enables local activity collection and bounded Nebius text checks together. The
-same switch in Settings pauses both. The onboarding screen offers Nebius key
-setup, and macOS requests Accessibility access. Missing permissions, missing
-keys, and provider failures are visible on Today and Progress. Progress checks
-continue outside notification hours, and proposals remain available in Buddy chat.
-
-Activity time and completion remain separate. An AI completion proposal needs
-an exact visible receipt and confidence of at least 0.9. Completing a whole goal
-requires that no steps remain unfinished, and always requires user confirmation.
-Editing the plan, changing the goal, or withdrawing sharing invalidates proposals.
-App names, time spent, drafts and title similarity do not prove completion.
+Signing and packaging do not establish screen-to-goal accuracy. Use [current observation architecture](AI_ARCHITECTURE.md), [observation permissions and evidence](PERSONAL_AI_OBSERVATION.md), and [the native demo runbook](HACKATHON_DEMO_RUNBOOK.md). Built-in AI is the default; personal-key mode remains available. New goal/step proposals require acceptance. Independently verified completion uses its saved permission (on for new profiles), otherwise asks for confirmation; Undo is durable. Do not infer success from a green connection indicator or a package build.

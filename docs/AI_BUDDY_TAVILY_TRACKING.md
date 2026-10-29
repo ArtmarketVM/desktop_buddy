@@ -1,5 +1,8 @@
 # Buddy AI, Tavily and tracking — 0.19.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This implements the current Developer 2 scope on top of the 0.17.1 signing bridge and preserves the Goals / Today workflow. Long-term learning, autonomous external actions and generated research reports remain outside this release.
 
 ## Setup and consent

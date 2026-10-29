@@ -1,5 +1,8 @@
 # Validation record
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Third-developer Windows trust transition — 0.23.1
 
 Validated on the original Windows computer on 2026-10-09: 79 frontend tests,

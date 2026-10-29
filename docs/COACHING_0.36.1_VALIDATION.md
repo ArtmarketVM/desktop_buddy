@@ -1,5 +1,8 @@
 # Desktop Buddy 0.36.1 coaching chat fix
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 The 0.36.0 UI showed a coaching form beside an ordinary chat. A reply in the
 composer could therefore discuss the global focus instead of the coaching goal.
 In 0.36.1 a dedicated coaching conversation routes composer messages through its

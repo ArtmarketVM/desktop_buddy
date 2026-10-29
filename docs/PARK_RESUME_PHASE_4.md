@@ -1,5 +1,8 @@
 # Phase 4: Park, Remember, Resume
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 This phase extends the existing Tauri/Rust skill executor, SQLite personal memory, deterministic retriever and shared React goal rows. It does not introduce an agent runtime, another database, a new Tavily flow, or model training.
 
 ## Behavior

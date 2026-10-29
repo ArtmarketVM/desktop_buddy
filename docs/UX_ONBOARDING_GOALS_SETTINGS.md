@@ -1,5 +1,8 @@
 # Daily UX and automatic goal matching — 0.20.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Onboarding and workspace
 
 Setup has three steps: preferred name and optional local email, one of four Buddy characters, and optional activity tracking. It does not create a goal or require a timer. Email is kept in the local profile; entering it does not enroll the user in research, subscribe them, send it to AI, or enable email reports. After setup, a dismissible overview explains the menu, goals and Buddy for five seconds.

@@ -1,5 +1,8 @@
 # AI coaching integration proposal
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 Status: interactive Tiny Habits integration for 0.36.0, 2026-10-18.
 The release workflow enforces native validation and coordinated signed publication.
 `COACHING_0.36.0_VALIDATION.md` records source verification and delivery limits.

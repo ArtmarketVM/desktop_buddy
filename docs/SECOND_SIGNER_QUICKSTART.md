@@ -1,4 +1,6 @@
-# Second Developer: Create an Update Signing Key
+# Advanced: owner-approved Windows updater signer
+
+This is optional Windows trust enrollment, not setup required for judges or ordinary contributors. Do not rotate or regenerate existing signing keys. Complete publication still follows the [shared release process](RELEASE_PROCESS.md) for Windows and macOS; the macOS internal app identity remains separate.
 
 This is a one-time setup on the second developer's Windows computer. It creates a private key that stays on that computer and a public key that can be shared with the repository owner.
 

@@ -7,7 +7,7 @@ Use this runbook to distinguish verified backend behavior from a successful live
 1. Use the current reviewed, signed build on Apple Silicon macOS 14.5+ or Windows x64. Do not use an ad-hoc Mac build: its credential helper cannot read saved provider keys.
 2. Use **Built-in AI**, selected by default under **Settings → AI → Services → AI connection**. It routes Nebius and Tavily requests through the deployed gateway; judges do not enter provider keys. **Use my API keys** remains an optional alternative for your own provider accounts. Never put credentials in this runbook, screenshots, recordings, Git or command arguments. See [Judge installation and testing](JUDGES_START_HERE.md) for the ready-made packages.
 3. Use disposable goals named `AI DEMO Hackathon` and `AI DEMO Client`. Keep personal goals and private window text outside the recording. The automated rehearsal creates its own temporary database and deletes only that directory afterward.
-4. Check AI sharing, tracking, local microphone/speech permissions, working hours, quiet hours, DND and excluded apps. A silent decision is valid; a missing provider connection is a different condition. Do not disable privacy protections to manufacture a successful test.
+4. Check AI sharing, tracking, microphone/observation permissions, quiet hours/days, DND and excluded apps. A silent decision is valid; a missing provider connection is a different condition. Do not disable privacy protections to manufacture a successful test.
 5. Keep `AI_MOCK` off. `DEMO_MODE` simulates activity; it does not establish native foreground tracking even when provider calls are real.
 
 ## Automated real-provider rehearsal
@@ -28,7 +28,7 @@ Windows, using the current application binary:
 
 Without audio, the first stage is explicitly labeled `transcript_fixture`. It exercises the shared post-STT voice action path, not speech recognition or microphone capture.
 
-Test native speech from the application's recording controls, not from a shell-launched speech process. On macOS, speech permission is attributed through the launching application; a shell probe cannot establish native application permission or microphone readiness. Keep audio local. In System Settings -> Keyboard -> Dictation, confirm that Dictation is on and the required language download has completed. An English success does not establish Russian readiness.
+Test local speech from the installed application's recording controls. First use prepares a verified Whisper large-v3-turbo model download (about 548 MiB), then microphone capture. Apple Dictation and Windows recognition-language packs are not used by the current transcription path. Allow microphone access and verify the actual recording/language before filming. Audio stays local; optional pre-editor cleanup can send permitted transcript text to Nebius. See [local voice](LOCAL_VOICE.md).
 
 Expected backend stages:
 

@@ -1,5 +1,8 @@
 # AI reliability audit and fixes: 0.31.0
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Baseline evidence
 
 The installed app was updated from 0.29.0 to the published 0.30.0 before the

@@ -1,5 +1,8 @@
 # Tracking implementation (0.8.0)
 
+> Historical milestone / design record. This file describes its recorded source and may contain superseded UI, models, permissions or commands. For current behavior and diagrams, use the [documentation index](README.md) and [architecture](AI_ARCHITECTURE.md). Historical test results are not current live verification.
+
+
 ## Audit of the two briefs
 
 Neither brief was fully implemented in the original 0.7.1 checkout. Prompt 1 had no first-run flow, role presets, name/email profile or character selector. Prompt 2 had a foreground process/window-title collector, a 60-second idle cutoff, sampled daily app usage, per-goal app rules and persisted recommendations. It lacked address-bar adapters, deterministic local activity states, working hours and a completed-goal analytics API. The user selected **Prompt 2** for this implementation. Onboarding and avatar UI are left for the other brief.

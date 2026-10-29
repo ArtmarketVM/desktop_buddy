@@ -18,7 +18,7 @@ Reference submission release: [sumi 0.49.4](https://github.com/ArtmarketVM/deskt
 1. Open the downloaded DMG, then drag **sumi.app** to **Applications**.
 2. Open sumi from Applications.
 3. This hackathon build uses the project's internal signing identity. It is not Apple Developer ID signed or notarized, so macOS may block the initial launch. If you trust the package downloaded from the linked project release, follow [Apple's app-specific approval instructions](https://support.apple.com/en-gb/102445) in **System Settings → Privacy & Security → Open Anyway**. Complete any password or Touch ID prompt yourself. Keep system-wide security protections enabled.
-4. Grant the observation permissions you want to use during onboarding. Accessibility supports interface-text observation; screen recording permission is needed for screenshots. Voice additionally needs microphone and speech permission. After a permission change, restart sumi if macOS requests it.
+4. Grant the observation permissions you want to use during onboarding. Accessibility supports interface-text observation; screen recording permission is needed for screenshots. Voice additionally needs microphone access; the first use downloads the verified local Whisper model (about 548 MiB). Apple Dictation setup is not required. After a permission change, restart sumi if macOS requests it.
 
 A managed Mac can prohibit app-specific approval. In that case, use a permitted test machine or ask its administrator; changing the app's updater trust does not resolve an operating-system policy.
 
@@ -27,7 +27,7 @@ A managed Mac can prohibit app-specific approval. In that case, use a permitted 
 1. Run the downloaded `sumi_0.49.4_x64-setup.exe` and complete installation.
 2. Open **sumi** from the Start menu or its shortcut.
 3. Windows may show an unknown-publisher or reputation notice. Updater signatures are independent of Windows Authenticode/reputation certification. Review the source and your organization's installation policy; do not disable Defender or SmartScreen. A managed device may need administrator approval.
-4. If prompted, install the Microsoft WebView2 runtime from Microsoft's official source. Voice recognition depends on Windows microphone permission and an installed supported recognition language.
+4. If prompted, install the Microsoft WebView2 runtime from Microsoft's official source. Voice needs microphone permission and the verified local Whisper model, downloaded on first use (about 548 MiB). Windows speech language packs are not required.
 
 ## 2. Start with Built-in AI
 
@@ -47,7 +47,7 @@ Built-in AI uses a Supabase gateway. Nebius and Tavily keys remain on the server
 - For observation, use a visible fictional email or result receipt whose request/outcome clearly matches a test goal. Keep that window foreground. New tasks require acceptance; uncertain completion requires confirmation. Automatic completion additionally depends on the saved permission and independently verified current evidence. A window title or elapsed time alone does not prove a result.
 - Open **My progress** to inspect recorded activity and confirmed work. Restart the app and check that saved goals and conversation/context remain available.
 
-Quiet Mode, quiet/working hours, excluded or private windows, inactivity, a locked session and other context gates can suppress observation or prompts. The companion remaining visible is not proof that observation is running.
+Quiet Mode and quiet hours/days suppress mascot prompts; excluded/private windows, inactivity, a locked session, permissions and other context gates can prevent observation. Legacy working-hours fields do not schedule mascot delivery. The companion remaining visible is not proof that observation is running.
 
 ## 4. If a check does not work
 
