@@ -6,6 +6,8 @@ A local-first desktop companion that helps you keep track of goals, return to un
 
 ## Download
 
+**Judges and users do not need to build sumi.** Download a ready-to-install package below, complete onboarding and use **Built-in AI**. No Node.js, Rust, account registration or personal API key is required. See the [judge installation and testing guide](docs/JUDGES_START_HERE.md).
+
 [Get the latest release](https://github.com/ArtmarketVM/desktop_buddy/releases/latest) for the current version, release notes and verified installer assets. Replace `<version>` below with that release’s version.
 
 | Platform | Installer                               | Support                    |
@@ -98,7 +100,7 @@ Research uses the relevant goal, step and checkpoint to form a limited query. Ta
 
 Tracking startup follows saved onboarding consent and the saved tracking request; it does not universally reset to paused. OS permissions and privacy gates still apply. Quiet Mode/DND, quiet or working hours, snooze, excluded/private apps and other context gates can suppress background interruptions.
 
-Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. Optional screenshot buffers are transient and never stored in the local journal. Full raw accessibility text is not stored as permanent Personal Memory; an explicitly enabled completion feature can send a bounded, filtered visible-text sample to Nebius.
+Goals, conversations, activity and memory are stored in the user's local SQLite database. The application does **not** encrypt that database itself. Foreground app names and bounded window titles can be retained as activity data. When screenshot assistance is enabled, permitted active-window images and bounded interface-text samples can be retained as encrypted local review evidence until the corresponding Daily summary is successfully saved, then deleted. A failed or missed summary can retain this evidence across restarts; clearing local history deletes it. This evidence is separate from permanent Personal Memory and the unencrypted activity database. Enabled AI features can send permitted images and bounded, filtered visible text to Nebius. See [Daily activity review](docs/DAILY_ACTIVITY_REVIEW.md) for the storage and cleanup lifecycle.
 
 Built-in AI relays permitted requests through an authenticated Supabase Edge Function. Nebius and Tavily keys remain server-side; only the public Supabase client configuration ships in the app. A technical anonymous session starts automatically and is retained in a private local file; it cannot read service tables or retrieve provider secrets. Atomic server limits apply uniformly, with no account tiers or invitations. See [Shared AI deployment](docs/SUPABASE_GATEWAY.md).
 

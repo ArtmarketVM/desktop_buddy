@@ -5,7 +5,7 @@ Use this runbook to distinguish verified backend behavior from a successful live
 ## Preparation
 
 1. Use the current reviewed, signed build on Apple Silicon macOS 14.5+ or Windows x64. Do not use an ad-hoc Mac build: its credential helper cannot read saved provider keys.
-2. Configure Nebius and Tavily through the application's normal credential controls. Never put credentials in this runbook, screenshots, recordings, Git or command arguments.
+2. Use **Built-in AI**, selected by default under **Settings → AI → Services → AI connection**. It routes Nebius and Tavily requests through the deployed gateway; judges do not enter provider keys. **Use my API keys** remains an optional alternative for your own provider accounts. Never put credentials in this runbook, screenshots, recordings, Git or command arguments. See [Judge installation and testing](JUDGES_START_HERE.md) for the ready-made packages.
 3. Use disposable goals named `AI DEMO Hackathon` and `AI DEMO Client`. Keep personal goals and private window text outside the recording. The automated rehearsal creates its own temporary database and deletes only that directory afterward.
 4. Check AI sharing, tracking, local microphone/speech permissions, working hours, quiet hours, DND and excluded apps. A silent decision is valid; a missing provider connection is a different condition. Do not disable privacy protections to manufacture a successful test.
 5. Keep `AI_MOCK` off. `DEMO_MODE` simulates activity; it does not establish native foreground tracking even when provider calls are real.
@@ -23,7 +23,7 @@ macOS, using the internally signed candidate binary:
 Windows, using the current application binary:
 
 ```powershell
-& 'C:\absolute\path\desktop-buddy.exe' --check-hero
+& 'C:\absolute\path\sumi.exe' --check-hero
 ```
 
 Without audio, the first stage is explicitly labeled `transcript_fixture`. It exercises the shared post-STT voice action path, not speech recognition or microphone capture.
