@@ -6,6 +6,7 @@ Current reference: app **0.49.4**, source audit **29 October 2026**. The root [R
 
 | Document | Purpose |
 | --- | --- |
+| [LANDING_PAGE.md](LANDING_PAGE.md) | Public GitHub Pages site, video replacement and download behavior |
 | [JUDGES_START_HERE.md](JUDGES_START_HERE.md) | Ready-made installers and a short native testing path |
 | [AI_ARCHITECTURE.md](AI_ARCHITECTURE.md) | Current components, provider routing and decision diagrams |
 | [PERSONAL_AI_OBSERVATION.md](PERSONAL_AI_OBSERVATION.md) | Foreground text/images, goal matching, evidence and limits |

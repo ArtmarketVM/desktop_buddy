@@ -28,7 +28,7 @@ The public repository About description, homepage and topic list were empty when
 
 > sumi is a local-first AI desktop companion for goals, contextual memory and gentle work support, powered by Nebius and NVIDIA models.
 
-Do not claim an existing download landing page: the new minimal landing page has only been discussed. The working download destination remains public GitHub Releases. Do not put provider keys, tokens or private account details into About/README.
+At the original audit, a download landing page had only been discussed. Follow-up on 30 October: [the public landing page](https://artmarketvm.github.io/desktop_buddy/) is published from the dedicated `gh-pages` branch; its video, latest-release downloads and maintenance are documented in [LANDING_PAGE.md](LANDING_PAGE.md). GitHub Releases remains the installer host. Do not put provider keys, tokens or private account details into About/README.
 
 ## Validation and boundaries
 
