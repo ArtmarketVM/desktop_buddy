@@ -3,7 +3,8 @@
 ## GitHub Pages landing page — 30 October 2026
 
 - Owner authorized Pages publication with the supplied temporary MP4, then specified lowercase sumi, the exact English slogan, sky-blue highlights, a version-only note and the actual stretching animation.
-- Static source is the separate gh-pages branch, website commit 7563616. Public URL: https://artmarketvm.github.io/desktop_buddy/ . Application index.html and all app code/versions/installers are untouched. Seven website logic checks passed; browser checks verified 1920px / 111.9s playback, exact v0.49.4 Mac/Windows targets, 390px layout without overflow and four source-derived stretching frames with reduced-motion support.
+- Follow-up: owner requested the exact app pixel wordmark and no stretching mascot. Website 3a64951 uses the bundled Silkscreen face, weight 400 and 0.08em tracking; the animated asset is removed. Other page content is preserved.
+- Static source is the separate gh-pages branch, website commit 3a64951. Public URL: https://artmarketvm.github.io/desktop_buddy/ . Application index.html and all app code/versions/installers are untouched. Seven website logic checks passed; browser checks verified 1920px / 111.9s playback, exact v0.49.4 Mac/Windows targets, 390px layout without overflow and four source-derived stretching frames with reduced-motion support.
 - Pages source changes from main:/ to gh-pages:/; docs/privacy.html and referenced fonts are byte-preserved at the existing URL. Sync future policy changes to both branches and verify the live hash. See docs/LANDING_PAGE.md for video-to-YouTube replacement and release API fallback behavior.
 
 

@@ -6,7 +6,7 @@ The owner authorized GitHub Pages publication on 30 October 2026. The existing P
 
 ## Content and behavior
 
-- Lowercase **sumi**, the owner's English slogan, the actual four-frame stretching animation from Avatar.tsx, the supplied temporary Full HD MP4 and two platform download buttons.
+- The app’s pixel **sumi** wordmark (bundled Silkscreen, weight 400, 0.08em letter spacing), the owner’s English slogan, the supplied temporary Full HD MP4 and two platform download buttons. The owner’s follow-up removed the header mascot/stretching animation.
 - Instrument Sans, the app's Cloud/Lime colors and the owner's requested sky-blue highlights; responsive layout, keyboard focus and reduced-motion behavior.
 - A single public GitHub latest-release metadata request resolves the exact matching Apple Silicon DMG and Windows x64 EXE. It accepts only uploaded, nonempty, complete pairs from the exact public repository's stable release. Future releases update automatically without editing the page.
 - If metadata/JavaScript is unavailable or GitHub rate-limits the request, buttons open the latest release page. The metadata request times out after eight seconds. No API keys, personal accounts, backend, Supabase access, analytics or browser storage are required by the page.
@@ -24,4 +24,4 @@ The existing application policy URL **/desktop_buddy/docs/privacy.html** is pres
 
 Commit and push website-only edits to gh-pages. GitHub's built-in Pages deployment handles publication; no desktop CI or installer build is triggered by that branch. Source tests are `node --test tests/site.test.mjs` from the website checkout. Preview via a local static server, then verify native video play/pause, download targets, a mobile viewport and the retained policy URL. The website README contains the source and third-party asset details.
 
-Initial source: website `7563616`, application/privacy/animation source `ab48f00137d119400b961a58b6f643acddfbe60d`, latest public app v0.49.4. Website changes do not bump the desktop app version or alter signing/update trust.
+Initial source: website `3a64951`, application/privacy/animation source `ab48f00137d119400b961a58b6f643acddfbe60d`, latest public app v0.49.4. Website changes do not bump the desktop app version or alter signing/update trust.
