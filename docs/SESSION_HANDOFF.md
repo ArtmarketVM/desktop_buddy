@@ -1,11 +1,13 @@
 # sumi session handoff
 
-## Current task: 0.49.3 greeting patch — 29 October 2026
+## Published 0.49.3 — 29 October 2026
 
 - User authorizes consistent **sumi** branding, GitHub push and installers for macOS Apple Silicon / Windows x64. Latest steering explicitly preserves **Welcome to Sumi!** in onboarding. All other public product/installer names remain lowercase sumi. Broader AI goal-reasoning work is deferred.
 - Public 0.49.2: source `de47062`, successful signed release `40840693210`, https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.49.2 (published `2026-10-29T08:27:40Z`). It completed before the capitalized-greeting steering could be applied; cancellation was refused because it had already completed. Never replace its delivered assets.
-- 0.49.3 is prepared, not published yet: five manifests synchronized, notes `docs/RELEASE_0.49.3.md`; changes are only the greeting, its exact existing assertion and version/docs. Last fetch: HEAD and origin/main both `de47062`; preserve other developers' work.
-- Validation reused: full frontend 347 passed on 0.49.2 source; latest exact greeting passed 12 onboarding tests and production build (`/private/tmp/sumi-branding-welcome-final-{test,build}.log`). Native code is unchanged from the successful 0.49.2 release: local Rust 766 passed / five ignored, strict debug Clippy passed; hosted Windows/macOS and both lint profiles passed. Final pipeline validates exact 0.49.3 source and both signed packages. Approved 34-image baselines are unchanged and passed strict comparison for 0.49.2.
+- Published 0.49.3: https://github.com/ArtmarketVM/desktop_buddy/releases/tag/v0.49.3 , exact source `6125469421e65f943ab7896cf571aff9f8295c6a`, successful release `40851910843`, published `2026-10-29T09:51:15Z`. Five manifests and notes match. Changes from 0.49.2 are only the requested greeting, exact assertion and version/docs. Preserve other developers' work.
+- Validation reused: full frontend 347 passed on 0.49.2 source; latest exact greeting passed 12 onboarding tests and production build (`/private/tmp/sumi-branding-welcome-final-{test,build}.log`). Native code is unchanged from the successful 0.49.2 release: local Rust 766 passed / five ignored, strict debug Clippy passed; hosted Windows/macOS and both lint profiles passed. Final pipeline passed on exact 0.49.3 source, including both lint profiles, both signed packages and actual Mac/Windows migration rehearsals. Approved 34-image baselines are unchanged and passed strict comparison for 0.49.3.
+
+- Actual public 0.49.3 assets downloaded once to visualization output `release-0493-public-assets/`: all 12 checksum entries and signed update channels verified. Mac ZIP contains `sumi.app` / `Contents/MacOS/sumi`; plist names sumi, version 0.49.3, identifier unchanged, minimum 14.5 and arm64 only. Existing internal app certificate and immutable helper signatures/hashes passed outside the sandbox with existing trust. No trust change, no user-app restart. The watcher exhausted its bounded network retries; a single explicit run snapshot confirmed success, followed by public-artifact verification. Do not rerun this completed release.
 
 ## Branding compatibility and release checks
 
