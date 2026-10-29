@@ -18,6 +18,9 @@ $shortcut = Join-Path ([Environment]::GetFolderPath('Desktop')) 'Desktop Buddy.l
 $oldLink = (New-Object -ComObject WScript.Shell).CreateShortcut($shortcut)
 $oldLink.TargetPath = $oldBinary
 $oldLink.Save()
+$runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+New-Item -Path $runKey -Force | Out-Null
+Set-ItemProperty -Path $runKey -Name 'DesktopBuddy' -Value "`"$oldBinary`" --background"
 $data = Join-Path $env:APPDATA 'com.artmarketvm.desktopbuddy'
 New-Item -ItemType Directory -Force $data | Out-Null
 $sentinel = Join-Path $data 'branding-rehearsal.txt'
@@ -35,4 +38,7 @@ if (-not (Test-Path $newShortcut)) { throw 'sumi shortcut missing.' }
 $link = (New-Object -ComObject WScript.Shell).CreateShortcut($newShortcut)
 if ($link.TargetPath -ne (Join-Path $installation 'sumi.exe')) { throw 'Shortcut target did not migrate.' }
 if (Test-Path $shortcut) { throw 'Legacy shortcut remains.' }
-Write-Output 'Verified old-to-sumi Windows upgrade, product name, executable, shortcut, installation identity and retained data.'
+$startup = Get-ItemProperty $runKey
+$expectedStartup = "`"$(Join-Path $installation 'sumi.exe')`" --background"
+if ($startup.sumi -ne $expectedStartup -or $null -ne $startup.DesktopBuddy) { throw 'Existing startup registration did not migrate before first launch.' }
+Write-Output 'Verified old-to-sumi Windows upgrade, product name, executable, shortcut, installation identity, startup opt-in and retained data.'

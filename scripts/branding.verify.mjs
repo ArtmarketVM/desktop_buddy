@@ -23,6 +23,16 @@ test("sumi branding preserves the existing application and installer identities"
   assert(template.includes("RestorePreviousInstallLocation"));
   const hook = read("src-tauri/" + config.bundle.windows.nsis.installerHooks);
   assert(hook.includes("IsShortcutTarget"));
+  assert(
+    hook.includes(
+      'ReadRegStr $R1 HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "DesktopBuddy"',
+    ),
+  );
+  assert(
+    hook.includes(
+      'WriteRegStr HKCU "Software\\Microsoft\\Windows\\CurrentVersion\\Run" "sumi"',
+    ),
+  );
 });
 test("new asset branding does not rewrite delivered compatibility asset names", () => {
   assert.equal(assetPrefix("0.49.1"), "Desktop.Buddy");

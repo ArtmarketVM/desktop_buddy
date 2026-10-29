@@ -30,6 +30,12 @@
 !macroend
 
 !macro NSIS_HOOK_POSTINSTALL
+  ; Preserve an existing startup opt-in before the first launch of the renamed executable.
+  ReadRegStr $R1 HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DesktopBuddy"
+  ${If} $R1 == '$\"$INSTDIR\desktop-buddy.exe$\" --background'
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "sumi" '$\"$INSTDIR\${MAINBINARYNAME}.exe$\" --background'
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "DesktopBuddy"
+  ${EndIf}
   !insertmacro SumiRenameShortcut "$SMPROGRAMS\Desktop Buddy.lnk" "$SMPROGRAMS\sumi.lnk" root
   !insertmacro SumiRenameShortcut "$SMPROGRAMS\$AppStartMenuFolder\Desktop Buddy.lnk" "$SMPROGRAMS\$AppStartMenuFolder\sumi.lnk" folder
   !insertmacro SumiRenameShortcut "$DESKTOP\Desktop Buddy.lnk" "$DESKTOP\sumi.lnk" desktop
