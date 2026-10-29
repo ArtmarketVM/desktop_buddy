@@ -244,7 +244,7 @@ it("opens the setup goal's steps and shows the installation checked with its spe
 it.each([
   [
     "step-0",
-    "Welcome to Sumi!",
+    "Welcome to sumi!",
     "You’ve installed the app. Let’s cross off your first step.",
     "Cross it off",
   ],
