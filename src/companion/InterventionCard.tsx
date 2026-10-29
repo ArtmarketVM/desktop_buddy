@@ -19,7 +19,7 @@ function OnboardingChoices({ prompt, busy, respond }: Props) {
   const first = prompt.step_id === "step-0";
   const last = prompt.step_id === "step-2";
   const title = first
-    ? "Welcome to sumi!"
+    ? "Welcome to Sumi!"
     : last
       ? "You’re all set!"
       : "Your first goal is ready";
