@@ -1,6 +1,6 @@
-# Add to Desktop Buddy (Chrome / Edge)
+# Add to sumi (Chrome / Edge)
 
-Requires an installed Desktop Buddy 0.17.0 or later on Windows.
+Requires an installed sumi 0.17.0 or later on Windows.
 
 1. Open `chrome://extensions` (Chrome) or `edge://extensions` (Edge).
 2. Enable Developer mode, click Load unpacked, select this directory.

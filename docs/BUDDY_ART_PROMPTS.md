@@ -1,4 +1,4 @@
-# Desktop Buddy character prompts
+# sumi character prompts
 
 Use these prompts in ChatGPT image generation. Start with one character in Blue, approve its appearance, then attach that approved image when requesting other colors or poses. These prompts are for this independent Windows app, not ChatGPT Pets.
 

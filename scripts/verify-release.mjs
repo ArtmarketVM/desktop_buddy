@@ -1,3 +1,4 @@
+import { assetPrefix } from "./product-branding.mjs";
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -56,7 +57,10 @@ export function verifyRelease(
     for (const extension of ["dmg", "zip"]) {
       if (
         !statSync(
-          resolve(directory, `Desktop.Buddy_${version}_${arch}.${extension}`),
+          resolve(
+            directory,
+            `${assetPrefix(version)}_${version}_${arch}.${extension}`,
+          ),
         ).size
       )
         throw new Error("An installer is empty.");

@@ -1,4 +1,14 @@
-# Desktop Buddy session handoff
+# sumi session handoff
+
+## Branding release 0.49.2 preparation — 29 October 2026
+
+- User explicitly requests replacing remaining visible legacy names with **sumi**, pushing GitHub and publishing both macOS Apple Silicon / Windows x64 installers. Windows is explicitly included. Broader agent-logic changes remain deferred. Base `cef4d78` matched `origin/main` at the last fetch; no other developer changes were lost. All five manifests and `docs/RELEASE_0.49.2.md` are synchronized; not published yet.
+- `productName` and `mainBinaryName` are `sumi`; visible UI/native messages, extension, current docs, release titles, DMG and new asset names are updated. Keep bundle identifier, protocol, credential services/helper, signing trust, package/crate names, legacy Windows registry identities and previously delivered asset names unchanged. `docs/BRANDING.md` explains these compatibility exceptions. Historical release/validation records retain truthful old names.
+- Signed macOS release startup relocates only the exact legacy bundle in the same parent, before opening user state; certificate-bound verification, atomic exclusive rename and rollback protect other installations. Read-only/conflicting destinations remain usable rather than being overwritten. New bundles/executables are `sumi.app` / `sumi`. Windows uses the exact CLI 2.11.5 NSIS template with only the two historical installation registry constants retained; visible metadata is sumi. Old application-owned shortcuts and startup registration migrate; installer keeps the existing directory and user data. Executable becomes `sumi.exe`.
+- New release gates rehearse the actual signed Mac rename/relaunch using a diagnostic exit before state/keys/windows, including destination collision. Windows installs signature-verified public 0.49.1 then the new installer on a disposable hosted runner and checks names, retained installation identity, shortcut target and a data sentinel. No installed user app is replaced or restarted by these checks. No provider requests are needed.
+- Local validation: full locked Rust **766 passed / five ignored**, 347 frontend tests, production build, 20 release tests and 17 branding/CI policy tests passed. Strict debug Clippy passed after a test-module ordering repair; two affected native rename tests reran successfully. Last lowercase onboarding text edits passed 16 affected frontend tests/build. A final native-error display mapping does not change helper bytes; final hosted checks must validate exact source and both lint profiles. Logs `/private/tmp/sumi-branding-*`. Do not rerun unaffected successful local suites.
+- Reviewed 34-image baselines are untouched. Strict Windows visual comparison and both signed packaging/rehearsal jobs must pass before publication. Run one `ci:watch` for the release, inspect detailed logs only on failure or a specific diagnostic need. Never replace delivered 0.49.1 assets.
+
 
 ## Published release 0.49.1 — 29 October 2026
 

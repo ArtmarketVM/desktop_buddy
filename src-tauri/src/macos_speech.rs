@@ -77,7 +77,7 @@ fn transcript(json: &str) -> Result<String, String> {
             return Err(match (failure.domain.as_str(),failure.code) {
                 ("kLSRErrorDomain",201)=>"Dictation is disabled on this Mac. Enable it in System Settings > Keyboard > Dictation, then select your spoken language. Buddy uses on-device recognition only.".into(),
                 ("kLSRErrorDomain",102)=>"The local speech model for this language is not installed. Open System Settings > Keyboard > Dictation > Languages and wait for the language download to finish. Each language needs its own downloaded model.".into(),
-                ("kAFAssistantErrorDomain",1700)=>"Allow Desktop Buddy in System Settings > Privacy & Security > Speech Recognition.".into(),
+                ("kAFAssistantErrorDomain",1700)=>"Allow sumi in System Settings > Privacy & Security > Speech Recognition.".into(),
                 ("kAFAssistantErrorDomain",1100)=>"The local speech recognizer is busy. Finish the current recording and try again.".into(),
                 ("kAFAssistantErrorDomain",1101|1107)=>"The local speech service stopped. Check that Dictation is enabled and the spoken language has finished downloading, then retry the recording.".into(),
                 _=>error,

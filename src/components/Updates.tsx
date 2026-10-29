@@ -141,7 +141,7 @@ export function UpdateDialog({
         <div className={`dialog-update-icon ${available ? "available" : ""}`}>
           {available ? <ArrowDownToLine size={24} /> : <RefreshCw size={24} />}
         </div>
-        <span className="eyebrow">DESKTOP BUDDY</span>
+        <span className="eyebrow">sumi</span>
         <h2 id="update-title">
           {busy
             ? "Updating sumi"

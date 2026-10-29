@@ -6,6 +6,7 @@ mod ai_chat;
 mod attention;
 mod automatic_goals;
 mod autostart;
+mod branding;
 mod browser;
 mod buddy;
 mod chat_contract;
@@ -77,6 +78,9 @@ mod threading_tests;
 // Window/tray callbacks must likewise dispatch stateful work off the event thread.
 
 pub fn run() {
+    if branding::relaunch_renamed_bundle() || branding::report_migration_check() {
+        return;
+    }
     #[cfg(not(test))]
     shared_ai::initialize_cli();
     if std::env::args().any(|arg| arg == "--check-semantic-observation")

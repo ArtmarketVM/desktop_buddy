@@ -65,13 +65,14 @@ npm run tauri -- build "${config[@]}" --target "$target" --bundles app -- --lock
 version="$(node -p "JSON.parse(require('fs').readFileSync('package.json')).version")"
 bundle="src-tauri/target/$target/release/bundle"
 if [[ "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
-  app="$bundle/macos/Desktop Buddy.app"
+  app="$bundle/macos/sumi.app"
   node --input-type=module - "$app/Contents/Helpers/BuddyCredentialAccess" <<'JS'
 import {verifyHelper} from "./scripts/credential-helper.verify.mjs";
 verifyHelper(process.argv[2]);
 JS
   if [[ "$code_signing_mode" == internal ]]; then
     node scripts/macos-code-signing.mjs "$app"
+    bash scripts/test-macos-branding.sh "$app"
   else
     codesign --verify --deep --strict --verbose=2 "$app"
     spctl --assess --type execute --verbose=2 "$app"
@@ -79,15 +80,15 @@ JS
   fi
 fi
 mkdir -p artifacts
-name="Desktop.Buddy_${version}_${target%%-apple-darwin}"
-ditto -c -k --sequesterRsrc --keepParent "$bundle/macos/Desktop Buddy.app" "artifacts/$name.zip"
+name="sumi_${version}_${target%%-apple-darwin}"
+ditto -c -k --sequesterRsrc --keepParent "$bundle/macos/sumi.app" "artifacts/$name.zip"
 stage="$(mktemp -d "${TMPDIR:-/tmp}/buddy-dmg.XXXXXX")"
-ditto "$bundle/macos/Desktop Buddy.app" "$stage/Desktop Buddy.app"
+ditto "$bundle/macos/sumi.app" "$stage/sumi.app"
 ln -s /Applications "$stage/Applications"
-hdiutil create -volname "Desktop Buddy $version" -srcfolder "$stage" -format UDZO -ov "artifacts/$name.dmg" >/dev/null
+hdiutil create -volname "sumi $version" -srcfolder "$stage" -format UDZO -ov "artifacts/$name.dmg" >/dev/null
 if [[ "${BUDDY_MACOS_UNSIGNED:-false}" != true ]]; then
-  cp "$bundle/macos/Desktop Buddy.app.tar.gz" "artifacts/$name.app.tar.gz"
-  cp "$bundle/macos/Desktop Buddy.app.tar.gz.sig" "artifacts/$name.app.tar.gz.sig"
+  cp "$bundle/macos/sumi.app.tar.gz" "artifacts/$name.app.tar.gz"
+  cp "$bundle/macos/sumi.app.tar.gz.sig" "artifacts/$name.app.tar.gz.sig"
   node scripts/create-macos-update-manifest.mjs artifacts "v$version"
 fi
 shasum -a 256 "artifacts/$name.zip" "artifacts/$name.dmg" > "artifacts/$name.sha256"

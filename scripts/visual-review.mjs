@@ -43,7 +43,7 @@ const sections = projects
     return `<section id="${project}"><h2>${project}</h2><div class="grid">${images}</div></section>`;
   })
   .join("\n");
-const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Desktop Buddy · visual candidate review</title>
+const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>sumi · visual candidate review</title>
 <style>body{font-family:"Instrument Sans",sans-serif;margin:2rem;background:#f6f6f3;color:#1f1f1f}main{max-width:90rem;margin:auto}h1,h2{font-weight:500}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,32rem),1fr));gap:1rem}figure{margin:0;background:white;border:1px solid #ddd;padding:.5rem}img{display:block;width:100%;height:auto}figcaption{padding:.5rem}nav{display:flex;gap:1rem;flex-wrap:wrap}pre{overflow:auto;padding:1rem;background:white}section{margin-top:3rem}a{color:#5143cc}</style>
 <main><h1>Review ${count} visual candidates</h1><p>Open each image at full size to review it. These are candidates; this page does not approve or update any baseline.</p><p>Application base: <code>11760017314095d75374449690c2a1c42c5af08a</code>. Confirm every screen, theme, viewport and the collapsed sidebar before approving.</p><nav>${projects.map((project) => `<a href="#${project}">${project}</a>`).join("")}</nav><details><summary>Capture environment and source commit</summary><pre>${escape(environment)}</pre></details>${sections}</main></html>`;
 mkdirSync(join(root, "test-results"), { recursive: true });

@@ -99,7 +99,7 @@ pub async fn check_app_update(
         .build()
         .map_err(|_| "Could not start the update check")?
         .get(trust.endpoint())
-        .header("User-Agent", "DesktopBuddy-Updater")
+        .header("User-Agent", "sumi-Updater")
         .send()
         .await
         .map_err(|_| "Could not reach GitHub. Check your connection and try again.")?;

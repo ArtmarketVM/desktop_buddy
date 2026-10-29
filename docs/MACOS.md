@@ -1,4 +1,4 @@
-# Desktop Buddy for macOS — 0.21.0
+# sumi for macOS
 
 Current release policy: macOS 14.5+ on Apple Silicon only. Do not build or publish Intel or universal Mac installers. Older platform-validation notes below are historical.
 
@@ -6,13 +6,13 @@ Windows and macOS share the React UI, Rust application state, SQLite schema, AI 
 
 ## Install
 
-Use `artifacts/Desktop.Buddy_0.21.0_aarch64.dmg`, open it and drag **Desktop Buddy.app** into **Applications**. The application contains an Apple Silicon executable and declares macOS **14.5** as its minimum system version. The same app is intended for macOS **14.5** and **27.0.1**; separate OS-specific installers are unnecessary.
+Use `artifacts/sumi_<version>_aarch64.dmg`, open it and drag **sumi.app** into **Applications**. The application contains an Apple Silicon executable and declares macOS **14.5** as its minimum system version. The same app is intended for macOS **14.5** and **27.0.1**; separate OS-specific installers are unnecessary.
 
 Local builds use ad-hoc code signing and are not notarized by Apple. For personal use, macOS may require **System Settings → Privacy & Security → Open Anyway** after the first launch attempt. Do not disable Gatekeeper globally. Public distribution requires a Developer ID certificate and notarization; these are separate from Tauri updater signatures.
 
 ## Permissions and behavior
 
-- **Accessibility**: explicitly enable Desktop Buddy under System Settings → Privacy & Security → Accessibility to collect foreground app/window titles and selected text. Onboarding and Activity & Privacy settings include a permission button. Resume tracking after granting permission. Goals and chat work without it.
+- **Accessibility**: explicitly enable sumi under System Settings → Privacy & Security → Accessibility to collect foreground app/window titles and selected text. Onboarding and Activity & Privacy settings include a permission button. Resume tracking after granting permission. Goals and chat work without it.
 - **Microphone / Speech Recognition**: requested only for explicit voice input. Recognition requires an available on-device recognizer and installed language support. Audio is temporarily stored with private file permissions and removed after recognition; it is never sent to an AI provider by this adapter. Russian and English availability varies by Mac and installed Dictation assets. Automatic language uses the system locale, rather than mixed-language recognition.
 - Provider keys use the current user's **Keychain** through Security framework APIs. They are never returned to the frontend or stored in SQLite. Environment fallback and provider consent remain unchanged.
 - Login startup uses a per-user `com.artmarketvm.desktopbuddy.plist` LaunchAgent, written only by installed release builds after setup. It launches the installed `.app` with `--background`, with tracking paused. Disabling startup removes that file. Moving the app requires saving the startup setting again.

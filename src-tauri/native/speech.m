@@ -63,7 +63,7 @@ char *buddy_speech_transcribe(const uint8_t *audio, size_t length, const char *l
         if (!selected.count)
             return json(@{@"error": @"On-device recognition is unavailable for this language on this Mac. Enable or download the matching Dictation language in System Settings, or paste a transcript."});
         if (!authorized())
-            return json(@{@"error": @"Allow Desktop Buddy in System Settings > Privacy & Security > Speech Recognition. For development, run the bundled app with its permission descriptions."});
+            return json(@{@"error": @"Allow sumi in System Settings > Privacy & Security > Speech Recognition. For development, run the bundled app with its permission descriptions."});
 
         AVAudioFormat *format = [[AVAudioFormat alloc] initWithCommonFormat:AVAudioPCMFormatFloat32
             sampleRate:16000 channels:1 interleaved:NO];

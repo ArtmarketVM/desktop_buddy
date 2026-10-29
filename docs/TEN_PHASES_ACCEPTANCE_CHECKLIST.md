@@ -1,4 +1,4 @@
-# Desktop Buddy ten phase acceptance checklist
+# sumi ten phase acceptance checklist
 
 This checklist translates the changes described in `Desktop_Buddy_10_phases_RU.docx` into repeatable acceptance checks. It covers all ten development phases and the installation, privacy, and regression checks described in the document. Each item states an action and an observable expected result.
 

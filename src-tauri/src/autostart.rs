@@ -60,9 +60,14 @@ fn register(enabled: bool) -> Result<(), String> {
                 .chain(Some(0))
                 .flat_map(u16::to_le_bytes)
                 .collect();
-            RegSetValueExW(key, w!("DesktopBuddy"), None, REG_SZ, Some(&bytes)).ok()
+            let saved = RegSetValueExW(key, w!("sumi"), None, REG_SZ, Some(&bytes)).ok();
+            if saved.is_ok() {
+                let _ = RegDeleteValueW(key, w!("DesktopBuddy"));
+            }
+            saved
         } else {
-            let status = RegDeleteValueW(key, w!("DesktopBuddy"));
+            let _ = RegDeleteValueW(key, w!("DesktopBuddy"));
+            let status = RegDeleteValueW(key, w!("sumi"));
             if status == ERROR_FILE_NOT_FOUND {
                 Ok(())
             } else {

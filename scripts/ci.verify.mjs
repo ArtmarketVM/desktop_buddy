@@ -388,10 +388,10 @@ test("release preparation validates complete notes and updates five manifests be
       '[[package]]\nname = "desktop-buddy"\nversion = "1.0.0"\n',
     );
     mkdirSync(join(root, "docs"));
-    assert.throws(() => validateNotes("# Desktop Buddy 1.0.1\nTODO", "1.0.1"));
+    assert.throws(() => validateNotes("# sumi 1.0.1\nTODO", "1.0.1"));
     assert.throws(() => prepare(root, "1.0.0", "notes"));
     const notes =
-      "# Desktop Buddy 1.0.1\n\n- Correct a specific user-visible issue in this release.\n";
+      "# sumi 1.0.1\n\n- Correct a specific user-visible issue in this release.\n";
     prepare(root, "1.0.1", notes);
     for (const path of [
       "package.json",

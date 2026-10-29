@@ -4,7 +4,7 @@ The workspace introduced in 0.21.0 keeps Today focused on goals and steps. Buddy
 
 Accepted steps use checkboxes and a contextual edit/delete menu. Automatically generated suggestions appear below them, with Add, Add all and Ignore. Ignored suggestions stay dismissed on this device. Adding suggestions preserves the existing plan and its revision checks. AI title improvements and research continue through the existing background analysis service; no manual Improve / Research panel is shown.
 
-Desktop Buddy uses a native draggable window instead of a chat card constrained inside another window. The compact window remembers its desktop anchor and restores it within an available monitor's work area, including displays with negative coordinates. If that display is disconnected, the primary monitor is used. Esc or Close returns to the launcher. Existing proactive intervention cards remain available.
+sumi uses a native draggable window instead of a chat card constrained inside another window. The compact window remembers its desktop anchor and restores it within an available monitor's work area, including displays with negative coordinates. If that display is disconnected, the primary monitor is used. Esc or Close returns to the launcher. Existing proactive intervention cards remain available.
 
 Chats are stored in SQLite. Existing chat messages are migrated into one conversation. New conversations have independent histories, retain the newest 100 messages each, and get their title from the first message. Changing or deleting a conversation invalidates a pending AI response. Deleting a conversation affects only its messages; local history retention also removes conversation titles.
 

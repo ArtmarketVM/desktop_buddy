@@ -30,7 +30,7 @@ switch ($Task) {
     }
     'release' {
         $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
-        $releaseInstaller = Join-Path $projectRoot "src-tauri/target/release/bundle/nsis/Desktop Buddy_${version}_x64-setup.exe"
+        $releaseInstaller = Join-Path $projectRoot "src-tauri/target/release/bundle/nsis/sumi_${version}_x64-setup.exe"
         if (Test-Path -LiteralPath $releaseInstaller) { throw 'This release installer already exists. Use a new version; do not replace delivered artifacts.' }
         $signingPassword = $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD
         if (-not $env:TAURI_SIGNING_PRIVATE_KEY) {

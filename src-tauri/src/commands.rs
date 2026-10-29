@@ -420,9 +420,15 @@ pub fn collect(state: &AppState) -> Result<(), String> {
             }
         };
         inner.buddy.fullscreen = !inner.status.demo && collector::foreground_fullscreen();
-        let in_sumi = ["desktop-buddy.exe", "desktop-buddy", "Desktop Buddy"]
-            .iter()
-            .any(|name| snapshot.process_name.eq_ignore_ascii_case(name));
+        let in_sumi = [
+            "sumi.exe",
+            "sumi",
+            "desktop-buddy.exe",
+            "desktop-buddy",
+            "Desktop Buddy",
+        ]
+        .iter()
+        .any(|name| snapshot.process_name.eq_ignore_ascii_case(name));
         let planning = inner
             .review_planning
             .as_ref()

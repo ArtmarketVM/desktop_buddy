@@ -1,3 +1,4 @@
+import { assetPrefix } from "./product-branding.mjs";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -21,7 +22,7 @@ export function verifyRetainedWindows(
   const platform = manifest.platforms?.["windows-x86_64"];
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version) || !platform)
     throw new Error("Invalid retained Windows manifest.");
-  const name = `Desktop.Buddy_${manifest.version}_x64-setup.exe`;
+  const name = `${assetPrefix(manifest.version)}_${manifest.version}_x64-setup.exe`;
   const expectedUrl = `https://github.com/ArtmarketVM/desktop_buddy/releases/download/v${manifest.version}/${name}`;
   if (platform.url !== expectedUrl)
     throw new Error("Windows updater must keep its pinned official URL.");

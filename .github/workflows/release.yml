@@ -76,7 +76,7 @@ jobs:
       - name: Publish one complete release without replacing existing assets
         run: |
           LATEST_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" node --input-type=module -e 'import {assertNewerRelease} from "./scripts/verify-release.mjs"; assertNewerRelease(process.env.RELEASE_TAG, process.env.LATEST_TAG);'
-          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "Desktop Buddy ${RELEASE_TAG#v}" --notes-file "docs/RELEASE_${RELEASE_TAG#v}.md"
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --title "sumi ${RELEASE_TAG#v}" --notes-file "docs/RELEASE_${RELEASE_TAG#v}.md"
           gh release upload "$RELEASE_TAG" release/* --repo "$GITHUB_REPOSITORY"
           LATEST_TAG="$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" node --input-type=module -e 'import {assertNewerRelease} from "./scripts/verify-release.mjs"; assertNewerRelease(process.env.RELEASE_TAG, process.env.LATEST_TAG);'
           gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest

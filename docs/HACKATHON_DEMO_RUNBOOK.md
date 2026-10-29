@@ -17,7 +17,7 @@ The new check uses the modern shared `AgentRuntime::handle_dialogue` entry, actu
 macOS, using the internally signed candidate binary:
 
 ```bash
-"/absolute/path/Desktop Buddy.app/Contents/MacOS/desktop-buddy" --check-hero
+"/absolute/path/sumi.app/Contents/MacOS/sumi" --check-hero
 ```
 
 Windows, using the current application binary:

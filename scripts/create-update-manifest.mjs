@@ -139,7 +139,7 @@ if (
   const channels = prepareChannels({
     manifest,
     bytes: readFileSync(
-      resolve(directory, `Desktop Buddy_${version}_x64-setup.exe`),
+      resolve(directory, `sumi_${version}_x64-setup.exe`),
     ),
     trust,
     history: JSON.parse(

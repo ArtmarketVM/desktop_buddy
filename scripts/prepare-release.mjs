@@ -8,7 +8,7 @@ import { checkPrivacySource } from "./check-privacy-source.mjs";
 export function validateNotes(text, version) {
   text = text.replaceAll("\r\n", "\n");
   if (
-    !text.startsWith(`# Desktop Buddy ${version}\n`) ||
+    !text.startsWith(`# sumi ${version}\n`) ||
     text.replace(/^#[^\n]*\n/, "").trim().length < 20 ||
     /\b(?:TODO|TBD|PLACEHOLDER)\b/.test(text)
   )

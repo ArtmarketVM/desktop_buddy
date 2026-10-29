@@ -19,7 +19,7 @@ function OnboardingChoices({ prompt, busy, respond }: Props) {
   const first = prompt.step_id === "step-0";
   const last = prompt.step_id === "step-2";
   const title = first
-    ? "Welcome to Sumi!"
+    ? "Welcome to sumi!"
     : last
       ? "You’re all set!"
       : "Your first goal is ready";
@@ -81,7 +81,7 @@ function Choices({ prompt, busy, respond, compactPreview = false }: Props) {
   );
   const [error, setError] = useState("");
   const title = {
-    onboarding_completion: "One more step with Sumi",
+    onboarding_completion: "One more step with sumi",
     automatic_completion: "You completed this work",
     unplanned_completed: "Add this to today’s completed work?",
     unplanned_work: "Add this work to Today?",

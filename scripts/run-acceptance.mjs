@@ -248,7 +248,7 @@ const cell = (text) =>
     .replaceAll("\n", " ");
 export function markdown(report) {
   const lines = [
-    "# Desktop Buddy automated acceptance report",
+    "# sumi automated acceptance report",
     "",
     `Version: ${report.version}. Source commit: ${report.commit}. Source tree: ${report.dirty ? "contains local changes" : "clean"}.`,
     `Platform: ${report.platform} ${report.architecture}; OS: ${report.osRelease}. Started: ${report.startedAt}.`,

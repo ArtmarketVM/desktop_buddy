@@ -1,4 +1,4 @@
-# Desktop Buddy
+# sumi
 
 A local-first desktop companion that helps you keep track of goals, return to unfinished work, and take the next useful step. Built with **Tauri 2, Rust, React/TypeScript and SQLite**, with cloud AI through **Nebius Token Factory** and web research through **Tavily**.
 
@@ -10,8 +10,8 @@ A local-first desktop companion that helps you keep track of goals, return to un
 
 | Platform | Installer                               | Support                    |
 | -------- | --------------------------------------- | -------------------------- |
-| Windows  | `Desktop.Buddy_<version>_x64-setup.exe` | Windows 10/11, x64         |
-| macOS    | `Desktop.Buddy_<version>_aarch64.dmg`   | Apple Silicon, macOS 14.5+ |
+| Windows  | `sumi_<version>_x64-setup.exe` | Windows 10/11, x64         |
+| macOS    | `sumi_<version>_aarch64.dmg`   | Apple Silicon, macOS 14.5+ |
 
 Intel and universal Mac installers are not supported. Both platforms ship under the same release version. The application checks GitHub Releases for updates and verifies trusted updater signatures before installation.
 
@@ -188,6 +188,6 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and the [demo runbook](docs
 
 ## License
 
-Desktop Buddy is available under the [MIT License](LICENSE), copyright 2026 ArtmarketVM and Desktop Buddy contributors.
+sumi is available under the [MIT License](LICENSE), copyright 2026 ArtmarketVM and sumi contributors.
 
 Third-party components retain their own licenses. See [third-party notices](THIRD_PARTY_NOTICES.md) and the bundled [Instrument Sans](docs/fonts/instrument-sans-LICENSE.txt) and [Silkscreen](docs/fonts/silkscreen-LICENSE.txt) font licenses. The project license does not replace the terms of external AI services or model licenses.

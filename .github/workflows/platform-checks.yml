@@ -164,6 +164,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           node scripts/create-update-manifest.mjs $env:RELEASE_TAG
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/test-windows-branding.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build and verify the signed Apple Silicon installer and update
         if: inputs.release && runner.os == 'macOS'
         env:

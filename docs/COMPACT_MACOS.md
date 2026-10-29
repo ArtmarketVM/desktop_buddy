@@ -16,7 +16,7 @@ npm run tauri -- build -- --locked
 
 Tauri automatically merges `src-tauri/tauri.macos.conf.json`. The configuration builds `.app` and `.dmg` bundles for macOS 14.5 or later, enables Buddy's transparent window and includes microphone/speech permission descriptions. The native speech bridge is compiled with the installed Apple SDK for the selected architecture. It has no additional Rust dependencies or runtime helper executable.
 
-The GitHub `macOS build` workflow tests and builds Apple Silicon and Intel separately. Download the matching `desktop-buddy-macos-apple-silicon` or `desktop-buddy-macos-intel` artifact, open its disk image and copy Desktop Buddy to Applications. CI artifacts use ad hoc signing; Developer ID signing and Apple notarization are not configured. Release builds use the existing independently trusted macOS updater key and `updates-macos-epoch-1.json` channel. The combined release manifest includes Apple Silicon and Intel archives. CI builds do not publish updates.
+Current releases contain only Apple Silicon macOS 14.5+ packages named `sumi_<version>_aarch64.*`, with `sumi.app` inside. They retain the reviewed internal app identity and independent updater signatures; Apple Developer ID signing and notarization are not provided. See `RELEASE_PROCESS.md` and `BRANDING.md` for the current combined Windows/macOS release and legacy-name migration.
 
 ## Local voice
 
@@ -35,7 +35,7 @@ The release build source is `2aa0879cfca4b9eb67930d03b7fbceb9179fb159`; macOS wo
 Manual checks on an installed Mac remain:
 
 1. Today, Chats, sidebar collapse and saved conversations after restarting the installed app.
-2. Transparent desktop Buddy, text/voice switching, dragging, restoring its position and fallback after disconnecting a monitor.
+2. Transparent desktop sumi, text/voice switching, dragging, restoring its position and fallback after disconnecting a monitor.
 3. Microphone and speech permissions granted and denied; English/Russian availability; short recording, mute, stop and closing while recording.
 4. Cmd + Enter in Chats, Enter in compact chat, and an editable transcript before sending.
 

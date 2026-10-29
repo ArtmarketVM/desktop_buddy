@@ -157,7 +157,7 @@ static NSString *addressBar(AXUIElementRef root, NSUInteger depth, NSUInteger *v
 char *buddy_foreground(bool metadata) {
     @autoreleasepool {
         if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
-        if (!buddy_accessibility(false)) return failure(@"Allow Desktop Buddy in System Settings > Privacy & Security > Accessibility, then resume tracking.");
+        if (!buddy_accessibility(false)) return failure(@"Allow sumi in System Settings > Privacy & Security > Accessibility, then resume tracking.");
         NSRunningApplication *application = NSWorkspace.sharedWorkspace.frontmostApplication;
         if (!application) return failure(@"No foreground application is available");
         pid_t pid = application.processIdentifier;
@@ -220,7 +220,7 @@ static CGRect elementFrame(AXUIElementRef element) {
 char *buddy_context(uint64_t identity, bool selected) {
     @autoreleasepool {
         if (!buddy_session_active()) return failure(@"Desktop session is inactive or locked");
-        if (!buddy_accessibility(false)) return failure(@"Allow Desktop Buddy in Accessibility settings, or paste the text into Buddy.");
+        if (!buddy_accessibility(false)) return failure(@"Allow sumi in Accessibility settings, or paste the text into sumi.");
         pid_t pid = (pid_t)(identity >> 32);
         if (NSWorkspace.sharedWorkspace.frontmostApplication.processIdentifier != pid) return failure(@"Screen context changed");
         AXUIElementRef window = focusedWindow(pid);
@@ -291,7 +291,7 @@ char *buddy_keychain(const char *account, const char *secret, int operation) {
         if (status == errSecSuccess) status = SecStaticCodeCheckValidity(code, kSecCSStrictValidate, requirement);
         if (requirement) CFRelease(requirement);
         if (code) CFRelease(code);
-        if (status != errSecSuccess) return failure(@"The signed credential helper is missing or invalid. Reinstall Desktop Buddy from the official release.");
+        if (status != errSecSuccess) return failure(@"The signed credential helper is missing or invalid. Reinstall sumi from the official release.");
         NSArray *operations = @[@"read", @"write", @"remove", @"exists"];
         if (operation < 0 || operation > 3) return failure(@"Invalid credential operation");
         NSMutableDictionary *request = [@{@"account":@(account), @"operation":operations[operation]} mutableCopy];
@@ -321,13 +321,13 @@ char *buddy_autostart(const char *executable, bool enabled) {
         NSString *path = [directory stringByAppendingPathComponent:@"com.artmarketvm.desktopbuddy.plist"];
         if (!enabled) {
             if (![NSFileManager.defaultManager fileExistsAtPath:path]) return json(NSNull.null);
-            return [NSFileManager.defaultManager removeItemAtPath:path error:nil] ? json(NSNull.null) : failure(@"Could not remove Desktop Buddy login startup");
+            return [NSFileManager.defaultManager removeItemAtPath:path error:nil] ? json(NSNull.null) : failure(@"Could not remove sumi login startup");
         }
         NSString *binary = @(executable);
-        if (![binary containsString:@".app/Contents/MacOS/"]) return failure(@"Move Desktop Buddy.app to Applications before enabling login startup");
+        if (![binary containsString:@".app/Contents/MacOS/"]) return failure(@"Move sumi.app to Applications before enabling login startup");
         NSDictionary *agent = @{@"Label": @"com.artmarketvm.desktopbuddy", @"ProgramArguments": @[binary, @"--background"], @"RunAtLoad": @YES, @"LimitLoadToSessionType": @"Aqua"};
         NSData *data = [NSPropertyListSerialization dataWithPropertyList:agent format:NSPropertyListXMLFormat_v1_0 options:0 error:nil];
-        if (![NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil] || ![data writeToFile:path atomically:YES]) return failure(@"Could not save Desktop Buddy login startup");
+        if (![NSFileManager.defaultManager createDirectoryAtPath:directory withIntermediateDirectories:YES attributes:nil error:nil] || ![data writeToFile:path atomically:YES]) return failure(@"Could not save sumi login startup");
         return json(NSNull.null);
     }
 }
@@ -370,7 +370,7 @@ char *buddy_transcribe(const unsigned char *audio, size_t length, const char *la
             });
             if (dispatch_semaphore_wait(permission, dispatch_time(DISPATCH_TIME_NOW, 30 * NSEC_PER_SEC)) != 0) return failure(@"Allow speech recognition in System Settings, then try again");
         }
-        if (authorization != SFSpeechRecognizerAuthorizationStatusAuthorized) return failure(@"Allow Desktop Buddy speech recognition in System Settings > Privacy & Security");
+        if (authorization != SFSpeechRecognizerAuthorizationStatusAuthorized) return failure(@"Allow sumi speech recognition in System Settings > Privacy & Security");
         NSString *choice = @(language);
         NSString *locale = [choice isEqualToString:@"ru"] ? @"ru-RU" : [choice isEqualToString:@"en"] ? @"en-US" : NSLocale.currentLocale.localeIdentifier;
         SFSpeechRecognizer *recognizer = [[SFSpeechRecognizer alloc] initWithLocale:[NSLocale localeWithLocaleIdentifier:locale]];

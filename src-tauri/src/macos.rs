@@ -49,7 +49,7 @@ fn decode<T: DeserializeOwned>(pointer: *mut c_char) -> Result<T, String> {
     let value: serde_json::Value =
         serde_json::from_slice(&bytes).map_err(|_| "Invalid macOS integration response")?;
     if let Some(error) = value.get("error").and_then(|v| v.as_str()) {
-        return Err(error.into());
+        return Err(error.replace("Desktop Buddy", "sumi"));
     }
     serde_json::from_value(value).map_err(|_| "Invalid macOS integration response".into())
 }

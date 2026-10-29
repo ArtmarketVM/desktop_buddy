@@ -1,3 +1,4 @@
+import { assetPrefix } from "./product-branding.mjs";
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -8,11 +9,11 @@ export function createMacManifest({ directory, version, tag, trust }) {
     throw new Error("Release tag must match the app version.");
   validateTrust(trust);
   const files = readdirSync(directory);
-  if (files.some((name) => /^Desktop\.Buddy_.*_x86_64\./.test(name)))
+  if (files.some((name) => /^(?:sumi|Desktop\.Buddy)_.*_x86_64\./.test(name)))
     throw new Error("Intel macOS release assets are not supported.");
   const platforms = {};
   for (const architecture of ["aarch64"]) {
-    const name = `Desktop.Buddy_${version}_${architecture}.app.tar.gz`;
+    const name = `${assetPrefix(version)}_${version}_${architecture}.app.tar.gz`;
     if (!files.includes(name)) continue;
     const bytes = readFileSync(resolve(directory, name));
     if (!bytes.length) throw new Error("The updater archive is empty.");

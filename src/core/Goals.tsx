@@ -420,7 +420,7 @@ export function GoalRow({
                 />
                 {snapshot.onboarding_goal_id === goal.id &&
                   step.id === "step-0" && (
-                    <small title="Fixed onboarding credit for installing and opening Sumi">
+                    <small title="Fixed onboarding credit for installing and opening sumi">
                       5 mins spent
                     </small>
                   )}
