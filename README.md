@@ -199,7 +199,7 @@ Use the [documentation index](docs/README.md) to distinguish current guides, imp
 
 ## Scope and limitations
 
-sumi is a bounded assistant with validated application skills, not an unrestricted desktop automation agent. Model authorization/review and source validation reduce errors but cannot guarantee human intent or factual correctness. Speech availability depends on the OS, installed languages and permissions. Background interventions require the application to be running and all applicable gates to allow them.
+sumi is a bounded assistant with validated application skills, not an unrestricted desktop automation agent. Model authorization/review and source validation reduce errors but cannot guarantee human intent or factual correctness. Local speech recognition requires downloaded Whisper weights, microphone permission and sufficient hardware resources; recording quality affects recognition. Background interventions require the application to be running and all applicable gates to allow them.
 
 Google/Apple Calendar integration, arbitrary application control and a vector database are not implemented. There is no model fine-tuning: personalization comes from permitted local memory, explicit preferences and feedback. The project does not promise ChatGPT-equivalent quality or completely autonomous completion of work.
 
