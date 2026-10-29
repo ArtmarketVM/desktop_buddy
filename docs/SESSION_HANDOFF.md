@@ -1,5 +1,13 @@
 # sumi session handoff
 
+## Official YouTube demo and temporary-media cleanup — 30 October 2026
+
+- User explicitly requested https://www.youtube.com/watch?v=4Vu0HkIB1gY, removal of the old MP4 from site/history/artifacts, and preservation of the old player dimensions. No Progress or other application code was changed.
+- Website gh-pages is now a clean single-root history at dc608c55302d9a36f4c0139fe4ba76d61b3a1141, replaced with an exact force-with-lease against the inspected old branch. Main/release histories are preserved. Current HTML has no video/source or MP4 fallback; YouTube loads on Play, and its Watch on YouTube link works independently. Updated JS/CSS URLs invalidate previous browser assets. The existing responsive 16:9 sizing remains.
+- Seven site tests passed. Pages deployment 40975773699 succeeded. Live YouTube playback was observed at 25 seconds with no media error; old MP4/poster public URLs return 404 and the privacy URL returns 200 matching source. Four old video-containing github-pages artifacts were deleted after verifying their exact branch/commit; current artifact 12941828172 is about 171 KB. Owned temporary media copies and the isolated site clone's unreachable video object were removed. GitHub-controlled unreachable-object/cache erasure is not guaranteed by branch/artifact deletion.
+- Future site work must fetch the rewritten gh-pages branch before editing; see docs/LANDING_PAGE.md. The former site commits referenced below are historical evidence, not the current branch lineage. Website maintenance does not require app builds/installers.
+
+
 ## GitHub Pages landing page — 30 October 2026
 
 - Owner authorized Pages publication with the supplied temporary MP4, then specified lowercase sumi, the exact English slogan, sky-blue highlights, a version-only note and the actual stretching animation.
