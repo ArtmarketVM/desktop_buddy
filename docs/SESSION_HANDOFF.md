@@ -1,5 +1,10 @@
 # sumi session handoff
 
+## Implementation guidelines — 4 November 2026
+
+- Added five implementation-decision rules to `AGENTS.md`: reuse existing code, trace shared callers and platform effects, prefer readable complete solutions, justify dependencies, and preserve safety guarantees when simplifying.
+- Documentation-only change on base `8bb081f`; reviewed the diff and passed `git diff --check`. Application tests, builds, and installers are not required.
+
 ## Official YouTube demo and temporary-media cleanup — 30 October 2026
 
 - User explicitly requested https://www.youtube.com/watch?v=4Vu0HkIB1gY, removal of the old MP4 from site/history/artifacts, and preservation of the old player dimensions. No Progress or other application code was changed.

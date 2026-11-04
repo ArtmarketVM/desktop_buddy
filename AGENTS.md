@@ -13,6 +13,14 @@
 
 - Follow `docs/UI_LAYOUT.md` for screen layout: one shared column, one title position, aligned right edges, shared callouts and switches.
 
+## Implementation decisions
+
+- Before adding code, look for an existing helper, component, service, or established pattern in the repository. Reuse it when it fits the task.
+- Before changing shared behavior, trace its callers and data flow. Check affected platform adapters, tests, fixtures, configuration, and exports.
+- Prefer the smallest complete solution that remains readable and follows the existing architecture. Do not optimize for line count.
+- Add a dependency only when existing code, installed dependencies, and platform APIs cannot reasonably solve the task. Explain the benefit.
+- When simplifying or moving code, preserve validation, error handling, privacy checks, accessibility, and platform-specific guarantees.
+
 ## Efficient execution
 
 - Start a new task with `docs/SESSION_HANDOFF.md`; consult detailed architecture/history only when relevant. Keep the handoff short, factual and free of credentials or full chat/tool transcripts.
